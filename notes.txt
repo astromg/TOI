@@ -13,6 +13,7 @@ tel.mnt.z ??
 tel.mnt.status = [slewing,tracking,ready]
 tel.mnt.focuser 
 tel.mnt.status = [moving,ready]
+tel.mnt.M3
 
 tel.dome.a
 tel.dome.status = [tracking,slewing,ready]
@@ -33,6 +34,10 @@ tel.instruments.filter = [V,I]
 tel.instrument.dit 
 tel.instrument.ccd_temp
 tel.instrument.telemetry
+tel.instrument.subraster
+tel.instrument.bin_x
+tel.instrument.bin_y
+tel.instrument.mode [fast,slow]
 
 # current object
 tel.object.id
