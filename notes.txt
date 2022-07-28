@@ -1,4 +1,5 @@
 
+
 # Telescope Controler
 tel.monitor.control = [oca_controler1,rc_paposo]
 
@@ -26,9 +27,12 @@ tel.perypheries.domefaltslights.encoder
 
 # instrument
 
-tel.instrument.status = [ready,]
+tel.instrument.status = [ready,done,exposing]
 tel.instruments.filter.status = [moving,ready]
 tel.instruments.filter = [V,I]
+tel.instrument.dit 
+tel.instrument.ccd_temp
+tel.instrument.telemetry
 
 # current object
 tel.object.id
@@ -60,7 +64,10 @@ tel.plan.object.flags = [ok,not_ready,not_exec,done,special]
 
 
 
+TCS <=> TIC <=> TOI
 
+TIC <- manual
+TIC <- program  
 
 
 
