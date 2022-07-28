@@ -1,0 +1,66 @@
+
+# Telescope Controler
+tel.monitor.control = [oca_controler1,rc_paposo]
+
+# Telescope Monitor
+
+tel.mnt.ra
+tel.mnt.dec
+tel.mnt.h
+tel.mnt.a
+tel.mnt.z ??
+tel.mnt.status = [slewing,tracking,ready]
+tel.mnt.focuser 
+tel.mnt.status = [moving,ready]
+
+tel.dome.a
+tel.dome.status = [tracking,slewing,ready]
+tel.dome.shutter = [open,close,moving]
+
+tel.perypheries.lights = [on,off]
+tel.perypheries.fan = [on,off]
+tel.perypheries.blinds = [on,off]
+
+tel.perypheries.domefaltslights.status = [on,off]
+tel.perypheries.domefaltslights.encoder 
+
+# instrument
+
+tel.instrument.status = [ready,]
+tel.instruments.filter.status = [moving,ready]
+tel.instruments.filter = [V,I]
+
+# current object
+tel.object.id
+tel.object.ra
+tel.object.dec
+tel.object.sequence
+tel.object.source = [manual,plan]
+
+# next object
+tel.next_object.id
+tel.next_object.ra
+tel.next_object.dec
+tel.next_object.sequence
+tel.object.source = [manual,plan]
+
+# Program
+
+tel.plan.id = unikalny identyfikator do porownywania wersji planu
+tel.plan.curent_i
+tel.plan.next_i 
+
+tel.plan.object.id = unikalny identyfikator obiektu
+tel.plan.object.sequence = {ra,dec,sequence}
+sequence = ndit * (filter,exp,ndit)
+tel.plan.object.flags = [guiding]
+tel.plan.object.flags = [ok,not_ready,not_exec,done,special]
+
+
+
+
+
+
+
+
+
