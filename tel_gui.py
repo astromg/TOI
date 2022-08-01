@@ -63,7 +63,8 @@ class TelGui(QWidget):
           self.mntCovers_c=QCheckBox("MIRROR: ")
           self.mntCovers_c.setChecked(False)
           #self.mntCovers_c.setStyleSheet("background-color: yellow")
-          self.mntCovers_c.setStyleSheet("QCheckBox::indicator:unchecked {image: url(./ToggleOn.png)}")
+          self.mntCovers_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOff.png)}::indicator:unchecked {image: url(./SwitchOn.png)}")
+
 
              
 
