@@ -18,42 +18,40 @@ from instrument_gui import *
 
 class Monitor(QtCore.QObject):
       finished = QtCore.pyqtSignal()
-      files_changed = QtCore.pyqtSignal()
       
-      def __init__(self,cwd, parent=None):
-          QtCore.QObject.__init__(self, parent=parent)
+      def __init__(self, parent):
+          self.parent=parent
+          QObject.__init__(self)
           self.continue_run = True
-          self.cwd=cwd
       def run(self):
-          i=0
-          old_lista_plikow=[]
           while self.continue_run:  # give the loop a stoppable condition
                 QtCore.QThread.sleep(1)
-                lista_plikow=os.listdir(self.cwd)
-                if old_lista_plikow != lista_plikow: 
-                   self.files_changed.emit()
-                old_lista_plikow=lista_plikow
+
+                quest="http://172.23.68.211:11111/api/v1/telescope/0/connected"
+                r=requests.get(quest)
+                r=r.json()
+                self.parent.conected = (r["Value"])
+
+                quest="http://172.23.68.211:11111/api/v1/telescope/0/azimuth"
+                r=requests.get(quest)
+                r=r.json()
+                self.parent.mnt_az = (r["Value"])
+
+                print(self.parent.mnt_az)
+                self.parent.mnt.update()
+
           self.finished.emit()  # emit the finished signal when the loop is done
 
       def stop(self):
           self.continue_run = False  # set the run condition to false on stop
 
-        # Monitor Thread:
-        self.thread = QtCore.QThread()
-        self.monitor = Monitor(self.cwd)
-        self.monitor.moveToThread(self.thread)
-        self.monitor.finished.connect(self.thread.quit)  # connect monitor finished signal to stop thread
-        self.monitor.finished.connect(self.monitor.deleteLater)  
-        self.thread.finished.connect(self.thread.deleteLater) 
-        self.thread.started.connect(self.monitor.run)
-        self.thread.finished.connect(self.monitor.stop)
-        self.thread.start()
 
 class TOI():
    def __init__(self,parent=None):
        super(TOI, self).__init__()
+       self.mnt_az="00"
 
-       self.run()
+
     
        self.mnt = MntGui(self)
        self.mnt.show()
@@ -73,19 +71,17 @@ class TOI():
        self.inst.show()
        self.inst.raise_() 
 
-   def run(self):
+       # Monitor Thread:
+       self.thread = QtCore.QThread()
+       self.monitor = Monitor(self)
+       self.monitor.moveToThread(self.thread)
+       self.monitor.finished.connect(self.thread.quit)  # connect monitor finished signal to stop thread
+       self.monitor.finished.connect(self.monitor.deleteLater)
+       self.thread.finished.connect(self.thread.deleteLater)
+       self.thread.started.connect(self.monitor.run)
+       self.thread.finished.connect(self.monitor.stop)
+       self.thread.start()
 
-       quest="http://172.23.68.211:11111/api/v1/telescope/0/connected"
-       r=requests.get(quest)
-       r=r.json()
-       self.conected = (r["Value"])
-
-       quest="http://172.23.68.211:11111/api/v1/telescope/0/azimuth"
-       r=requests.get(quest)
-       r=r.json()
-       self.mnt_az = (r["Value"])
-
-       print(self.mnt_az)
 
    def close(self):
        sys.exit()
