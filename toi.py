@@ -9,6 +9,8 @@ import sys
 from mnt_gui import *
 from tel_gui import *
 from sky_gui import *
+from mnt_manual_gui import *
+from instrument_gui import *
 
 
 class TOI():
@@ -24,6 +26,14 @@ class TOI():
        self.sky = SkyView()
        self.sky.show() 
        self.sky.raise_()  
+
+       self.mnt_manual = MntManualGui()
+       self.mnt_manual.show()
+       self.mnt_manual.raise_()  
+
+       self.inst = InstrumentGui()
+       self.inst.show()
+       self.inst.raise_() 
 
    def close(self):
        sys.exit()
