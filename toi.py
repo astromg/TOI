@@ -21,9 +21,9 @@ class TOI():
        self.tel = TelGui(self)
        self.tel.show()
        self.tel.raise_()     
-       #self.sky = SkyView()
-       #self.sky.show() 
-       #self.sky.raise_()  
+       self.sky = SkyView()
+       self.sky.show() 
+       self.sky.raise_()  
 
    def close(self):
        sys.exit()
