@@ -26,24 +26,28 @@ class Monitor(QtCore.QObject):
       def run(self):
           while self.continue_run:  # give the loop a stoppable condition
                 QtCore.QThread.sleep(1)
-
-                quest="http://172.23.68.211:11111/api/v1/telescope/0/connected"
-                r=requests.get(quest)
-                r=r.json()
-                self.parent.conected = (r["Value"])
-
-                quest="http://172.23.68.211:11111/api/v1/telescope/0/azimuth"
-                r=requests.get(quest)
-                r=r.json()
-                self.parent.mnt_az = "%.4f"%r["Value"]
-
-                quest="http://172.23.68.211:11111/api/v1/telescope/0/altitude"
-                r=requests.get(quest)
-                r=r.json()
-                self.parent.mnt_alt = "%.4f"%r["Value"]
-
-                #print(self.parent.mnt_az)
-                self.parent.mnt.update()
+                ok=True
+                try:
+                   quest="http://172.23.68.211:11111/api/v1/telescope/0/connected"
+                   r=requests.get(quest)
+                   r=r.json()
+                   self.parent.conected = (r["Value"])
+                except: 
+                   ok=False 
+                   print("no connection")
+                if ok:       
+                   quest="http://172.23.68.211:11111/api/v1/telescope/0/azimuth"
+                   r=requests.get(quest)
+                   r=r.json()
+                   self.parent.mnt_az = "%.4f"%r["Value"]
+   
+                   quest="http://172.23.68.211:11111/api/v1/telescope/0/altitude"
+                   r=requests.get(quest)
+                   r=r.json()
+                   self.parent.mnt_alt = "%.4f"%r["Value"]
+   
+                   #print(self.parent.mnt_az)
+                   self.parent.mnt.update()
 
           self.finished.emit()  # emit the finished signal when the loop is done
 
