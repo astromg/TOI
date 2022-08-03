@@ -1,5 +1,60 @@
 
 
+
+
+quest="http://172.23.33.21:11111/api/v1/telescope/0/park"
+r=requests.put(quest)
+print(r.text)
+
+
+
+quest="http://172.23.68.211:11111/api/v1/telescope/0/connected"
+r=requests.get(quest)
+print(r.text)
+
+quest="http://172.23.68.211:11111/api/v1/telescope/0/canpark"
+r=requests.get(quest)
+print(r.text)
+
+quest="http://172.23.68.211:11111/api/v1/telescope/0/tracking"
+r=requests.get(quest)
+print(r.text)
+
+quest="http://172.23.68.211:11111/api/v1/telescope/0/declination"
+r=requests.get(quest)
+print(r.text)
+
+quest="http://172.23.68.211:11111/api/v1/telescope/0/azimuth"
+r=requests.get(quest)
+print(r.text)
+
+quest="http://172.23.68.211:11111/api/v1/telescope/0/altitude"
+r=requests.get(quest)
+print(r.text)
+
+quest="http://172.23.68.211:11111/api/v1/telescope/0/slewing"
+r=requests.get(quest)
+print(r.text)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Telescope Controler
 tel.monitor.control = [oca_controler1,rc_paposo]
 
