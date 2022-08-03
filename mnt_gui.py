@@ -19,7 +19,7 @@ class MntGui(QWidget):
           
           self.mkUI()
 
-          self.mntStat_e.setText("La Silla / HARPS")  
+
           
         # =================== OKNO GLOWNE ====================================
       def mkUI(self):
@@ -28,14 +28,6 @@ class MntGui(QWidget):
           #self.setWindowIcon(QtGui.QIcon('icon.png'))  
           
 
-          
-          self.mntStat_l=QLabel("TELESCOPE STATUS: ")
-          self.mntStat_e=QLineEdit() 
-          self.mntStat_e.setReadOnly(True)
-
-          self.mntUt_l=QLabel("UT: ")
-          self.mntUt_e=QLineEdit() 
-          self.mntUt_e.setReadOnly(True)    
 
           self.mntRa_l=QLabel("TELESCOPE RA: ")
           self.mntRa_e=QLineEdit() 
@@ -57,23 +49,13 @@ class MntGui(QWidget):
           self.mntAirmass_e=QLineEdit() 
           self.mntAirmass_e.setReadOnly(True)                  
 
-          self.mntCovers_l=QLabel("MIRROR: ")
-          self.mntCovers_e=QLineEdit() 
-          self.mntCovers_e.setReadOnly(True)   
         
           # dome
-
-          self.domeStat_l=QLabel("DOME STATUS: ")
-          self.domeStat_e=QLineEdit() 
-          self.domeStat_e.setReadOnly(True)
 
           self.domeAz_l=QLabel("DOME AZ: ")
           self.domeAz_e=QLineEdit() 
           self.domeAz_e.setReadOnly(True)         
-
-          self.domeShutter_l=QLabel("DOME SHUTTER: ")
-          self.domeShutter_e=QLineEdit() 
-          self.domeShutter_e.setReadOnly(True)                         
+                       
         
           # peripheries
           
@@ -93,48 +75,29 @@ class MntGui(QWidget):
           grid = QGridLayout()              
 
           w=0   
-          grid.addWidget(self.mntStat_l, w,0)
-          grid.addWidget(self.mntStat_e, w,1)
-
-          #w=w+1          
-          #grid.addWidget(self.mntUt_l, w,0)
-          #grid.addWidget(self.mntUt_e, w,1)
-          
-          w=w+1          
+ 
           grid.addWidget(self.mntRa_l, w,0)
           grid.addWidget(self.mntRa_e, w,1)
 
+          grid.addWidget(self.mntDec_l, w,2)
+          grid.addWidget(self.mntDec_e, w,3) 
+
+
           w=w+1          
-          grid.addWidget(self.mntDec_l, w,0)
-          grid.addWidget(self.mntDec_e, w,1)
- 
-          w=w+1          
+
           grid.addWidget(self.mntAz_l, w,0)
-          grid.addWidget(self.mntAz_e, w,1)
+          grid.addWidget(self.mntAz_e, w,1)      
+      
+          grid.addWidget(self.mntAlt_l, w,2)
+          grid.addWidget(self.mntAlt_e, w,3)
 
           w=w+1          
-          grid.addWidget(self.mntAlt_l, w,0)
-          grid.addWidget(self.mntAlt_e, w,1)
-
-          w=w+1          
-          grid.addWidget(self.mntAirmass_l, w,0)
-          grid.addWidget(self.mntAirmass_e, w,1)
-
-          #w=w+1          
-          #grid.addWidget(self.mntCovers_l, w,0)
-          #grid.addWidget(self.mntCovers_e, w,1)
-
-          w=w+1          
-          grid.addWidget(self.domeStat_l, w,0)
-          grid.addWidget(self.domeStat_e, w,1)            
-          
-          w=w+1          
+     
           grid.addWidget(self.domeAz_l, w,0)
           grid.addWidget(self.domeAz_e, w,1)
 
-          #w=w+1          
-          #grid.addWidget(self.domeShutter_l, w,0)
-          #grid.addWidget(self.domeShutter_e, w,1)
+          grid.addWidget(self.mntAirmass_l, w,2)
+          grid.addWidget(self.mntAirmass_e, w,3)
 
           w=w+1          
           grid.addWidget(self.telFocus_l, w,0)
