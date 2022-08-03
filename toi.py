@@ -16,6 +16,38 @@ from sky_gui import *
 from mnt_manual_gui import *
 from instrument_gui import *
 
+class Monitor(QtCore.QObject):
+      finished = QtCore.pyqtSignal()
+      files_changed = QtCore.pyqtSignal()
+      
+      def __init__(self,cwd, parent=None):
+          QtCore.QObject.__init__(self, parent=parent)
+          self.continue_run = True
+          self.cwd=cwd
+      def run(self):
+          i=0
+          old_lista_plikow=[]
+          while self.continue_run:  # give the loop a stoppable condition
+                QtCore.QThread.sleep(1)
+                lista_plikow=os.listdir(self.cwd)
+                if old_lista_plikow != lista_plikow: 
+                   self.files_changed.emit()
+                old_lista_plikow=lista_plikow
+          self.finished.emit()  # emit the finished signal when the loop is done
+
+      def stop(self):
+          self.continue_run = False  # set the run condition to false on stop
+
+        # Monitor Thread:
+        self.thread = QtCore.QThread()
+        self.monitor = Monitor(self.cwd)
+        self.monitor.moveToThread(self.thread)
+        self.monitor.finished.connect(self.thread.quit)  # connect monitor finished signal to stop thread
+        self.monitor.finished.connect(self.monitor.deleteLater)  
+        self.thread.finished.connect(self.thread.deleteLater) 
+        self.thread.started.connect(self.monitor.run)
+        self.thread.finished.connect(self.monitor.stop)
+        self.thread.start()
 
 class TOI():
    def __init__(self,parent=None):
