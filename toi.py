@@ -35,9 +35,14 @@ class Monitor(QtCore.QObject):
                 quest="http://172.23.68.211:11111/api/v1/telescope/0/azimuth"
                 r=requests.get(quest)
                 r=r.json()
-                self.parent.mnt_az = (r["Value"])
+                self.parent.mnt_az = "%.4f"%r["Value"]
 
-                print(self.parent.mnt_az)
+                quest="http://172.23.68.211:11111/api/v1/telescope/0/altitude"
+                r=requests.get(quest)
+                r=r.json()
+                self.parent.mnt_alt = "%.4f"%r["Value"]
+
+                #print(self.parent.mnt_az)
                 self.parent.mnt.update()
 
           self.finished.emit()  # emit the finished signal when the loop is done
@@ -49,8 +54,8 @@ class Monitor(QtCore.QObject):
 class TOI():
    def __init__(self,parent=None):
        super(TOI, self).__init__()
-       self.mnt_az="00"
-
+       self.mnt_az="unknown"
+       self.mnt_alt="unknown"
 
     
        self.mnt = MntGui(self)

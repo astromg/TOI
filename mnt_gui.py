@@ -21,8 +21,8 @@ class MntGui(QWidget):
           self.update()
 
       def update(self):
-          self.mntAz_e.setText(str(self.parent.mnt_az))
-
+          self.mntAz_e.setText(self.parent.mnt_az)
+          self.mntAlt_e.setText(self.parent.mnt_alt)
           
         # =================== OKNO GLOWNE ====================================
       def mkUI(self):
