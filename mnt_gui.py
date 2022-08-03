@@ -12,12 +12,16 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox
 
 
 class MntGui(QWidget):
-      def __init__(self, parent=None):
+      def __init__(self, parent):
           super(MntGui, self).__init__()
-          
+          self.parent=parent
           self.font =  QtGui.QFont( "Arial", 11)
           
           self.mkUI()
+          self.update()
+
+      def update(self):
+          self.mntAz_e.setText(str(self.parent.mnt_az))
 
 
           
