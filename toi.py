@@ -13,7 +13,7 @@ import requests
 from mnt_gui import *
 from tel_gui import *
 from sky_gui import *
-from mnt_manual_gui import *
+from pery_gui import *
 from instrument_gui import *
 
 class Monitor(QtCore.QObject):
@@ -36,6 +36,17 @@ class Monitor(QtCore.QObject):
                    ok=False 
                    print("no connection")
                 if ok:       
+
+                   quest="http://172.23.68.211:11111/api/v1/telescope/0/rightascension"
+                   r=requests.get(quest)
+                   r=r.json()
+                   self.parent.mnt_ra = "%.4f"%r["Value"]
+                   
+                   quest="http://172.23.68.211:11111/api/v1/telescope/0/declination"
+                   r=requests.get(quest)
+                   r=r.json()
+                   self.parent.mnt_dec = "%.4f"%r["Value"]                                      
+
                    quest="http://172.23.68.211:11111/api/v1/telescope/0/azimuth"
                    r=requests.get(quest)
                    r=r.json()
@@ -46,8 +57,16 @@ class Monitor(QtCore.QObject):
                    r=r.json()
                    self.parent.mnt_alt = "%.4f"%r["Value"]
    
+   
+                   quest="http://172.23.68.211:11111/api/v1/telescope/0/tracking"
+                   r=requests.get(quest)
+                   r=r.json()
+                   self.parent.mnt_trac = r["Value"]  
+   
+   
                    #print(self.parent.mnt_az)
                    self.parent.mnt.update()
+
 
           self.finished.emit()  # emit the finished signal when the loop is done
 
@@ -65,6 +84,11 @@ class TOI():
        self.mnt = MntGui(self)
        self.mnt.show()
        self.mnt.raise_()     
+       
+       self.pery = PeryphericalGui(self)
+       self.pery.show()
+       self.pery.raise_()
+       
        self.tel = TelGui(self)
        self.tel.show()
        self.tel.raise_()     
@@ -72,9 +96,6 @@ class TOI():
        self.sky.show() 
        self.sky.raise_()  
 
-       self.mnt_manual = MntManualGui()
-       self.mnt_manual.show()
-       self.mnt_manual.raise_()  
 
        self.inst = InstrumentGui()
        self.inst.show()
