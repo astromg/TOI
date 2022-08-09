@@ -50,18 +50,18 @@ class Monitor(QtCore.QObject):
                    r=requests.get(quest)
                    r=r.json()
                    self.parent.mnt_park = r["Value"]
-                   print(r)
+                   #print(r)
 
                    quest="http://172.23.68.211:11111/api/v1/telescope/0/slewing"
                    r=requests.get(quest)
                    r=r.json()
                    self.parent.mnt_slewing = r["Value"] 
-                   print(r)
+                   #print(r)
 
-                   quest="http://172.23.68.211:11111/api/v1/telescope/0/slewing"
-                   r=requests.get(quest)
-                   r=r.json()
-                   print(r)
+                   #quest="http://172.23.68.211:11111/api/v1/telescope/0/"
+                   #r=requests.get(quest)
+                   #r=r.json()
+                   #print(r["Value"])
 
 
 
@@ -89,9 +89,9 @@ class Monitor(QtCore.QObject):
    
 
    
-   
+                self.parent.connection_ok=False   
                    #print(self.parent.mnt_az)
-                   self.parent.mnt.update()
+                self.parent.mnt.update()
 
 
           self.finished.emit()  # emit the finished signal when the loop is done
