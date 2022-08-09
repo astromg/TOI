@@ -23,6 +23,26 @@ class MntGui(QWidget):
 
 
       def update(self):
+          if self.parent.connection_ok: 
+             self.mntConn1_l.setText("CONNECTED") 
+             self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20,20))
+          else:
+             self.mntConn1_l.setText("NO CONNECTION") 
+             self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20,20))
+          
+          
+          txt=""
+          if self.parent.mnt_slewing:
+             txt= txt+" SLEWING" 
+          if self.parent.mnt_trac:
+             txt=txt+" TRACKING" 
+          if self.parent.mnt_park:
+             txt=txt+" PARKED"           
+          
+          self.mntStat_e.setText(txt)
+          
+          
+          
           self.mntAz_e.setText(self.parent.mnt_az)
           self.mntAlt_e.setText(self.parent.mnt_alt)
           self.mntRa_e.setText(self.parent.mnt_ra)
@@ -169,6 +189,26 @@ class MntGui(QWidget):
           grid = QGridLayout()              
 
           w=0   
+          self.mntConn1_l=QLabel("CONNECTED") 
+          self.mntConn2_l=QLabel(" ")
+          self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20,20)) 
+          
+          self.ticControler_l=QLabel("CONTROLER: ")
+          
+          self.ticControler_e=QLineEdit() 
+          self.ticControler_e.setReadOnly(True)
+          self.ticControler_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+          
+          self.ticControler_p=QPushButton('TAKE CONTROLL')
+          
+          grid.addWidget(self.mntConn1_l, w,0)
+          grid.addWidget(self.mntConn2_l, w,1)
+          grid.addWidget(self.ticControler_l, w,3)
+          grid.addWidget(self.ticControler_e, w,4)
+          grid.addWidget(self.ticControler_p, w,5)
+          
+          
+          w=w+1
           grid.addWidget(self.mntStat_l, w,0)
           grid.addWidget(self.mntStat_e, w,1,1,5)
 

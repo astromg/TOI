@@ -26,16 +26,43 @@ class Monitor(QtCore.QObject):
       def run(self):
           while self.continue_run:  # give the loop a stoppable condition
                 QtCore.QThread.sleep(1)
-                ok=True
+                self.parent.connection_ok=False
                 try:
                    quest="http://172.23.68.211:11111/api/v1/telescope/0/connected"
                    r=requests.get(quest)
                    r=r.json()
                    self.parent.conected = (r["Value"])
+                   self.parent.connection_ok=True
                 except: 
                    ok=False 
                    print("no connection")
-                if ok:       
+                   self.parent.connection_ok=False
+                if self.parent.connection_ok:       
+
+
+                   quest="http://172.23.68.211:11111/api/v1/telescope/0/tracking"
+                   r=requests.get(quest)
+                   r=r.json()
+                   self.parent.mnt_trac = r["Value"]  
+
+                   
+                   quest="http://172.23.68.211:11111/api/v1/telescope/0/atpark"
+                   r=requests.get(quest)
+                   r=r.json()
+                   self.parent.mnt_park = r["Value"]                     
+
+                   quest="http://172.23.68.211:11111/api/v1/telescope/0/slewing"
+                   r=requests.get(quest)
+                   r=r.json()
+                   self.parent.mnt_slewing = r["Value"] 
+
+                   #quest="http://172.23.68.211:11111/api/v1/telescope/0/"
+                   #r=requests.get(quest)
+                   #r=r.json()
+                   #print(r)
+                   #self.parent.mnt_trac = r["Value"]  
+
+
 
                    quest="http://172.23.68.211:11111/api/v1/telescope/0/rightascension"
                    r=requests.get(quest)
@@ -58,10 +85,7 @@ class Monitor(QtCore.QObject):
                    self.parent.mnt_alt = "%.4f"%r["Value"]
    
    
-                   quest="http://172.23.68.211:11111/api/v1/telescope/0/tracking"
-                   r=requests.get(quest)
-                   r=r.json()
-                   self.parent.mnt_trac = r["Value"]  
+
    
    
                    #print(self.parent.mnt_az)
