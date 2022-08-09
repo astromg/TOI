@@ -88,10 +88,10 @@ class Monitor(QtCore.QObject):
    
    
 
-   
-                self.parent.connection_ok=False   
-                   #print(self.parent.mnt_az)
+
                 self.parent.mnt.update()
+                   #print(self.parent.mnt_az)
+
 
 
           self.finished.emit()  # emit the finished signal when the loop is done
