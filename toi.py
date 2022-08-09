@@ -49,18 +49,20 @@ class Monitor(QtCore.QObject):
                    quest="http://172.23.68.211:11111/api/v1/telescope/0/atpark"
                    r=requests.get(quest)
                    r=r.json()
-                   self.parent.mnt_park = r["Value"]                     
+                   self.parent.mnt_park = r["Value"]
+                   print(r)
 
                    quest="http://172.23.68.211:11111/api/v1/telescope/0/slewing"
                    r=requests.get(quest)
                    r=r.json()
                    self.parent.mnt_slewing = r["Value"] 
+                   print(r)
 
-                   #quest="http://172.23.68.211:11111/api/v1/telescope/0/"
-                   #r=requests.get(quest)
-                   #r=r.json()
-                   #print(r)
-                   #self.parent.mnt_trac = r["Value"]  
+                   quest="http://172.23.68.211:11111/api/v1/telescope/0/slewing"
+                   r=requests.get(quest)
+                   r=r.json()
+                   print(r)
+
 
 
 
