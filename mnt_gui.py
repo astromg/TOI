@@ -6,10 +6,11 @@
 #----------------
 
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QRadioButton
 
 from PyQt5.QtCore import * 
 
+import requests
 
 
 class MntGui(QWidget):
@@ -17,12 +18,95 @@ class MntGui(QWidget):
           super(MntGui, self).__init__()
           self.parent=parent
           self.font =  QtGui.QFont( "Arial", 11)
-          
+          self.red=QtCore.Qt.darkRed
+          self.green=QtCore.Qt.darkGreen
+          self.yellow=QtCore.Qt.darkYellow
+          self.black=QtCore.Qt.black
+
           self.mkUI()
           #self.update()
+          self.telPark_p.clicked.connect(self.park)
+          self.Slew_p.clicked.connect(self.slew)
+          self.tracking_c.clicked.connect(self.tracking)
+          self.mntStop_p.clicked.connect(self.mnt_stop)
+
+          self.setEq_r.toggled.connect(self.update)
+          self.setAltAz_r.toggled.connect(self.update)
+          self.parent.monitor.ding.connect(self.update)
+
+
+      def park(self):
+          quest="http://172.23.68.211:11111/api/v1/telescope/0/park"
+          r=requests.put(quest)
+          print(r.text)
+
+      def slew(self):
+          if self.setEq_r.isChecked():
+             print("Eq")
+             ra=self.nextRa_e.text()
+             dec=self.nextDec_e.text()
+             data={"RightAscension":ra,"Declination":dec}
+             quest="http://172.23.68.211:11111/api/v1/telescope/0/slewtocoordinatesasync"
+             r=requests.put(quest,data=data)
+             print(r.text)
+          if self.setAltAz_r.isChecked():
+             print("Az")
+             az=self.nextAz_e.text()
+             alt=self.nextAlt_e.text()
+             data={"Azimuth":az,"Altitude":alt}
+             quest="http://172.23.68.211:11111/api/v1/telescope/0/slewtoaltazasync"
+             r=requests.put(quest,data=data)
+             print(r.text)
+
+
+      def tracking(self):
+          self.parent.monitor.sleep_time=2
+          if self.tracking_c.isChecked():
+             data={"Tracking":"true"}
+             quest="http://172.23.68.211:11111/api/v1/telescope/0/tracking"
+             r=requests.put(quest,data=data)
+             print(r.text)
+          else:
+             data={"Tracking":"false"}
+             quest="http://172.23.68.211:11111/api/v1/telescope/0/tracking"
+             r=requests.put(quest,data=data)
+             print(r.text)
+          #self.parent.monitor.check()
+          self.parent.monitor.sleep_time=1
+
+      def mnt_stop(self):
+          data={"Tracking":"false"}
+          quest="http://172.23.68.211:11111/api/v1/telescope/0/tracking"
+          r=requests.put(quest,data=data)
+          print(r.text)
+          quest="http://172.23.68.211:11111/api/v1/telescope/0/abortslew"
+          r=requests.put(quest)
+          print(r.text)
 
 
       def update(self):
+
+          if self.setEq_r.isChecked():
+             self.nextAz_e.setReadOnly(True)
+             self.nextAz_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+             self.nextAlt_e.setReadOnly(True)
+             self.nextAlt_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+             self.nextRa_e.setReadOnly(False)
+             self.nextRa_e.setStyleSheet("background-color: white;")
+             self.nextDec_e.setReadOnly(False)
+             self.nextDec_e.setStyleSheet("background-color: white;")
+
+          if self.setAltAz_r.isChecked():
+             self.nextAz_e.setReadOnly(False)
+             self.nextAz_e.setStyleSheet("background-color: white;")
+             self.nextAlt_e.setReadOnly(False)
+             self.nextAlt_e.setStyleSheet("background-color: white;")
+             self.nextRa_e.setReadOnly(True)
+             self.nextRa_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+             self.nextDec_e.setReadOnly(True)
+             self.nextDec_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+
+
           if self.parent.connection_ok: 
              self.mntConn1_l.setText("CONNECTED") 
              self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20,20))
@@ -34,14 +118,19 @@ class MntGui(QWidget):
           txt=""
           if self.parent.mnt_slewing:
              txt= txt+" SLEWING" 
+             style="background-color: yellow;"
+          else: style="background-color: rgb(233, 233, 233);"
           if self.parent.mnt_trac:
              txt=txt+" TRACKING" 
+             style=style+" color: green;"
+          else: style=style+" color: black;"
           if self.parent.mnt_park:
              txt=txt+" PARKED"           
           
           self.mntStat_e.setText(txt)
-          
-          
+          self.mntStat_e.setStyleSheet(style)
+
+
           
           self.mntAz_e.setText(self.parent.mnt_az)
           self.mntAlt_e.setText(self.parent.mnt_alt)
@@ -61,6 +150,11 @@ class MntGui(QWidget):
           self.mntStat_e=QLineEdit()           
           self.mntStat_e.setReadOnly(True)
           self.mntStat_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+
+          self.setEq_r=QRadioButton("")
+          self.setEq_r.setChecked(True)
+          self.setAltAz_r=QRadioButton("")
+
 
           self.mntRa_l=QLabel("TELESCOPE RA: ")
           self.mntRa_e=QLineEdit() 
@@ -123,7 +217,6 @@ class MntGui(QWidget):
           self.domeAuto_c=QCheckBox("AUTO: ")
           self.domeAuto_c.setChecked(True)
           self.domeAuto_c.setLayoutDirection(Qt.RightToLeft)
-          #self.mntCovers_c.setStyleSheet("background-color: yellow")
           self.domeAuto_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
 
           self.domeAz_l=QLabel("DOME AZ: ")
@@ -220,6 +313,8 @@ class MntGui(QWidget):
           grid.addWidget(self.mntDec_l, w,3)
           grid.addWidget(self.mntDec_e, w,4) 
           grid.addWidget(self.nextDec_e, w,5)
+          grid.addWidget(self.setEq_r, w,6)
+
           
           w=w+1          
 
@@ -230,6 +325,7 @@ class MntGui(QWidget):
           grid.addWidget(self.mntAlt_l, w,3)
           grid.addWidget(self.mntAlt_e, w,4)
           grid.addWidget(self.nextAlt_e, w,5)
+          grid.addWidget(self.setAltAz_r, w,6)
           
           w=w+1
           
@@ -293,7 +389,8 @@ class MntGui(QWidget):
           self.domeShutter_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
 
           self.domeShutter_e=QLineEdit() 
-          self.domeShutter_e.setReadOnly(True)                         
+          self.domeShutter_e.setReadOnly(True)
+          self.domeShutter_e.setStyleSheet("background-color: rgb(233, 233, 233);")
         
           self.domeLights_l=QLabel("DOME LIGHTS: ")
           self.domeLights_c=QCheckBox("")
@@ -302,7 +399,8 @@ class MntGui(QWidget):
           self.domeLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
       
           self.domeLights_e=QLineEdit() 
-          self.domeLights_e.setReadOnly(True)   
+          self.domeLights_e.setReadOnly(True)
+          self.domeLights_e.setStyleSheet("background-color: rgb(233, 233, 233);")
 
           w=w+1          
           grid.addWidget(self.domeShutter_l, w,0)
