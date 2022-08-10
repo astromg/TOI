@@ -52,10 +52,10 @@ class SkyView(QWidget):
 
 
    def update(self):    
+       self.axes.clear()
        try:
           self.tel_az=2*math.pi*float(self.parent.mnt_az)/360.
           self.tel_alt=90.-float(self.parent.mnt_alt)
-          self.axes.clear()
           self.axes.plot(self.tel_az,self.tel_alt,"or",alpha=0.5)
        except: pass
        
