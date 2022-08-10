@@ -293,7 +293,8 @@ class MntGui(QWidget):
           self.domeShutter_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
 
           self.domeShutter_e=QLineEdit() 
-          self.domeShutter_e.setReadOnly(True)                         
+          self.domeShutter_e.setReadOnly(True)      
+          self.domeShutter_e.setStyleSheet("background-color: rgb(233, 233, 233);")
         
           self.domeLights_l=QLabel("DOME LIGHTS: ")
           self.domeLights_c=QCheckBox("")
@@ -303,6 +304,7 @@ class MntGui(QWidget):
       
           self.domeLights_e=QLineEdit() 
           self.domeLights_e.setReadOnly(True)   
+          self.domeLights_e.setStyleSheet("background-color: rgb(233, 233, 233);")
 
           w=w+1          
           grid.addWidget(self.domeShutter_l, w,0)
