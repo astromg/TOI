@@ -15,10 +15,13 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 class SkyView(QWidget):
-   def __init__(self):
+   def __init__(self,parent):
        QWidget.__init__(self)
-   
+       self.parent=parent 
        self.mkUI()
+    
+       self.tel_az=5
+       self.tel_alt=90
     
        self.a=[]
        self.h=[]
@@ -44,8 +47,38 @@ class SkyView(QWidget):
        self.log_alh=[0.5,0.5,0.5]
 
 
-    
        self.update()
+       self.parent.monitor.ding.connect(self.update)
+
+
+   def update(self):    
+       try:
+          self.tel_az=2*math.pi*float(self.parent.mnt_az)/360.
+          self.tel_alt=90.-float(self.parent.mnt_alt)
+          self.axes.clear()
+          self.axes.plot(self.tel_az,self.tel_alt,"or",alpha=0.5)
+       except: pass
+       
+       #if len(self.a)>0:      
+       #   for h,a,s,al in zip(self.h,self.a,self.symbol,self.alpha):
+       #       a=2*math.pi*a/360.  
+       #       self.axes.plot(a, h,str(s),alpha=al)  
+       #       self.axes.bar(230,5, width=0.2*math.pi,bottom=90,color='g',alpha=0.05)
+
+
+       self.axes.set_theta_direction(-1)
+       self.axes.set_theta_zero_location('N')       
+       self.axes.set_ylim([0,360])
+       self.axes.set_rlim([0,30])       
+       self.axes.set_xticks([0,2*3.14*90/360,2*3.14*180/360,2*3.14*270/360])  
+       self.axes.set_xticklabels(["N","E","S","W"])
+       self.axes.set_rmax(self.rmax)         
+       self.axes.set_rticks([20,40,60,90])  
+       self.axes.set_yticklabels(["","","",""])  
+       self.axes.bar(0,self.rmax-90, width=2*math.pi,bottom=90,color='k',alpha=0.05)  #tutaj zmienia sie pasek ponizej horyzoontu
+   
+       self.canvas.draw()
+       self.show()    
     
 # ======= Budowa okna ====================
 
@@ -77,28 +110,7 @@ class SkyView(QWidget):
           
 
      
-   def update(self):    
-       self.axes.clear()
-       if len(self.a)>0:      
-          for h,a,s,al in zip(self.h,self.a,self.symbol,self.alpha):
-              a=2*math.pi*a/360.  
-              self.axes.plot(a, h,str(s),alpha=al)  
-              self.axes.bar(230,5, width=0.2*math.pi,bottom=90,color='g',alpha=0.05)
-
-
-       self.axes.set_theta_direction(-1)
-       self.axes.set_theta_zero_location('N')       
-       self.axes.set_ylim([0,360])
-       self.axes.set_rlim([0,30])       
-       self.axes.set_xticks([0,2*3.14*90/360,2*3.14*180/360,2*3.14*270/360])  
-       self.axes.set_xticklabels(["N","E","S","W"])
-       self.axes.set_rmax(self.rmax)         
-       self.axes.set_rticks([20,40,60,90])  
-       self.axes.set_yticklabels(["","","",""])  
-       self.axes.bar(0,self.rmax-90, width=2*math.pi,bottom=90,color='k',alpha=0.05)  #tutaj zmienia sie pasek ponizej horyzoontu
    
-       self.canvas.draw()
-       self.show()       
    
 #  ============ Klikanie w punkciki ==========================
    

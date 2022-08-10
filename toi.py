@@ -135,7 +135,8 @@ class TOI():
        self.tel = TelGui(self)
        self.tel.show()
        self.tel.raise_()     
-       self.sky = SkyView()
+       
+       self.sky = SkyView(self)
        self.sky.show() 
        self.sky.raise_()  
 
