@@ -120,6 +120,8 @@ class TOI():
        self.thread.start()
 
 
+       self.observatory=("48.3","14.28","1000")
+
        self.mnt_az="unknown"
        self.mnt_alt="unknown"
 

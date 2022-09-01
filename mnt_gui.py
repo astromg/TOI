@@ -10,7 +10,12 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox
 
 from PyQt5.QtCore import * 
 
+from astropy.coordinates import EarthLocation as apEarthLocation
+from astropy.coordinates import SkyCoord as apSkyCoord
+from astropy.time import Time as apTime
+from astropy.coordinates import AltAz as apAltAz
 import requests
+
 
 
 class MntGui(QWidget):
@@ -33,6 +38,20 @@ class MntGui(QWidget):
           self.setEq_r.toggled.connect(self.update)
           self.setAltAz_r.toggled.connect(self.update)
           self.parent.monitor.ding.connect(self.update)
+          self.nextRa_e.editingFinished.connect(self.updateNextRaDec)
+
+      def updateNextRaDec(self):
+          ra = float(self.nextRa_e.text())*15.
+          dec= self.nextDec_e.text()
+          if True:
+             obs_loc=apEarthLocation(lat=self.parent.observatory[0], lon=self.parent.observatory[1], height=float(self.parent.observatory[2]))
+             obs_time=apTime.now()
+             obs_now = apAltAz(location=obs_loc,obstime=obs_time)
+             coord=apSkyCoord(ra,dec,unit="deg")
+             co=coord.transform_to(obs_now)
+             self.nextAlt_e.setText("%.4f"%co.alt.degree)
+             self.nextAz_e.setText("%.4f"%co.az.degree)
+             print(co.alt.degree,co.az.degree)
 
 
       def park(self):
