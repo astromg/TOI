@@ -38,20 +38,33 @@ class MntGui(QWidget):
           self.setEq_r.toggled.connect(self.update)
           self.setAltAz_r.toggled.connect(self.update)
           self.parent.monitor.ding.connect(self.update)
-          self.nextRa_e.editingFinished.connect(self.updateNextRaDec)
+          self.nextRa_e.textChanged.connect(self.updateNextRaDec)
+          self.nextDec_e.textChanged.connect(self.updateNextRaDec)
 
       def updateNextRaDec(self):
-          ra = float(self.nextRa_e.text())*15.
-          dec= self.nextDec_e.text()
-          if True:
-             obs_loc=apEarthLocation(lat=self.parent.observatory[0], lon=self.parent.observatory[1], height=float(self.parent.observatory[2]))
-             obs_time=apTime.now()
-             obs_now = apAltAz(location=obs_loc,obstime=obs_time)
-             coord=apSkyCoord(ra,dec,unit="deg")
-             co=coord.transform_to(obs_now)
-             self.nextAlt_e.setText("%.4f"%co.alt.degree)
-             self.nextAz_e.setText("%.4f"%co.az.degree)
-             print(co.alt.degree,co.az.degree)
+          if self.setEq_r.isChecked():
+             self.nextRa_e.setStyleSheet("background-color: rgb(245, 178, 79);")
+             self.nextDec_e.setStyleSheet("background-color: rgb(245, 178, 79);")
+             ok=False
+             try:
+                ra = float(self.nextRa_e.text())*15.
+                dec= float(self.nextDec_e.text())
+                ok=True
+             except: ok=False   
+             if ok:
+                obs_loc=apEarthLocation(lat=self.parent.observatory[0], lon=self.parent.observatory[1], height=float(self.parent.observatory[2]))
+                obs_time=apTime.now()
+                obs_now = apAltAz(location=obs_loc,obstime=obs_time)
+                coord=apSkyCoord(ra,dec,unit="deg")
+                co=coord.transform_to(obs_now)
+                self.nextAlt_e.setText("%.4f"%co.alt.degree)
+                self.nextAz_e.setText("%.4f"%co.az.degree)
+                print(co.alt.degree,co.az.degree)
+                self.nextRa_e.setStyleSheet("background-color: white;")
+                self.nextDec_e.setStyleSheet("background-color: white")
+          if self.setAltAz_r.isChecked():
+             print("kuku")
+
 
 
       def park(self):
