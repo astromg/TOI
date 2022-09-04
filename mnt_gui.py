@@ -168,29 +168,29 @@ class MntGui(QWidget):
              self.mntConn1_l.setText("NO CONNECTION") 
              self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20,20))
           
-          
-          txt=""
-          if self.parent.mnt_slewing:
-             txt= txt+" SLEWING" 
-             style="background-color: yellow;"
-          else: style="background-color: rgb(233, 233, 233);"
-          if self.parent.mnt_trac:
-             txt=txt+" TRACKING" 
-             style=style+" color: green;"
-          else: style=style+" color: black;"
-          if self.parent.mnt_park:
-             txt=txt+" PARKED"           
-          
-          self.mntStat_e.setText(txt)
-          self.mntStat_e.setStyleSheet(style)
-
-
-          
-          self.mntAz_e.setText(self.parent.mnt_az)
-          self.mntAlt_e.setText(self.parent.mnt_alt)
-          self.mntRa_e.setText(self.parent.mnt_ra)
-          self.mntDec_e.setText(self.parent.mnt_dec)
-          self.tracking_c.setChecked(self.parent.mnt_trac)
+          if self.parent.connection_ok:          
+             txt=""
+             if self.parent.mnt_slewing:
+                txt= txt+" SLEWING" 
+                style="background-color: yellow;"
+             else: style="background-color: rgb(233, 233, 233);"
+             if self.parent.mnt_trac:
+                txt=txt+" TRACKING" 
+                style=style+" color: green;"
+             else: style=style+" color: black;"
+             if self.parent.mnt_park:
+                txt=txt+" PARKED"           
+             
+             self.mntStat_e.setText(txt)
+             self.mntStat_e.setStyleSheet(style)
+   
+   
+             
+             self.mntAz_e.setText(self.parent.mnt_az)
+             self.mntAlt_e.setText(self.parent.mnt_alt)
+             self.mntRa_e.setText(self.parent.mnt_ra)
+             self.mntDec_e.setText(self.parent.mnt_dec)
+             self.tracking_c.setChecked(self.parent.mnt_trac)
 
           
         # =================== OKNO GLOWNE ====================================
@@ -271,7 +271,7 @@ class MntGui(QWidget):
           self.domeAuto_c=QCheckBox("AUTO: ")
           self.domeAuto_c.setChecked(True)
           self.domeAuto_c.setLayoutDirection(Qt.RightToLeft)
-          self.domeAuto_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
+          self.domeAuto_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
           self.domeAz_l=QLabel("DOME AZ: ")
           self.domeAz_e=QLineEdit() 
@@ -292,7 +292,7 @@ class MntGui(QWidget):
           self.AutoFocus_c.setChecked(True)
           self.AutoFocus_c.setLayoutDirection(Qt.RightToLeft)
           #self.mntCovers_c.setStyleSheet("background-color: yellow")
-          self.AutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
+          self.AutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
           self.telFocus_e=QLineEdit() 
           self.telFocus_e.setReadOnly(True)          
@@ -320,14 +320,14 @@ class MntGui(QWidget):
           self.tracking_c.setChecked(False)
           self.tracking_c.setLayoutDirection(Qt.RightToLeft)
           #self.mntCovers_c.setStyleSheet("background-color: yellow")
-          self.tracking_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
+          self.tracking_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
           
           
           self.guiding_c=QCheckBox("GUIDING: ")
           self.guiding_c.setChecked(False)
           self.guiding_c.setLayoutDirection(Qt.RightToLeft)
           #self.mntCovers_c.setStyleSheet("background-color: yellow")
-          self.guiding_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")          
+          self.guiding_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")          
           
           self.telPark_p=QPushButton('PARK')
           self.mntStop_p=QPushButton('STOP')
@@ -440,7 +440,7 @@ class MntGui(QWidget):
           self.domeShutter_c=QCheckBox("")
           self.domeShutter_c.setChecked(False)
           self.domeShutter_c.setLayoutDirection(Qt.RightToLeft)
-          self.domeShutter_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
+          self.domeShutter_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
           self.domeShutter_e=QLineEdit() 
           self.domeShutter_e.setReadOnly(True)      
@@ -450,7 +450,7 @@ class MntGui(QWidget):
           self.domeLights_c=QCheckBox("")
           self.domeLights_c.setChecked(False)
           self.domeLights_c.setLayoutDirection(Qt.RightToLeft)
-          self.domeLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
+          self.domeLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
       
           self.domeLights_e=QLineEdit() 
           self.domeLights_e.setReadOnly(True)   

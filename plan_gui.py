@@ -9,7 +9,8 @@ from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox
 
 from PyQt5.QtCore import * 
-
+import ephem
+from toi_lib import *
 
 
 class PlanGui(QWidget):
@@ -35,28 +36,39 @@ class PlanGui(QWidget):
           
           self.update()
 
+      def recalc(self):
+          for i,tmp in enumerate(self.plan):
+             if len(self.plan)>0:
+                if "ra" in self.plan[i].keys():
+                   ra=self.plan[i]["ra"]
+                   dec=self.plan[i]["dec"]
+                   az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)
+                   self.plan[i]["alt"]=alt
+                   self.plan[i]["az"]=az 
+
       def update(self):
+          self.recalc()
           if len(self.plan)>0:
              self.plan_t.clearContents()
              for i,tmp in enumerate(self.plan):
                  if self.plan_t.rowCount() < i+1: self.plan_t.insertRow(i)
                  
                  if i==self.next_i:
-                    pic = QtGui.QPixmap("./Icons/next.png").scaled(QSize(20,20))
+                    pic = QtGui.QPixmap("./Icons/next.png").scaled(QSize(30,30))
                     icon=QLabel()
                     icon.setPixmap(pic)
                     self.plan_t.setCellWidget(i,0,icon)
 
                  if "skip" in self.plan[i].keys():
                     if self.plan[i]["skip"]:
-                       pic = QtGui.QPixmap("./Icons/skip.png").scaled(QSize(20,20))
+                       pic = QtGui.QPixmap("./Icons/skip.png").scaled(QSize(30,30))
                        icon=QLabel()
                        icon.setPixmap(pic)
                        self.plan_t.setCellWidget(i,0,icon)
 
                  if "stop" in self.plan[i].keys():
                     if self.plan[i]["stop"]:
-                       pic = QtGui.QPixmap("./Icons/stop.png").scaled(QSize(20,20))
+                       pic = QtGui.QPixmap("./Icons/stop.png").scaled(QSize(30,30))
                        icon=QLabel()
                        icon.setPixmap(pic)
                        self.plan_t.setCellWidget(i,0,icon)
@@ -65,10 +77,16 @@ class PlanGui(QWidget):
                  txt=QTableWidgetItem(self.plan[i]["name"])
                  self.plan_t.setItem(i,1,txt)
 
+                 if "alt" in self.plan[i].keys():
+                    txt=QTableWidgetItem(str(self.plan[i]["alt"]))
+                    self.plan_t.setItem(i,2,txt)                    
+
                  if i==self.prev_i:
-                    self.plan_t.item(i,1).setBackground(QtGui.QColor(197,253,201))
+                    self.plan_t.item(i,1).setBackground(QtGui.QColor(227,253,227))
+                    self.plan_t.item(i,2).setBackground(QtGui.QColor(227,253,227))
                  if i==self.i:
                     self.plan_t.item(i,1).setBackground(QtGui.QColor("lightgreen"))
+                    self.plan_t.item(i,2).setBackground(QtGui.QColor("lightgreen"))
 
       def setNext(self):
           self.next_i=self.i

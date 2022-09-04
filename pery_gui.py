@@ -46,7 +46,7 @@ class PeryphericalGui(QWidget):
           self.telCovers_c.setChecked(False)
           self.telCovers_c.setLayoutDirection(Qt.RightToLeft)
           #self.telCovers_c.setStyleSheet("background-color: yellow")
-          self.telCovers_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
+          self.telCovers_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
 
           grid.addWidget(self.telCovers_l, w,0)
@@ -99,7 +99,7 @@ class PeryphericalGui(QWidget):
           self.telAutoFocus_c.setChecked(True)
           self.telAutoFocus_c.setLayoutDirection(Qt.RightToLeft)
           #self.mntCovers_c.setStyleSheet("background-color: yellow")
-          self.telAutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
+          self.telAutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
           grid.addWidget(self.telFocus_l, w,0)
           grid.addWidget(self.telFocus_e, w,1)

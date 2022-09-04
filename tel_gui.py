@@ -58,7 +58,7 @@ class TelGui(QWidget):
           self.mntCovers_c.setChecked(False)
           self.mntCovers_c.setLayoutDirection(Qt.RightToLeft)
           #self.mntCovers_c.setStyleSheet("background-color: yellow")
-          self.mntCovers_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
+          self.mntCovers_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
           self.mntCovers_e=QLineEdit() 
           self.mntCovers_e.setReadOnly(True)  
@@ -75,7 +75,7 @@ class TelGui(QWidget):
           self.domeShutter_c=QCheckBox("DOME SHUTTER: ")
           self.domeShutter_c.setChecked(False)
           self.domeShutter_c.setLayoutDirection(Qt.RightToLeft)
-          self.domeShutter_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
+          self.domeShutter_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
           self.domeShutter_e=QLineEdit() 
           self.domeShutter_e.setReadOnly(True)                         
@@ -85,7 +85,7 @@ class TelGui(QWidget):
           self.telLights_c=QCheckBox("LIGHTS: ")
           self.telLights_c.setChecked(False)
           self.telLights_c.setLayoutDirection(Qt.RightToLeft)
-          self.telLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
+          self.telLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnYellow.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
       
           self.telLights_e=QLineEdit() 
           self.telLights_e.setReadOnly(True)   
