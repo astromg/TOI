@@ -38,7 +38,7 @@ class Monitor(QtCore.QObject):
           self.parent.connection_ok=False
           try:
              quest="http://172.23.68.211:11111/api/v1/telescope/0/connected"
-             r=requests.get(quest)
+             r=requests.get(quest,timeout=1)
              r=r.json()
              self.parent.conected = (r["Value"])
              self.parent.connection_ok=True

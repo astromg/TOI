@@ -14,6 +14,9 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
+from toi_lib import *
+import numpy
+
 class SkyView(QWidget):
    def __init__(self,parent):
        QWidget.__init__(self)
@@ -53,10 +56,30 @@ class SkyView(QWidget):
 
    def update(self):    
        self.axes.clear()
+
+       if len(self.parent.planGui.plan)>0:
+          for i,tmp in enumerate(self.parent.planGui.plan): 
+              
+              planAz = float(arcDeg2float(str(self.parent.planGui.plan[i]["az"])))
+              planAlt = float(arcDeg2float(str(self.parent.planGui.plan[i]["alt"])))
+              planAz=2*math.pi*numpy.array(planAz)/360.
+              planAlt=90.-numpy.array(planAlt)
+
+              if i<self.parent.planGui.next_i:
+                 self.axes.plot(planAz,planAlt,"k*",alpha=0.3)
+              elif i<self.parent.planGui.next_i+1:
+                 self.axes.plot(planAz,planAlt,"b*",alpha=1.0)
+              elif i<self.parent.planGui.next_i+2:
+                 self.axes.plot(planAz,planAlt,"b*",alpha=0.5)
+              elif i<self.parent.planGui.next_i+3:
+                 self.axes.plot(planAz,planAlt,"b*",alpha=0.3)                
+              else:
+                 self.axes.plot(planAz,planAlt,"b*",alpha=0.2)
+       
        try:
           self.tel_az=2*math.pi*float(self.parent.mnt_az)/360.
           self.tel_alt=90.-float(self.parent.mnt_alt)
-          self.axes.plot(self.tel_az,self.tel_alt,"or",alpha=0.5)
+          self.axes.plot(self.tel_az,self.tel_alt,"or",alpha=1.0)
        except: pass
 
        try:
@@ -64,10 +87,9 @@ class SkyView(QWidget):
           nextAz =  float(self.parent.mnt.nextAz_e.text())
           nextAz=2*math.pi*float(nextAz)/360.
           nextAlt=90.-float(nextAlt)
-          self.axes.plot(nextAz,nextAlt,"bx",alpha=0.5)
-       except: pass
+          self.axes.plot(nextAz,nextAlt,"gx",alpha=1.0)
+       except: pass       
 
-       
        #if len(self.a)>0:      
        #   for h,a,s,al in zip(self.h,self.a,self.symbol,self.alpha):
        #       a=2*math.pi*a/360.  
