@@ -15,6 +15,7 @@ from tel_gui import *
 from sky_gui import *
 from pery_gui import *
 from instrument_gui import *
+from plan_gui import *
 
 class Monitor(QtCore.QObject):
       finished = QtCore.pyqtSignal()
@@ -120,7 +121,7 @@ class TOI():
        self.thread.start()
 
 
-       self.observatory=("48.3","14.28","1000")
+       self.observatory=("48.3","14.28","1000") # deg,deg,m
 
        self.mnt_az="unknown"
        self.mnt_alt="unknown"
@@ -129,6 +130,10 @@ class TOI():
        self.mnt = MntGui(self)
        self.mnt.show()
        self.mnt.raise_()     
+
+       self.planGui = PlanGui(self)
+       self.planGui.show()
+       self.planGui.raise_()   
        
        self.pery = PeryphericalGui(self)
        self.pery.show()

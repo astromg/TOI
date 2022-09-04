@@ -16,6 +16,9 @@ from astropy.time import Time as apTime
 from astropy.coordinates import AltAz as apAltAz
 import requests
 
+import ephem
+from toi_lib import *
+
 
 
 class MntGui(QWidget):
@@ -40,6 +43,9 @@ class MntGui(QWidget):
           self.parent.monitor.ding.connect(self.update)
           self.nextRa_e.textChanged.connect(self.updateNextRaDec)
           self.nextDec_e.textChanged.connect(self.updateNextRaDec)
+          self.nextAlt_e.textChanged.connect(self.updateNextRaDec)
+          self.nextAz_e.textChanged.connect(self.updateNextRaDec)
+
 
       def updateNextRaDec(self):
           if self.setEq_r.isChecked():
@@ -47,23 +53,39 @@ class MntGui(QWidget):
              self.nextDec_e.setStyleSheet("background-color: rgb(245, 178, 79);")
              ok=False
              try:
-                ra = float(self.nextRa_e.text())*15.
-                dec= float(self.nextDec_e.text())
+                ra = self.nextRa_e.text()
+                dec= self.nextDec_e.text()
                 ok=True
              except: ok=False   
              if ok:
-                obs_loc=apEarthLocation(lat=self.parent.observatory[0], lon=self.parent.observatory[1], height=float(self.parent.observatory[2]))
-                obs_time=apTime.now()
-                obs_now = apAltAz(location=obs_loc,obstime=obs_time)
-                coord=apSkyCoord(ra,dec,unit="deg")
-                co=coord.transform_to(obs_now)
-                self.nextAlt_e.setText("%.4f"%co.alt.degree)
-                self.nextAz_e.setText("%.4f"%co.az.degree)
-                print(co.alt.degree,co.az.degree)
+                az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)                
+                
+                az = arcDeg2float(str(az))
+                alt = arcDeg2float(str(alt))
+                
+                self.nextAlt_e.setText("%.4f"%alt)
+                self.nextAz_e.setText("%.4f"%az)
                 self.nextRa_e.setStyleSheet("background-color: white;")
                 self.nextDec_e.setStyleSheet("background-color: white")
+
+
           if self.setAltAz_r.isChecked():
-             print("kuku")
+             self.nextAlt_e.setStyleSheet("background-color: rgb(245, 178, 79);")
+             self.nextAz_e.setStyleSheet("background-color: rgb(245, 178, 79);")
+             ok=False
+             try:
+                alt = self.nextAlt_e.text()
+                az = self.nextAz_e.text()
+                ok=True
+             except: ok=False   
+             if ok:
+                ra,dec = AltAz2RaDec(self.parent.observatory,ephem.now(),alt,az)                
+                
+                self.nextRa_e.setText(str(ra))
+                self.nextDec_e.setText(str(dec))
+                self.nextAlt_e.setStyleSheet("background-color: white;")
+                self.nextAz_e.setStyleSheet("background-color: white")              
+
 
 
 
@@ -188,22 +210,22 @@ class MntGui(QWidget):
           self.setAltAz_r=QRadioButton("")
 
 
-          self.mntRa_l=QLabel("TELESCOPE RA: ")
+          self.mntRa_l=QLabel("TELESCOPE RA [h]: ")
           self.mntRa_e=QLineEdit() 
           self.mntRa_e.setReadOnly(True)         
           self.mntRa_e.setStyleSheet("background-color: rgb(233, 233, 233);")
           
-          self.mntDec_l=QLabel("TELESCOPE DEC: ")
+          self.mntDec_l=QLabel("TELESCOPE DEC [d]: ")
           self.mntDec_e=QLineEdit() 
           self.mntDec_e.setReadOnly(True)   
           self.mntDec_e.setStyleSheet("background-color: rgb(233, 233, 233);")
           
-          self.mntAz_l=QLabel("TELESCOPE AZ: ")
+          self.mntAz_l=QLabel("TELESCOPE AZ [d]: ")
           self.mntAz_e=QLineEdit() 
           self.mntAz_e.setReadOnly(True)         
           self.mntAz_e.setStyleSheet("background-color: rgb(233, 233, 233);")
           
-          self.mntAlt_l=QLabel("TELESCOPE ALT: ")
+          self.mntAlt_l=QLabel("TELESCOPE ALT [d]: ")
           self.mntAlt_e=QLineEdit() 
           self.mntAlt_e.setReadOnly(True)          
           self.mntAlt_e.setStyleSheet("background-color: rgb(233, 233, 233);")

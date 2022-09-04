@@ -58,6 +58,15 @@ class SkyView(QWidget):
           self.tel_alt=90.-float(self.parent.mnt_alt)
           self.axes.plot(self.tel_az,self.tel_alt,"or",alpha=0.5)
        except: pass
+
+       try:
+          nextAlt = float(self.parent.mnt.nextAlt_e.text())
+          nextAz =  float(self.parent.mnt.nextAz_e.text())
+          nextAz=2*math.pi*float(nextAz)/360.
+          nextAlt=90.-float(nextAlt)
+          self.axes.plot(nextAz,nextAlt,"bx",alpha=0.5)
+       except: pass
+
        
        #if len(self.a)>0:      
        #   for h,a,s,al in zip(self.h,self.a,self.symbol,self.alpha):
