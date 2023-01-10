@@ -33,7 +33,6 @@ class Monitor(QtCore.QObject):
                 self.check()
           self.finished.emit()  # emit the finished signal when the loop is done
 
-
       def check(self):
           self.parent.connection_ok=False
           try:
@@ -72,9 +71,6 @@ class Monitor(QtCore.QObject):
              #r=r.json()
              #print(r["Value"])
 
-
-
-
              quest="http://172.23.68.211:11111/api/v1/telescope/0/rightascension"
              r=requests.get(quest)
              r=r.json()
@@ -95,11 +91,7 @@ class Monitor(QtCore.QObject):
              r=r.json()
              self.parent.mnt_alt = "%.4f"%r["Value"]
 
-
-
           self.ding.emit()
-          #self.parent.mnt.update()
-             #print(self.parent.mnt_az)
 
       def stop(self):
           self.continue_run = False  # set the run condition to false on stop
@@ -126,7 +118,6 @@ class TOI():
        self.mnt_az="unknown"
        self.mnt_alt="unknown"
 
-    
        self.mnt = MntGui(self)
        self.mnt.show()
        self.mnt.raise_()     
@@ -147,11 +138,9 @@ class TOI():
        self.sky.show() 
        self.sky.raise_()  
 
-
        self.inst = InstrumentGui()
        self.inst.show()
        self.inst.raise_() 
-
 
 
    def close(self):

@@ -32,9 +32,15 @@ class PlanGui(QWidget):
 
           self.next_p.clicked.connect(self.setNext)   
           self.stopHere_p.clicked.connect(self.setStop)             
-          self.skip_p.clicked.connect(self.setSkip)             
-          
-          self.update()
+          self.skip_p.clicked.connect(self.setSkip)     
+          self.up_p.clicked.connect(self.pocisniecie_up)  
+          self.down_p.clicked.connect(self.pocisniecie_down)   
+          self.del_p.clicked.connect(self.pocisniecie_del) 
+          self.first_p.clicked.connect(self.pocisniecie_first) 
+          self.last_p.clicked.connect(self.pocisniecie_last)    
+          self.swap_p.clicked.connect(self.pocisniecie_swap)                 
+
+          self.update_table()
 
       def recalc(self):
           for i,tmp in enumerate(self.plan):
@@ -46,7 +52,7 @@ class PlanGui(QWidget):
                    self.plan[i]["alt"]=alt
                    self.plan[i]["az"]=az 
 
-      def update(self):
+      def update_table(self):
           self.recalc()
           if len(self.plan)>0:
              self.plan_t.clearContents()
@@ -90,7 +96,7 @@ class PlanGui(QWidget):
 
       def setNext(self):
           self.next_i=self.i
-          self.update()
+          self.update_table()
           self.parent.mnt.nextRa_e.setText(self.plan[self.i]["ra"])
           self.parent.mnt.nextDec_e.setText(self.plan[self.i]["dec"])
 
@@ -98,18 +104,74 @@ class PlanGui(QWidget):
           if "stop" in self.plan[self.i].keys():          
              if self.plan[self.i]["stop"]:self.plan[self.i]["stop"]=False
           else: self.plan[self.i]["stop"]=True
-          self.update()
+          self.update_table()
 
       def setSkip(self):
           if "skip" in self.plan[self.i].keys():          
              if self.plan[self.i]["skip"]:self.plan[self.i]["skip"]=False
           else: self.plan[self.i]["skip"]=True
-          self.update()
+          self.update_table()
 
       def pocisniecie_tabelki(self,i,j):
           self.prev_i=self.i
           self.i=i
-          self.update()
+          self.update_table()
+
+      def pocisniecie_del(self):
+          self.plan.pop(self.i)
+          self.update_table()
+          self.repaint()
+
+      def pocisniecie_first(self):
+          self.plan.insert(0,self.plan[self.i])
+          self.plan.pop(self.i+1)
+          self.i=0              
+          self.update_table()
+          self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
+          self.repaint()
+
+      def pocisniecie_last(self):
+          self.plan.append(self.plan[self.i])  
+          self.plan.pop(self.i)
+          self.i=len(self.plan)-1
+          self.update_table()  
+          self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))      
+          self.repaint()
+
+      def pocisniecie_down(self):
+          if self.i==len(self.plan)-1:
+             self.plan.insert(0,self.plan[self.i])
+             self.plan.pop(len(self.plan)-1)
+             self.i=0     
+          else:   
+             self.plan[self.i],self.plan[self.i+1]=self.plan[self.i+1],self.plan[self.i]
+             self.i_prev,self.i=self.i,self.i+1
+          self.update_table()
+          self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
+          self.repaint()
+
+      def pocisniecie_up(self):
+          if self.i==0:
+             self.plan.append(self.plan[0])  
+             self.plan.pop(0)
+             self.i=len(self.plan)
+          else:  
+             self.plan[self.i],self.plan[self.i-1]=self.plan[self.i-1],self.plan[self.i]
+             self.i_prev,self.i=self.i,self.i-1
+          self.update_table()
+          self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
+          self.repaint()
+
+      def pocisniecie_swap(self): 
+          self.plan[self.i],self.plan[self.prev_i]=self.plan[self.prev_i],self.plan[self.i]
+          self.update_table()
+          self.i,self.prev_i=self.prev_i,self.i
+          self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
+          self.repaint()      
+
+ 
+
+
 
       def loadPlan(self):
           self.fileName=str(QFileDialog.getOpenFileName(self,"Open file",".")[0])
@@ -127,7 +189,7 @@ class PlanGui(QWidget):
                     ob["ra"]=ra
                     ob["dec"]=dec
                     self.plan.append(ob)
-          self.update()          
+          self.update_table()          
         
         
           
