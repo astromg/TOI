@@ -146,8 +146,10 @@ class TOI():
    def close(self):
        sys.exit()
 
-app = QApplication(sys.argv)
-main = TOI()
+def main():
+    app = QApplication(sys.argv)
+    main = TOI()
 
-sys.exit(app.exec_())
+    sys.exit(app.exec_())
 
+main()

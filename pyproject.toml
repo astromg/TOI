@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "toi"
+version = "0.1.0"
+description = "Telescope Operator Interface"
+authors = ["Marek Górski <you@example.com>"]
+readme = "README.md"
+repository = "https://github.com/astromg/TOI"  # to be moved to https://github.com/araucaria
+keywords = ["astronomy", "telescopes"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+PyQt5 = "^5.15.7"
+astropy = "^5.2.1"
+requests = "^2.28.1"
+ephem = "^4.1.4"
+matplotlib = "^3.6.3"
+numpy = "^1.24.1"
+
+[tool.poetry.scripts]
+toi = "toi:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
