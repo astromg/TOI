@@ -1,8 +1,15 @@
 # TOI
 Telescope Operator Interface
 
-### odpalanie: 
+### odpalanie:
+If installed by `poetry` (see below)
+```
+$ toi
+```   
+otherwise
+```
 $ ./toi.py
+```
 
 - _toi.py_ - Monitor do sygnalow i komunikacji z AutoSlew, odpala tez wszytskie okna GUI
 - _tel_gui.py_ - nic ciekawego, ale tylko tutaj jest **EXIT**
@@ -57,3 +64,22 @@ $ ./toi.py
 
 ## OKNO GUIDERA 
 - nie ma - nie ma, nie wiem jak dzialac i synchronizowac
+
+## Installation
+#### Install using the [`poetry` tool](https://python-poetry.org/docs/basic-usage/)
+This procedure installs all dependences includin proper python version in isolated virtual environment.
+Also, the command line command `toi` will be created for easy running the executable in proper environment.
+1. [Install poetry](https://python-poetry.org/docs/#installation)
+2. Clone the project
+```
+    git clone https://github.com/astromg/TOI.git
+    cd TOI
+```
+3. Install project and dependences
+```
+    poetry install
+```
+4. Run
+```
+    toi
+```
