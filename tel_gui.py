@@ -37,9 +37,7 @@ class TelGui(QWidget):
            
           self.setWindowTitle('Telescope GUI')
           #self.setWindowIcon(QtGui.QIcon('icon.png'))  
-          
-
-          
+        
           self.mntStat_l=QLabel("TELESCOPE STATUS: ")
           self.mntStat_e=QLineEdit() 
           self.mntStat_e.setReadOnly(True)
@@ -52,8 +50,6 @@ class TelGui(QWidget):
           self.mntUt_e=QLineEdit() 
           self.mntUt_e.setReadOnly(True)    
 
-                               
-
           self.mntCovers_c=QCheckBox("MIRROR COVERS: ")
           self.mntCovers_c.setChecked(False)
           self.mntCovers_c.setLayoutDirection(Qt.RightToLeft)
@@ -63,8 +59,6 @@ class TelGui(QWidget):
           self.mntCovers_e=QLineEdit() 
           self.mntCovers_e.setReadOnly(True)  
              
-
-        
           # dome
 
           self.domeStat_l=QLabel("DOME STATUS: ")
