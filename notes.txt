@@ -36,7 +36,7 @@ quest="http://172.23.68.211:11111/api/v1/telescope/0/slewing"
 r=requests.get(quest)
 print(r.text)
 
-
+['forcenextpierside', 'telescope:clearerror', 'telescope:errorstring', 'telescope:opencover', 'telescope:closecover', 'telescope:closecover', 'telescope:coverstatus', 'telescope:motoron', 'telescope:motoroff', 'motstat', 'telescope:horizonlimit', 'telescope:reportmounttype', 'telescope:reportminalt', 'telescope:reportmaxalt', 'telescope:reportmindec', 'telescope:reportmaxdec', 'telescope:reportcablezero', 'telescope:startfans', 'telescope:stopfans', 'telescope:updatepolaraxisaz', 'telescope:updatepolaraxisal', 'telescope:setnewconfig', 'telescope:altazunwind', 'trackposition', 'sat:startalt', 'sat:name', 'sat:delay', 'sat:line1', 'sat:line2', 'sat:start']
 
 
 
@@ -44,6 +44,10 @@ print(r.text)
 self.parent.mnt_trac
 self.parent.mnt_park
 self.parent.mnt_slewing
+
+
+
+
 
 
 
