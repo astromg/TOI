@@ -131,3 +131,7 @@ dmypy.json
 # IDEs and editors
 *.kate-swp
 .idea/
+
+# local configuration
+ob/configuration/*
+!ob/configuration/__init__.py
