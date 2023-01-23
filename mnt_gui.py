@@ -190,24 +190,27 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.mntDec_e.setText(self.parent.mnt_dec)
             self.tracking_c.setChecked(self.parent.mnt_trac)
 
-    class WidgetsGroup(dict):
-        def __init__(self, **kwargs):
-            for key, value in kwargs.items():
-                self[key] = value
-            super().__init__()
+    # TODO Concept grouping gui object
+    # class WidgetsGroup(dict):
+    #     def __init__(self, **kwargs):
+    #         for key, value in kwargs.items():
+    #             self[key] = value
+    #         super().__init__()
+    #
+    #     __getattr__ = dict.__getitem__
+    #     __setattr__ = dict.__setitem__
+    #     __delattr__ = dict.__delitem__
 
-        __getattr__ = dict.__getitem__
-        __setattr__ = dict.__setitem__
-        __delattr__ = dict.__delitem__
-
-    class MntStat:
-        def __init__(self):
-            self.l_ = None
-            self.e_ = None
+        # self.domeAz = self.WidgetsGroup()
+        # self.domeAz.l_ = QLabel("DOME AZ: ")
+        # self.domeAz.e_ = QLineEdit()
+        # self.domeAz.e_.setReadOnly(True)
+        # self.domeAz.e_.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        # self.domeAz.next_e_ = QLineEdit()
+        # self.domeAz.set_p_ = QPushButton('MOVE')
 
     async def task_starter(self):
-        await self._run_all_background_task() # todo to tak nie zostanie !
-        pass
+        await self.run_background_tasks()
 
     # =================== OKNO GLOWNE ====================================
     def mkUI(self):
@@ -215,16 +218,10 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.setWindowTitle('Mount Manual Controll')
         # self.setWindowIcon(QtGui.QIcon('icon.png'))
 
-        self.mntStat = self.MntStat()
-        self.mntStat.l_ = QLabel("MOUNT STATUS: ")
-        self.mntStat.e_ = QLineEdit()
-        self.mntStat.e_.setReadOnly(True)
-        self.mntStat.e_.setStyleSheet("background-color: rgb(233, 233, 233);")
-
-        # self.mntStat_l = QLabel("MOUNT STATUS: ")
-        # self.mntStat_e = QLineEdit()
-        # self.mntStat_e.setReadOnly(True)
-        # self.mntStat_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.mntStat_l = QLabel("MOUNT STATUS: ")
+        self.mntStat_e = QLineEdit()
+        self.mntStat_e.setReadOnly(True)
+        self.mntStat_e.setStyleSheet("background-color: rgb(233, 233, 233);")
 
         self.setEq_r = QRadioButton("")
         self.setEq_r.setChecked(True)
@@ -284,16 +281,20 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeAuto_c.setStyleSheet(
             "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
-        # ------------- Dome Azimuth control --------------- # todo ------------------------------------------------------------------------------------------------------------------------------------------------------
-        self.domeAz = self.WidgetsGroup()
-        self.domeAz.l_ = QLabel("DOME AZ: ")
-        self.domeAz.e_ = QLineEdit()
-        self.domeAz.e_.setReadOnly(True)
-        self.domeAz.e_.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.domeAz.next_e_ = QLineEdit()
-        self.domeAz.set_p_ = QPushButton('MOVE')
-        self.add_background_task(self.updater(self.domeAz.e_,'800.dome.azimuth',name='test_task',delay=1, time_of_data_tolerance=0.5),name='test_task')  # todo to tak nie zostanie !
-        # --------------------------------------------------
+        self.domeAz_l = QLabel("DOME AZ: ")
+        self.domeAz_e = QLineEdit()
+        self.domeAz_e.setReadOnly(True)
+        self.domeAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.domeNextAz_e = QLineEdit()
+
+        self.domeSet_p = QPushButton('MOVE')
+
+        self.add_background_task(coro=self.updater(self.domeAz_e,
+                                                   self.get_address('get_dome_azimuth'),
+                                                   name='domeAz_e',
+                                                   delay=1,
+                                                   time_of_data_tolerance=0.5),
+                                 name='domeAz_e')
 
         # peripheries
 
@@ -364,8 +365,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         grid.addWidget(self.ticControler_p, w, 5)
 
         w = w + 1
-        grid.addWidget(self.mntStat.l_, w, 0)
-        grid.addWidget(self.mntStat.l_, w, 1, 1, 5)
+        grid.addWidget(self.mntStat_l, w, 0)
+        grid.addWidget(self.mntStat_e, w, 1, 1, 5)
 
         w = w + 1
         grid.addWidget(self.mntRa_l, w, 0)
@@ -429,17 +430,24 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeStat_l = QLabel("DOME STATUS: ")
         self.domeStat_e = QLineEdit()
         self.domeStat_e.setReadOnly(True)
-        self.domeStat_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.domeStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
+        self.add_background_task(coro=self.updater(self.domeStat_e,
+                                                   self.get_address('get_dome_status'),
+                                                   name='domeStat_e',
+                                                   delay=1,
+                                                   time_of_data_tolerance=0.5),
+                                 name='domeStat_e')
 
         grid.addWidget(self.domeStat_l, w, 0)
         grid.addWidget(self.domeStat_e, w, 1, 1, 2)
         grid.addWidget(self.domeAuto_c, w, 4)
 
         w = w + 1
-        grid.addWidget(self.domeAz.l_, w, 0)
-        grid.addWidget(self.domeAz.e_, w, 1)
-        grid.addWidget(self.domeAz.next_e_, w, 2)
-        grid.addWidget(self.domeAz.set_p_, w, 4)
+        grid.addWidget(self.domeAz_l, w, 0)
+        grid.addWidget(self.domeAz_e, w, 1)
+        grid.addWidget(self.domeNextAz_e, w, 2)
+        grid.addWidget(self.domeSet_p, w, 4)
 
         w = w + 1
 
@@ -452,7 +460,14 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.domeShutter_e = QLineEdit()
         self.domeShutter_e.setReadOnly(True)
-        self.domeShutter_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.domeShutter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
+        self.add_background_task(coro=self.updater(self.domeShutter_e,
+                                                   self.get_address('get_dome_shutterstatus'),
+                                                   name='domeShutter_e',
+                                                   delay=1,
+                                                   time_of_data_tolerance=0.5),
+                                 name='domeShutter_e')
 
         self.domeLights_l = QLabel("DOME LIGHTS: ")
         self.domeLights_c = QCheckBox("")

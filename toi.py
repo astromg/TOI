@@ -41,6 +41,7 @@ class Monitor(QtCore.QObject):
         self.finished.emit()  # emit the finished signal when the loop is done
 
     def check(self):
+        return
         self.parent.connection_ok = False
         try:
             quest = "http://localhost/api/v1/telescope/0/connected"
