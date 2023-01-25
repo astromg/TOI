@@ -26,7 +26,7 @@ class PeryphericalGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidge
         self.mkUI()
         self.update()
 
-    async def task_starter(self):
+    async def on_start_app(self):
         pass
 
     def update(self):

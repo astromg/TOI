@@ -4,6 +4,7 @@
 # 01.08.2022
 # Marek Gorski
 #----------------
+import sys
 
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtCore import Qt
@@ -22,7 +23,7 @@ class TelGui(QWidget):
           self.mkUI()
           self.update()
 
-          self.Exit_p.clicked.connect(self.parent.close)
+          self.Exit_p.clicked.connect(lambda: self.parent.app.closeAllWindows())  # todo przyjżeć się jeszcze raz temu
 
       def update(self): 
           self.mntUt_e.setText("21:34:17")

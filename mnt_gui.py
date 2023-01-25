@@ -4,6 +4,10 @@
 # 01.08.2022
 # Marek Gorski
 # ----------------
+import asyncio
+import functools
+import logging
+import time
 
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtCore import Qt
@@ -16,12 +20,15 @@ from astropy.coordinates import SkyCoord as apSkyCoord
 from astropy.time import Time as apTime
 from astropy.coordinates import AltAz as apAltAz
 import requests
-
+import qasync as qs
 import ephem
+from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 from qasync import QEventLoop
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from toi_lib import *
+
+logger = logging.getLogger(__name__)
 
 
 class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
@@ -201,15 +208,15 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     #     __setattr__ = dict.__setitem__
     #     __delattr__ = dict.__delitem__
 
-        # self.domeAz = self.WidgetsGroup()
-        # self.domeAz.l_ = QLabel("DOME AZ: ")
-        # self.domeAz.e_ = QLineEdit()
-        # self.domeAz.e_.setReadOnly(True)
-        # self.domeAz.e_.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        # self.domeAz.next_e_ = QLineEdit()
-        # self.domeAz.set_p_ = QPushButton('MOVE')
+    # self.domeAz = self.WidgetsGroup()
+    # self.domeAz.l_ = QLabel("DOME AZ: ")
+    # self.domeAz.e_ = QLineEdit()
+    # self.domeAz.e_.setReadOnly(True)
+    # self.domeAz.e_.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+    # self.domeAz.next_e_ = QLineEdit()
+    # self.domeAz.set_p_ = QPushButton('MOVE')
 
-    async def task_starter(self):
+    async def on_start_app(self):
         await self.run_background_tasks()
 
     # =================== OKNO GLOWNE ====================================
@@ -285,16 +292,16 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeAz_e = QLineEdit()
         self.domeAz_e.setReadOnly(True)
         self.domeAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.add_background_task(coro=self.subscriber(self.domeAz_e,
+                                                      self.get_address('get_dome_azimuth'),
+                                                      name='domeAz_e',
+                                                      delay=1,
+                                                      time_of_data_tolerance=0.5),
+                                 name='domeAz_e')
         self.domeNextAz_e = QLineEdit()
 
         self.domeSet_p = QPushButton('MOVE')
-
-        self.add_background_task(coro=self.updater(self.domeAz_e,
-                                                   self.get_address('get_dome_azimuth'),
-                                                   name='domeAz_e',
-                                                   delay=1,
-                                                   time_of_data_tolerance=0.5),
-                                 name='domeAz_e')
+        self.domeSet_p.clicked.connect(lambda: self._move_btn_clicked(self.domeNextAz_e))
 
         # peripheries
 
@@ -354,9 +361,18 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.ticControler_e = QLineEdit()
         self.ticControler_e.setReadOnly(True)
-        self.ticControler_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.ticControler_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        # todo przedyskutować co właściwie tu ma się wyświetlać i rozważyć koncepcje żeby acces_grantor był za cache a wtedy cache będzie miało black_list do zapytać i będzie mogło keszować tylko "current_user" bo na razie się nie da subskrybować tego wogule
+        # self.add_background_task(coro=self.subscriber(self.ticControler_e,
+        #                                               self.get_address('get_current_user_control'),
+        #                                               name='ticControler_e',
+        #                                               delay=1,
+        #                                               time_of_data_tolerance=0.5,
+        #                                               response_processor=lambda response: f"{response[0].value.v.get('name', None)}"),
+        #                          name='ticControler_e')
 
         self.ticControler_p = QPushButton('TAKE CONTROLL')
+        self.ticControler_p.clicked.connect(self._take_control)
 
         grid.addWidget(self.mntConn1_l, w, 0)
         grid.addWidget(self.mntConn2_l, w, 1)
@@ -432,11 +448,11 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeStat_e.setReadOnly(True)
         self.domeStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
-        self.add_background_task(coro=self.updater(self.domeStat_e,
-                                                   self.get_address('get_dome_status'),
-                                                   name='domeStat_e',
-                                                   delay=1,
-                                                   time_of_data_tolerance=0.5),
+        self.add_background_task(coro=self.subscriber(self.domeStat_e,
+                                                      self.get_address('get_dome_status'),
+                                                      name='domeStat_e',
+                                                      delay=1,
+                                                      time_of_data_tolerance=0.5),
                                  name='domeStat_e')
 
         grid.addWidget(self.domeStat_l, w, 0)
@@ -462,11 +478,11 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeShutter_e.setReadOnly(True)
         self.domeShutter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
-        self.add_background_task(coro=self.updater(self.domeShutter_e,
-                                                   self.get_address('get_dome_shutterstatus'),
-                                                   name='domeShutter_e',
-                                                   delay=1,
-                                                   time_of_data_tolerance=0.5),
+        self.add_background_task(coro=self.subscriber(self.domeShutter_e,
+                                                      self.get_address('get_dome_shutterstatus'),
+                                                      name='domeShutter_e',
+                                                      delay=1,
+                                                      time_of_data_tolerance=0.5),
                                  name='domeShutter_e')
 
         self.domeLights_l = QLabel("DOME LIGHTS: ")
@@ -519,3 +535,48 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         # grid.setSpacing(10)
 
         self.setLayout(grid)
+
+    @qs.asyncClose
+    async def closeEvent(self, event):
+        await self.stop_background_tasks()
+        super().closeEvent(event)
+
+    @qs.asyncSlot()
+    async def _take_control(self):
+        """Method for 'take_control' button """
+        # todo co się ma dziać w razie nieudanego przejęcia kontroli?
+
+        # todo czy po zamknięciu apki ma być zwracana kontrola?
+        try:
+            response = await self.client_api.get_async(address=self.get_address("get_take_control"),
+                                                       time_of_data_tolerance=0.5,
+                                                       parameters_dict={'timeout_reservation': time.time() + 30})
+            if response and response.value.v is True:
+                logger.info("Successfully taken control over telescope")
+            else:
+                logger.info("Can not take control over telescope: Normal")
+        except CommunicationRuntimeError:
+            logger.info("Can not take control over telescope: CommunicationRuntimeError")
+        except CommunicationTimeoutError:
+            logger.info("Can not take control over telescope: CommunicationTimeoutError")
+
+    @qs.asyncSlot()
+    async def _move_btn_clicked(self, field_source: QLineEdit):
+        """Method for 'move' button"""
+        try:
+            value = float(field_source.text())
+        except ValueError:
+            logger.warning(f"Can not set azimuth because can not parse {field_source.text()} to float")
+            return
+            # todo czy ma być jakaś obsługa błędów? to już po stronie QLabelEdit chyba np jakieś zaznaczanie na czerwono jak jest żle
+        try:
+            response = await self.client_api.put_async(address=self.get_address("put_dome_azimuth"),
+                                                       parameters_dict={'Azimuth': value})
+            if response and response.value.v is True:
+                logger.info("Successfully set value in alpaca")
+            else:
+                logger.info("Can not set value in alpaca: Normal")
+        except CommunicationRuntimeError:
+            logger.info("Can not set value in alpaca: CommunicationRuntimeError")
+        except CommunicationTimeoutError:
+            logger.info("Can not set value in alpaca: CommunicationTimeoutError")

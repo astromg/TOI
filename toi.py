@@ -5,6 +5,8 @@
 # Marek Gorski
 # ----------------
 import asyncio
+import functools
+import logging
 
 import requests
 from PyQt5 import QtCore, QtWidgets
@@ -22,6 +24,8 @@ from pery_gui import PeryphericalGui
 from plan_gui import PlanGui
 from sky_gui import SkyView
 from tel_gui import TelGui
+
+logger = logging.getLogger(__name__)
 
 
 class Monitor(QtCore.QObject):
@@ -108,7 +112,8 @@ class Monitor(QtCore.QObject):
 class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     APP_NAME = "TOI app"
 
-    def __init__(self, loop=None, client_api=None):
+    def __init__(self, loop=None, client_api=None, app=None):
+        self.app=app
         super().__init__(loop=loop, client_api=client_api)
         # window title
         self.setWindowTitle(self.APP_NAME)
@@ -162,32 +167,41 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # self.show()
         # self.raise_()
 
-    def close(self):
-        sys.exit()
+    async def on_start_app(self):
+        await self.mnt.on_start_app()
 
-    async def task_starter(self):
-        await self.mnt.task_starter()
-        # li1 = self.loop.create_task(listener(api, address1, display1, name="sub1"))  # 'fire and forget' don't await
+    @qs.asyncClose
+    async def closeEvent(self, event):
+        super().closeEvent(event)
 
 
-def main():
+async def main():
     # todo tu można odpytywać przy odpaleniu kto urzywa apki a alb obrać bomyślnie 'guest'
     client = Client(name="TOI client")
     api = ClientAPI(client=client, user_email="", user_name="GuestTOI",
                     user_description="TOI user interface client.")
 
-    app = QtWidgets.QApplication(sys.argv)
+    def close_future(future, loop):
+        loop.call_later(10, future.cancel)
+        future.cancel()
 
-    loop = qs.QEventLoop(app)
-    asyncio.set_event_loop(loop)
+    loop = asyncio.get_event_loop()
+    future = asyncio.Future()
+    app = qs.QApplication.instance()
+    if hasattr(app, "aboutToQuit"):
+        getattr(app, "aboutToQuit").connect(
+            functools.partial(close_future, future, loop)
+        )
 
-    toi = TOI(loop=loop, client_api=api)
-
-    # sys.exit(app.exec_())
-    with loop:
-        loop.run_until_complete(toi.task_starter())
-        sys.exit(loop.run_forever())
-
+    toi = TOI(loop=loop, client_api=api, app=app)
+    logger.info("App created")
+    await toi.on_start_app()
+    logger.info("the asynchronous start of the application has been completed")
+    await future
+    return True
 
 if __name__ == "__main__":
-    main()
+    try:
+        qs.run(main())
+    except asyncio.exceptions.CancelledError:
+        sys.exit(0)
