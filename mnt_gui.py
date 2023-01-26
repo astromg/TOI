@@ -35,7 +35,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def __init__(self, parent, loop: QEventLoop = None, client_api=None):
         super().__init__(loop=loop, client_api=client_api)
-
+        self.subscriber_delay = 1
+        self.subscriber_time_of_data_tolerance = 0.5
         self.domeAz = None
         self.mntStat = None
 
@@ -237,22 +238,46 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntRa_l = QLabel("TELESCOPE RA [h]: ")
         self.mntRa_e = QLineEdit()
         self.mntRa_e.setReadOnly(True)
-        self.mntRa_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.mntRa_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.add_background_task(coro=self.subscriber(self.mntRa_e,
+                                                      self.get_address('get_telescope_rightascension'),
+                                                      name='mntRa_e',
+                                                      delay=self.subscriber_delay,
+                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
+                                 name='mntRa_e')
 
         self.mntDec_l = QLabel("TELESCOPE DEC [d]: ")
         self.mntDec_e = QLineEdit()
         self.mntDec_e.setReadOnly(True)
-        self.mntDec_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.mntDec_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.add_background_task(coro=self.subscriber(self.mntDec_e,
+                                                      self.get_address('get_telescope_declination'),
+                                                      name='mntDec_e',
+                                                      delay=self.subscriber_delay,
+                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
+                                 name='mntDec_e')
 
         self.mntAz_l = QLabel("TELESCOPE AZ [d]: ")
         self.mntAz_e = QLineEdit()
         self.mntAz_e.setReadOnly(True)
-        self.mntAz_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.mntAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.add_background_task(coro=self.subscriber(self.mntAz_e,
+                                                      self.get_address('get_telescope_azimuth'),
+                                                      name='mntAz_e',
+                                                      delay=self.subscriber_delay,
+                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
+                                 name='mntAz_e')
 
         self.mntAlt_l = QLabel("TELESCOPE ALT [d]: ")
         self.mntAlt_e = QLineEdit()
         self.mntAlt_e.setReadOnly(True)
-        self.mntAlt_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.mntAlt_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.add_background_task(coro=self.subscriber(self.mntAlt_e,
+                                                      self.get_address('get_telescope_altitude'),
+                                                      name='mntAlt_e',
+                                                      delay=self.subscriber_delay,
+                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
+                                 name='mntAlt_e')
 
         self.mntAirmass_l = QLabel("Airmass: ")
         self.mntAirmass_e = QLineEdit()
@@ -295,8 +320,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.add_background_task(coro=self.subscriber(self.domeAz_e,
                                                       self.get_address('get_dome_azimuth'),
                                                       name='domeAz_e',
-                                                      delay=1,
-                                                      time_of_data_tolerance=0.5),
+                                                      delay=self.subscriber_delay,
+                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
                                  name='domeAz_e')
         self.domeNextAz_e = QLineEdit()
 
@@ -451,8 +476,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.add_background_task(coro=self.subscriber(self.domeStat_e,
                                                       self.get_address('get_dome_status'),
                                                       name='domeStat_e',
-                                                      delay=1,
-                                                      time_of_data_tolerance=0.5),
+                                                      delay=self.subscriber_delay,
+                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
                                  name='domeStat_e')
 
         grid.addWidget(self.domeStat_l, w, 0)
@@ -473,6 +498,9 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeShutter_c.setLayoutDirection(Qt.RightToLeft)
         self.domeShutter_c.setStyleSheet(
             "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        # todo ten przycisk nie potrafi odczytać wartości z pola więc przy zmianie pola z innej aplikacji przycisk
+        #  się nie zmienia
+        self.domeShutter_c.stateChanged.connect(lambda: self._shutter_checkbox_change(self.domeShutter_c))
 
         self.domeShutter_e = QLineEdit()
         self.domeShutter_e.setReadOnly(True)
@@ -481,8 +509,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.add_background_task(coro=self.subscriber(self.domeShutter_e,
                                                       self.get_address('get_dome_shutterstatus'),
                                                       name='domeShutter_e',
-                                                      delay=1,
-                                                      time_of_data_tolerance=0.5),
+                                                      delay=self.subscriber_delay,
+                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
                                  name='domeShutter_e')
 
         self.domeLights_l = QLabel("DOME LIGHTS: ")
@@ -580,3 +608,38 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             logger.info("Can not set value in alpaca: CommunicationRuntimeError")
         except CommunicationTimeoutError:
             logger.info("Can not set value in alpaca: CommunicationTimeoutError")
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+
+    @qs.asyncSlot()
+    async def _shutter_checkbox_change(self, checkbox: QCheckBox):
+        """Method for shutter checkbox changed"""
+        state = checkbox.isChecked()
+        if state:
+            address = self.get_address("put_dome_shutter_open")
+            action = "open"
+        else:
+            address = self.get_address("put_dome_shutter_close")
+            action = "close"
+
+        checkbox.blockSignals(True)  # Block signals so that you don't call this method recursively
+        checkbox.setEnabled(False)  # avoid check again before react for first toggle
+        try:
+            response = await self.client_api.put_async(address=address, no_wait=False)
+            if response and response.value and response.status and (response.value.v is not None):
+                logger.info(f"Successfully shutter {action}")
+            else:
+                logger.info(f"Can not {action} shutter: Normal")
+                checkbox.setChecked(not state)  # can not change dome status so toggle checkbox back
+        except CommunicationRuntimeError:
+            logger.info(f"Can not {action} shutter: CommunicationRuntimeError")
+            checkbox.setChecked(not state)  # can not change dome status so toggle checkbox back
+
+        except CommunicationTimeoutError:
+            logger.info(f"Can not {action} shutter: CommunicationTimeoutError")
+            checkbox.setChecked(not state)  # can not change dome status so toggle checkbox back
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+        finally:
+            checkbox.setEnabled(True)  # allow toggle
+            checkbox.blockSignals(False)  # unblock signals
