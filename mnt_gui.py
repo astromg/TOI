@@ -4,24 +4,15 @@
 # 01.08.2022
 # Marek Gorski
 # ----------------
-import asyncio
-import functools
 import logging
 import time
+from typing import Tuple
 
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel, QCheckBox, QTextEdit, QLineEdit, QDialog, \
-    QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget, QTableWidgetItem, \
-    QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QRadioButton
-
-from astropy.coordinates import EarthLocation as apEarthLocation
-from astropy.coordinates import SkyCoord as apSkyCoord
-from astropy.time import Time as apTime
-from astropy.coordinates import AltAz as apAltAz
-import requests
 import qasync as qs
-import ephem
+from PyQt5 import QtGui
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QGridLayout, QFrame, QComboBox, \
+    QRadioButton
 from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 from qasync import QEventLoop
 
@@ -45,14 +36,10 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.mkUI()
         # self.update()
-        self.telPark_p.clicked.connect(self.park)
-        self.Slew_p.clicked.connect(self.slew)
-        self.tracking_c.clicked.connect(self.tracking)
-        self.mntStop_p.clicked.connect(self.mnt_stop)
 
-        self.setEq_r.toggled.connect(self.update)
-        self.setAltAz_r.toggled.connect(self.update)
-        self.parent.monitor.ding.connect(self.update)
+        self.setEq_r.toggled.connect(self.update_)
+        self.setAltAz_r.toggled.connect(self.update_)
+
         self.nextRa_e.textChanged.connect(self.updateNextRaDec)
         self.nextDec_e.textChanged.connect(self.updateNextRaDec)
         self.nextAlt_e.textChanged.connect(self.updateNextRaDec)
@@ -98,54 +85,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                 self.nextAlt_e.setStyleSheet("background-color: white;")
                 self.nextAz_e.setStyleSheet("background-color: white")
 
-    def park(self):
-        quest = "http://172.23.68.211:11111/api/v1/telescope/0/park"
-        r = requests.put(quest)
-        print(r.text)
-
-    def slew(self):
-        if self.setEq_r.isChecked():
-            print("Eq")
-            ra = self.nextRa_e.text()
-            dec = self.nextDec_e.text()
-            data = {"RightAscension": ra, "Declination": dec}
-            quest = "http://172.23.68.211:11111/api/v1/telescope/0/slewtocoordinatesasync"
-            r = requests.put(quest, data=data)
-            print(r.text)
-        if self.setAltAz_r.isChecked():
-            print("Az")
-            az = self.nextAz_e.text()
-            alt = self.nextAlt_e.text()
-            data = {"Azimuth": az, "Altitude": alt}
-            quest = "http://172.23.68.211:11111/api/v1/telescope/0/slewtoaltazasync"
-            r = requests.put(quest, data=data)
-            print(r.text)
-
-    def tracking(self):
-        self.parent.monitor.sleep_time = 2
-        if self.tracking_c.isChecked():
-            data = {"Tracking": "true"}
-            quest = "http://172.23.68.211:11111/api/v1/telescope/0/tracking"
-            r = requests.put(quest, data=data)
-            print(r.text)
-        else:
-            data = {"Tracking": "false"}
-            quest = "http://172.23.68.211:11111/api/v1/telescope/0/tracking"
-            r = requests.put(quest, data=data)
-            print(r.text)
-        # self.parent.monitor.check()
-        self.parent.monitor.sleep_time = 1
-
-    def mnt_stop(self):
-        data = {"Tracking": "false"}
-        quest = "http://172.23.68.211:11111/api/v1/telescope/0/tracking"
-        r = requests.put(quest, data=data)
-        print(r.text)
-        quest = "http://172.23.68.211:11111/api/v1/telescope/0/abortslew"
-        r = requests.put(quest)
-        print(r.text)
-
-    def update(self):
+    def update_(self):
 
         if self.setEq_r.isChecked():
             self.nextAz_e.setReadOnly(True)
@@ -166,13 +106,13 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.nextRa_e.setStyleSheet("background-color: rgb(233, 233, 233);")
             self.nextDec_e.setReadOnly(True)
             self.nextDec_e.setStyleSheet("background-color: rgb(233, 233, 233);")
-
-        if self.parent.connection_ok:
-            self.mntConn1_l.setText("CONNECTED")
-            self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
-        else:
-            self.mntConn1_l.setText("NO CONNECTION")
-            self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+        return
+        # if self.parent.connection_ok:
+        #     self.mntConn1_l.setText("CONNECTED")
+        #     self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
+        # else:
+        #     self.mntConn1_l.setText("NO CONNECTION")
+        #     self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
 
         if self.parent.connection_ok:
             txt = ""
@@ -192,10 +132,10 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.mntStat_e.setText(txt)
             self.mntStat_e.setStyleSheet(style)
 
-            self.mntAz_e.setText(self.parent.mnt_az)
-            self.mntAlt_e.setText(self.parent.mnt_alt)
-            self.mntRa_e.setText(self.parent.mnt_ra)
-            self.mntDec_e.setText(self.parent.mnt_dec)
+            # self.mntAz_e.setText(self.parent.mnt_az)
+            # self.mntAlt_e.setText(self.parent.mnt_alt)
+            # self.mntRa_e.setText(self.parent.mnt_ra)
+            # self.mntDec_e.setText(self.parent.mnt_dec)
             self.tracking_c.setChecked(self.parent.mnt_trac)
 
     # TODO Concept grouping gui object
@@ -217,9 +157,6 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     # self.domeAz.next_e_ = QLineEdit()
     # self.domeAz.set_p_ = QPushButton('MOVE')
 
-    async def on_start_app(self):
-        await self.run_background_tasks()
-
     # =================== OKNO GLOWNE ====================================
     def mkUI(self):
 
@@ -239,45 +176,41 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntRa_e = QLineEdit()
         self.mntRa_e.setReadOnly(True)
         self.mntRa_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.add_background_task(coro=self.subscriber(self.mntRa_e,
-                                                      self.get_address('get_telescope_rightascension'),
-                                                      name='mntRa_e',
-                                                      delay=self.subscriber_delay,
-                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
-                                 name='mntRa_e')
+        self.add_subscription(address=self.get_address('get_telescope_rightascension'),
+                              name='mntRa_e',
+                              delay=self.subscriber_delay,
+                              time_of_data_tolerance=self.subscriber_time_of_data_tolerance,
+                              async_callback_method=[self.update_field_callback(self.mntRa_e, name='mntRa_e')])
 
         self.mntDec_l = QLabel("TELESCOPE DEC [d]: ")
         self.mntDec_e = QLineEdit()
         self.mntDec_e.setReadOnly(True)
         self.mntDec_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.add_background_task(coro=self.subscriber(self.mntDec_e,
-                                                      self.get_address('get_telescope_declination'),
-                                                      name='mntDec_e',
-                                                      delay=self.subscriber_delay,
-                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
-                                 name='mntDec_e')
+        self.add_subscription(address=self.get_address('get_telescope_declination'),
+                              name='mntDec_e',
+                              delay=self.subscriber_delay,
+                              time_of_data_tolerance=self.subscriber_time_of_data_tolerance,
+                              async_callback_method=[self.update_field_callback(self.mntDec_e, name='mntDec_e')])
 
         self.mntAz_l = QLabel("TELESCOPE AZ [d]: ")
         self.mntAz_e = QLineEdit()
         self.mntAz_e.setReadOnly(True)
         self.mntAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.add_background_task(coro=self.subscriber(self.mntAz_e,
-                                                      self.get_address('get_telescope_azimuth'),
-                                                      name='mntAz_e',
-                                                      delay=self.subscriber_delay,
-                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
-                                 name='mntAz_e')
+        self.add_subscription(address=self.get_address('get_telescope_azimuth'),
+                              name='mntAz_e',
+                              delay=self.subscriber_delay,
+                              time_of_data_tolerance=self.subscriber_time_of_data_tolerance,
+                              async_callback_method=[self.update_field_callback(self.mntAz_e, name='mntAz_e')])
 
         self.mntAlt_l = QLabel("TELESCOPE ALT [d]: ")
         self.mntAlt_e = QLineEdit()
         self.mntAlt_e.setReadOnly(True)
         self.mntAlt_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.add_background_task(coro=self.subscriber(self.mntAlt_e,
-                                                      self.get_address('get_telescope_altitude'),
-                                                      name='mntAlt_e',
-                                                      delay=self.subscriber_delay,
-                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
-                                 name='mntAlt_e')
+        self.add_subscription(address=self.get_address('get_telescope_altitude'),
+                              name='mntAlt_e',
+                              delay=self.subscriber_delay,
+                              time_of_data_tolerance=self.subscriber_time_of_data_tolerance,
+                              async_callback_method=[self.update_field_callback(self.mntAlt_e, name='mntAlt_e')])
 
         self.mntAirmass_l = QLabel("Airmass: ")
         self.mntAirmass_e = QLineEdit()
@@ -300,6 +233,11 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.nextAlt_l = QLabel("NEXT ALT: ")
         self.nextAlt_e = QLineEdit()
 
+        self.Slew_p.clicked.connect(lambda: self._slew_btn_clicked(rad_btnRaDec=self.setEq_r,
+                                                                   rad_btnAzAlt=self.setAltAz_r,
+                                                                   radec_fields_source=(self.nextRa_e, self.nextDec_e),
+                                                                   azalt_fields_source=(self.nextAz_e, self.nextAlt_e)))
+
         self.nextAirmass_l = QLabel("Next Airmass: ")
         self.nextAirmass_e = QLineEdit()
         self.nextAirmass_e.setReadOnly(True)
@@ -317,12 +255,11 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeAz_e = QLineEdit()
         self.domeAz_e.setReadOnly(True)
         self.domeAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.add_background_task(coro=self.subscriber(self.domeAz_e,
-                                                      self.get_address('get_dome_azimuth'),
-                                                      name='domeAz_e',
-                                                      delay=self.subscriber_delay,
-                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
-                                 name='domeAz_e')
+        self.add_subscription(address=self.get_address('get_dome_azimuth'),
+                              name='domeAz_e',
+                              delay=self.subscriber_delay,
+                              time_of_data_tolerance=self.subscriber_time_of_data_tolerance,
+                              async_callback_method=[self.update_field_callback(self.domeAz_e, name='domeAz_e')])
         self.domeNextAz_e = QLineEdit()
 
         self.domeSet_p = QPushButton('MOVE')
@@ -365,6 +302,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.tracking_c.setStyleSheet(
             "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
+        self.tracking_c.stateChanged.connect(lambda: self._tracking_checkbox_change(self.tracking_c))
+
         self.guiding_c = QCheckBox("GUIDING: ")
         self.guiding_c.setChecked(False)
         self.guiding_c.setLayoutDirection(Qt.RightToLeft)
@@ -373,14 +312,22 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
         self.telPark_p = QPushButton('PARK')
+        self.telPark_p.clicked.connect(self._park_btn_clicked)
         self.mntStop_p = QPushButton('STOP')
+        self.mntStop_p.clicked.connect(self._stop_btn_clicked)
 
         grid = QGridLayout()
 
         w = 0
-        self.mntConn1_l = QLabel("CONNECTED")
+        self.mntConn1_l = QLabel("NOT CONNECTED")
         self.mntConn2_l = QLabel(" ")
         self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+        self.add_subscription_client_side(address=self.get_address('get_telescope_connected'),
+                                          name='mntConn1_l',
+                                          delay=self.subscriber_delay,
+                                          time_of_data_tolerance=self.subscriber_time_of_data_tolerance,
+                                          async_callback_method=[
+                                              self._update_connection_indicator(self.mntConn1_l, self.mntConn2_l)])
 
         self.ticControler_l = QLabel("CONTROLER: ")
 
@@ -473,12 +420,11 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeStat_e.setReadOnly(True)
         self.domeStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
-        self.add_background_task(coro=self.subscriber(self.domeStat_e,
-                                                      self.get_address('get_dome_status'),
-                                                      name='domeStat_e',
-                                                      delay=self.subscriber_delay,
-                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
-                                 name='domeStat_e')
+        self.add_subscription(address=self.get_address('get_dome_status'),
+                              name='domeStat_e',
+                              delay=self.subscriber_delay,
+                              time_of_data_tolerance=self.subscriber_time_of_data_tolerance,
+                              async_callback_method=[self._update_dome_status_callback(self.domeStat_e, name='domeStat_e')])
 
         grid.addWidget(self.domeStat_l, w, 0)
         grid.addWidget(self.domeStat_e, w, 1, 1, 2)
@@ -506,12 +452,12 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeShutter_e.setReadOnly(True)
         self.domeShutter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
-        self.add_background_task(coro=self.subscriber(self.domeShutter_e,
-                                                      self.get_address('get_dome_shutterstatus'),
-                                                      name='domeShutter_e',
-                                                      delay=self.subscriber_delay,
-                                                      time_of_data_tolerance=self.subscriber_time_of_data_tolerance),
-                                 name='domeShutter_e')
+        self.add_subscription(address=self.get_address('get_dome_shutterstatus'),
+                              name='domeShutter_e',
+                              delay=self.subscriber_delay,
+                              time_of_data_tolerance=self.subscriber_time_of_data_tolerance,
+                              async_callback_method=[
+                                  self.update_field_callback(self.domeShutter_e, name='domeShutter_e')])
 
         self.domeLights_l = QLabel("DOME LIGHTS: ")
         self.domeLights_c = QCheckBox("")
@@ -564,6 +510,9 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.setLayout(grid)
 
+    async def on_start_app(self):
+        await self.run_background_tasks()
+
     @qs.asyncClose
     async def closeEvent(self, event):
         await self.stop_background_tasks()
@@ -597,19 +546,9 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             logger.warning(f"Can not set azimuth because can not parse {field_source.text()} to float")
             return
             # todo czy ma być jakaś obsługa błędów? to już po stronie QLabelEdit chyba np jakieś zaznaczanie na czerwono jak jest żle
-        try:
-            response = await self.client_api.put_async(address=self.get_address("put_dome_azimuth"),
-                                                       parameters_dict={'Azimuth': value})
-            if response and response.value.v is True:
-                logger.info("Successfully set value in alpaca")
-            else:
-                logger.info("Can not set value in alpaca: Normal")
-        except CommunicationRuntimeError:
-            logger.info("Can not set value in alpaca: CommunicationRuntimeError")
-        except CommunicationTimeoutError:
-            logger.info("Can not set value in alpaca: CommunicationTimeoutError")
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}")
+        await self.put_base_request(address=self.get_address("put_dome_azimuth"),
+                                    parameters_dict={'Azimuth': value}, no_wait=False,
+                                    action="move dome in alpaca")
 
     @qs.asyncSlot()
     async def _shutter_checkbox_change(self, checkbox: QCheckBox):
@@ -643,3 +582,123 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         finally:
             checkbox.setEnabled(True)  # allow toggle
             checkbox.blockSignals(False)  # unblock signals
+
+    @qs.asyncSlot()
+    async def _slew_btn_clicked(self, rad_btnRaDec: QRadioButton, rad_btnAzAlt: QRadioButton,
+                                radec_fields_source: Tuple[QLineEdit, QLineEdit],
+                                azalt_fields_source: Tuple[QLineEdit, QLineEdit]):
+        """Method for 'slew' button"""
+        ra_field, dec_field = radec_fields_source
+        az_field, alt_field = azalt_fields_source
+        # todo co z przeliczaniem tych Ra Dec w jakiej postaci to ma być? 5.3323 czy jakieś minuty godziny?
+        if rad_btnRaDec.isChecked():
+            # todo tutaj coś ma być ustawione zanim bedzie przesuwać po RaDec i co robią te pozostałe metody?
+            logger.info(f"Slewing by RaDec")
+            ra = ra_field.text()
+            dec = dec_field.text()
+            data = {"RightAscension": ra, "Declination": dec}
+            result = await self.client_api.put_async(address=self.get_address("put_telescope_slewtocoordinates"),
+                                                     parameters_dict=data, no_wait=False)
+        elif rad_btnAzAlt.isChecked():
+            logger.info(f"Slewing by AzAlt")
+            az = az_field.text()
+            alt = alt_field.text()
+            data = {"Azimuth": az, "Altitude": alt}
+            result = await self.client_api.put_async(address=self.get_address("put_telescope_slewtoaltaz"),
+                                                     parameters_dict=data, no_wait=False)
+        else:
+            logger.error("Any known checkbox wasn't check")
+            return
+        if result.status:
+            logger.info("Successfully slew mount")
+        else:
+            logger.info(f"Can not slew mount error from server: {result.error}")
+
+    @qs.asyncSlot()
+    async def _tracking_checkbox_change(self, checkbox: QCheckBox):
+        """Method for 'tracking' checkbox"""
+        state = checkbox.isChecked()
+        address = self.get_address("put_telescope_tracking")
+        if state:
+            action = "ON"
+        else:
+            action = "OFF"
+        checkbox.blockSignals(True)  # Block signals so that you don't call this method recursively
+        checkbox.setEnabled(False)  # avoid check again before react for first toggle
+        try:
+            response = await self.client_api.put_async(address=address, no_wait=False,
+                                                       parameters_dict={"Tracking": state})
+            if response and response.value and response.status and (response.value.v is not None):
+                logger.info(f"Successfully turn {action} tracking")
+            else:
+                logger.info(f"Can not turn {action} tracking: Normal")
+                checkbox.setChecked(not state)  # can not change dome status so toggle checkbox back
+        except CommunicationRuntimeError:
+            logger.info(f"Can turn {action} tracking: CommunicationRuntimeError")
+            checkbox.setChecked(not state)  # can not change dome status so toggle checkbox back
+        except CommunicationTimeoutError:
+            logger.info(f"Can turn {action} tracking: CommunicationTimeoutError")
+            checkbox.setChecked(not state)  # can not change dome status so toggle checkbox back
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+        finally:
+            checkbox.setEnabled(True)  # allow toggle
+            checkbox.blockSignals(False)  # unblock signals
+
+    @qs.asyncSlot()
+    async def _stop_btn_clicked(self):
+        """Method for 'stop' button"""
+        # todo w orginale było 'abortslew' i stop 'tracking'
+        await self.put_base_request(address=self.get_address("put_telescope_abortslew"), no_wait=False,
+                                    action="abort slew alpaca")
+
+    @qs.asyncSlot()
+    async def _park_btn_clicked(self):
+        """Method for 'park' button"""
+        await self.put_base_request(address=self.get_address("put_telescope_park"), no_wait=False,
+                                    action="park telescope")
+
+    @staticmethod
+    def _update_connection_indicator(field: QLabel, field2: QLabel):
+        name = 'Connection checker'
+
+        async def callback(result):
+            is_connected = False
+            if not result:
+                # server ocabox nie odpowiada - jest wyłączony albo na złym porcie
+                logger.debug(f"Callback for cycle request named {name} not connect: Server ocabox not response")
+            else:
+                if result[0].value and result[0].value.v:
+                    is_connected = result[0].value.v
+                else:
+                    logger.debug(f"Callback for cycle request named {name} not connect: Alpaca server not response: "
+                                 f"Error: {result[0].error}")
+            if is_connected:
+                field.setText("CONNECTED")
+                field2.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
+            else:
+                field.setText("NO CONNECTION")
+                field2.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+
+        return callback
+
+    @staticmethod
+    def _update_dome_status_callback(field, name="Dome status callback"):
+        async def callback(result):
+            if result and result[0].value:
+                logger.info(f"updater named {name} change field value")
+                val = result[0].value.v
+                if val == 0:
+                    tex_to_put = "Open"
+                elif val == 1:
+                    tex_to_put = "Closed"
+                elif val == 2:
+                    tex_to_put = "Opening"
+                elif val == 3:
+                    tex_to_put = "Closing"
+                elif val == 4:
+                    tex_to_put = "Shutter status error"
+                else:
+                    tex_to_put = f"{val}"
+                field.setText(tex_to_put)  # update field in GUI
+        return callback

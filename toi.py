@@ -15,6 +15,7 @@ import qasync as qs
 
 from ob.comunication.client import Client
 from ob.comunication.client_api import ClientAPI
+from ob.ob_config import SingletonConfig
 
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 from config_service import Config as Cfg
@@ -113,7 +114,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     APP_NAME = "TOI app"
 
     def __init__(self, loop=None, client_api=None, app=None):
-        self.app=app
+        self.app = app
         super().__init__(loop=loop, client_api=client_api)
         # window title
         self.setWindowTitle(self.APP_NAME)
@@ -152,7 +153,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.pery.show()
         self.pery.raise_()
 
-        self.tel = TelGui(self)
+        self.tel = TelGui(self, loop=self.loop, client_api=self.client_api)
         self.tel.show()
         self.tel.raise_()
 
@@ -169,6 +170,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def on_start_app(self):
         await self.mnt.on_start_app()
+        await self.tel.on_start_app()
 
     @qs.asyncClose
     async def closeEvent(self, event):
@@ -181,9 +183,9 @@ async def main():
     api = ClientAPI(client=client, user_email="", user_name="GuestTOI",
                     user_description="TOI user interface client.")
 
-    def close_future(future, loop):
-        loop.call_later(10, future.cancel)
-        future.cancel()
+    def close_future(future_, loop_):
+        loop_.call_later(10, future_.cancel)
+        future_.cancel()
 
     loop = asyncio.get_event_loop()
     future = asyncio.Future()
@@ -200,6 +202,7 @@ async def main():
     await future
     return True
 
+# todo może warto dodać do GUI na dole taki widget z logami co się dzieje taka konsola tylko do odczytu
 if __name__ == "__main__":
     try:
         qs.run(main())
