@@ -1,4 +1,9 @@
+import pathlib
+
 OBSERVATORY_COORD = ("48.3", "14.28", "1000")  # deg,deg,m
+
+PATH_TO_CONFIG_DIR = pathlib.Path().resolve()
+
 
 ALPACA_BASE_ADDRESS = "800"
 
@@ -15,6 +20,8 @@ OCA_ADDRESS_DICT = {
     "get_telescope_connected": f"{ALPACA_BASE_ADDRESS}.mount.connected",
     "get_telescope_utcdate": f"{ALPACA_BASE_ADDRESS}.mount.utcdate",
     "get_covercalibrator_coverstate": f"{ALPACA_BASE_ADDRESS}.covercalibrator.coverstate",
+    "get_filterwheel_position": f"{ALPACA_BASE_ADDRESS}.filterwheel.position",
+    "get_filterwheel_names": f"{ALPACA_BASE_ADDRESS}.filterwheel.names",
 
     "put_dome_azimuth": f"{ALPACA_BASE_ADDRESS}.dome.slewtoazimuth",
     "put_dome_shutter_open": f"{ALPACA_BASE_ADDRESS}.dome.openshutter",
@@ -27,4 +34,6 @@ OCA_ADDRESS_DICT = {
     "put_telescope_unpark": f"{ALPACA_BASE_ADDRESS}.mount.unpark",
     "put_covercalibrator_close": f"{ALPACA_BASE_ADDRESS}.covercalibrator.closecover",
     "put_covercalibrator_open": f"{ALPACA_BASE_ADDRESS}.covercalibrator.opencover",
+    "put_filterwheel_position": f"{ALPACA_BASE_ADDRESS}.filterwheel.position",
+
 }

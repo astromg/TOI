@@ -115,18 +115,20 @@ class BaseAsyncWidget(ABC):
 
     async def get_request(self, address: str, time_of_data: float or None = None,
                           time_of_data_tolerance: float or None = None,
-                          parameters_dict: dict = None):
-        # todo dokonczyc
+                          parameters_dict: dict = None, action: str = ""):
         try:
             response = await self.client_api.get_async(address=address,
                                                        time_of_data=time_of_data,
                                                        time_of_data_tolerance=time_of_data_tolerance,
                                                        parameters_dict=parameters_dict)
-            return response.value
+            if response and response.value:
+                return response.value.v
         except CommunicationRuntimeError:
-            pass
+            logger.info(f"Can not {action if action else f'call {address}'}: CommunicationRuntimeError")
         except CommunicationTimeoutError:
-            pass
+            logger.info(f"Can not {action if action else f'call {address}'}: CommunicationTimeoutError")
+        except Exception as e:
+            logger.error(f"Unexpected error when {action if action else f'call {address}'}: {e}")
         return None
 
     async def put_base_request(self, address: str, time_of_data: float or None = None,
@@ -138,6 +140,7 @@ class BaseAsyncWidget(ABC):
                                                        no_wait=no_wait)
             if response and response.value and response.value.v is True:
                 logger.info(f"Successfully {action if action else f'call {address}'}")
+                return True
             else:
                 logger.info(f"Can not {action if action else f'call {address}'}: Normal")
         except CommunicationRuntimeError:
@@ -146,6 +149,7 @@ class BaseAsyncWidget(ABC):
             logger.info(f"Can not {action if action else f'call {address}'}: CommunicationTimeoutError")
         except Exception as e:
             logger.error(f"Unexpected error when {action if action else f'call {address}'}: {e}")
+        return False
 
     @staticmethod
     def get_address(method_name: str):

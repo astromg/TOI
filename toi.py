@@ -7,6 +7,7 @@
 import asyncio
 import functools
 import logging
+import pathlib
 
 import requests
 from PyQt5 import QtCore, QtWidgets
@@ -149,7 +150,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.planGui.show()
         self.planGui.raise_()
 
-        self.pery = PeryphericalGui(self)
+        self.pery = PeryphericalGui(self, loop=self.loop, client_api=self.client_api)
         self.pery.show()
         self.pery.raise_()
 
@@ -170,6 +171,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def on_start_app(self):
         await self.mnt.on_start_app()
+        await self.pery.on_start_app()
         await self.tel.on_start_app()
 
     @qs.asyncClose
@@ -177,9 +179,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         super().closeEvent(event)
 
 
-async def main():
+async def run_qt_app():
     # todo tu można odpytywać przy odpaleniu kto urzywa apki a alb obrać bomyślnie 'guest'
-    client = Client(name="TOI client")
+    SingletonConfig.add_config_file(
+        str(pathlib.PurePath(Cfg.get("PATH_TO_CONFIG_DIR"), "configuration", "config.yaml")))
+    SingletonConfig.get_config(rebuild=True).get()
+
+    client = Client(name="TOI_client")
     api = ClientAPI(client=client, user_email="", user_name="GuestTOI",
                     user_description="TOI user interface client.")
 
@@ -202,9 +208,14 @@ async def main():
     await future
     return True
 
-# todo może warto dodać do GUI na dole taki widget z logami co się dzieje taka konsola tylko do odczytu
-if __name__ == "__main__":
+
+def main():
     try:
-        qs.run(main())
+        qs.run(run_qt_app())
     except asyncio.exceptions.CancelledError:
         sys.exit(0)
+
+
+# todo może warto dodać do GUI na dole taki widget z logami co się dzieje taka konsola tylko do odczytu
+if __name__ == "__main__":
+    main()
