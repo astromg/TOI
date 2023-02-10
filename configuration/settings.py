@@ -8,7 +8,6 @@ PATH_TO_CONFIG_DIR = pathlib.Path().resolve()
 ALPACA_BASE_ADDRESS = "800"
 
 OCA_ADDRESS_DICT = {
-    "get_take_control": f"{ALPACA_BASE_ADDRESS}.access_grantor.take_control",
     "get_current_user_control": f"{ALPACA_BASE_ADDRESS}.access_grantor.current_user",
     "get_dome_azimuth": f"{ALPACA_BASE_ADDRESS}.dome.azimuth",
     "get_dome_status": f"{ALPACA_BASE_ADDRESS}.dome.shutterstatus",  # todo potwierdzic
@@ -22,7 +21,9 @@ OCA_ADDRESS_DICT = {
     "get_covercalibrator_coverstate": f"{ALPACA_BASE_ADDRESS}.covercalibrator.coverstate",
     "get_filterwheel_position": f"{ALPACA_BASE_ADDRESS}.filterwheel.position",
     "get_filterwheel_names": f"{ALPACA_BASE_ADDRESS}.filterwheel.names",
+    "get_focuser_position": f"{ALPACA_BASE_ADDRESS}.focuser.position",
 
+    "put_take_control": f"{ALPACA_BASE_ADDRESS}.access_grantor.take_control",
     "put_dome_azimuth": f"{ALPACA_BASE_ADDRESS}.dome.slewtoazimuth",
     "put_dome_shutter_open": f"{ALPACA_BASE_ADDRESS}.dome.openshutter",
     "put_dome_shutter_close": f"{ALPACA_BASE_ADDRESS}.dome.closeshutter",
@@ -35,5 +36,6 @@ OCA_ADDRESS_DICT = {
     "put_covercalibrator_close": f"{ALPACA_BASE_ADDRESS}.covercalibrator.closecover",
     "put_covercalibrator_open": f"{ALPACA_BASE_ADDRESS}.covercalibrator.opencover",
     "put_filterwheel_position": f"{ALPACA_BASE_ADDRESS}.filterwheel.position",
+    "put_focuser_move": f"{ALPACA_BASE_ADDRESS}.focuser.move",
 
 }

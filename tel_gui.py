@@ -30,7 +30,7 @@ class TelGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mkUI()
         self.update_()
 
-        self.Exit_p.clicked.connect(lambda: self.parent.app.closeAllWindows())  # todo przyjżeć się jeszcze raz temu
+        self.Exit_p.clicked.connect(lambda: self.parent.app.closeAllWindows())
 
     def update_(self):
         # self.mntUt_e.setText("21:34:17")

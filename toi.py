@@ -180,11 +180,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 async def run_qt_app():
-    # todo tu można odpytywać przy odpaleniu kto urzywa apki a alb obrać bomyślnie 'guest'
     SingletonConfig.add_config_file(
         str(pathlib.PurePath(Cfg.get("PATH_TO_CONFIG_DIR"), "configuration", "config.yaml")))
     SingletonConfig.get_config(rebuild=True).get()
 
+    # todo tu można odpytywać przy odpaleniu kto urzywa apki a alb obrać bomyślnie 'guest'
     client = Client(name="TOI_client")
     api = ClientAPI(client=client, user_email="", user_name="GuestTOI",
                     user_description="TOI user interface client.")

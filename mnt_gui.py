@@ -138,25 +138,6 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             # self.mntDec_e.setText(self.parent.mnt_dec)
             self.tracking_c.setChecked(self.parent.mnt_trac)
 
-    # TODO Concept grouping gui object
-    # class WidgetsGroup(dict):
-    #     def __init__(self, **kwargs):
-    #         for key, value in kwargs.items():
-    #             self[key] = value
-    #         super().__init__()
-    #
-    #     __getattr__ = dict.__getitem__
-    #     __setattr__ = dict.__setitem__
-    #     __delattr__ = dict.__delitem__
-
-    # self.domeAz = self.WidgetsGroup()
-    # self.domeAz.l_ = QLabel("DOME AZ: ")
-    # self.domeAz.e_ = QLineEdit()
-    # self.domeAz.e_.setReadOnly(True)
-    # self.domeAz.e_.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-    # self.domeAz.next_e_ = QLineEdit()
-    # self.domeAz.set_p_ = QPushButton('MOVE')
-
     # =================== OKNO GLOWNE ====================================
     def mkUI(self):
 
@@ -166,7 +147,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntStat_l = QLabel("MOUNT STATUS: ")
         self.mntStat_e = QLineEdit()
         self.mntStat_e.setReadOnly(True)
-        self.mntStat_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.mntStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.mntStat_e.setText("(TODO)")
 
         self.setEq_r = QRadioButton("")
         self.setEq_r.setChecked(True)
@@ -215,7 +197,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntAirmass_l = QLabel("Airmass: ")
         self.mntAirmass_e = QLineEdit()
         self.mntAirmass_e.setReadOnly(True)
-        self.mntAirmass_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.mntAirmass_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.mntAirmass_e.setText("(TODO)")
 
         #################
 
@@ -334,14 +317,12 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.ticControler_e = QLineEdit()
         self.ticControler_e.setReadOnly(True)
         self.ticControler_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        # todo przedyskutować co właściwie tu ma się wyświetlać i rozważyć koncepcje żeby acces_grantor był za cache a wtedy cache będzie miało black_list do zapytać i będzie mogło keszować tylko "current_user" bo na razie się nie da subskrybować tego wogule
-        # self.add_background_task(coro=self.subscriber(self.ticControler_e,
-        #                                               self.get_address('get_current_user_control'),
-        #                                               name='ticControler_e',
-        #                                               delay=1,
-        #                                               time_of_data_tolerance=0.5,
-        #                                               response_processor=lambda response: f"{response[0].value.v.get('name', None)}"),
-        #                          name='ticControler_e')
+        self.add_subscription(address=self.get_address('get_current_user_control'),
+                              name='ticControler_e',
+                              delay=self.subscriber_delay,
+                              time_of_data_tolerance=self.subscriber_time_of_data_tolerance,
+                              async_callback_method=[
+                                  self._update_current_user_callback(self.ticControler_e, name='ticControler_e')])
 
         self.ticControler_p = QPushButton('TAKE CONTROLL')
         self.ticControler_p.clicked.connect(self._take_control)
@@ -424,7 +405,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                               name='domeStat_e',
                               delay=self.subscriber_delay,
                               time_of_data_tolerance=self.subscriber_time_of_data_tolerance,
-                              async_callback_method=[self._update_dome_status_callback(self.domeStat_e, name='domeStat_e')])
+                              async_callback_method=[
+                                  self._update_dome_status_callback(self.domeStat_e, name='domeStat_e')])
 
         grid.addWidget(self.domeStat_l, w, 0)
         grid.addWidget(self.domeStat_e, w, 1, 1, 2)
@@ -468,7 +450,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.domeLights_e = QLineEdit()
         self.domeLights_e.setReadOnly(True)
-        self.domeLights_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.domeLights_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.domeLights_e.setText("(TODO)")
 
         w = w + 1
         grid.addWidget(self.domeShutter_l, w, 0)
@@ -525,9 +508,10 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         # todo czy po zamknięciu apki ma być zwracana kontrola?
         try:
-            response = await self.client_api.get_async(address=self.get_address("get_take_control"),
+            response = await self.client_api.put_async(address=self.get_address("put_take_control"),
                                                        time_of_data_tolerance=0.5,
-                                                       parameters_dict={'timeout_reservation': time.time() + 30})
+                                                       parameters_dict={'timeout_reservation': time.time() + 30},
+                                                       no_wait=False)
             if response and response.value.v is True:
                 logger.info("Successfully taken control over telescope")
             else:
@@ -701,4 +685,20 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                 else:
                     tex_to_put = f"{val}"
                 field.setText(tex_to_put)  # update field in GUI
+
+        return callback
+
+    @staticmethod
+    def _update_current_user_callback(field, name="Current user callback"):
+        async def callback(result):
+            if result and result[0].value:
+                logger.info(f"updater named {name} change field value")
+                val = result[0].value.v
+                tex_to_put = None
+                if isinstance(val, dict):
+                    tex_to_put = val.get('name', None)
+                    tex_to_put = f"{val.get('name', tex_to_put)}"
+
+                field.setText(tex_to_put)  # update field in GUI
+
         return callback

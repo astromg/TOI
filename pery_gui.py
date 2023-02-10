@@ -69,7 +69,8 @@ class PeryphericalGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidge
 
         self.telM3_e = QLineEdit()
         self.telM3_e.setReadOnly(True)
-        self.telM3_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.telM3_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.telM3_e.setText("(TODO)")
 
         self.telM3_s = QComboBox()
         self.telM3_s.addItems(["Imager", "Spectro", "empty"])
@@ -97,7 +98,8 @@ class PeryphericalGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidge
 
         self.telFilter_s = QComboBox()
         self.add_background_task(
-            self._update_filter_list_gui(self.telFilter_s, self.telFilter_e))  # pobiera liste filtrów z servera i aktualizuje w tle
+            self._update_filter_list_gui(self.telFilter_s,
+                                         self.telFilter_e))  # pobiera liste filtrów z servera i aktualizuje w tle
 
         self.telFilter_p = QPushButton('SET')
         self.telFilter_p.clicked.connect(lambda: self._set_filter_btn_clicked(self.telFilter_s))
@@ -112,7 +114,14 @@ class PeryphericalGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidge
 
         self.telFocus_e = QLineEdit()
         self.telFocus_e.setReadOnly(True)
-        self.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.add_subscription(address=self.get_address('get_focuser_position'),
+                              name='telFocus_e',
+                              delay=self.subscriber_delay,
+                              time_of_data_tolerance=self.subscriber_time_of_data_tolerance,
+                              async_callback_method=[
+                                  self.update_field_callback(self.telFocus_e,
+                                                             name='telFocus_e')])
 
         self.telAutoFocus_c = QCheckBox("AUTO: ")
         self.telAutoFocus_c.setChecked(True)
@@ -129,6 +138,7 @@ class PeryphericalGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidge
 
         self.setFocus_e = QLineEdit()
         self.setFocus_p = QPushButton('SET')
+        self.setFocus_p.clicked.connect(lambda: self._set_focus_btn_clicked(self.setFocus_e))
 
         grid.addWidget(self.setFocus_e, w, 2)
         grid.addWidget(self.setFocus_p, w, 3)
@@ -256,4 +266,18 @@ class PeryphericalGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidge
                 except Exception as e:
                     tex_to_put = f"{val}"
                 field.setText(tex_to_put)  # update field in GUI
+
         return callback
+
+    @qs.asyncSlot()
+    async def _set_focus_btn_clicked(self, field_source: QLineEdit):
+        """Method for 'set' focus button"""
+        try:
+            value = int(field_source.text())
+        except ValueError:
+            logger.warning(f"Can not set focus because can not parse {field_source.text()} to int")
+            return
+            # todo czy ma być jakaś obsługa błędów? to już po stronie QLabelEdit chyba np jakieś zaznaczanie na czerwono jak jest żle
+        await self.put_base_request(address=self.get_address("put_focuser_move"),
+                                    parameters_dict={'Position': value}, no_wait=False,
+                                    action="move dome in alpaca")
