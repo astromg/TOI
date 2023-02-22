@@ -19,8 +19,8 @@ class ObsGui(QMainWindow):
           self.setWindowTitle('Telescope Operator Interface')
           self.main_form = MainForm(self.parent)
           self.setCentralWidget(self.main_form)
-          self.resize(850,400)
-          self.move(0,0)
+          self.resize(self.parent.obs_window_size[0],self.parent.obs_window_size[1])
+          self.move(self.parent.obs_window_position[0],self.parent.obs_window_position[0])
 
 
 class MainForm(QWidget):
@@ -33,32 +33,42 @@ class MainForm(QWidget):
           
           self.mkUI()
           self.update_table()
+          self.obs_t.cellClicked.connect(self.pocisniecie_tab)
           self.exit_p.clicked.connect(lambda: self.parent.app.closeAllWindows())
 
+
+      def pocisniecie_tab(self,i,j):
+          self.parent.active_tel = self.parent.obs_tel_in_table[i]
+          self.parent.auxGui.updateUI()
 
 
       def update_table(self):
 
-          self.tel_in_table=["WK06","ZB08","JK15","WG25","SIM"]
-          self.dome_in_table=["Moving","Open","Close","Parked","--"]
-          self.mount_in_table=["Parked","Slewing","Tracking","Guiding","Parked"]
-          self.inst_in_table=["Idle","--","Reading","Exposing V","Exposing K"]
-          self.program_in_table=["Sky Flats","--","Dome Flast","Cep34565","Focusing"]
-          for i,txt in enumerate(self.tel_in_table):
-              txt=self.tel_in_table[i]
+          for i,txt in enumerate(self.parent.obs_tel_in_table):
+              txt=self.parent.obs_tel_in_table[i]
               item=QTableWidgetItem(txt)
+              item.setTextAlignment(QtCore.Qt.AlignHCenter)
+              item.setTextAlignment(QtCore.Qt.AlignVCenter)
               self.obs_t.setItem(i,0,item)
-              txt=self.dome_in_table[i]
+              txt=self.parent.obs_dome_in_table[i]
               item=QTableWidgetItem(txt)
+              item.setTextAlignment(QtCore.Qt.AlignHCenter)
+              item.setTextAlignment(QtCore.Qt.AlignVCenter)
               self.obs_t.setItem(i,1,item)
-              txt=self.mount_in_table[i]
+              txt=self.parent.obs_mount_in_table[i]
               item=QTableWidgetItem(txt)
+              item.setTextAlignment(QtCore.Qt.AlignHCenter)
+              item.setTextAlignment(QtCore.Qt.AlignVCenter)
               self.obs_t.setItem(i,2,item)
-              txt=self.inst_in_table[i]
+              txt=self.parent.obs_inst_in_table[i]
               item=QTableWidgetItem(txt)
+              item.setTextAlignment(QtCore.Qt.AlignHCenter)
+              item.setTextAlignment(QtCore.Qt.AlignVCenter)
               self.obs_t.setItem(i,3,item)
-              txt=self.program_in_table[i]
+              txt=self.parent.obs_program_in_table[i]
               item=QTableWidgetItem(txt)
+              item.setTextAlignment(QtCore.Qt.AlignHCenter)
+              item.setTextAlignment(QtCore.Qt.AlignVCenter)
               self.obs_t.setItem(i,4,item)
 
 
@@ -114,7 +124,7 @@ class MainForm(QWidget):
           grid.addWidget(self.sid_e, w,3)
           
           w=w+1
-          self.obs_t=QTableWidget(4,5)
+          self.obs_t=QTableWidget(5,5)
           self.obs_t.setHorizontalHeaderLabels(["Telescope","Dome","Mount","Instrument","Program"])
           self.obs_t.setSelectionBehavior(QTableWidget.SelectRows)
           self.obs_t.setSelectionMode(QTableWidget.SingleSelection)
@@ -123,6 +133,7 @@ class MainForm(QWidget):
           self.obs_t.setStyleSheet("selection-background-color: rgb(138,176,219);")
           self.obs_t.setEditTriggers(QTableWidget.NoEditTriggers)
           self.obs_t.setFixedWidth(550)           # Size
+          self.obs_t.setStyleSheet("font-size: 9pt;")
           grid.addWidget(self.obs_t, w,0,1,5)
           
           w=w+1
@@ -240,6 +251,12 @@ class SkyView(QWidget):
        #       self.axes.plot(a, h,str(s),alpha=al)
        #       self.axes.bar(230,5, width=0.2*math.pi,bottom=90,color='g',alpha=0.05)
 
+       r,fi = 195, 314.7
+       fi = fi * 2*3.14/360.
+       self.axes.text(fi,r,"Sunset: 20:10:02",fontsize=9)
+       r,fi= 183.8, 311
+       fi =fi * 2*3.14/360.
+       self.axes.text(fi,r,"Sunrise: 04:00:02",fontsize=9)
 
        self.axes.set_theta_direction(-1)
        self.axes.set_theta_zero_location('N')

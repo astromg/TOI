@@ -32,7 +32,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntStat = None
 
         self.parent = parent
-        self.font = QtGui.QFont("Arial", 11)
+        self.setStyleSheet("font-size: 11pt;")
+        self.setGeometry(self.parent.mnt_geometry[0],self.parent.mnt_geometry[1],self.parent.mnt_geometry[2],self.parent.mnt_geometry[3])
 
         self.mkUI()
         # self.update()
@@ -106,37 +107,6 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.nextRa_e.setStyleSheet("background-color: rgb(233, 233, 233);")
             self.nextDec_e.setReadOnly(True)
             self.nextDec_e.setStyleSheet("background-color: rgb(233, 233, 233);")
-        return
-        # if self.parent.connection_ok:
-        #     self.mntConn1_l.setText("CONNECTED")
-        #     self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
-        # else:
-        #     self.mntConn1_l.setText("NO CONNECTION")
-        #     self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
-
-        if self.parent.connection_ok:
-            txt = ""
-            if self.parent.mnt_slewing:
-                txt = txt + " SLEWING"
-                style = "background-color: yellow;"
-            else:
-                style = "background-color: rgb(233, 233, 233);"
-            if self.parent.mnt_trac:
-                txt = txt + " TRACKING"
-                style = style + " color: green;"
-            else:
-                style = style + " color: black;"
-            if self.parent.mnt_park:
-                txt = txt + " PARKED"
-
-            self.mntStat_e.setText(txt)
-            self.mntStat_e.setStyleSheet(style)
-
-            # self.mntAz_e.setText(self.parent.mnt_az)
-            # self.mntAlt_e.setText(self.parent.mnt_alt)
-            # self.mntRa_e.setText(self.parent.mnt_ra)
-            # self.mntDec_e.setText(self.parent.mnt_dec)
-            self.tracking_c.setChecked(self.parent.mnt_trac)
 
     # =================== OKNO GLOWNE ====================================
     def mkUI(self):
@@ -144,11 +114,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.setWindowTitle('Mount Manual Controll')
         # self.setWindowIcon(QtGui.QIcon('icon.png'))
 
-        self.mntStat_l = QLabel("MOUNT STATUS: ")
-        self.mntStat_e = QLineEdit()
-        self.mntStat_e.setReadOnly(True)
-        self.mntStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.mntStat_e.setText("(TODO)")
+
 
         self.setEq_r = QRadioButton("")
         self.setEq_r.setChecked(True)
@@ -312,30 +278,18 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                           async_callback_method=[
                                               self._update_connection_indicator(self.mntConn1_l, self.mntConn2_l)])
 
-        self.ticControler_l = QLabel("CONTROLER: ")
+        self.mntStat_l = QLabel("MOUNT STATUS: ")
+        self.mntStat_e = QLineEdit()
+        self.mntStat_e.setReadOnly(True)
+        self.mntStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.mntStat_e.setText("(TODO)")
 
-        self.ticControler_e = QLineEdit()
-        self.ticControler_e.setReadOnly(True)
-        self.ticControler_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.add_subscription(address=self.get_address('get_current_user_control'),
-                              name='ticControler_e',
-                              delay=self.subscriber_delay,
-                              time_of_data_tolerance=self.subscriber_time_of_data_tolerance,
-                              async_callback_method=[
-                                  self._update_current_user_callback(self.ticControler_e, name='ticControler_e')])
-
-        self.ticControler_p = QPushButton('TAKE CONTROLL')
-        self.ticControler_p.clicked.connect(self._take_control)
-
-        grid.addWidget(self.mntConn1_l, w, 0)
-        grid.addWidget(self.mntConn2_l, w, 1)
-        grid.addWidget(self.ticControler_l, w, 3)
-        grid.addWidget(self.ticControler_e, w, 4)
-        grid.addWidget(self.ticControler_p, w, 5)
 
         w = w + 1
-        grid.addWidget(self.mntStat_l, w, 0)
-        grid.addWidget(self.mntStat_e, w, 1, 1, 5)
+        grid.addWidget(self.mntConn2_l, w, 0)
+        grid.addWidget(self.mntConn1_l, w, 1)
+        grid.addWidget(self.mntStat_l, w, 3)
+        grid.addWidget(self.mntStat_e, w, 4, 1, 3)
 
         w = w + 1
         grid.addWidget(self.mntRa_l, w, 0)
@@ -370,12 +324,6 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         w = w + 1
 
-        # grid.addWidget(self.nextRa_l, w,0)
-        # grid.addWidget(self.nextRa_e, w,1)
-
-        # grid.addWidget(self.nextDec_l, w,2)
-        # grid.addWidget(self.nextDec_e, w,3)
-
         grid.addWidget(self.telPark_p, w, 0)
         grid.addWidget(self.mntStop_p, w, 2)
         grid.addWidget(self.Slew_p, w, 4, 1, 2)
@@ -386,15 +334,13 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.line_l.setFrameShadow(QFrame.Raised)
         grid.addWidget(self.line_l, w, 0, 1, 6)
 
-        # w=w+1
-
-        # grid.addWidget(self.nextAz_l, w,0)
-        # grid.addWidget(self.nextAz_e, w,1)
-
-        # grid.addWidget(self.nextAlt_l, w,2)
-        # grid.addWidget(self.nextAlt_e, w,3)
-
+        # DOME
         w = w + 1
+
+        self.domeConn1_l = QLabel("Dome NOT Connected")
+        self.domeConn2_l = QLabel(" ")
+        self.domeConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+
 
         self.domeStat_l = QLabel("DOME STATUS: ")
         self.domeStat_e = QLineEdit()
@@ -408,22 +354,24 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                               async_callback_method=[
                                   self._update_dome_status_callback(self.domeStat_e, name='domeStat_e')])
 
-        grid.addWidget(self.domeStat_l, w, 0)
-        grid.addWidget(self.domeStat_e, w, 1, 1, 2)
-        grid.addWidget(self.domeAuto_c, w, 4)
+        grid.addWidget(self.domeConn2_l,w,0)
+        grid.addWidget(self.domeConn1_l,w,1)
+        grid.addWidget(self.domeStat_l, w, 3)
+        grid.addWidget(self.domeStat_e, w, 4, 1, 2)
+
 
         w = w + 1
         grid.addWidget(self.domeAz_l, w, 0)
         grid.addWidget(self.domeAz_e, w, 1)
         grid.addWidget(self.domeNextAz_e, w, 2)
         grid.addWidget(self.domeSet_p, w, 4)
-
+        grid.addWidget(self.domeAuto_c, w, 5)
         w = w + 1
 
         self.domeShutter_l = QLabel("SHUTTER: ")
         self.domeShutter_c = QCheckBox("")
         self.domeShutter_c.setChecked(False)
-        self.domeShutter_c.setLayoutDirection(Qt.RightToLeft)
+        self.domeShutter_c.setLayoutDirection(Qt.LeftToRight)
         self.domeShutter_c.setStyleSheet(
             "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
         # todo ten przycisk nie potrafi odczytać wartości z pola więc przy zmianie pola z innej aplikacji przycisk
@@ -456,12 +404,11 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         w = w + 1
         grid.addWidget(self.domeShutter_l, w, 0)
         grid.addWidget(self.domeShutter_e, w, 1)
-        grid.addWidget(self.domeShutter_c, w, 3)
+        grid.addWidget(self.domeShutter_c, w, 2)
 
-        w = w + 1
-        grid.addWidget(self.domeLights_l, w, 0)
-        grid.addWidget(self.domeLights_e, w, 1)
-        grid.addWidget(self.domeLights_c, w, 3)
+        grid.addWidget(self.domeLights_l, w, 3)
+        grid.addWidget(self.domeLights_e, w, 4)
+        grid.addWidget(self.domeLights_c, w, 5)
 
         w = w + 1
         self.line2_l = QFrame()
@@ -469,27 +416,115 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.line2_l.setFrameShadow(QFrame.Raised)
         grid.addWidget(self.line2_l, w, 0, 1, 6)
 
-        # w=w+1
-        # grid.addWidget(self.telFocus_l, w,0)
-        # grid.addWidget(self.AutoFocus_c, w,1)
-        # grid.addWidget(self.telFocus_e, w,2)
-        # grid.addWidget(self.SetFocus_p, w,4)
+        w=w+1
+        self.telCovers_l = QLabel("MIRROR COVERS: ")
 
-        # w=w+1
-        # grid.addWidget(self.telFilter_l, w,0)
-        # grid.addWidget(self.telFilter_s, w,1)
-        # grid.addWidget(self.telFilter_p, w,4)
+        self.telCovers_e = QLineEdit()
+        self.telCovers_e.setReadOnly(True)
+        self.telCovers_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
-        # w=w+1
-        # grid.addWidget(self.telM3_l, w,0)
-        # grid.addWidget(self.telM3_s, w,1)
-        # grid.addWidget(self.telM3_p, w,4)
+        self.telCovers_c = QCheckBox("")
+        self.telCovers_c.setChecked(False)
+        self.telCovers_c.setLayoutDirection(Qt.LeftToRight)
+        # self.telCovers_c.setStyleSheet("background-color: yellow")
+        self.telCovers_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.telCovers_c.stateChanged.connect(lambda: self._covers_checkbox_change(self.telCovers_c))
 
-        # grid.setColumnMinimumWidth(6,100)
-        # grid.setColumnMinimumWidth(8,100)
-        # grid.setColumnMinimumWidth(10,100)
+        self.flatLights_l = QLabel("DOME FLAT LIGHTS: ")
+        self.flatLights_c = QCheckBox("")
+        self.flatLights_e = QLineEdit()
+        self.flatLights_e.setReadOnly(True)
+        self.flatLights_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.flatLights_e.setText("(TODO)")
+        self.flatLights_c.setChecked(False)
+        self.flatLights_c.setLayoutDirection(Qt.RightToLeft)
+        self.flatLights_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
-        # grid.setSpacing(10)
+        grid.addWidget(self.telCovers_l, w, 0)
+        grid.addWidget(self.telCovers_e, w, 1)
+        grid.addWidget(self.telCovers_c, w, 2)
+
+        grid.addWidget(self.flatLights_l, w, 3)
+        grid.addWidget(self.flatLights_e, w, 4)
+        grid.addWidget(self.flatLights_c, w, 5)
+
+
+        w = w + 1
+        self.telM3_l = QLabel("M3: ")
+
+        self.telM3_e = QLineEdit()
+        self.telM3_e.setReadOnly(True)
+        self.telM3_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.telM3_e.setText("(TODO)")
+
+        self.telM3_s = QComboBox()
+        self.telM3_s.addItems(["Imager", "Spectro", "empty"])
+
+        self.telM3_p = QPushButton('SET')
+
+
+        self.fans_c = QCheckBox("FANS:")
+        self.fans_c.setChecked(False)
+        self.fans_c.setLayoutDirection(Qt.RightToLeft)
+        self.fans_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+
+        grid.addWidget(self.telM3_l, w, 0)
+        grid.addWidget(self.telM3_e, w, 1)
+        grid.addWidget(self.telM3_s, w, 2)
+        grid.addWidget(self.telM3_p, w, 3)
+        grid.addWidget(self.fans_c, w, 5)
+
+        w = w + 1
+        self.telFilter_l = QLabel("FILTER: ")
+
+        self.telFilter_e = QLineEdit()
+        self.telFilter_e.setReadOnly(True)
+        self.telFilter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
+        self.telFilter_s = QComboBox()
+
+        self.telFilter_p = QPushButton('SET')
+
+        grid.addWidget(self.telFilter_l, w, 0)
+        grid.addWidget(self.telFilter_e, w, 1)
+        grid.addWidget(self.telFilter_s, w, 2)
+        grid.addWidget(self.telFilter_p, w, 3)
+
+        w = w + 1
+        self.telFocus_l = QLabel("FOCUS: ")
+
+        self.telFocus_e = QLineEdit()
+        self.telFocus_e.setReadOnly(True)
+        self.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
+        self.telAutoFocus_c = QCheckBox("AUTO OFFSET: ")
+        self.telAutoFocus_c.setChecked(True)
+        self.telAutoFocus_c.setLayoutDirection(Qt.RightToLeft)
+        # self.mntCovers_c.setStyleSheet("background-color: yellow")
+        self.telAutoFocus_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+
+        w = w + 1
+
+        self.setFocus_e = QLineEdit()
+        self.setFocus_p = QPushButton('SET')
+
+        grid.addWidget(self.telFocus_l, w, 0)
+        grid.addWidget(self.telFocus_e, w, 1)
+        grid.addWidget(self.setFocus_e, w, 2)
+        grid.addWidget(self.setFocus_p, w, 3)
+        grid.addWidget(self.telAutoFocus_c, w, 4,1,2)
+
+        w = w + 1
+        self.line_l = QFrame()
+        self.line_l.setFrameShape(QFrame.HLine)
+        self.line_l.setFrameShadow(QFrame.Raised)
+        grid.addWidget(self.line_l, w, 0, 1, 6)
+
+
 
         self.setLayout(grid)
 

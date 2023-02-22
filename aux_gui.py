@@ -6,29 +6,100 @@
 #----------------
 
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
+from PyQt5.QtWidgets import QTabWidget, QApplication, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
 
 
 
 
-class InstrumentGui(QWidget):
+class AuxGui(QWidget):
       def __init__(self, parent):
-          super(InstrumentGui, self).__init__()
+          super(AuxGui, self).__init__()
           self.parent=parent
+          self.setWindowTitle('Aux Monitor')
           self.setStyleSheet("font-size: 11pt;")
-          self.setGeometry(self.parent.instrument_geometry[0],self.parent.instrument_geometry[1],self.parent.instrument_geometry[2],self.parent.instrument_geometry[3])
+          self.setGeometry(self.parent.aux_geometry[0],self.parent.aux_geometry[1],self.parent.aux_geometry[2],self.parent.aux_geometry[3])
+
+          self.updateUI()
+
+      def updateUI(self):
+
+          tmp=QWidget()
+          try: tmp.setLayout(self.layout)
+          except: pass
+
+          self.layout = QGridLayout()
+          self.setLayout(self.layout)
+
+          self.tabWidget=QTabWidget()
+
+          self.welcome_tab=WelcomeGui(self.parent)
+          self.tabWidget.addTab(self.welcome_tab,"Welcome")
+
+          self.focus_tab=FocusGui(self.parent)
+          self.tabWidget.addTab(self.focus_tab,"Focus")
+
+          self.guider_tab=GuiderGui(self.parent)
+          self.tabWidget.addTab(self.guider_tab,"Guider")
+
+          self.layout.addWidget(self.tabWidget,0,0)
+          del tmp
+
+class WelcomeGui(QWidget):
+      def __init__(self, parent):
+          super(WelcomeGui, self).__init__()
+          self.parent=parent
           self.mkUI()
 
+      def mkUI(self):
+          grid = QGridLayout()
+          w=0
+          self.pic_l = QLabel(" ")
+          if self.parent.active_tel=="WK06": png_file='./Icons/wk06.png'
+          elif self.parent.active_tel=="ZB08": png_file='./Icons/zb08.png'
+          elif self.parent.active_tel=="JK15": png_file='./Icons/jk15.png'
+          elif self.parent.active_tel=="WG25": png_file='./Icons/wg25.png'
+          elif self.parent.active_tel=="SIM": png_file='./Icons/oca.png'
+          self.pic_l.setPixmap(QtGui.QPixmap(png_file).scaled(400,300))
+          grid.addWidget(self.pic_l, w, 0)
+          self.setLayout(grid)
 
-          
-        # =================== OKNO GLOWNE ====================================
+
+
+class FocusGui(QWidget):
+      def __init__(self, parent):
+          super(FocusGui, self).__init__()
+          self.parent=parent
+          self.mkUI()
+
       def mkUI(self):
            
-          self.setWindowTitle('Instrument Manual Controll')
-          
           grid = QGridLayout()
           w=0   
+          self.autoFocus_p = QPushButton('AUTO FOCUS')
+          grid.addWidget(self.autoFocus_p, w, 0)
 
+          self.setLayout(grid)
+
+
+
+class GuiderGui(QWidget):
+      def __init__(self, parent):
+          super(GuiderGui, self).__init__()
+          self.parent=parent
+          self.mkUI()
+
+      def mkUI(self):
+
+          grid = QGridLayout()
+          w=0
+          self.autoFocus_p = QPushButton('Guide')
+          grid.addWidget(self.autoFocus_p, w, 0)
+
+          self.setLayout(grid)
+
+
+
+          '''
           self.inst_object_l=QLabel("OBJECT NAME:")
           self.inst_object_e=QLineEdit() 
 
@@ -126,7 +197,7 @@ class InstrumentGui(QWidget):
      
           
           self.setLayout(grid)
-          
+          '''
           
           
           

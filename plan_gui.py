@@ -18,7 +18,10 @@ class PlanGui(QWidget):
       def __init__(self, parent):
           super(PlanGui, self).__init__()
           self.parent=parent
-          self.font =  QtGui.QFont( "Arial", 11)
+
+          self.setStyleSheet("font-size: 11pt;")
+          self.setGeometry(self.parent.plan_geometry[0],self.parent.plan_geometry[1],self.parent.plan_geometry[2],self.parent.plan_geometry[3])
+
 
           self.plan=[] 
           self.i=0
