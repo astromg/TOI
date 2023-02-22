@@ -20,95 +20,18 @@ from ob.ob_config import SingletonConfig
 
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 from config_service import Config as Cfg
-from instrument_gui import InstrumentGui
+
+
+from obs_gui import ObsGui
+
 from mnt_gui import MntGui
 from pery_gui import PeryphericalGui
 from plan_gui import PlanGui
 from sky_gui import SkyView
 from tel_gui import TelGui
+from instrument_gui import InstrumentGui
 
 logger = logging.getLogger(__name__)
-
-
-class Monitor(QtCore.QObject):
-    finished = QtCore.pyqtSignal()
-    ding = QtCore.pyqtSignal()
-
-    def __init__(self, parent):
-        self.parent = parent
-        QtCore.QObject.__init__(self)
-        self.continue_run = True
-        self.sleep_time = 1
-
-    def run(self):
-        while self.continue_run:  # give the loop a stoppable condition
-            QtCore.QThread.sleep(self.sleep_time)
-            self.check()
-        self.finished.emit()  # emit the finished signal when the loop is done
-
-    def check(self):
-        return
-        self.parent.connection_ok = False
-        try:
-            quest = "http://localhost/api/v1/telescope/0/connected"
-            r = requests.get(quest, timeout=1)
-            r = r.json()
-            self.parent.conected = (r["Value"])
-            self.parent.connection_ok = True
-        except Exception as e:
-            print(e)
-            ok = False
-            print("no connection")
-            self.parent.connection_ok = False
-
-        if self.parent.connection_ok:
-            quest = "http://172.23.68.211:11111/api/v1/telescope/0/tracking"
-            r = requests.get(quest)
-            r = r.json()
-            self.parent.mnt_trac = r["Value"]
-
-            # nie wiem czemu to nie dziala
-            quest = "http://172.23.68.211:11111/api/v1/telescope/0/atpark"
-            r = requests.get(quest)
-            r = r.json()
-            self.parent.mnt_park = r["Value"]
-            # print(r)
-
-            quest = "http://172.23.68.211:11111/api/v1/telescope/0/slewing"
-            r = requests.get(quest)
-            r = r.json()
-            self.parent.mnt_slewing = r["Value"]
-            # print(r)
-
-            # quest="http://172.23.68.211:11111/api/v1/telescope/0/"
-            # r=requests.get(quest)
-            # r=r.json()
-            # print(r["Value"])
-
-            quest = "http://172.23.68.211:11111/api/v1/telescope/0/rightascension"
-            r = requests.get(quest)
-            r = r.json()
-            self.parent.mnt_ra = "%.4f" % r["Value"]
-
-            quest = "http://172.23.68.211:11111/api/v1/telescope/0/declination"
-            r = requests.get(quest)
-            r = r.json()
-            self.parent.mnt_dec = "%.4f" % r["Value"]
-
-            quest = "http://172.23.68.211:11111/api/v1/telescope/0/azimuth"
-            r = requests.get(quest)
-            r = r.json()
-            self.parent.mnt_az = "%.4f" % r["Value"]
-
-            quest = "http://172.23.68.211:11111/api/v1/telescope/0/altitude"
-            r = requests.get(quest)
-            r = r.json()
-            self.parent.mnt_alt = "%.4f" % r["Value"]
-
-        self.ding.emit()
-
-    def stop(self):
-        self.continue_run = False  # set the run condition to false on stop
 
 
 class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
@@ -122,23 +45,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # layout
         self.setLayout(QtWidgets.QVBoxLayout())
 
-        # Monitor Thread:
-        self.thread = QtCore.QThread()
-        self.monitor = Monitor(self)
-
-        self.monitor.moveToThread(self.thread)
-        self.monitor.finished.connect(self.thread.quit)  # connect monitor finished signal to stop thread
-        self.monitor.finished.connect(self.monitor.deleteLater)
-
-        self.thread.started.connect(self.monitor.run)
-        self.thread.finished.connect(self.monitor.stop)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
 
         self.observatory = Cfg.get("OBSERVATORY_COORD")
 
         # self.mnt_az = "unknown"  # ?
         # self.mnt_alt = "unknown"  # ?
+
+
 
         self.mnt = MntGui(self, loop=self.loop, client_api=self.client_api)
         # self.layout().addWidget(self.mnt)
@@ -158,13 +71,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.tel.show()
         self.tel.raise_()
 
-        self.sky = SkyView(self)
-        self.sky.show()
-        self.sky.raise_()
+        #self.sky = SkyView(self)
+        #self.sky.show()
+        #self.sky.raise_()
 
         self.inst = InstrumentGui()
         self.inst.show()
         self.inst.raise_()
+
+        self.obs_gui=ObsGui(self)
+        self.obs_gui.show()
+        self.obs_gui.raise_()
 
         # self.show()
         # self.raise_()
