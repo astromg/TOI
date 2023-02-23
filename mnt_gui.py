@@ -429,7 +429,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         # self.telCovers_c.setStyleSheet("background-color: yellow")
         self.telCovers_c.setStyleSheet(
             "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-        self.telCovers_c.stateChanged.connect(lambda: self._covers_checkbox_change(self.telCovers_c))
+
 
         self.flatLights_l = QLabel("DOME FLAT LIGHTS: ")
         self.flatLights_c = QCheckBox("")

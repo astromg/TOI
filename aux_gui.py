@@ -15,13 +15,18 @@ class AuxGui(QWidget):
       def __init__(self, parent):
           super(AuxGui, self).__init__()
           self.parent=parent
-          self.setWindowTitle('Aux Monitor')
           self.setStyleSheet("font-size: 11pt;")
           self.setGeometry(self.parent.aux_geometry[0],self.parent.aux_geometry[1],self.parent.aux_geometry[2],self.parent.aux_geometry[3])
 
           self.updateUI()
 
       def updateUI(self):
+
+          local_dic={"WK06":'WK06 Aux Monitor',"ZB08":'ZB08 Aux Monitor',"JK15":'JK15 Aux Monitor',"WG25":'WG25 Aux Monitor',"SIM":'SIM Aux Monitor'}
+          try: txt = local_dic[self.parent.active_tel]
+          except: txt = "unknow Aux Monitor"
+          self.setWindowTitle(txt)
+
 
           tmp=QWidget()
           try: tmp.setLayout(self.layout)
