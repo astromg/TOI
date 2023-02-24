@@ -29,7 +29,7 @@ class PlanGui(QWidget):
           self.next_i=0
           
           
-          self.mkUI()
+          self.updateUI()
 
           self.load_p.clicked.connect(self.loadPlan)    
           self.plan_t.cellClicked.connect(self.pocisniecie_tabelki)
@@ -44,17 +44,31 @@ class PlanGui(QWidget):
           self.last_p.clicked.connect(self.pocisniecie_last)    
           self.swap_p.clicked.connect(self.pocisniecie_swap)                 
 
+          self.edit_p.clicked.connect(self.pocisniecie_edit)
+
           self.update_table()
 
+      def pocisniecie_edit(self):
+         if len(self.plan)>self.i:
+            self.edit_window=EditWindow(self)
+            self.edit_window.show()
+            self.edit_window.raise_()
+         else: print("no plan loaded") # ERROR MSG
+
       def recalc(self):
+          self.plan_meta=[]
           for i,tmp in enumerate(self.plan):
              if len(self.plan)>0:
+                tmp_dict=dict()
+                az,alt="--","--"
                 if "ra" in self.plan[i].keys():
                    ra=self.plan[i]["ra"]
                    dec=self.plan[i]["dec"]
                    az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)
-                   self.plan[i]["alt"]=alt
-                   self.plan[i]["az"]=az 
+                tmp_dict["alt"]=alt
+                tmp_dict["az"]=az
+                self.plan_meta.append(tmp_dict)
+
 
       def update_table(self):
           self.recalc()
@@ -87,8 +101,8 @@ class PlanGui(QWidget):
                  txt=QTableWidgetItem(self.plan[i]["name"])
                  self.plan_t.setItem(i,1,txt)
 
-                 if "alt" in self.plan[i].keys():
-                    txt=QTableWidgetItem(str(self.plan[i]["alt"]))
+                 if "alt" in self.plan_meta[i].keys():
+                    txt=QTableWidgetItem(str(self.plan_meta[i]["alt"]))
                     self.plan_t.setItem(i,2,txt)                    
 
                  if i==self.prev_i:
@@ -186,10 +200,12 @@ class PlanGui(QWidget):
              for line in plik:
                  if "OBJECT" in line:
                     ll=line.split()
+                    ob_type=ll[0]
                     name=ll[1]
                     ra=ll[2]
                     dec=ll[3]
                     ob = {"name":name}
+                    ob["type"]=ob_type
                     ob["ra"]=ra
                     ob["dec"]=dec
                     self.plan.append(ob)
@@ -198,15 +214,18 @@ class PlanGui(QWidget):
         
           
         # =================== OKNO GLOWNE ====================================
-      def mkUI(self):
+      def updateUI(self):
+
+          local_dic={"WK06":'WK06 Plan Manager',"ZB08":'ZB08 Plan Manager',"JK15":'JK15 Plan Manager',"WG25":'WG25 Plan Manager',"SIM":'SIM Plan Manager'}
+          try: txt = local_dic[self.parent.active_tel]
+          except: txt = "unknown Plan Manager"
+          self.setWindowTitle(txt)
+
+          tmp=QWidget()
+          try: tmp.setLayout(self.layout)
+          except: pass
            
-          self.setWindowTitle('Telescope Plan Manager')
-          #self.setWindowIcon(QtGui.QIcon('icon.png'))  
-          
           grid = QGridLayout()         
-
-          #self.telCovers_l=QLabel("MIRROR COVERS: ")
-
           w=0
           self.load_p=QPushButton('Load Plan') 
           self.stop_p=QPushButton('Stop')          
@@ -300,15 +319,89 @@ class PlanGui(QWidget):
      
           
           self.setLayout(grid)
+          del tmp
           
           
           
           
           
-          
-          
-          
-          
+class EditWindow(QWidget):
+      def __init__(self, parent):
+          super(EditWindow, self).__init__()
+          self.parent=parent
+          self.setStyleSheet("font-size: 11pt;")
+          self.mkUI()
+          self.refresh()
+          self.close_p.clicked.connect(lambda: self.close())
+
+      def refresh(self):
+          i=self.parent.i
+          ob=self.parent.plan[i]
+          self.setWindowTitle(ob["type"])
+
+          if ob["type"]=="OBJECT":
+             local_keys=["type","name","ra","dec","alt","az","instrument","seq","mode","bining","subraster","defocus","tracking","guiding","comments"]
+             txt=""
+             for k in local_keys:
+                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
+                 else: txt=txt+"# "+k+"=\n"
+
+          if ob["type"]=="ZERO":
+             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
+             txt=""
+             for k in local_keys:
+                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
+                 else: txt=txt+"# "+k+"=\n"
+
+          if ob["type"]=="DARK":
+             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
+             txt=""
+             for k in local_keys:
+                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
+                 else: txt=txt+"# "+k+"=\n"
+
+          if ob["type"]=="SKY_FLAT":
+             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
+             txt=""
+             for k in local_keys:
+                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
+                 else: txt=txt+"# "+k+"=\n"
+
+          if ob["type"]=="DOME_FLAT":
+             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
+             txt=""
+             for k in local_keys:
+                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
+                 else: txt=txt+"# "+k+"=\n"
+
+          if ob["type"]=="FOCUS":
+             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
+             txt=""
+             for k in local_keys:
+                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
+                 else: txt=txt+"# "+k+"=\n"
+
+          if ob["type"]=="MARKER":
+             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
+             txt=""
+             for k in local_keys:
+                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
+                 else: txt=txt+"# "+k+"=\n"
+
+          self.params_e.setText(txt)
+
+      def mkUI(self):
+          grid = QGridLayout()
+          w=0
+          self.params_e=QTextEdit()
+          #self.telCovers_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+          w=w+1
+          grid.addWidget(self.params_e, w,0,3,2)
+          w=w+3
+          self.close_p=QPushButton('Close Edit')
+          grid.addWidget(self.close_p, w,1)
+
+          self.setLayout(grid)
           
           
           

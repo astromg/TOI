@@ -48,7 +48,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # geometry settings
         screen = QtWidgets.QDesktopWidget().availableGeometry()
-        print(screen)
+        #print(screen)
         self.obs_window_position=[0,0]
         self.obs_window_size=[850,400]
 

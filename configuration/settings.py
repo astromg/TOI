@@ -5,7 +5,7 @@ OBSERVATORY_COORD = ("48.3", "14.28", "1000")  # deg,deg,m
 PATH_TO_CONFIG_DIR = pathlib.Path().resolve()
 
 
-ALPACA_BASE_ADDRESS = "800"
+ALPACA_BASE_ADDRESS = "sim"
 
 OCA_ADDRESS_DICT = {
     "get_current_user_control": f"{ALPACA_BASE_ADDRESS}.access_grantor.current_user",

@@ -33,13 +33,16 @@ class MainForm(QWidget):
           
           self.mkUI()
           self.update_table()
-          self.obs_t.cellClicked.connect(self.pocisniecie_tab)
+          self.obs_t.itemSelectionChanged.connect(self.pocisniecie_tab)
+          #self.obs_t.cellClicked.connect(self.pocisniecie_tab)
           self.exit_p.clicked.connect(lambda: self.parent.app.closeAllWindows())
 
 
-      def pocisniecie_tab(self,i,j):
+      def pocisniecie_tab(self):
+          i=self.obs_t.currentRow()
           self.parent.active_tel = self.parent.obs_tel_in_table[i]
           self.parent.auxGui.updateUI()
+          self.parent.planGui.updateUI()
 
 
       def update_table(self):

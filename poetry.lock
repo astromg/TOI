@@ -1056,7 +1056,7 @@ examples = ["PyQt5 (>=5.15.7,<5.16.0)", "qasync (>=0.23.0)"]
 type = "git"
 url = "https://github.com/araucaria-project/ocabox.git"
 reference = "HEAD"
-resolved_reference = "aed578887cd443c9e826ed48797200013b261c49"
+resolved_reference = "2653330eedf74599dcb8f3e473cbbb31c66a81e7"
 
 [[package]]
 name = "packaging"
@@ -1069,6 +1069,20 @@ files = [
     {file = "packaging-23.0-py3-none-any.whl", hash = "sha256:714ac14496c3e68c99c29b00845f7a2b85f3bb6f1078fd9f72fd20f0570002b2"},
     {file = "packaging-23.0.tar.gz", hash = "sha256:b6ad297f8907de0fa2fe1ccbd26fdaf387f5f47c7275fedf8cce89f99446cf97"},
 ]
+
+[[package]]
+name = "paho-mqtt"
+version = "1.6.1"
+description = "MQTT version 5.0/3.1.1 client class"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "paho-mqtt-1.6.1.tar.gz", hash = "sha256:2a8291c81623aec00372b5a85558a372c747cbca8e9934dfe218638b8eefc26f"},
+]
+
+[package.extras]
+proxy = ["PySocks"]
 
 [[package]]
 name = "pillow"
@@ -1606,4 +1620,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "74f7e46680a86b851832698f9de59c86cb59a6107d6c78cd8960ef6977ffd354"
+content-hash = "abecf9291e186c9f63e7f674bebc8e67ce01a30e89c0b50a63fceb9e198f0eeb"
