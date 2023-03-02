@@ -3,6 +3,8 @@
 import math
 import numpy
 
+import qasync as qs
+from qasync import QEventLoop
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
 
@@ -10,11 +12,14 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
+from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
+from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from toi_lib import *
 
-class ObsGui(QMainWindow):
-      def __init__(self, parent):
-          super(QMainWindow, self).__init__()
+class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+      def __init__(self, parent, loop: QEventLoop = None, client_api=None):
+          super().__init__(loop=loop, client_api=client_api)
+          #super(QMainWindow, self).__init__()
           self.parent=parent
           self.setWindowTitle('Telescope Operator Interface')
           self.main_form = MainForm(self.parent)
@@ -22,27 +27,31 @@ class ObsGui(QMainWindow):
           self.resize(self.parent.obs_window_size[0],self.parent.obs_window_size[1])
           self.move(self.parent.obs_window_position[0],self.parent.obs_window_position[0])
 
+      async def on_start_app(self):
+          await self.run_background_tasks()
+
+      @qs.asyncClose
+      async def closeEvent(self, event):
+          await self.stop_background_tasks()
+          super().closeEvent(event)
 
 class MainForm(QWidget):
       def __init__(self, parent):
           super(MainForm, self).__init__()
           self.parent=parent
-          #self.setStyleSheet("QLabel{font-size: 10pt;}")
           self.setStyleSheet("font-size: 11pt;")
-          #self.font =  QtGui.QFont( "Arial", 11)
           
           self.mkUI()
           self.update_table()
           self.obs_t.itemSelectionChanged.connect(self.pocisniecie_tab)
-          #self.obs_t.cellClicked.connect(self.pocisniecie_tab)
           self.exit_p.clicked.connect(lambda: self.parent.app.closeAllWindows())
 
-
-      def pocisniecie_tab(self):
+      @qs.asyncSlot()
+      async def pocisniecie_tab(self):
           i=self.obs_t.currentRow()
+          self.parent.active_tel_i=i
           self.parent.active_tel = self.parent.obs_tel_in_table[i]
-          self.parent.auxGui.updateUI()
-          self.parent.planGui.updateUI()
+          await self.parent.teleskop_switched()
 
 
       def update_table(self):
@@ -89,6 +98,7 @@ class MainForm(QWidget):
           self.control_e=QLineEdit("--")
           self.control_e.setReadOnly(True)
           self.takeControl_p=QPushButton('Take Control')
+          self.takeControl_p.clicked.connect(self.parent.takeControl)
 
           grid.addWidget(self.ticStatus2_l, w,0)
           grid.addWidget(self.tic_l, w,1)
@@ -156,7 +166,7 @@ class MainForm(QWidget):
           
           # #### tutaj SkyRadar  ####
           w=1
-          self.skyView=SkyView()
+          self.skyView=SkyView(self.parent)
           grid.addWidget(self.skyView, w,5,6,2)
           w=w+6
           self.exit_p = QPushButton('Exit')
@@ -172,12 +182,20 @@ class MainForm(QWidget):
           
           self.setLayout(grid)
           
+      async def on_start_app(self):
+          await self.run_background_tasks()
+
+      @qs.asyncClose
+      async def closeEvent(self, event):
+          await self.stop_background_tasks()
+          super().closeEvent(event)
+
 # ############# SKY RADAR ################################
           
 class SkyView(QWidget):
-   def __init__(self):
+   def __init__(self, parent):
        QWidget.__init__(self)
-       #self.parent=parent
+       self.parent=parent
        self.mkUI()
 
        self.tel_az=5
@@ -207,6 +225,11 @@ class SkyView(QWidget):
        self.log_alh=[0.5,0.5,0.5]
 
        self.update()
+
+       self.dome_az=0
+       self.dome_color="r"
+
+       #self.updateDome()
 
 
 
@@ -275,6 +298,24 @@ class SkyView(QWidget):
        self.canvas.draw()
        self.show()
 
+   def updateDome(self):
+       try: self.dome.remove()
+       except: pass
+       if self.parent.dome_shutterstatus == 0: color="g"
+       elif self.parent.dome_shutterstatus == 1: color="r"
+       elif self.parent.dome_shutterstatus == 2: color="orange"
+       elif self.parent.dome_shutterstatus == 3: color="orange"
+       else: color="b"
+       ok=False
+       try:
+          float(self.parent.dome_az)
+          ok=True
+       except: ok=False
+       if ok:
+          dome_az=float(self.parent.dome_az)*(2*math.pi)/360.
+          self.dome = self.axes.bar(dome_az,self.rmax-90, width=30*(2*math.pi)/360.,bottom=90,color=color,alpha=0.5)
+       self.canvas.draw()
+       self.show()
 # ======= Budowa okna ====================
 
    def mkUI(self):

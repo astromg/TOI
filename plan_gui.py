@@ -222,39 +222,39 @@ class PlanGui(QWidget):
           self.setWindowTitle(txt)
 
           tmp=QWidget()
-          try: tmp.setLayout(self.layout)
+          try: tmp.setLayout(self.grid)
           except: pass
-           
-          grid = QGridLayout()         
+          self.grid = QGridLayout()
+
           w=0
           self.load_p=QPushButton('Load Plan') 
           self.stop_p=QPushButton('Stop')          
           self.start_p=QPushButton('Start')
 
-          grid.addWidget(self.load_p, w,0)
-          grid.addWidget(self.stop_p, w,2)
-          grid.addWidget(self.start_p, w,4)
+          self.grid.addWidget(self.load_p, w,0)
+          self.grid.addWidget(self.stop_p, w,2)
+          self.grid.addWidget(self.start_p, w,4)
           
           w=w+1
           self.plan_t=QTableWidget(0,4)
           self.plan_t.setHorizontalHeaderLabels(["","Object","Alt",""])
           
-          grid.addWidget(self.plan_t, w,0,8,5)
+          self.grid.addWidget(self.plan_t, w,0,8,5)
           
           w=w+8
           self.next_p=QPushButton('Next') 
           self.stopHere_p=QPushButton('Stop')          
           self.skip_p=QPushButton('Skip')
 
-          grid.addWidget(self.next_p, w,0)
-          grid.addWidget(self.stopHere_p, w,1)
-          grid.addWidget(self.skip_p, w,4)
+          self.grid.addWidget(self.next_p, w,0)
+          self.grid.addWidget(self.stopHere_p, w,1)
+          self.grid.addWidget(self.skip_p, w,4)
           
           w=w+1
           self.line_l=QFrame()
           self.line_l.setFrameShape(QFrame.HLine)
           self.line_l.setFrameShadow(QFrame.Raised)
-          grid.addWidget(self.line_l, w,0,1,5)             
+          self.grid.addWidget(self.line_l, w,0,1,5)
           
           w=w+1
           self.del_p=QPushButton('Del') 
@@ -262,10 +262,10 @@ class PlanGui(QWidget):
           self.swap_p=QPushButton('Swap')
           self.first_p=QPushButton('First')
 
-          grid.addWidget(self.del_p, w,0)
-          grid.addWidget(self.up_p, w,2)
-          grid.addWidget(self.swap_p, w,3)
-          grid.addWidget(self.first_p, w,4)
+          self.grid.addWidget(self.del_p, w,0)
+          self.grid.addWidget(self.up_p, w,2)
+          self.grid.addWidget(self.swap_p, w,3)
+          self.grid.addWidget(self.first_p, w,4)
               
           
           w=w+1
@@ -273,23 +273,23 @@ class PlanGui(QWidget):
           self.down_p=QPushButton('Down')          
           self.last_p=QPushButton('Last')
 
-          grid.addWidget(self.delAll_p, w,0)
-          grid.addWidget(self.down_p, w,2)
-          grid.addWidget(self.last_p, w,4)          
+          self.grid.addWidget(self.delAll_p, w,0)
+          self.grid.addWidget(self.down_p, w,2)
+          self.grid.addWidget(self.last_p, w,4)
 
           w=w+1
           self.line_l=QFrame()
           self.line_l.setFrameShape(QFrame.HLine)
           self.line_l.setFrameShadow(QFrame.Raised)
-          grid.addWidget(self.line_l, w,0,1,5)          
+          self.grid.addWidget(self.line_l, w,0,1,5)
 
           w=w+1
           self.add_p=QPushButton('Add') 
           self.edit_p=QPushButton('Edit')          
 
 
-          grid.addWidget(self.add_p, w,0)
-          grid.addWidget(self.edit_p, w,4)
+          self.grid.addWidget(self.add_p, w,0)
+          self.grid.addWidget(self.edit_p, w,4)
  
 
 
@@ -318,7 +318,7 @@ class PlanGui(QWidget):
           #grid.setSpacing(10)
      
           
-          self.setLayout(grid)
+          self.setLayout(self.grid)
           del tmp
           
           

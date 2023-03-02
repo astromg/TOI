@@ -7,7 +7,7 @@ from typing import List, Coroutine
 
 from PyQt5.QtGui import QStandardItem
 from PyQt5.QtWidgets import QLineEdit
-from ob.comunication.client_api import ClientAPI
+from ocaboxapi import ClientAPI
 from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 from ob.comunication.cycle_query import BaseCycleQuery
 from qasync import QEventLoop
