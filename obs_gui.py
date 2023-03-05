@@ -83,6 +83,15 @@ class MainForm(QWidget):
               item.setTextAlignment(QtCore.Qt.AlignVCenter)
               self.obs_t.setItem(i,4,item)
 
+      def msg(self,txt,color):
+          c=QtCore.Qt.black
+          if "yellow" in color: c=QtCore.Qt.darkYellow
+          if "green" in color: c= QtCore.Qt.darkGreen
+          if "red" in color: c = QtCore.Qt.darkRed
+          self.msg_e.setTextColor(c)
+          ut=str(self.parent.ut).split()[1].split(":")[0]+":"+str(self.parent.ut).split()[1].split(":")[1]
+          txt=ut+": "+txt
+          self.msg_e.append(txt)
 
           
         # =================== OKNO GLOWNE ====================================
@@ -277,12 +286,6 @@ class SkyView(QWidget):
        #       self.axes.plot(a, h,str(s),alpha=al)
        #       self.axes.bar(230,5, width=0.2*math.pi,bottom=90,color='g',alpha=0.05)
 
-       r,fi = 195, 314.7
-       fi = fi * 2*3.14/360.
-       self.axes.text(fi,r,"Sunset: 20:10:02",fontsize=9)
-       r,fi= 183.8, 311
-       fi =fi * 2*3.14/360.
-       self.axes.text(fi,r,"Sunrise: 04:00:02",fontsize=9)
 
        self.axes.set_theta_direction(-1)
        self.axes.set_theta_zero_location('N')
@@ -297,6 +300,52 @@ class SkyView(QWidget):
 
        self.canvas.draw()
        self.show()
+
+
+   def updateAlmanac(self):
+       try:
+          self.txt1.remove()
+          self.txt2.remove()
+          for p in self.sun: p.remove()
+          for p in self.moon: p.remove()
+          for p in self.nextOb: p.remove()
+       except: pass
+       sunrise=str(self.parent.sunrise).split()[1]
+       sunset=str(self.parent.sunset).split()[1]
+       r,fi = 195, 314.7
+       fi = fi * 2*3.14/360.
+       self.txt1=self.axes.text(fi,r,f"Sunset: {sunset}",fontsize=9)
+       r,fi= 183.8, 311
+       fi =fi * 2*3.14/360.
+       self.txt2=self.axes.text(fi,r,f"Sunrise: {sunrise}",fontsize=9)
+       self.sun=self.axes.plot(self.parent.sun_az*2*3.14/360.,90-self.parent.sun_alt,"oy",alpha=0.7)
+       self.moon=self.axes.plot(self.parent.moon_az*2*3.14/360.,90-self.parent.moon_alt,"ok",alpha=0.7)
+
+       try:
+          next_az=self.parent.mntGui.nextAz_e.text()
+          next_alt=self.parent.mntGui.nextAlt_e.text()
+          next_az=float(next_az)*2*3.14/360.
+          next_alt=90-float(next_alt)
+          self.nextOb=self.axes.plot(next_az,next_alt,"xb")
+       except: pass
+
+       self.canvas.draw()
+       self.show()
+
+   def updateMount(self):
+       try:
+          for p in self.mount: p.remove()
+       except: pass
+       color="r"
+       if self.parent.mount_tracking: color="g"
+       if self.parent.mount_slewing: color="orange"
+       alt=90-self.parent.mount_alt
+       az=self.parent.mount_az
+       az=az * 2*3.14/360.
+       self.mount=self.axes.plot(az,alt,color=color,marker="+")
+       self.canvas.draw()
+       self.show()
+
 
    def updateDome(self):
        try: self.dome.remove()

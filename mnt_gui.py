@@ -11,7 +11,7 @@ from typing import Tuple
 import qasync as qs
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QGridLayout, QFrame, QComboBox, \
+from PyQt5.QtWidgets import QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QSpinBox, QGridLayout, QFrame, QComboBox, \
     QRadioButton
 from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 from qasync import QEventLoop
@@ -33,14 +33,6 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.setGeometry(self.parent.mnt_geometry[0],self.parent.mnt_geometry[1],self.parent.mnt_geometry[2],self.parent.mnt_geometry[3])
         self.updateUI()
 
-        self.setEq_r.toggled.connect(self.update_)
-        self.setAltAz_r.toggled.connect(self.update_)
-
-        self.nextRa_e.textChanged.connect(self.updateNextRaDec)
-        self.nextDec_e.textChanged.connect(self.updateNextRaDec)
-        self.nextAlt_e.textChanged.connect(self.updateNextRaDec)
-        self.nextAz_e.textChanged.connect(self.updateNextRaDec)
-
     def updateNextRaDec(self):
         if self.setEq_r.isChecked():
             self.nextRa_e.setStyleSheet("background-color: rgb(245, 178, 79);")
@@ -53,15 +45,16 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             except:
                 ok = False
             if ok:
-                az, alt = RaDec2AltAz(self.parent.observatory, ephem.now(), ra, dec)
+                try:
+                  az, alt = RaDec2AltAz(self.parent.observatory, ephem.now(), ra, dec)
+                  az = arcDeg2float(str(az))
+                  alt = arcDeg2float(str(alt))
 
-                az = arcDeg2float(str(az))
-                alt = arcDeg2float(str(alt))
-
-                self.nextAlt_e.setText("%.4f" % alt)
-                self.nextAz_e.setText("%.4f" % az)
-                self.nextRa_e.setStyleSheet("background-color: white;")
-                self.nextDec_e.setStyleSheet("background-color: white")
+                  self.nextAlt_e.setText("%.4f" % alt)
+                  self.nextAz_e.setText("%.4f" % az)
+                  self.nextRa_e.setStyleSheet("background-color: white;")
+                  self.nextDec_e.setStyleSheet("background-color: white")
+                except: pass
 
         if self.setAltAz_r.isChecked():
             self.nextAlt_e.setStyleSheet("background-color: rgb(245, 178, 79);")
@@ -74,16 +67,16 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             except:
                 ok = False
             if ok:
-                ra, dec = AltAz2RaDec(self.parent.observatory, ephem.now(), alt, az)
+                try:
+                  ra, dec = AltAz2RaDec(self.parent.observatory, ephem.now(), alt, az)
 
-                self.nextRa_e.setText(str(ra))
-                self.nextDec_e.setText(str(dec))
-                self.nextAlt_e.setStyleSheet("background-color: white;")
-                self.nextAz_e.setStyleSheet("background-color: white")
-
+                  self.nextRa_e.setText(str(ra))
+                  self.nextDec_e.setText(str(dec))
+                  self.nextAlt_e.setStyleSheet("background-color: white;")
+                  self.nextAz_e.setStyleSheet("background-color: white")
+                except: pass
 
     def update_(self):
-
         if self.setEq_r.isChecked():
             self.nextAz_e.setReadOnly(True)
             self.nextAz_e.setStyleSheet("background-color: rgb(233, 233, 233);")
@@ -256,7 +249,6 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.nextAlt_e, w, 6,1,2)
         self.grid.addWidget(self.setAltAz_r, w, 8)
 
-
         ###############################################
 
         self.tracking_l = QLabel("TRACKING: ")
@@ -265,10 +257,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.tracking_c.setChecked(False)
         self.tracking_c.setLayoutDirection(Qt.RightToLeft)
         # self.mntCovers_c.setStyleSheet("background-color: yellow")
-        self.tracking_c.setStyleSheet(
-            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-
-        #self.tracking_c.stateChanged.connect(lambda: self._tracking_checkbox_change(self.tracking_c))
+        self.tracking_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.tracking_c.clicked.connect(self.parent.mount_trackOnOff)
 
         self.guiding_c = QCheckBox("GUIDING: ")
         self.guiding_c.setChecked(False)
@@ -286,12 +276,13 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         #################################################
 
         self.telPark_p = QPushButton('PARK')
-        #self.telPark_p.clicked.connect(self._park_btn_clicked)
+        self.telPark_p.clicked.connect(self.parent.park_mount)
 
         self.mntStop_p = QPushButton('STOP')
-        #self.mntStop_p.clicked.connect(self._stop_btn_clicked)
+        self.mntStop_p.clicked.connect(self.parent.abort_slew)
 
         self.Slew_p = QPushButton('SLEW')
+        self.Slew_p.clicked.connect(self.parent.mount_slew)
         #self.Slew_p.clicked.connect(lambda: self._slew_btn_clicked(rad_btnRaDec=self.setEq_r,
                                                                    #rad_btnAzAlt=self.setAltAz_r,
                                                                    #radec_fields_source=(self.nextRa_e, self.nextDec_e),
@@ -490,8 +481,14 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telFocus_e = QLineEdit()
         self.telFocus_e.setReadOnly(True)
         self.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.setFocus_e = QLineEdit()
+        self.setFocus_s = QSpinBox()
+        tel = self.parent.obs_tel_tic_names[self.parent.active_tel_i]
+        if tel=="zb08":
+            self.setFocus_s.setRange(0,28000)
+            self.setFocus_s.setSingleStep(50)
+        self.setFocus_s.valueChanged.connect(self.parent.focusClicked)
         self.setFocus_p = QPushButton('SET')
+        self.setFocus_p.clicked.connect(self.parent.set_focus)
         self.telAutoFocus_l = QLabel("AUTO OFFSET:")
         self.telAutoFocus_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         self.telAutoFocus_c = QCheckBox()
@@ -502,7 +499,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         w = w + 1
         self.grid.addWidget(self.telFocus_l, w, 0,1,2)
         self.grid.addWidget(self.telFocus_e, w, 2)
-        self.grid.addWidget(self.setFocus_e, w, 3)
+        self.grid.addWidget(self.setFocus_s, w, 3)
         self.grid.addWidget(self.setFocus_p, w, 4)
         self.grid.addWidget(self.telAutoFocus_l, w,5,1,2)
         self.grid.addWidget(self.telAutoFocus_c, w,7)
@@ -519,6 +516,16 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         ##########################################################
 
         self.setLayout(self.grid)
+
+        self.setEq_r.toggled.connect(self.update_)
+        self.setAltAz_r.toggled.connect(self.update_)
+
+        self.nextRa_e.textChanged.connect(self.updateNextRaDec)
+        self.nextDec_e.textChanged.connect(self.updateNextRaDec)
+        self.nextAlt_e.textChanged.connect(self.updateNextRaDec)
+        self.nextAz_e.textChanged.connect(self.updateNextRaDec)
+
+
         del tmp
 
 

@@ -1,0 +1,144 @@
+telescope/0/connected       : True
+telescope/0/description     : Autoslew Alpaca Telescope
+telescope/0/driverinfo      : ASCOM Dynamic Driver v6.6.1.3673 - REMOTE DEVICE: Autoslew Vers. 5.6.1.3
+telescope/0/driverversion   : 2.0
+telescope/0/interfaceversion: 3
+telescope/0/name            : Autoslew Telescope
+telescope/0/supportedactions: ['forcenextpierside', 'telescope:clearerror', 'telescope:errorstring', 'telescope:opencover', 'telescope:closecover', 'telescope:closecover', 'telescope:coverstatus', 'telescope:motoron', 'telescope:motoroff', 'motstat', 'telescope:horizonlimit', 'telescope:reportmounttype', 'telescope:reportminalt', 'telescope:reportmaxalt', 'telescope:reportmindec', 'telescope:reportmaxdec', 'telescope:reportcablezero', 'telescope:startfans', 'telescope:stopfans', 'telescope:updatepolaraxisaz', 'telescope:updatepolaraxisal', 'telescope:setnewconfig', 'telescope:altazunwind', 'trackposition', 'sat:startalt', 'sat:name', 'sat:delay', 'sat:line1', 'sat:line2', 'sat:start']
+telescope/0/alignmentmode   : 1
+telescope/0/aperturearea    : 0.0
+telescope/0/aperturediameter: 0.0
+telescope/0/atpark          : False
+telescope/0/altitude        : 58.03922548265835
+telescope/0/azimuth         : 122.40529660034379
+telescope/0/canfindhome     : False
+telescope/0/canpark         : True
+telescope/0/canpulseguide   : True
+telescope/0/cansetpark      : True
+telescope/0/cansetpierside  : False
+telescope/0/cansettracking  : True
+telescope/0/canslew         : True
+telescope/0/canslewaltaz    : True
+telescope/0/canslewaltazasync: True
+telescope/0/canslewasync    : True
+telescope/0/cansync         : True
+telescope/0/cansyncaltaz    : False
+telescope/0/cansetguiderates: True
+telescope/0/cansetpark      : True
+dome/0/connected       : True
+dome/0/description     : ASA Dome Alpaca
+dome/0/driverinfo      : ASCOM Dynamic Driver v6.6.1.3673 - REMOTE DEVICE: ASADome Vers. 6.0.0.3
+dome/0/driverversion   : 2.0
+dome/0/interfaceversion: 2
+dome/0/name            : ASA Dome
+dome/0/supportedactions: ['TurnLeft', 'TurnRight']
+dome/0/altitude        : 142.40333333333334
+dome/0/azimuth         : 142.40333333333334
+dome/0/atpark          : False
+dome/0/canfindhome     : False
+dome/0/canpark         : False
+dome/0/cansetaltitude  : False
+dome/0/cansetazimuth   : True
+dome/0/cansetpark      : False
+dome/0/cansetshutter   : True
+dome/0/canslave        : False
+dome/0/cansyncazimuth  : False
+filterwheel/0/connected       : Error 400:  Device filterwheel/0 did not start correctly and is unavailable: Device ASCOM.SBIG.USB_FW.FilterWheel is unavailable - it threw an error while being connected: Access to the port 'COM5' is denied.
+filterwheel/0/description     : Error 400:  Device filterwheel/0 did not start correctly and is unavailable: Device ASCOM.SBIG.USB_FW.FilterWheel is unavailable - it threw an error while being connected: Access to the port 'COM5' is denied.
+filterwheel/0/driverinfo      : Error 400:  Device filterwheel/0 did not start correctly and is unavailable: Device ASCOM.SBIG.USB_FW.FilterWheel is unavailable - it threw an error while being connected: Access to the port 'COM5' is denied.
+filterwheel/0/driverversion   : Error 400:  Device filterwheel/0 did not start correctly and is unavailable: Device ASCOM.SBIG.USB_FW.FilterWheel is unavailable - it threw an error while being connected: Access to the port 'COM5' is denied.
+filterwheel/0/interfaceversion: Error 400:  Device filterwheel/0 did not start correctly and is unavailable: Device ASCOM.SBIG.USB_FW.FilterWheel is unavailable - it threw an error while being connected: Access to the port 'COM5' is denied.
+filterwheel/0/name            : Error 400:  Device filterwheel/0 did not start correctly and is unavailable: Device ASCOM.SBIG.USB_FW.FilterWheel is unavailable - it threw an error while being connected: Access to the port 'COM5' is denied.
+filterwheel/0/supportedactions: Error 400:  Device filterwheel/0 did not start correctly and is unavailable: Device ASCOM.SBIG.USB_FW.FilterWheel is unavailable - it threw an error while being connected: Access to the port 'COM5' is denied.
+filterwheel/0/canmove         : Error 400:  Device filterwheel/0 did not start correctly and is unavailable: Device ASCOM.SBIG.USB_FW.FilterWheel is unavailable - it threw an error while being connected: Access to the port 'COM5' is denied.
+filterwheel/0/names           : Error 400:  Device filterwheel/0 did not start correctly and is unavailable: Device ASCOM.SBIG.USB_FW.FilterWheel is unavailable - it threw an error while being connected: Access to the port 'COM5' is denied.
+filterwheel/0/position        : Error 400:  Device filterwheel/0 did not start correctly and is unavailable: Device ASCOM.SBIG.USB_FW.FilterWheel is unavailable - it threw an error while being connected: Access to the port 'COM5' is denied.
+filterwheel/0/focusoffsets    : Error 400:  Device filterwheel/0 did not start correctly and is unavailable: Device ASCOM.SBIG.USB_FW.FilterWheel is unavailable - it threw an error while being connected: Access to the port 'COM5' is denied.
+focuser/0/connected       : True
+focuser/0/description     : ACC Alpaca Focuser
+focuser/0/driverinfo      : ASCOM Dynamic Driver v6.6.1.3673 - REMOTE DEVICE: ACC Vers. 0.2.0.1
+focuser/0/driverversion   : 2.0
+focuser/0/interfaceversion: 3
+focuser/0/name            : ACC Focuser
+focuser/0/supportedactions: ['fansturnon', 'fansturnoff', 'findhome', 'velspeed', 'isinstalled', 'errorraised', 'close', 'preventuserclose']
+focuser/0/absolute        : True
+focuser/0/ismoving        : False
+focuser/0/maxincrement    : 28000
+focuser/0/maxstep         : 28000
+focuser/0/position        : 15607
+focuser/0/stepsize        : 1.0
+focuser/0/tempcomp        : False
+focuser/0/tempcompavailable: True
+focuser/0/temperature     : 0.0
+rotator/0/connected       : True
+rotator/0/description     : ACC Alpaca Rotator
+rotator/0/driverinfo      : ASCOM Dynamic Driver v6.6.1.3673 - REMOTE DEVICE: ACC Vers. 0.2.0.1
+rotator/0/driverversion   : 1.0
+rotator/0/interfaceversion: 3
+rotator/0/name            : ACC Rotator
+rotator/0/supportedactions: ['isinstalled', 'maxspeed', 'velspeed', 'findhome', 'axisnumber', 'errorraised', 'preventuserclose']
+rotator/0/canreverse      : True
+rotator/0/position        : 190.8491668701172
+rotator/0/reverse         : False
+rotator/0/stepsize        : 0.009999999776482582
+rotator/0/targetposition  : 0.0
+rotator/0/temperature     : Error 400:  GET - Unknown device method: temperature Required format is: api/vx/devicetype/y/method where x is the one based API version number and y is the zero based number of the device. The whole URL must be in lower case.
+camera/0/connected       : True
+camera/0/description     : Andor CCD/EMCCD (SDK2)
+camera/0/driverinfo      : Andor CCD/EMCCD (SDK2) Version: 6.0
+camera/0/driverversion   : 6.0
+camera/0/interfaceversion: 2
+camera/0/name            : Ascom Driver for Andor CCD Cameras
+camera/0/supportedactions: []
+camera/0/binx            : 1
+camera/0/biny            : 1
+camera/0/camerastate     : 0
+camera/0/canabortexposure: True
+camera/0/canpulseguide   : False
+camera/0/cansetccdtemperature: True
+camera/0/cameraxsize     : 2048
+camera/0/cameraysize     : 2048
+camera/0/ccdtemperature  : 21.996999740600586
+camera/0/setccdtemperature: 0.0
+camera/0/electronsperadu : 0.0
+camera/0/fullwellcapacity: 0.0
+camera/0/gain            : 0
+camera/0/hasshutter      : True
+camera/0/cangetcoolerpower: True
+camera/0/canstopexposure : True
+camera/0/cooleron        : False
+camera/0/coolerpower     : 0.0
+camera/0/exposuremax     : 32768.0
+camera/0/exposuremin     : 1e-05
+camera/0/exposureresolution: 1e-05
+camera/0/canfastreadout  : False
+camera/0/fastreadout     : False
+camera/0/imageready      : False
+camera/0/lastexposureduration: 0.0
+camera/0/lastexposurestarttime: 
+camera/0/maxadu          : 65535
+camera/0/numx            : 2048
+camera/0/numy            : 2048
+camera/0/readoutmode     : 0
+camera/0/readoutmodes    : ['5MHz High Sensitivity 16-bit ', '3MHz High Sensitivity 16-bit ', '1MHz High Sensitivity 16-bit ', '0.05MHz High Sensitivity 16-bit ']
+camera/0/sensorname      : DW936_BV
+camera/0/sensortype      : 0
+camera/0/heatsinktemperature: 0.0
+camera/0/imagearray      : None
+camera/0/offset          : 0
+camera/0/offsets         : []
+camera/0/offsetmax       : 0
+camera/0/offsetmin       : 0
+camera/0/percentcompleted: 0
+camera/0/subexposureduration: 0.0
+covercalibrator/0/connected       : True
+covercalibrator/0/description     : ACC Alpaca CoverCalibrator
+covercalibrator/0/driverinfo      : ASCOM Dynamic Driver v6.6.1.3673 - REMOTE DEVICE: ACC Vers. 0.2.0.1
+covercalibrator/0/driverversion   : 1.0
+covercalibrator/0/interfaceversion: 1
+covercalibrator/0/name            : ACC CoverCalibrator
+covercalibrator/0/supportedactions: ['coverstatus', 'coversinstalled', 'errorraised', 'stop', 'preventuserclose']
+covercalibrator/0/calibratorstate : 0
+covercalibrator/0/brightness      : 0
+covercalibrator/0/coverstate      : 4
+covercalibrator/0/maxbrightness   : 0
