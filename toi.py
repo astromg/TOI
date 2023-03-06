@@ -10,6 +10,7 @@ import logging
 import pathlib
 import requests
 import socket
+import time
 import pwd
 import os
 
@@ -34,6 +35,7 @@ from plan_gui import PlanGui
 from sky_gui import SkyView
 from tel_gui import TelGui
 from instrument_gui import InstrumentGui
+from fits_save import *
 
 logging.basicConfig(level='INFO')
 
@@ -71,6 +73,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.instrument_geometry=[930,700,500,300]
         self.aux_geometry=[930,0,500,400]
 
+        # aux zmienne
+        self.fits_exec=False
+        self.dit_start=0
+        self.dit_exp=0
+
         # obs model
         self.obs_tel_tic_names=["wk06","zb08","jk15","wg25","sim"]
         self.obs_tel_in_table=["WK06","ZB08","JK15","WG25","SIM"]
@@ -85,6 +92,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.jd="00.00"
         self.active_tel_i=4
         self.active_tel="SIM"
+
+        # ccd
 
         # dome
         self.dome_con=False
@@ -105,9 +114,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # focus
         self.focus_editing=False
 
-
-        # tmp
-        self.prev_ready=True
 
 
         # window generation
@@ -151,6 +157,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mount = self.observatory_model.get_telescope(tel).get_mount()
         self.focus = self.observatory_model.get_telescope(tel).get_focuser()
         self.ccd = self.observatory_model.get_telescope(tel).get_camera()
+        self.fw = self.observatory_model.get_telescope(tel).get_filterwheel()
 
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
@@ -182,7 +189,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.ccd.asubscribe_gain(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_offset(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_percentcompleted(self.ccd_update))
-        #self.add_background_task(self.ccd.asubscribe_imageready(self.ccd_imageready))
+        self.add_background_task(self.ccd.asubscribe_imageready(self.ccd_imageready))
+
+        self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
+        self.add_background_task(self.fw.asubscribe_position(self.filter_update))
 
         await self.run_background_tasks()
 
@@ -192,136 +202,27 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.instGui.updateUI()
 
 
-    # ############ CCD ##################################
-
-
-
-    #async def ccd_imageready(self):
-        #print("DUPA!!!!!!!!!!!!!!!!!!!!!!")
-        #response = requests.get("http://zb08-tcu.oca.lan:11111/api/v1/camera/0/imagearray")
-        #j = response.json()
-        #image = j['Value']
-
-        #image = await self.ccd.aget_imagearray()
-        #print(len(image))
-
-
-    @qs.asyncSlot()
-    async def ccd_startExp(self):
-        if self.user.current_user["name"]==self.myself:
-            exp=float(self.instGui.ccd_tab.inst_Dit_e.text())
-            ok=False
-            try:
-                float(exp)+1
-                ok=True
-            except: ok=False
-            if ok:
-                txt=f"CCD exposure {exp} s. started"
-                await self.ccd.aput_startexposure(exp,True)
-                self.instGui.ccd_tab.inst_DitProg_n.setValue(0)
-                self.instGui.ccd_tab.inst_DitProg_n.setFormat(f" 0/{exp}")
-                self.msg(txt,"yellow")
-            else:
-                self.msg("wrong DIT format","red")
-
-        else:
-            txt="U don't have controll"
-            self.msg(txt,"red")
-            await self.ccd_update(True)
-
-    @qs.asyncSlot()
-    async def ccd_coolerOnOf(self):
-        if self.user.current_user["name"]==self.myself:
-            if self.ccd.cooleron:
-              txt="CCD cooler OFF"
-              await self.ccd.aput_cooleron(False)
-              self.msg(txt,"yellow")
-            else:
-              txt="CCD cooler ON"
-              await self.ccd.aput_cooleron(True)
-              self.msg(txt,"yellow")
-        else:
-            txt="U don't have controll"
-            self.msg(txt,"red")
-            await self.ccd_update(True)
-
-    async def ccd_update(self, event):
-        name=self.ccd.sensorname
-        temp=self.ccd.ccdtemperature
-        binx=self.ccd.binx
-        biny=self.ccd.biny
-        state=self.ccd.camerastate
-        gain=self.ccd.gain
-        offset=self.ccd.offset
-        cooler=self.ccd.cooleron
-        percent=self.ccd.percentcompleted
-        coolerpower=self.ccd.coolerpower
-        print("------- DUPA -----------")
-        print(name, temp)
-        print("binx biny ", binx, biny)
-        print("state ", state)
-        print("gain ", gain)
-        print("offset ", offset)
-        print("cooler ", cooler)
-        print("coolerpower ", coolerpower)
-        print("percent ", percent)
-
-        self.instGui.ccd_tab.inst_ccdTemp_e.setText(f"{temp:.1f}")
-        self.instGui.ccd_tab.cooler_c.setChecked(cooler)
-        self.instGui.ccd_tab.inst_DitProg_n.setValue(int(percent))
-        if state==0: txt="IDLE"
-        elif state==1: txt="WAITING"
-        elif state==2:
-            self.instGui.ccd_tab.inst_DitProg_n.setValue(50)
-            txt="EXPOSING"
-        elif state==3: txt="READING"
-        elif state==4: txt="DOWNLOAD"
-        elif state==5: txt="ERROR"
-
-        self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt)
-
-        response = requests.get("http://zb08-tcu.oca.lan:11111/api/v1/camera/0/imageready")
-        j = response.json()
-        ready = j['Value']
-        if self.prev_ready!=ready and ready:
-           print("NEW PIC!!!!!!")
-           response = requests.get("http://zb08-tcu.oca.lan:11111/api/v1/camera/0/imagearray")
-           j = response.json()
-           image = j['Value']
-           self.auxGui.tabWidget.setCurrentIndex(6)
-           image =  numpy.asarray(image)
-           self.auxGui.fits_tab.fitsView.update(image)
-
-        self.prev_ready=ready
 
     # ################### METODY POD SUBSKRYPCJE ##################
+
 
 
     async def TOItimer(self):
         while True:
 
-            # Tymaczasowy modul odpowiedzialny za slaved
-            #if self.mntGui.domeAuto_c.checkState():
-               #ok=False
-               #try:
-                   #float(self.mount_az)+1
-                   #float(self.dome_az)+1
-                   #ok=True
-               #except: pass
-               #print(ok)
-               #if ok:
-                   #print(abs(float(self.mount_az)-float(self.dome_az)))
-                   #if abs(float(self.mount_az)-float(self.dome_az))>10.:
-                       #print("Dupa")
-                       #await self.user.aput_break_control()
-                       #await self.user.aput_take_control()
-                       #await self.dome.aput_slewtoazimuth(float(self.mount_az))
-
-
-
             # pozostalem TIC-TOI timery
+            print("TIC-TOI")
+            self.time=time.perf_counter()
 
-            #print("TIC-TOI")
+            # Do wywalenia po implementacji w TIC
+            if self.dit_start>0:
+                dt=self.time-self.dit_start
+                if dt>self.dit_exp: dt=self.dit_exp
+                p=int(100*(dt/self.dit_exp))
+                self.instGui.ccd_tab.inst_DitProg_n.setValue(p)
+                txt=f"{int(dt)}/{int(self.dit_exp)}"
+                self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt)
+
             self.sid,self.jd,self.ut,self.sunrise,self.sunset,self.sun_alt,self.sun_az,self.moon_alt,self.moon_az=UT_SID(self.observatory)
             self.obsGui.main_form.ojd_e.setText(f"{self.jd:.6f}")
             self.obsGui.main_form.sid_e.setText(str(self.sid).split(".")[0])
@@ -352,6 +253,126 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.control_e.setText(txt)
         self.msg(f"{txt} have controll","green")
 
+
+
+
+    # ############ CCD ##################################
+
+    async def ccd_imageready(self,event):
+        if self.fits_exec and self.ccd.imageready:
+            txt=f"Exposure finished"
+            self.msg(txt,"black")
+            self.dit_start=0
+            res = await self.ccd.aget_imagearray()
+            image = self.ccd.imagearray
+            self.auxGui.tabWidget.setCurrentIndex(6)
+            image =  numpy.asarray(image)
+            self.auxGui.fits_tab.fitsView.update(image)
+            SaveFits(self,image)
+
+
+    @qs.asyncSlot()
+    async def ccd_startExp(self):
+        if self.user.current_user["name"]==self.myself:
+            exp=float(self.instGui.ccd_tab.inst_Dit_e.text())
+            ok=False
+            try:
+                float(exp)+1
+                ok=True
+            except: ok=False
+            if ok:
+                txt=f"CCD exposure {exp} s. started"
+                self.fits_exec=True
+                self.dit_start=self.time
+                self.dit_exp=float(exp)
+                light=True
+                if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
+                   light=False
+                   txt=f"CCD DARK exposure {exp} s. started"
+                self.msg(txt,"yellow")
+                if light:
+                    self.ob_type="SCIENCE"
+                    self.ob_name=str(self.instGui.ccd_tab.inst_object_e.text())
+                else:
+                    self.ob_type="DARK"
+                    self.ob_name="DARK"
+                await self.ccd.aput_startexposure(exp,light)
+            else:
+                self.msg("wrong DIT format","red")
+
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            await self.ccd_update(True)
+
+    @qs.asyncSlot()
+    async def ccd_coolerOnOf(self):
+        if self.user.current_user["name"]==self.myself:
+            if self.ccd.cooleron:
+              txt="CCD cooler OFF"
+              await self.ccd.aput_cooleron(False)
+              self.msg(txt,"yellow")
+            else:
+              txt="CCD cooler ON"
+              await self.ccd.aput_cooleron(True)
+              self.msg(txt,"yellow")
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            await self.ccd_update(True)
+
+    @qs.asyncSlot()
+    async def ccd_setTemp(self):
+        if self.user.current_user["name"]==self.myself:
+            temp=float(self.instGui.ccd_tab.inst_setTemp_e.text())
+            if temp>-60 and temp<20:
+                txt=f"CCD temp set to {temp} deg."
+                await self.ccd.aput_setccdtemperature(temp)
+                self.msg(txt,"yellow")
+            else:
+                txt="Value of CCD temp. not allowed"
+                self.msg(txt,"red")
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            await self.ccd_update(True)
+
+
+
+
+    async def ccd_update(self, event):
+        self.ccd_name=self.ccd.sensorname
+        self.ccd_temp=self.ccd.ccdtemperature
+        self.ccd_binx=self.ccd.binx
+        self.ccd_biny=self.ccd.biny
+        self.ccd_state=self.ccd.camerastate
+        self.ccd_gain=self.ccd.gain
+        self.ccd_offset=self.ccd.offset
+        self.ccd_cooler=self.ccd.cooleron
+        self.ccd_percent=self.ccd.percentcompleted
+        self.ccd_coolerpower=self.ccd.coolerpower
+
+        #print("------- DUPA -----------")
+        #print(name, temp)
+        #print("binx biny ", binx, biny)
+        #print("state ", state)
+        #print("gain ", gain)
+        #print("offset ", offset)
+        #print("cooler ", cooler)
+        #print("coolerpower ", coolerpower)
+        #print("percent ", percent)
+
+        self.instGui.ccd_tab.inst_ccdTemp_e.setText(f"{self.ccd_temp:.1f}")
+        self.instGui.ccd_tab.cooler_c.setChecked(self.ccd_cooler)
+
+        if self.ccd_state==0: txt="IDLE"
+        elif self.ccd_state==1: txt="WAITING"
+        elif self.ccd_state==2: txt="EXPOSING"
+        elif self.ccd_state==3: txt="READING"
+        elif self.ccd_state==4: txt="DOWNLOAD"
+        elif self.ccd_state==5: txt="ERROR"
+
+        self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt)
 
 
 
@@ -622,8 +643,39 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.mntGui.on_start_app()
         await self.obsGui.on_start_app()
         await self.instGui.on_start_app()
+        await self.instGui.ccd_tab.on_start_app()
         self.msg(f"Welcome in TOI","green")
 
+    # ############### FILTERS #####################
+
+    @qs.asyncSlot()
+    async def set_filter(self):
+        if self.user.current_user["name"]==self.myself:
+           ind=int(self.mntGui.telFilter_s.currentIndex())
+           fw = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', '19', '20']
+           filtr=fw[ind]
+           txt=f"filter {filtr} requested"
+           self.msg(txt,"yellow")
+           await self.fw.aput_position(ind)
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+
+    async def filter_update(self, event):
+        fw = self.fw.names
+        fw = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', '19', '20']
+        pos = int(self.fw.position)
+        self.curent_filter=fw[pos]
+        self.mntGui.telFilter_e.setText(fw[pos])
+
+    async def filterList_update(self, event):
+        fw = self.fw.names
+        fw = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', '19', '20']
+        pos = self.fw.position
+
+        self.mntGui.telFilter_s.clear()
+        self.mntGui.telFilter_s.addItems(fw)
+        self.mntGui.telFilter_s.setCurrentIndex(int(pos))
 
 # ############ INNE ##############################3
 

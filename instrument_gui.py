@@ -20,6 +20,7 @@ from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from toi_lib import *
 
 
+
 class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
       def __init__(self, parent, loop: QEventLoop = None, client_api=None):
@@ -48,7 +49,7 @@ class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
           self.tab=QTabWidget()
 
-          self.ccd_tab=CCDGui(self.parent)
+          self.ccd_tab=CCDGui(self.parent,loop=self.parent.loop, client_api=self.parent.client_api)
           self.tab.addTab(self.ccd_tab,"CCD")
 
           self.layout.addWidget(self.tab,0,0)
@@ -64,15 +65,16 @@ class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
           super().closeEvent(event)
 
 
-class CCDGui(QWidget):
-      def __init__(self, parent):
-          super(CCDGui, self).__init__()
+class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+      def __init__(self, parent, loop: QEventLoop = None, client_api=None):
+          super().__init__(loop=loop, client_api=client_api)
+
           self.parent=parent
           self.mkUI()
 
         # =================== OKNO GLOWNE ====================================
       def mkUI(self):
-           
+
           self.setWindowTitle('Instrument Manual Controll')
           
           grid = QGridLayout()
@@ -130,14 +132,9 @@ class CCDGui(QWidget):
           self.inst_Mode_l=QLabel("Mode:")
           self.inst_Mode_s=QComboBox()
           self.inst_Mode_s.addItems(["Normal","Sky","JitterBox","JitterRandom"])             
-
-          self.inst_ccdTemp_l=QLabel("CCD TEMP.:")
-          self.inst_ccdTemp_e=QLineEdit() 
           
           grid.addWidget(self.inst_Mode_l, w,0) 
           grid.addWidget(self.inst_Mode_s, w,1)          
-          grid.addWidget(self.inst_ccdTemp_l, w,2)
-          grid.addWidget(self.inst_ccdTemp_e, w,3)
 
           w=w+1
           self.inst_Bin_l=QLabel("Binning:")
@@ -155,6 +152,31 @@ class CCDGui(QWidget):
           grid.addWidget(self.inst_Subraster_l, w,0) 
           grid.addWidget(self.inst_Subraster_s, w,1)            
           
+          w=w+1
+
+          self.inst_ccdTemp_l=QLabel("CCD TEMP.:")
+          self.inst_ccdTemp_e=QLineEdit()
+          self.inst_ccdTemp_e.setReadOnly(True)
+          self.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          self.inst_setTemp_e=QLineEdit("-50")
+          self.inst_setTemp_p=QPushButton('Set')
+          self.inst_setTemp_p.clicked.connect(self.parent.ccd_setTemp)
+
+          grid.addWidget(self.inst_ccdTemp_l, w,0)
+          grid.addWidget(self.inst_ccdTemp_e, w,1)
+          grid.addWidget(self.inst_setTemp_e, w,2)
+          grid.addWidget(self.inst_setTemp_p, w,3)
+
+          w=w+1
+
+          self.cooler_c = QCheckBox("Cooler")
+          self.cooler_c.setChecked(False)
+          self.cooler_c.setLayoutDirection(Qt.RightToLeft)
+          self.cooler_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+          self.cooler_c.clicked.connect(self.parent.ccd_coolerOnOf)
+
+          grid.addWidget(self.cooler_c, w,3)
+
           w=w+1          
           
           self.inst_Snap_p=QPushButton('SNAP')
@@ -168,15 +190,7 @@ class CCDGui(QWidget):
           grid.addWidget(self.inst_Stop_p, w,2) 
           grid.addWidget(self.inst_Start_p, w,3)
 
-          w=w+1
 
-          self.cooler_c = QCheckBox("Cooler")
-          self.cooler_c.setChecked(False)
-          self.cooler_c.setLayoutDirection(Qt.RightToLeft)
-          self.cooler_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-          self.cooler_c.clicked.connect(self.parent.ccd_coolerOnOf)
-
-          grid.addWidget(self.cooler_c, w,0)
 
           #grid.setColumnMinimumWidth(6,100)
           #grid.setColumnMinimumWidth(8,100)
@@ -187,7 +201,13 @@ class CCDGui(QWidget):
           
           self.setLayout(grid)
           
-          
+      async def on_start_app(self):
+          await self.run_background_tasks()
+
+      @qs.asyncClose
+      async def closeEvent(self, event):
+          await self.stop_background_tasks()
+          super().closeEvent(event)
           
 
           

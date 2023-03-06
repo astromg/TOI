@@ -466,8 +466,9 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telFilter_e.setReadOnly(True)
         self.telFilter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         self.telFilter_s = QComboBox()
-        self.telFilter_s.addItems(["V", "I", "u", "v", "b"])
+        #self.telFilter_s.addItems(["V", "I", "u", "v", "b"])
         self.telFilter_p = QPushButton('SET')
+        self.telFilter_p.clicked.connect(self.parent.set_filter)
 
         w=w+1
         self.grid.addWidget(self.telFilter_l, w, 0,1,2)

@@ -90,7 +90,7 @@ class MainForm(QWidget):
           if "red" in color: c = QtCore.Qt.darkRed
           self.msg_e.setTextColor(c)
           ut=str(self.parent.ut).split()[1].split(":")[0]+":"+str(self.parent.ut).split()[1].split(":")[1]
-          txt=ut+": "+txt
+          txt=ut+" "+txt
           self.msg_e.append(txt)
 
           
