@@ -34,6 +34,10 @@ class SaveFits():
         hdr["CCD_TEMP"]=str(self.parent.ccd_temp)
         hdr["CCD_BINX"]=str(self.parent.ccd_binx)
         hdr["CCD_BINY"]=str(self.parent.ccd_biny)
+        hdr["RAED_MOD"]=str(self.parent.ccd_readmode)
+
+
+        hdr["FOCUS"]=str(self.parent.focus_value)
 
 
         hdu = fits.PrimaryHDU(data=self.image,header=hdr)

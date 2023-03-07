@@ -85,7 +85,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.inst_Obtype_l=QLabel("TYPE:")
           self.inst_Obtype_s=QComboBox()
-          self.inst_Obtype_s.addItems(["Science","Calibration","Dark","SkyFla","DomeFlat","Zero","Focus"])         
+          self.inst_Obtype_s.addItems(["Science","Dark","Zero","Sky Flat","DomeFlat","Focus"])
           
           grid.addWidget(self.inst_object_l, w,0)
           grid.addWidget(self.inst_object_e, w,1)
@@ -151,6 +151,23 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           
           grid.addWidget(self.inst_Subraster_l, w,0) 
           grid.addWidget(self.inst_Subraster_s, w,1)            
+
+          w=w+1
+
+          self.inst_read_l=QLabel("READ MODE:")
+          self.inst_read_e=QLineEdit()
+          self.inst_read_e.setReadOnly(True)
+          self.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          self.inst_setRead_e=QComboBox()
+          self.inst_setRead_e.addItems(["5MHz","3MHz","1MHz","0.05MHz"])
+          self.inst_setRead_p=QPushButton('Set')
+          self.inst_setRead_p.clicked.connect(self.parent.ccd_setReadMode)
+
+          grid.addWidget(self.inst_read_l, w,0)
+          grid.addWidget(self.inst_read_e, w,1)
+          grid.addWidget(self.inst_setRead_e, w,2)
+          grid.addWidget(self.inst_setRead_p, w,3)
+
           
           w=w+1
 

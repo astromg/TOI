@@ -22,30 +22,12 @@ class PlanGui(QWidget):
           self.setStyleSheet("font-size: 11pt;")
           self.setGeometry(self.parent.plan_geometry[0],self.parent.plan_geometry[1],self.parent.plan_geometry[2],self.parent.plan_geometry[3])
 
-
           self.plan=[] 
           self.i=0
           self.prev_i=1
           self.next_i=0
-          
-          
+
           self.updateUI()
-
-          self.load_p.clicked.connect(self.loadPlan)    
-          self.plan_t.cellClicked.connect(self.pocisniecie_tabelki)
-
-          self.next_p.clicked.connect(self.setNext)   
-          self.stopHere_p.clicked.connect(self.setStop)             
-          self.skip_p.clicked.connect(self.setSkip)     
-          self.up_p.clicked.connect(self.pocisniecie_up)  
-          self.down_p.clicked.connect(self.pocisniecie_down)   
-          self.del_p.clicked.connect(self.pocisniecie_del) 
-          self.first_p.clicked.connect(self.pocisniecie_first) 
-          self.last_p.clicked.connect(self.pocisniecie_last)    
-          self.swap_p.clicked.connect(self.pocisniecie_swap)                 
-
-          self.edit_p.clicked.connect(self.pocisniecie_edit)
-
           self.update_table()
 
       def pocisniecie_edit(self):
@@ -68,7 +50,6 @@ class PlanGui(QWidget):
                 tmp_dict["alt"]=alt
                 tmp_dict["az"]=az
                 self.plan_meta.append(tmp_dict)
-
 
       def update_table(self):
           self.recalc()
@@ -115,8 +96,8 @@ class PlanGui(QWidget):
       def setNext(self):
           self.next_i=self.i
           self.update_table()
-          self.parent.mnt.nextRa_e.setText(self.plan[self.i]["ra"])
-          self.parent.mnt.nextDec_e.setText(self.plan[self.i]["dec"])
+          self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ra"])
+          self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["dec"])
 
       def setStop(self):
           if "stop" in self.plan[self.i].keys():          
@@ -187,13 +168,8 @@ class PlanGui(QWidget):
           self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
           self.repaint()      
 
- 
-
-
-
       def loadPlan(self):
           self.fileName=str(QFileDialog.getOpenFileName(self,"Open file",".")[0])
-        
         
           self.plan=[]
           with open(self.fileName, "r") as plik:
@@ -210,7 +186,6 @@ class PlanGui(QWidget):
                     ob["dec"]=dec
                     self.plan.append(ob)
           self.update_table()          
-        
         
           
         # =================== OKNO GLOWNE ====================================
@@ -293,30 +268,20 @@ class PlanGui(QWidget):
  
 
 
+          self.load_p.clicked.connect(self.loadPlan)
+          self.plan_t.cellClicked.connect(self.pocisniecie_tabelki)
 
+          self.next_p.clicked.connect(self.setNext)
+          self.stopHere_p.clicked.connect(self.setStop)
+          self.skip_p.clicked.connect(self.setSkip)
+          self.up_p.clicked.connect(self.pocisniecie_up)
+          self.down_p.clicked.connect(self.pocisniecie_down)
+          self.del_p.clicked.connect(self.pocisniecie_del)
+          self.first_p.clicked.connect(self.pocisniecie_first)
+          self.last_p.clicked.connect(self.pocisniecie_last)
+          self.swap_p.clicked.connect(self.pocisniecie_swap)
 
-
-          #self.telCovers_e=QLineEdit() 
-          #self.telCovers_e.setReadOnly(True)  
-          #self.telCovers_e.setStyleSheet("background-color: rgb(233, 233, 233);")
- 
-          #self.telCovers_c=QCheckBox("")
-          #self.telCovers_c.setChecked(False)
-          #self.telCovers_c.setLayoutDirection(Qt.RightToLeft)
-          #self.telCovers_c.setStyleSheet("background-color: yellow")
-          #self.telCovers_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./SwitchOn.png)}::indicator:unchecked {image: url(./SwitchOff.png)}")
-
-
-          #self.telFilter_s=QComboBox()
-          #self.telFilter_s.addItems(["V","I","u","v","b"])
-
-
-          #grid.setColumnMinimumWidth(6,100)
-          #grid.setColumnMinimumWidth(8,100)
-          #grid.setColumnMinimumWidth(10,100)
-          
-          #grid.setSpacing(10)
-     
+          self.edit_p.clicked.connect(self.pocisniecie_edit)
           
           self.setLayout(self.grid)
           del tmp

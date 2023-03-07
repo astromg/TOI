@@ -13,15 +13,15 @@ import socket
 import time
 import pwd
 import os
+import numpy
 
 from PyQt5 import QtGui
 from PyQt5 import QtCore, QtWidgets
 import sys
 import qasync as qs
-import numpy
+
 
 from ocaboxapi import ClientAPI, Observatory
-
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 from config_service import Config as Cfg
 
@@ -113,6 +113,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # focus
         self.focus_editing=False
+        self.focus_value=0
 
 
 
@@ -189,7 +190,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.ccd.asubscribe_gain(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_offset(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_percentcompleted(self.ccd_update))
+
+        self.add_background_task(self.ccd.asubscribe_readoutmodes(self.ccd_update))
+        self.add_background_task(self.ccd.asubscribe_readoutmode(self.ccd_readoutmode_update))
+
         self.add_background_task(self.ccd.asubscribe_imageready(self.ccd_imageready))
+
+
 
         self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
         self.add_background_task(self.fw.asubscribe_position(self.filter_update))
@@ -275,35 +282,65 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def ccd_startExp(self):
         if self.user.current_user["name"]==self.myself:
             exp=float(self.instGui.ccd_tab.inst_Dit_e.text())
-            ok=False
+            ok_exp=False
+            ok_name=False
+
             try:
                 float(exp)+1
-                ok=True
-            except: ok=False
-            if ok:
-                txt=f"CCD exposure {exp} s. started"
-                self.fits_exec=True
-                self.dit_start=self.time
-                self.dit_exp=float(exp)
-                light=True
-                if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
-                   light=False
-                   txt=f"CCD DARK exposure {exp} s. started"
-                self.msg(txt,"yellow")
-                if light:
+                ok_exp=True
+            except:
+                ok=False
+                self.msg("Wronf DIT format","red")
+
+            if len(self.instGui.ccd_tab.inst_object_e.text().strip())>0: ok_name=True
+            else: self.msg("Object name required","red")
+
+            if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==0:
+                if ok_exp and ok_name:
+                    await self.ccd.aput_startexposure(exp,True)
                     self.ob_type="SCIENCE"
                     self.ob_name=str(self.instGui.ccd_tab.inst_object_e.text())
-                else:
+                    txt=f"CCD exposure {exp} s. started"
+                    self.fits_exec=True
+                    self.dit_start=self.time
+                    self.dit_exp=float(exp)
+
+            elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==1:
+                self.instGui.ccd_tab.inst_object_e.setText("DARK")
+                if ok_exp:
+                    await self.ccd.aput_startexposure(exp,False)
                     self.ob_type="DARK"
                     self.ob_name="DARK"
-                await self.ccd.aput_startexposure(exp,light)
-            else:
-                self.msg("wrong DIT format","red")
+                    txt=f"CCD DARK exposure {exp} s. started"
+                    self.fits_exec=True
+                    self.dit_start=self.time
+                    self.dit_exp=float(exp)
+
+            elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
+                self.instGui.ccd_tab.inst_object_e.setText("ZERO")
+                if True:
+                    await self.ccd.aput_startexposure(0,False)
+                    self.ob_type="ZERO"
+                    self.ob_name="ZERO"
+                    txt=f"CCD ZERO exposure started"
+                    self.fits_exec=True
+                    self.dit_start=self.time
+                    self.dit_exp=float(1)
+
+            else: txt=f"not implemented yet"
+
+            self.msg(txt,"yellow")
 
         else:
             txt="U don't have controll"
             self.msg(txt,"red")
             await self.ccd_update(True)
+
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
+
 
     @qs.asyncSlot()
     async def ccd_coolerOnOf(self):
@@ -321,6 +358,40 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.msg(txt,"red")
             await self.ccd_update(True)
 
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
+
+
+    @qs.asyncSlot()
+    async def ccd_setReadMode(self):
+        if self.user.current_user["name"]==self.myself:
+           i=int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
+           m=["5MHz","3MHz","1MHz","0.05MHz"]
+           m=m[i]
+           txt=f"Readout Mode {m} requested"
+           self.msg(txt,"yellow")
+           await self.ccd.aput_readoutmode(i)
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
+
+    async def ccd_readoutmode_update(self, event):
+        self.ccd_readoutmode = await self.ccd.aget_readoutmode()
+        i = int(self.ccd_readoutmode)
+        modes=["5MHz","3MHz","1MHz","0.05MHz"]
+        txt = modes[i]
+        self.ccd_readmode=txt
+        self.instGui.ccd_tab.inst_read_e.setText(txt)
+
+
+
     @qs.asyncSlot()
     async def ccd_setTemp(self):
         if self.user.current_user["name"]==self.myself:
@@ -337,7 +408,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.msg(txt,"red")
             await self.ccd_update(True)
 
-
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
 
     async def ccd_update(self, event):
@@ -351,8 +425,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ccd_cooler=self.ccd.cooleron
         self.ccd_percent=self.ccd.percentcompleted
         self.ccd_coolerpower=self.ccd.coolerpower
+        self.ccd_readoutmode=await self.ccd.aget_readoutmode()
+        self.ccd_readoutmodes=self.ccd.readoutmodes
 
-        #print("------- DUPA -----------")
+       #print("------- DUPA -----------")
         #print(name, temp)
         #print("binx biny ", binx, biny)
         #print("state ", state)
@@ -361,6 +437,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #print("cooler ", cooler)
         #print("coolerpower ", coolerpower)
         #print("percent ", percent)
+        #print("read_modes ", self.ccd_readoutmodes)
+        #print("read_mode ", self.ccd_readoutmode)
 
         self.instGui.ccd_tab.inst_ccdTemp_e.setText(f"{self.ccd_temp:.1f}")
         self.instGui.ccd_tab.cooler_c.setChecked(self.ccd_cooler)
@@ -378,6 +456,47 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     # ############ MOUNT ##################################
 
+
+    @qs.asyncSlot()
+    async def covers_close(self):
+        if self.user.current_user["name"]==self.myself:
+            txt="Close Covers"
+            await self.mount.aput_action("telescope:closecover")
+            self.msg(txt,"yellow")
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
+
+    @qs.asyncSlot()
+    async def covers_open(self):
+        if self.user.current_user["name"]==self.myself:
+            txt="Open Covers"
+            #self.mntGui.mntStat_e.setText(txt)
+            #self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,0,0); background-color: rgb(233, 233, 233);")
+            #info = await self.mount.aput_action("telescope:coverstatus")
+            #print(info)
+            await self.mount.aput_action("telescope:opencover")
+            #await self.mount.aput_opencover()
+
+            #data={"Action":"telescope:motoron","Parameters":""}
+            #data={"Action":"telescope:coverstatus","Parameters":""}
+            #quest="http://zb08-tcu.oca.lan:11111/api/v1/telescope/0/action"
+            #r=requests.put(quest,data=data)
+            #r=r.json()
+            #print(r)
+            self.msg(txt,"yellow")
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
+
     @qs.asyncSlot()
     async def park_mount(self):
         if self.user.current_user["name"]==self.myself:
@@ -389,7 +508,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else:
             txt="U don't have controll"
             self.msg(txt,"red")
-
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
     @qs.asyncSlot()
     async def abort_slew(self):
@@ -405,7 +527,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else:
             txt="U don't have controll"
             self.msg(txt,"red")
-
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
     @qs.asyncSlot()
     async def mount_slew(self):
@@ -429,10 +554,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
               await self.mount.aput_slewtocoo_async(ra, dec)
               txt=f"slew to Ra: {ra} Dec: {dec}"
               self.msg(txt,"black")
+
+           az=float(self.mntGui.nextAz_e.text())
+           if self.mntGui.domeAuto_c.isChecked():
+               await self.dome.aput_slewtoazimuth(az)
         else:
             txt="U don't have controll"
             self.msg(txt,"red")
-
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
     @qs.asyncSlot()
     async def mount_trackOnOff(self):
@@ -449,9 +581,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
            self.msg(txt,"yellow")
         else:
-           await self.mount_update(False)
-           txt="U don't have controll"
-           self.msg(txt,"red")
+            await self.mount_update(False)
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
     async def mountCon_update(self, event):
         self.mount_con=self.mount.connected
@@ -523,9 +659,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            self.msg(txt,"yellow")
 
         else:
-           await self.domeShutterStatus_update(False)
-           txt="U don't have controll"
-           self.msg(txt,"red")
+            await self.domeShutterStatus_update(False)
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
     @qs.asyncSlot()
     async def dome_move2Az(self):
@@ -537,9 +677,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
               ok=True
            except:
               ok=False
-           if ok and az < 360. and az > 0.:
+           if ok and az < 360. and az > -0.1:
               await self.dome.aput_slewtoazimuth(az)
 
+        else:
+            await self.domeShutterStatus_update(False)
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
 
     async def domeCon_update(self, event):
@@ -624,6 +772,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else:
             txt="U don't have controll"
             self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
     def focusClicked(self, event):
         self.mntGui.setFocus_s.setStyleSheet("background-color: rgb(255, 209, 100);")
@@ -631,6 +783,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def focus_update(self, event):
         val = self.focus.position
+        self.focus_value=val
         self.mntGui.telFocus_e.setText(str(val))
         if not self.focus_editing:
            self.mntGui.setFocus_s.valueChanged.disconnect(self.focusClicked)
@@ -660,6 +813,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else:
             txt="U don't have controll"
             self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
     async def filter_update(self, event):
         fw = self.fw.names
