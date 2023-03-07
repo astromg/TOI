@@ -219,6 +219,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             # pozostalem TIC-TOI timery
             print("TIC-TOI")
+
+            data={"Action":"coverstatus","Parameters":""}
+            #data={"Action":"telescope:motoron","Parameters":""}
+            #data={"Action":"telescope:coverstatus","Parameters":""}
+            quest="http://zb08-tcu.oca.lan:11111/api/v1/covercalibrator/0/action"
+            r=requests.put(quest,data=data)
+            r=r.json()
+            print(r)
+
+
             self.time=time.perf_counter()
 
             # Do wywalenia po implementacji w TIC
@@ -459,6 +469,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def covers_close(self):
+
+        #data={"Action":"coverstatus","Parameters":""}
+        #data={"Action":"telescope:motoron","Parameters":""}
+        #data={"Action":"telescope:coverstatus","Parameters":""}
+        #quest="http://zb08-tcu.oca.lan:11111/api/v1/covercalibrator/0/action"
+        #r=requests.put(quest,data=data)
+        #r=r.json()
+        #print(r)
+
         if self.user.current_user["name"]==self.myself:
             txt="Close Covers"
             await self.mount.aput_action("telescope:closecover")
@@ -473,6 +492,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def covers_open(self):
+
         if self.user.current_user["name"]==self.myself:
             txt="Open Covers"
             #self.mntGui.mntStat_e.setText(txt)
@@ -482,12 +502,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await self.mount.aput_action("telescope:opencover")
             #await self.mount.aput_opencover()
 
-            #data={"Action":"telescope:motoron","Parameters":""}
-            #data={"Action":"telescope:coverstatus","Parameters":""}
-            #quest="http://zb08-tcu.oca.lan:11111/api/v1/telescope/0/action"
-            #r=requests.put(quest,data=data)
-            #r=r.json()
-            #print(r)
             self.msg(txt,"yellow")
         else:
             txt="U don't have controll"
