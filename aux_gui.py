@@ -166,14 +166,16 @@ class WeatherGui(QWidget):
           grid.addWidget(self.temp_e, w, 1)
           self.setLayout(grid)
       def update(self):
-          self.mqtt_broker = 'docker.oca.lan'
-          self.mqtt_port = 1883
-          self.mqtt_topic_weather = 'weather'
-          self.mqtt_client.connect(self.mqtt_broker,self.mqtt_port)
-          self.mqtt_client.message_callback_add(self.mqtt_topic_weather, self.on_weather_message)
-          self.mqtt_client.on_connect = self.on_mqtt_connect
-          self.mqtt_client.loop_start()
-          #mqtt_client.loop_stop()
+          try:
+            self.mqtt_broker = 'docker.oca.lan'
+            self.mqtt_port = 1883
+            self.mqtt_topic_weather = 'weather'
+            self.mqtt_client.connect(self.mqtt_broker,self.mqtt_port)
+            self.mqtt_client.message_callback_add(self.mqtt_topic_weather, self.on_weather_message)
+            self.mqtt_client.on_connect = self.on_mqtt_connect
+            self.mqtt_client.loop_start()
+            #mqtt_client.loop_stop()
+          except: pass  
 
 
       def on_weather_message(self,client, userdata, message):
