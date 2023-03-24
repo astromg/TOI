@@ -260,7 +260,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.control_e.setText(txt)
         try: await self.user.aput_break_control()
         except: pass
-        try: await self.user.aput_take_control()
+        try: await self.user.aput_take_control(3600)
         except: pass
         self.msg(txt,"yellow")
 
