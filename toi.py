@@ -220,13 +220,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             # pozostalem TIC-TOI timery
             print("TIC-TOI")
 
-            data={"Action":"coverstatus","Parameters":""}
+            #data={"Action":"coverstatus","Parameters":""}
             #data={"Action":"telescope:motoron","Parameters":""}
             #data={"Action":"telescope:coverstatus","Parameters":""}
-            quest="http://zb08-tcu.oca.lan:11111/api/v1/covercalibrator/0/action"
-            r=requests.put(quest,data=data)
+            #quest="http://zb08-tcu.oca.lan:11111/api/v1/covercalibrator/0/action"
+            quest="http://zb08-tcu.oca.lan:11111/api/v1/dome/0/shutterstatus"
+            r=requests.get(quest)
             r=r.json()
-            print(r)
+            print(f"DUPA!!!! {r}")
 
 
             self.time=time.perf_counter()
