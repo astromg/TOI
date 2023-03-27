@@ -213,6 +213,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # ################### METODY POD SUBSKRYPCJE ##################
 
 
+    def test(self):
+        print("dupa")
+
+        data={"Action":"motstat","Parameters":""}
+        #data={"Action":"telescope:coverstatus","Parameters":""}
+
+
+        #data={"Action":"telescope:motoroff","Parameters":""}
+        quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
+
+        #data={"Brightness":0}
+        #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/calibratoron"
+
+        #quest="http://zb08-tcu.oca.lan:11111/api/v1/dome/0/shutterstatus"
+        r=requests.put(quest,data=data)
+        #r=requests.get(quest)
+        r=r.json()
+        print(f"Dupa {r}")
+
 
     async def TOItimer(self):
         while True:
@@ -223,11 +242,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             #data={"Action":"coverstatus","Parameters":""}
             #data={"Action":"telescope:motoron","Parameters":""}
             #data={"Action":"telescope:coverstatus","Parameters":""}
-            #quest="http://zb08-tcu.oca.lan:11111/api/v1/covercalibrator/0/action"
-            quest="http://zb08-tcu.oca.lan:11111/api/v1/dome/0/shutterstatus"
-            r=requests.get(quest)
-            r=r.json()
-            print(f"DUPA!!!! {r}")
+            #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/coverstate"
+
+            #quest="http://zb08-tcu.oca.lan:11111/api/v1/dome/0/shutterstatus"
+            #r=requests.get(quest)
+            #r=r.json()
+            #print(f"Mirror Covers!!!! {r}")
 
 
             self.time=time.perf_counter()
@@ -407,7 +427,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def ccd_setTemp(self):
         if self.user.current_user["name"]==self.myself:
             temp=float(self.instGui.ccd_tab.inst_setTemp_e.text())
-            if temp>-60 and temp<20:
+            if temp>-80 and temp<20:
                 txt=f"CCD temp set to {temp} deg."
                 await self.ccd.aput_setccdtemperature(temp)
                 self.msg(txt,"yellow")
@@ -857,10 +877,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 async def run_qt_app():
-    #SingletonConfig.add_config_file(
-        #str(pathlib.PurePath(Cfg.get("PATH_TO_CONFIG_DIR"), "configuration", "config.yaml")))
-    #SingletonConfig.get_config(rebuild=True).get()
-
 
     host = socket.gethostname()
     user = pwd.getpwuid(os.getuid())[0]
