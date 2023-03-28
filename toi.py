@@ -33,7 +33,6 @@ from mnt_gui import MntGui
 from pery_gui import PeryphericalGui
 from plan_gui import PlanGui
 from sky_gui import SkyView
-from tel_gui import TelGui
 from instrument_gui import InstrumentGui
 from fits_save import *
 
@@ -177,6 +176,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
         self.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
 
+
+        self.add_background_task(self.fw.asubscribe_connected(self.filterCon_update))
+        self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
+        self.add_background_task(self.fw.asubscribe_position(self.filter_update))
+
         self.add_background_task(self.focus.asubscribe_position(self.focus_update))
         self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
 
@@ -198,9 +202,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 
-        self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
-        self.add_background_task(self.fw.asubscribe_position(self.filter_update))
-
         await self.run_background_tasks()
 
         self.mntGui.updateUI()
@@ -216,19 +217,30 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     def test(self):
         print("dupa")
 
-        data={"Action":"motstat","Parameters":""}
+        #data={"Action":"motstat","Parameters":""}
+        #data={"Action":"telescope:reportmindec","Parameters":""}
         #data={"Action":"telescope:coverstatus","Parameters":""}
-
-
         #data={"Action":"telescope:motoroff","Parameters":""}
-        quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
+        #data={"Action":"telescope:stopfans","Parameters":""}
+
+        #quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
 
         #data={"Brightness":0}
         #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/calibratoron"
 
         #quest="http://zb08-tcu.oca.lan:11111/api/v1/dome/0/shutterstatus"
-        r=requests.put(quest,data=data)
+        #r=requests.put(quest,data=data)
+
+
+        #quest="http://192.168.7.110:11111/api/v1/rotator/0/ismoving"
+        #quest="http://192.168.7.110:11111/api/v1/telescope/0/utcdate"
+        #quest="http://192.168.7.110:11111/api/v1/dome/0/abortslew"
+        quest="http://192.168.7.110:11111/api/v1/camera/0/sensorname"
+
+
         #r=requests.get(quest)
+        r=requests.get(quest)
+
         r=r.json()
         print(f"Dupa {r}")
 
@@ -238,17 +250,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             # pozostalem TIC-TOI timery
             print("TIC-TOI")
-
-            #data={"Action":"coverstatus","Parameters":""}
-            #data={"Action":"telescope:motoron","Parameters":""}
-            #data={"Action":"telescope:coverstatus","Parameters":""}
-            #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/coverstate"
-
-            #quest="http://zb08-tcu.oca.lan:11111/api/v1/dome/0/shutterstatus"
-            #r=requests.get(quest)
-            #r=r.json()
-            #print(f"Mirror Covers!!!! {r}")
-
 
             self.time=time.perf_counter()
 
@@ -292,21 +293,20 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.msg(f"{txt} have controll","green")
 
 
-
-
     # ############ CCD ##################################
 
     async def ccd_imageready(self,event):
-        if self.fits_exec and self.ccd.imageready:
-            txt=f"Exposure finished"
-            self.msg(txt,"black")
+        if self.ccd.imageready:
             self.dit_start=0
             res = await self.ccd.aget_imagearray()
             image = self.ccd.imagearray
-            self.auxGui.tabWidget.setCurrentIndex(6)
-            image =  numpy.asarray(image)
+            image =  numpy.asarray(image).astype(numpy.int16)
             self.auxGui.fits_tab.fitsView.update(image)
-            SaveFits(self,image)
+            if self.fits_exec:
+                txt=f"Exposure finished"
+                self.msg(txt,"black")
+                self.auxGui.tabWidget.setCurrentIndex(6)
+                SaveFits(self,image)
 
 
     @qs.asyncSlot()
@@ -459,18 +459,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ccd_readoutmode=await self.ccd.aget_readoutmode()
         self.ccd_readoutmodes=self.ccd.readoutmodes
 
-       #print("------- DUPA -----------")
-        #print(name, temp)
-        #print("binx biny ", binx, biny)
-        #print("state ", state)
-        #print("gain ", gain)
-        #print("offset ", offset)
-        #print("cooler ", cooler)
-        #print("coolerpower ", coolerpower)
-        #print("percent ", percent)
-        #print("read_modes ", self.ccd_readoutmodes)
-        #print("read_mode ", self.ccd_readoutmode)
-
         self.instGui.ccd_tab.inst_ccdTemp_e.setText(f"{self.ccd_temp:.1f}")
         self.instGui.ccd_tab.cooler_c.setChecked(self.ccd_cooler)
 
@@ -491,14 +479,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def covers_close(self):
 
-        #data={"Action":"coverstatus","Parameters":""}
-        #data={"Action":"telescope:motoron","Parameters":""}
-        #data={"Action":"telescope:coverstatus","Parameters":""}
-        #quest="http://zb08-tcu.oca.lan:11111/api/v1/covercalibrator/0/action"
-        #r=requests.put(quest,data=data)
-        #r=r.json()
-        #print(r)
-
         if self.user.current_user["name"]==self.myself:
             txt="Close Covers"
             await self.mount.aput_action("telescope:closecover")
@@ -516,13 +496,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         if self.user.current_user["name"]==self.myself:
             txt="Open Covers"
-            #self.mntGui.mntStat_e.setText(txt)
-            #self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,0,0); background-color: rgb(233, 233, 233);")
-            #info = await self.mount.aput_action("telescope:coverstatus")
-            #print(info)
             await self.mount.aput_action("telescope:opencover")
-            #await self.mount.aput_opencover()
-
             self.msg(txt,"yellow")
         else:
             txt="U don't have controll"
@@ -575,7 +549,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
               az=float(self.mntGui.nextAz_e.text())
               alt=float(self.mntGui.nextAlt_e.text())
               await self.mount.aput_slewtoaltaz_async(az,alt)
-              await self.mount.aput_tracking(False)
               txt=f"slew to Az: {az} Alt: {alt}"
               self.msg(txt,"black")
 
@@ -673,8 +646,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            self.mntGui.mntAlt_e.setText(f"{self.mount_alt:.3f}")
            self.mntGui.mntAz_e.setText(f"{self.mount_az:.3f}")
            self.obsGui.main_form.skyView.updateMount()
-        #logger.info(f"Updater named {event.name} change field value")
-        #self.obsGui.main_form.skyView.updateDome()
+        az=float(self.mount_az)
+        if self.mntGui.domeAuto_c.isChecked() and abs(az-float(self.dome_az)>5.):     # Do wywalenia po implementacji w TIC
+           await self.dome.aput_slewtoazimuth(az)
+
 
 
     # #### DOME #########
@@ -835,6 +810,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.msg(f"Welcome in TOI","green")
 
     # ############### FILTERS #####################
+
+
+    async def filterCon_update(self, event):
+        self.fw_con=self.fw.connected
+        if self.fw_con:
+           self.mntGui.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
+           self.mntGui.telFilter_l.setStyleSheet("color: rgb(0,150,0);")
+        else:
+           self.domeGUI.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
 
     @qs.asyncSlot()
     async def set_filter(self):

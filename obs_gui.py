@@ -310,8 +310,10 @@ class SkyView(QWidget):
           for p in self.moon: p.remove()
           for p in self.nextOb: p.remove()
        except: pass
-       sunrise=str(self.parent.sunrise).split()[1]
-       sunset=str(self.parent.sunset).split()[1]
+       sunrise_tmp=str(self.parent.sunrise).split()[1]
+       sunset_tmp=str(self.parent.sunset).split()[1]
+       sunrise=sunrise_tmp.split(":")[0]+":"+sunrise_tmp.split(":")[1]
+       sunset=sunset_tmp.split(":")[0]+":"+sunset_tmp.split(":")[1]
        r,fi = 195, 314.7
        fi = fi * 2*3.14/360.
        self.txt1=self.axes.text(fi,r,f"Sunset: {sunset}",fontsize=9)

@@ -303,7 +303,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeAuto_l  = QLabel("FOLLOW:")
         self.domeAuto_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         self.domeAuto_c = QCheckBox()
-        self.domeAuto_c.setChecked(True)
+        self.domeAuto_c.setChecked(False)
         self.domeAuto_c.setLayoutDirection(Qt.RightToLeft)
         self.domeAuto_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 

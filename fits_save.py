@@ -6,7 +6,7 @@ import numpy
 class SaveFits():
     def __init__(self,parent,image):
         self.parent=parent
-        self.image=image
+        self.image=image.astype(numpy.int16)
         self.path = "../../Desktop/FITS/"
         jd=self.parent.jd
         ojd=jd-2460000.215949074
