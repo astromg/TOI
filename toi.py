@@ -15,6 +15,10 @@ import pwd
 import os
 import numpy
 
+from astropy.time import Time as astroTime
+import astropy.units as u
+
+
 from PyQt5 import QtGui
 from PyQt5 import QtCore, QtWidgets
 import sys
@@ -114,6 +118,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.focus_editing=False
         self.focus_value=0
 
+        # rotator
+        self.rotator_pos="unknown"
+
+        # program
+        self.req_ra=""
+        self.req_dec=""
+        self.req_epoch=""
+
 
 
         # window generation
@@ -158,6 +170,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.focus = self.observatory_model.get_telescope(tel).get_focuser()
         self.ccd = self.observatory_model.get_telescope(tel).get_camera()
         self.fw = self.observatory_model.get_telescope(tel).get_filterwheel()
+        self.rotator = self.observatory_model.get_telescope(tel).get_rotator()
 
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
@@ -183,6 +196,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.add_background_task(self.focus.asubscribe_position(self.focus_update))
         self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
+
+        self.add_background_task(self.rotator.asubscribe_connected(self.rotatorCon_update))
+        self.add_background_task(self.rotator.asubscribe_position(self.rotator_update))
 
         self.add_background_task(self.ccd.asubscribe_sensorname(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_update))
@@ -213,33 +229,33 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     # ################### METODY POD SUBSKRYPCJE ##################
 
-
-    def test(self):
-        print("dupa")
-
-        #data={"Action":"motstat","Parameters":""}
+    @qs.asyncSlot()
+    async def test(self):
+        #print("dupa")
+        #z = await self.rotator.aget_position()
+        #print(z)
+        data={"Action":"MotStat","Parameters":""}
         #data={"Action":"telescope:reportmindec","Parameters":""}
         #data={"Action":"telescope:coverstatus","Parameters":""}
         #data={"Action":"telescope:motoroff","Parameters":""}
         #data={"Action":"telescope:stopfans","Parameters":""}
 
-        #quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
+        quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
 
         #data={"Brightness":0}
         #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/calibratoron"
 
         #quest="http://zb08-tcu.oca.lan:11111/api/v1/dome/0/shutterstatus"
-        #r=requests.put(quest,data=data)
+        r=requests.put(quest,data=data)
 
 
-        #quest="http://192.168.7.110:11111/api/v1/rotator/0/ismoving"
+        #quest="http://192.168.7.110:11111/api/v1/rotator/0/position"
         #quest="http://192.168.7.110:11111/api/v1/telescope/0/utcdate"
         #quest="http://192.168.7.110:11111/api/v1/dome/0/abortslew"
-        quest="http://192.168.7.110:11111/api/v1/camera/0/sensorname"
+        #quest="http://192.168.7.110:11111/api/v1/camera/0/sensorname"
 
 
         #r=requests.get(quest)
-        r=requests.get(quest)
 
         r=r.json()
         print(f"Dupa {r}")
@@ -298,6 +314,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def ccd_imageready(self,event):
         if self.ccd.imageready:
             self.dit_start=0
+
+            quest="http://192.168.7.110:11111/api/v1/camera/0/lastexposurestarttime"    # Alpaca do podmianki
+            r=requests.get(quest)
+            self.ccd_start_time = r.json()["Value"]
+
+            quest="http://192.168.7.110:11111/api/v1/camera/0/lastexposureduration"     # Alpaca do podmianki
+            r=requests.get(quest)
+            self.ccd_exp_time = r.json()["Value"]
+
+
+            self.ccd_start_time = astroTime(self.ccd_start_time,format="fits",scale="utc")
+            self.ccd_start_time=self.ccd_start_time+3*u.hour                            # BAAARDZO brudne rozwiazanie czasu lokalnego!!!!!!
+
+            self.ccd_jd_start = self.ccd_start_time.jd
+
             res = await self.ccd.aget_imagearray()
             image = self.ccd.imagearray
             image =  numpy.asarray(image).astype(numpy.int16)
@@ -544,6 +575,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def mount_slew(self):
         if self.user.current_user["name"]==self.myself:
+           self.req_ra=""
+           self.req_dec=""
+           self.req_epoq=""
 
            if self.mntGui.setAltAz_r.isChecked():
               az=float(self.mntGui.nextAz_e.text())
@@ -556,6 +590,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
               ra = self.mntGui.nextRa_e.text()
               dec = self.mntGui.nextDec_e.text()
               epoch = str(self.mntGui.mntEpoch_e.text())
+              self.req_ra=ra
+              self.req_dec=dec
+              self.req_epoch=epoch
               ra,dec = RaDecEpoch(self.observatory,ra,dec,epoch)
               ra=hmsRa2float(ra)
               dec=arcDeg2float(dec)
@@ -852,6 +889,23 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mntGui.telFilter_s.clear()
         self.mntGui.telFilter_s.addItems(fw)
         self.mntGui.telFilter_s.setCurrentIndex(int(pos))
+
+    # ############### ROTATOR #####################
+
+
+    async def rotatorCon_update(self, event):
+        self.rotator_con=self.rotator.connected
+        if self.rotator_con:
+           self.mntGui.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
+           self.mntGui.telRotator1_l.setStyleSheet("color: rgb(0,150,0);")
+        else:
+           self.domeGUI.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+
+
+    async def rotator_update(self, event):
+        self.rotator_pos = self.rotator.position
+        self.mntGui.telRotator1_e.setText(f"{self.rotator_pos:.2f}")
+
 
 # ############ INNE ##############################3
 
