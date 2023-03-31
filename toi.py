@@ -80,6 +80,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.fits_exec=False
         self.dit_start=0
         self.dit_exp=0
+        self.ndit=0
+        self.ndit_req=1
 
         # obs model
         self.obs_tel_tic_names=["wk06","zb08","jk15","wg25","sim"]
@@ -171,6 +173,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ccd = self.observatory_model.get_telescope(tel).get_camera()
         self.fw = self.observatory_model.get_telescope(tel).get_filterwheel()
         self.rotator = self.observatory_model.get_telescope(tel).get_rotator()
+        self.planrunner = self.observatory_model.get_telescope(tel).get_observation_plan()
+
+        self.planrunner.add_info_callback('stream_1', self.PlanRun1)
+        #self.planrunner.add_info_callback('c_sequences', self.PlanRun1)
+        #self.planrunner.add_info_callback('c_subcommands', self.PlanRun1)
+        #self.planrunner.add_info_callback('c_commands', self.PlanRun1)
+        #self.planrunner.add_info_callback('stream_5', self.PlanRun1)
+
+
 
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
@@ -216,14 +227,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.add_background_task(self.ccd.asubscribe_imageready(self.ccd_imageready))
 
-
-
         await self.run_background_tasks()
+
 
         self.mntGui.updateUI()
         self.auxGui.updateUI()
         self.planGui.updateUI()
         self.instGui.updateUI()
+
+
+
 
 
 
@@ -234,19 +247,29 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #print("dupa")
         #z = await self.rotator.aget_position()
         #print(z)
-        data={"Action":"MotStat","Parameters":""}
+        #data={"Action":"MotStat","Parameters":""}
+        #data={"Action":"telescope:startfans","Parameters":"5"}
+        #data={"Action":"telescope:stopfans","Parameters":""}
+        #data={"Action":"fansturnon","Parameters":""}
+        #data={"Action":"fansturnoff","Parameters":""}
+        #data={"Action":"fansstatus","Parameters":""}
         #data={"Action":"telescope:reportmindec","Parameters":""}
-        #data={"Action":"telescope:coverstatus","Parameters":""}
+        #data={"Action":"coverstatus","Parameters":""}
+        #data={"Action":"telescope:motoron","Parameters":""}
         #data={"Action":"telescope:motoroff","Parameters":""}
         #data={"Action":"telescope:stopfans","Parameters":""}
 
-        quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
+
+
+        #quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
+        #quest="http://192.168.7.110:11111/api/v1/focuser/0/action"
 
         #data={"Brightness":0}
-        #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/calibratoron"
+        #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/coverstate"
+        #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/action"
 
         #quest="http://zb08-tcu.oca.lan:11111/api/v1/dome/0/shutterstatus"
-        r=requests.put(quest,data=data)
+
 
 
         #quest="http://192.168.7.110:11111/api/v1/rotator/0/position"
@@ -256,6 +279,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         #r=requests.get(quest)
+
+        data={"Command":"MotStat","Raw":"True"}
+        quest="http://192.168.7.110:11111/api/v1/telescope/0/commandstring"
+
+
+        r=requests.put(quest,data=data)
 
         r=r.json()
         print(f"Dupa {r}")
@@ -273,10 +302,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if self.dit_start>0:
                 dt=self.time-self.dit_start
                 if dt>self.dit_exp: dt=self.dit_exp
-                p=int(100*(dt/self.dit_exp))
-                self.instGui.ccd_tab.inst_DitProg_n.setValue(p)
-                txt=f"{int(dt)}/{int(self.dit_exp)}"
-                self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt)
+                if self.dit_exp>0.:
+                    p=int(100*(dt/self.dit_exp))
+                    self.instGui.ccd_tab.inst_DitProg_n.setValue(p)
+                    txt=f"{int(dt)}/{int(self.dit_exp)}"
+                    self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt)
+
+                    p=int(100*(self.ndit/self.ndit_req))
+                    self.instGui.ccd_tab.inst_NditProg_n.setValue(p)
+                    txt2=f"{int(self.ndit)}/{int(self.ndit_req)}"
+                    self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt2)
 
             self.sid,self.jd,self.ut,self.sunrise,self.sunset,self.sun_alt,self.sun_az,self.moon_alt,self.moon_az=UT_SID(self.observatory)
             self.obsGui.main_form.ojd_e.setText(f"{self.jd:.6f}")
@@ -309,11 +344,59 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.msg(f"{txt} have controll","green")
 
 
+    # ############ PLAN RUNNER CALLBACK ##########################
+
+    @qs.asyncSlot()
+    async def PlanRun1(self,txt):
+        print(txt)
+        if "Nightplan" in txt and "started" in txt:
+            self.msg(txt,"black")
+            self.instGui.ccd_tab.inst_NditProg_n.setValue(0)
+            self.instGui.ccd_tab.inst_NditProg_n.setFormat("Sequence Start")
+        elif "time:" in txt:
+            t=float(txt.split("time:")[1].split()[0])
+            self.dit_exp=t
+        elif "Subexp" in txt:
+            self.msg(txt,"black")
+            if "started" in txt:
+                self.dit_start=self.time
+                if "1/" in txt:
+                    nn=txt.split()[1]
+                    self.ndit,self.ndit_req = float(nn.split("/")[0]),float(nn.split("/")[1])
+            elif "done" in txt:
+                nn=txt.split()[1]
+                self.ndit,self.ndit_req = float(nn.split("/")[0]),float(nn.split("/")[1])
+
+
     # ############ CCD ##################################
+
+    @qs.asyncSlot()
+    async def ccd_startSequence(self):
+        txt=self.instGui.ccd_tab.inst_Seq_e.text()
+        txt=txt.strip()
+        #if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==0:
+        #    txt="BEGINSEQUENCE\n OBJECT  seq="+txt+"\nENDSEQUENCE"
+        #    self.planrunner.load_nightplan_string('sequence', txt, overwrite=True)
+        #    self.planrunner.run_nightplan('sequence',step_id="00")
+        #    self.fits_exec=True
+        #    self.dit_start=self.time
+        if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==1:
+            txt="BEGINSEQUENCE\n ZERO seq="+txt+"\nENDSEQUENCE"
+            self.planrunner.load_nightplan_string('sequence', txt, overwrite=True)
+            self.planrunner.run_nightplan('sequence',step_id="00")
+            self.fits_exec=True
+            self.dit_start=self.time
+
+        if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
+            txt="BEGINSEQUENCE\n DARK seq="+txt+"\nENDSEQUENCE"
+            self.planrunner.load_nightplan_string('sequence', txt, overwrite=True)
+            self.planrunner.run_nightplan('sequence',step_id="00")
+            self.fits_exec=True
+            self.dit_start=self.time
 
     async def ccd_imageready(self,event):
         if self.ccd.imageready:
-            self.dit_start=0
+            #self.dit_start=0
 
             quest="http://192.168.7.110:11111/api/v1/camera/0/lastexposurestarttime"    # Alpaca do podmianki
             r=requests.get(quest)
@@ -334,10 +417,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             image =  numpy.asarray(image).astype(numpy.int16)
             self.auxGui.fits_tab.fitsView.update(image)
             if self.fits_exec:
-                txt=f"Exposure finished"
-                self.msg(txt,"black")
+            #    txt=f"Exposure finished"
+            #    self.msg(txt,"black")
                 self.auxGui.tabWidget.setCurrentIndex(6)
-                SaveFits(self,image)
+            #    SaveFits(self,image)
+
 
 
     @qs.asyncSlot()
@@ -367,7 +451,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.dit_start=self.time
                     self.dit_exp=float(exp)
 
-            elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==1:
+            elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
                 self.instGui.ccd_tab.inst_object_e.setText("DARK")
                 if ok_exp:
                     await self.ccd.aput_startexposure(exp,False)
@@ -378,7 +462,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.dit_start=self.time
                     self.dit_exp=float(exp)
 
-            elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
+            elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==1:
                 self.instGui.ccd_tab.inst_object_e.setText("ZERO")
                 if True:
                     await self.ccd.aput_startexposure(0,False)
@@ -683,9 +767,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            self.mntGui.mntAlt_e.setText(f"{self.mount_alt:.3f}")
            self.mntGui.mntAz_e.setText(f"{self.mount_az:.3f}")
            self.obsGui.main_form.skyView.updateMount()
-        az=float(self.mount_az)
-        if self.mntGui.domeAuto_c.isChecked() and abs(az-float(self.dome_az)>5.):     # Do wywalenia po implementacji w TIC
-           await self.dome.aput_slewtoazimuth(az)
+        az=self.mount_az
+        if az != None:
+            az=float(az)
+            if self.mntGui.domeAuto_c.isChecked() and abs(az-float(self.dome_az)>5.):     # Do wywalenia po implementacji w TIC
+               await self.dome.aput_slewtoazimuth(az)
 
 
 
@@ -885,10 +971,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         fw = self.fw.names
         fw = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', '19', '20']
         pos = self.fw.position
-
         self.mntGui.telFilter_s.clear()
         self.mntGui.telFilter_s.addItems(fw)
-        self.mntGui.telFilter_s.setCurrentIndex(int(pos))
+        if pos != None:
+            self.mntGui.telFilter_s.setCurrentIndex(int(pos))
 
     # ############### ROTATOR #####################
 

@@ -1050,7 +1050,7 @@ files = [
 
 [[package]]
 name = "ocabox"
-version = "1.0.0"
+version = "1.0.4"
 description = ""
 category = "main"
 optional = false
@@ -1223,7 +1223,7 @@ files = [
 
 [[package]]
 name = "pyaraucaria"
-version = "2.6.11"
+version = "2.6.12"
 description = ""
 category = "main"
 optional = false
@@ -1244,7 +1244,7 @@ yaml = ["yaml"]
 type = "git"
 url = "https://github.com/araucaria-project/pyaraucaria.git"
 reference = "HEAD"
-resolved_reference = "2fdbe65e2640db4542f86396df3d07532757ddae"
+resolved_reference = "055135c8700e47b65d94d8ae749e1703f018137c"
 
 [[package]]
 name = "pycparser"

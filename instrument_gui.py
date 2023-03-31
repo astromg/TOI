@@ -72,6 +72,22 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.parent=parent
           self.mkUI()
 
+      def ObsTypeChanged(self):
+          if self.inst_Obtype_s.currentIndex()==0:
+              self.inst_object_e.setText("")
+          elif self.inst_Obtype_s.currentIndex()==1:
+              self.inst_object_e.setText("ZERO")
+              self.inst_Dit_e.setText("0")
+          elif self.inst_Obtype_s.currentIndex()==2:
+              self.inst_object_e.setText("DARK")
+          elif self.inst_Obtype_s.currentIndex()==3:
+              self.inst_object_e.setText("SKY_FLAT")
+          elif self.inst_Obtype_s.currentIndex()==4:
+              self.inst_object_e.setText("DOME_FLAT")
+          elif self.inst_Obtype_s.currentIndex()==5:
+              self.inst_object_e.setText("FOCUS")
+          else: pass
+
         # =================== OKNO GLOWNE ====================================
       def mkUI(self):
 
@@ -85,7 +101,8 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.inst_Obtype_l=QLabel("TYPE:")
           self.inst_Obtype_s=QComboBox()
-          self.inst_Obtype_s.addItems(["Science","Dark","Zero","Sky Flat","DomeFlat","Focus"])
+          self.inst_Obtype_s.addItems(["Science","Zero","Dark","Sky Flat","DomeFlat","Focus"])
+          self.inst_Obtype_s.currentIndexChanged.connect(self.ObsTypeChanged)
           
           grid.addWidget(self.inst_object_l, w,0)
           grid.addWidget(self.inst_object_e, w,1)
@@ -93,10 +110,10 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           grid.addWidget(self.inst_Obtype_s, w,3)
         
           w=w+1
-          self.inst_Ndit_l=QLabel("NDIT:")
+          self.inst_Ndit_l=QLabel("N:")
           self.inst_Ndit_e=QLineEdit() 
 
-          self.inst_Dit_l=QLabel("DIT:")
+          self.inst_Dit_l=QLabel("EXP TIME [s]:")
           self.inst_Dit_e=QLineEdit()   
           
           grid.addWidget(self.inst_Ndit_l, w,0)
@@ -122,6 +139,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_Seq_l=QLabel("Sequence:")
           self.inst_Seq_e=QLineEdit() 
           self.inst_Seq_p=QPushButton('EXECUTE')
+          self.inst_Seq_p.clicked.connect(self.parent.ccd_startSequence)
 
 
           grid.addWidget(self.inst_Seq_l, w,0)

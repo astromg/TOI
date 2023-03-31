@@ -32,7 +32,7 @@ class SaveFits():
 
         hdr["DATE-OBS"]=str(self.parent.ccd_start_time)
         hdr.comments["DATE-OBS"]="DateTime of observation start"
-        hdr["JD"]=str(self.parent.ccd_jd_start)
+        hdr["JD"]=float(self.parent.ccd_jd_start)
         hdr.comments["JD"]="Julian date of observation start"
 
         hdr["RA"]=str(self.parent.req_ra)
@@ -51,7 +51,7 @@ class SaveFits():
         hdr["TEL-AZ"]=str(self.parent.mount_az )
         hdr.comments["TEL-AZ"]="[deg] Telescope mount AZ"
 
-        hdr["AIRMASS"]="unknown"
+        hdr["AIRMASS"]=""
         hdr["OBSMODE"]="unknown"
         hdr.comments["OBSMODE"]="TRACKING, GUIDING, JITTER or ELSE"
         hdr["FOCUS"]=str(self.parent.focus_value)
@@ -76,8 +76,8 @@ class SaveFits():
         hdr["CCDBINX"]=str(self.parent.ccd_binx)
         hdr["CCDBINY"]=str(self.parent.ccd_biny)
         hdr["READMODE"]=str(self.parent.ccd_readmode)
-        hdr["GAIN"]="unknown"
-        hdr["RNOISE"]="unknown"
+        hdr["GAIN"]=""
+        hdr["RNOISE"]=""
 
 
 
