@@ -45,6 +45,10 @@ logging.basicConfig(level='INFO')
 logger = logging.getLogger(__name__)
 
 
+# rgb(136, 142, 228)     blue
+# rgb(255, 165, 0)       orange
+
+
 class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     APP_NAME = "TOI app"
 
@@ -82,6 +86,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.dit_exp=0
         self.ndit=0
         self.ndit_req=1
+        self.plan_runner_origin=""
+        self.plan_runner_status=""
 
         # obs model
         self.obs_tel_tic_names=["wk06","zb08","jk15","wg25","sim"]
@@ -99,6 +105,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.active_tel="SIM"
 
         # ccd
+        self.binxy_changed=False
 
         # dome
         self.dome_con=False
@@ -144,7 +151,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.instGui.show()
         self.instGui.raise_()
 
-        self.planGui = PlanGui(self)
+        self.planGui = PlanGui(self, loop=self.loop, client_api=self.client_api)
         self.planGui.show()
         self.planGui.raise_()
 
@@ -179,7 +186,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #self.planrunner.add_info_callback('c_sequences', self.PlanRun1)
         #self.planrunner.add_info_callback('c_subcommands', self.PlanRun1)
         #self.planrunner.add_info_callback('c_commands', self.PlanRun1)
-        #self.planrunner.add_info_callback('stream_5', self.PlanRun1)
+        self.planrunner.add_info_callback('stream_5', self.PlanRun5)
 
 
 
@@ -223,7 +230,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.ccd.asubscribe_percentcompleted(self.ccd_update))
 
         self.add_background_task(self.ccd.asubscribe_readoutmodes(self.ccd_update))
-        self.add_background_task(self.ccd.asubscribe_readoutmode(self.ccd_readoutmode_update))
+        self.add_background_task(self.ccd.asubscribe_readoutmode(self.ccd_update))
 
         self.add_background_task(self.ccd.asubscribe_imageready(self.ccd_imageready))
 
@@ -248,7 +255,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #z = await self.rotator.aget_position()
         #print(z)
         #data={"Action":"MotStat","Parameters":""}
-        #data={"Action":"telescope:startfans","Parameters":"5"}
+        #data={"Action":"telescope:startfans","Parameters":"5"}    # Dome Flat lamps
         #data={"Action":"telescope:stopfans","Parameters":""}
         #data={"Action":"fansturnon","Parameters":""}
         #data={"Action":"fansturnoff","Parameters":""}
@@ -265,6 +272,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #quest="http://192.168.7.110:11111/api/v1/focuser/0/action"
 
         #data={"Brightness":0}
+        #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/opencover"
+        #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/closecover"
         #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/coverstate"
         #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/action"
 
@@ -276,15 +285,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #quest="http://192.168.7.110:11111/api/v1/telescope/0/utcdate"
         #quest="http://192.168.7.110:11111/api/v1/dome/0/abortslew"
         #quest="http://192.168.7.110:11111/api/v1/camera/0/sensorname"
+        quest="http://192.168.7.110:11111/api/v1/camera/0/setccdtemperature"
 
 
-        #r=requests.get(quest)
+        r=requests.get(quest)
 
-        data={"Command":"MotStat","Raw":"True"}
-        quest="http://192.168.7.110:11111/api/v1/telescope/0/commandstring"
+        #data={"Command":"MotStat","Raw":"True"}
+        #quest="http://192.168.7.110:11111/api/v1/telescope/0/commandstring"
 
 
-        r=requests.put(quest,data=data)
+        #r=requests.put(quest,data=data)
 
         r=r.json()
         print(f"Dupa {r}")
@@ -294,24 +304,36 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         while True:
 
             # pozostalem TIC-TOI timery
-            print("TIC-TOI")
+            #print("TIC-TOI")
 
             self.time=time.perf_counter()
 
             # Do wywalenia po implementacji w TIC
             if self.dit_start>0:
-                dt=self.time-self.dit_start
-                if dt>self.dit_exp: dt=self.dit_exp
-                if self.dit_exp>0.:
-                    p=int(100*(dt/self.dit_exp))
-                    self.instGui.ccd_tab.inst_DitProg_n.setValue(p)
-                    txt=f"{int(dt)}/{int(self.dit_exp)}"
-                    self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt)
 
-                    p=int(100*(self.ndit/self.ndit_req))
-                    self.instGui.ccd_tab.inst_NditProg_n.setValue(p)
-                    txt2=f"{int(self.ndit)}/{int(self.ndit_req)}"
-                    self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt2)
+                p=int(100*(self.ndit/self.ndit_req))
+                self.instGui.ccd_tab.inst_NditProg_n.setValue(p)
+                txt=f"{int(self.ndit)}/{int(self.ndit_req)}"
+
+                dt=self.time-self.dit_start
+                if dt>self.dit_exp:
+                    dt=self.dit_exp
+                if int(self.dit_exp)==0: p=100
+                else: p=int(100*(dt/self.dit_exp))
+                self.instGui.ccd_tab.inst_DitProg_n.setValue(p)
+                txt2=f"{int(dt)}/{int(self.dit_exp)}"
+
+                if "Sequence start" in self.plan_runner_status:
+                    txt = "Sequence started"
+                    txt2 = ""
+                elif "Sequence done" in self.plan_runner_status:
+                    txt = f"Sequence {txt} done"
+                    txt2 = "IDLE"
+                elif "exp saving" in self.plan_runner_status:
+                    txt2 = f"saving {txt2}"
+
+                self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt)
+                self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt2)
 
             self.sid,self.jd,self.ut,self.sunrise,self.sunset,self.sun_alt,self.sun_az,self.moon_alt,self.moon_az=UT_SID(self.observatory)
             self.obsGui.main_form.ojd_e.setText(f"{self.jd:.6f}")
@@ -325,23 +347,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             await asyncio.sleep(1)
 
-    # #### USER #########
-
-    @qs.asyncSlot()
-    async def takeControl(self):
-        txt="Control requested"
-        self.obsGui.main_form.control_e.setText(txt)
-        try: await self.user.aput_break_control()
-        except: pass
-        try: await self.user.aput_take_control(3600)
-        except: pass
-        self.msg(txt,"yellow")
-
-    async def user_update(self, event):
-        self.TICuser=self.user.current_user
-        txt=str(self.TICuser["name"])
-        self.obsGui.main_form.control_e.setText(txt)
-        self.msg(f"{txt} have controll","green")
 
 
     # ############ PLAN RUNNER CALLBACK ##########################
@@ -349,50 +354,69 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def PlanRun1(self,txt):
         print(txt)
+
+        if self.plan_runner_origin=="Plan Gui":
+            if "Command" in txt and "started" in txt:
+                cur_i = txt.split()[1].split("_")[1]
+                self.planGui.current_i=int(cur_i)
+                self.planGui.next_i=self.planGui.current_i+1
+                self.planGui.update_table()
+
+
         if "Nightplan" in txt and "started" in txt:
             self.msg(txt,"black")
             self.instGui.ccd_tab.inst_NditProg_n.setValue(0)
-            self.instGui.ccd_tab.inst_NditProg_n.setFormat("Sequence Start")
+            self.plan_runner_status="Sequence start"
+            self.instGui.ccd_tab.inst_NditProg_n.setFormat("Sequence requested")
+            self.instGui.ccd_tab.inst_DitProg_n.setValue(0)
+            self.instGui.ccd_tab.inst_DitProg_n.setFormat("")
+        elif "Night plan" in txt and "done" in txt:
+            self.msg(txt,"black")
+            self.plan_runner_status="Sequence done"
         elif "time:" in txt:
             t=float(txt.split("time:")[1].split()[0])
             self.dit_exp=t
+            n=float(txt.split("number:")[1].split()[0])
+            self.ndit_req=n
+
         elif "Subexp" in txt:
             self.msg(txt,"black")
             if "started" in txt:
+                self.plan_runner_status="exp start"
                 self.dit_start=self.time
-                if "1/" in txt:
-                    nn=txt.split()[1]
-                    self.ndit,self.ndit_req = float(nn.split("/")[0]),float(nn.split("/")[1])
             elif "done" in txt:
+                self.plan_runner_status="exp done"
                 nn=txt.split()[1]
-                self.ndit,self.ndit_req = float(nn.split("/")[0]),float(nn.split("/")[1])
+                self.ndit = float(nn.split("/")[0])
+            elif "saving" in txt:
+                self.plan_runner_status="exp saving"
+        else: self.plan_runner_status=""
+
+    @qs.asyncSlot()
+    async def PlanRun5(self,txt):
+        if "_" in txt: done_i = txt.split("_")[1]
+        self.planGui.done.append(int(done_i))
+        self.planGui.update_table()
+
+
+    # ############ PLAN RUNNER ##########################
+
+    @qs.asyncSlot()
+    async def plan_start(self):
+        program=""
+        for tmp in self.planGui.plan:
+            ob=tmp["block"]
+            program=program+ob
+
+        print(program)
+
+        self.planrunner.load_nightplan_string('program', program, overwrite=True)
+        self.planrunner.run_nightplan('program',step_id="00")
+        self.fits_exec=True
+        self.plan_runner_origin="Plan Gui"
 
 
     # ############ CCD ##################################
-
-    @qs.asyncSlot()
-    async def ccd_startSequence(self):
-        txt=self.instGui.ccd_tab.inst_Seq_e.text()
-        txt=txt.strip()
-        #if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==0:
-        #    txt="BEGINSEQUENCE\n OBJECT  seq="+txt+"\nENDSEQUENCE"
-        #    self.planrunner.load_nightplan_string('sequence', txt, overwrite=True)
-        #    self.planrunner.run_nightplan('sequence',step_id="00")
-        #    self.fits_exec=True
-        #    self.dit_start=self.time
-        if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==1:
-            txt="BEGINSEQUENCE\n ZERO seq="+txt+"\nENDSEQUENCE"
-            self.planrunner.load_nightplan_string('sequence', txt, overwrite=True)
-            self.planrunner.run_nightplan('sequence',step_id="00")
-            self.fits_exec=True
-            self.dit_start=self.time
-
-        if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
-            txt="BEGINSEQUENCE\n DARK seq="+txt+"\nENDSEQUENCE"
-            self.planrunner.load_nightplan_string('sequence', txt, overwrite=True)
-            self.planrunner.run_nightplan('sequence',step_id="00")
-            self.fits_exec=True
-            self.dit_start=self.time
 
     async def ccd_imageready(self,event):
         if self.ccd.imageready:
@@ -420,62 +444,89 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             #    txt=f"Exposure finished"
             #    self.msg(txt,"black")
                 self.auxGui.tabWidget.setCurrentIndex(6)
-            #    SaveFits(self,image)
+                #SaveFits(self,image)
+
+
 
 
 
     @qs.asyncSlot()
     async def ccd_startExp(self):
         if self.user.current_user["name"]==self.myself:
-            exp=float(self.instGui.ccd_tab.inst_Dit_e.text())
+            self.dit_start=0
+            ok_ndit=False
             ok_exp=False
             ok_name=False
 
+            exp=self.instGui.ccd_tab.inst_Dit_e.text()
+            ndit=self.instGui.ccd_tab.inst_Ndit_e.text()
+            name=self.instGui.ccd_tab.inst_object_e.text().strip()
+
+            # Sprawdzanie formatu czasu etc.
             try:
-                float(exp)+1
-                ok_exp=True
+                exp=float(exp)
+                if exp>-0.0001:
+                    ok_exp=True
+                    self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
             except:
-                ok=False
-                self.msg("Wronf DIT format","red")
+                ok_exp=False
+                self.msg("Wrong EXP TIME format","red")
+                self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
-            if len(self.instGui.ccd_tab.inst_object_e.text().strip())>0: ok_name=True
-            else: self.msg("Object name required","red")
+            try:
+                if len(ndit)==0:
+                    self.instGui.ccd_tab.inst_Ndit_e.setText("1")
+                    ndit=1
+                ndit=int(ndit)
+                if ndit>0:
+                    ok_ndit=True
+                    self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
+            except:
+                ok_exp=False
+                self.msg("Wrong N format","red")
+                self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
-            if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==0:
-                if ok_exp and ok_name:
-                    await self.ccd.aput_startexposure(exp,True)
-                    self.ob_type="SCIENCE"
-                    self.ob_name=str(self.instGui.ccd_tab.inst_object_e.text())
-                    txt=f"CCD exposure {exp} s. started"
-                    self.fits_exec=True
-                    self.dit_start=self.time
-                    self.dit_exp=float(exp)
+            if len(name)>0:
+                ok_name=True
+                self.instGui.ccd_tab.inst_object_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
+            else:
+                ok_name=False
+                self.msg("OBJECT NAME required","red")
+                self.instGui.ccd_tab.inst_object_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
-            elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
-                self.instGui.ccd_tab.inst_object_e.setText("DARK")
-                if ok_exp:
-                    await self.ccd.aput_startexposure(exp,False)
-                    self.ob_type="DARK"
-                    self.ob_name="DARK"
-                    txt=f"CCD DARK exposure {exp} s. started"
-                    self.fits_exec=True
-                    self.dit_start=self.time
-                    self.dit_exp=float(exp)
+            if ok_name and ok_exp and ok_ndit:
+                self.ndit=0
 
-            elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==1:
-                self.instGui.ccd_tab.inst_object_e.setText("ZERO")
-                if True:
-                    await self.ccd.aput_startexposure(0,False)
-                    self.ob_type="ZERO"
-                    self.ob_name="ZERO"
-                    txt=f"CCD ZERO exposure started"
-                    self.fits_exec=True
-                    self.dit_start=self.time
-                    self.dit_exp=float(1)
+                if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==0:
+                    if ok_exp and ok_name:
+                        await self.ccd.aput_startexposure(exp,True)
+                        self.ob_type="SCIENCE"
+                        self.ob_name=str(self.instGui.ccd_tab.inst_object_e.text())
+                        txt=f"CCD exposure {exp} s. started"
+                        self.fits_exec=True
+                        self.dit_start=self.time
+                        self.dit_exp=float(exp)
 
-            else: txt=f"not implemented yet"
+                elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
+                    if ok_exp:
+                        txt=str(ndit)+"/"+str(self.curent_filter)+"/"+str(exp)
+                        txt="DARK seq="+txt+"\n"
+                        self.planrunner.load_nightplan_string('manual', txt, overwrite=True)
+                        self.planrunner.run_nightplan('manual',step_id="00")
+                        self.fits_exec=True
 
-            self.msg(txt,"yellow")
+                elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==1:
+                    if ok_exp:
+                        ndit=int(self.instGui.ccd_tab.inst_Ndit_e.text())
+                        exp=int(self.instGui.ccd_tab.inst_Dit_e.text())
+                        txt=str(ndit)+"/"+str(self.curent_filter)+"/"+str(exp)
+                        txt="ZERO seq="+txt+"\n"
+                        self.planrunner.load_nightplan_string('manual', txt, overwrite=True)
+                        self.planrunner.run_nightplan('manual',step_id="00")
+                        self.fits_exec=True
+
+                else: self.msg(f"not implemented yet","yellow")
+
 
         else:
             txt="U don't have controll"
@@ -487,6 +538,98 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.tmp_box.setText("You don't have controll")
             self.tmp_box.show()
 
+    @qs.asyncSlot()
+    async def ccd_startSequence(self):
+        txt=self.instGui.ccd_tab.inst_Seq_e.text()
+        txt=txt.strip()
+        #if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==0:
+        #    txt="BEGINSEQUENCE\n OBJECT  seq="+txt+"\nENDSEQUENCE"
+        #    self.planrunner.load_nightplan_string('sequence', txt, overwrite=True)
+        #    self.planrunner.run_nightplan('sequence',step_id="00")
+        #    self.fits_exec=True
+        #    self.dit_start=self.time
+        if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==1:
+            txt="ZERO seq="+txt+"\n"
+            self.planrunner.load_nightplan_string('sequence', txt, overwrite=True)
+            self.planrunner.run_nightplan('sequence',step_id="00")
+            self.fits_exec=True
+            self.dit_start=self.time
+
+        if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
+            txt="DARK seq="+txt+"\n"
+            self.planrunner.load_nightplan_string('sequence', txt, overwrite=True)
+            self.planrunner.run_nightplan('sequence',step_id="00")
+            self.fits_exec=True
+            self.dit_start=self.time
+
+
+
+    @qs.asyncSlot()
+    async def ccd_setBin(self):
+        if self.user.current_user["name"]==self.myself:
+            if self.instGui.ccd_tab.inst_Bin_s.currentIndex()==0: x,y=1,1
+            elif self.instGui.ccd_tab.inst_Bin_s.currentIndex()==1: x,y=2,2
+            elif self.instGui.ccd_tab.inst_Bin_s.currentIndex()==2: x,y=1,2
+            elif self.instGui.ccd_tab.inst_Bin_s.currentIndex()==3: x,y=2,1
+            else:
+                self.msg(f"not a valid option","red")
+                return
+
+            txt=f"CCD binx biny changed to: {x}x{y} requested"
+            self.msg(txt,"yellow")
+            self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
+            await self.ccd.aput_binx(int(x))
+            await self.ccd.aput_biny(int(y))
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
+
+    @qs.asyncSlot()
+    async def ccd_setReadMode(self):
+        if self.user.current_user["name"]==self.myself:
+           i=int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
+           m=["5MHz","3MHz","1MHz","0.05MHz"]
+           if i<4:
+               m=m[i]
+               txt=f"Readout Mode {m} requested"
+               self.msg(txt,"yellow")
+               await self.ccd.aput_readoutmode(i)
+               self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+           else:
+                self.msg(f"not a valid option","red")
+                return
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
+
+
+    @qs.asyncSlot()
+    async def ccd_setTemp(self):
+        if self.user.current_user["name"]==self.myself:
+            temp=float(self.instGui.ccd_tab.inst_setTemp_e.text())
+            if temp>-80 and temp<20:
+                txt=f"CCD temp set to {temp} deg."
+                await self.ccd.aput_setccdtemperature(temp)
+                self.msg(txt,"yellow")
+            else:
+                txt="Value of CCD temp. not allowed"
+                self.msg(txt,"red")
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            await self.ccd_update(True)
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
     @qs.asyncSlot()
     async def ccd_coolerOnOf(self):
@@ -507,57 +650,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.tmp_box=QtWidgets.QMessageBox()
             self.tmp_box.setWindowTitle("TOI message")
             self.tmp_box.setText("You don't have controll")
-            self.tmp_box.show()
-
-
-    @qs.asyncSlot()
-    async def ccd_setReadMode(self):
-        if self.user.current_user["name"]==self.myself:
-           i=int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
-           m=["5MHz","3MHz","1MHz","0.05MHz"]
-           m=m[i]
-           txt=f"Readout Mode {m} requested"
-           self.msg(txt,"yellow")
-           await self.ccd.aput_readoutmode(i)
-        else:
-            txt="U don't have controll"
-            self.msg(txt,"red")
-
-            self.tmp_box=QtWidgets.QMessageBox()
-            self.tmp_box.setWindowTitle("TOI message")
-            self.tmp_box.setText("You don't have controll")
-            self.tmp_box.show()
-
-    async def ccd_readoutmode_update(self, event):
-        self.ccd_readoutmode = await self.ccd.aget_readoutmode()
-        i = int(self.ccd_readoutmode)
-        modes=["5MHz","3MHz","1MHz","0.05MHz"]
-        txt = modes[i]
-        self.ccd_readmode=txt
-        self.instGui.ccd_tab.inst_read_e.setText(txt)
-
-
-
-    @qs.asyncSlot()
-    async def ccd_setTemp(self):
-        if self.user.current_user["name"]==self.myself:
-            temp=float(self.instGui.ccd_tab.inst_setTemp_e.text())
-            if temp>-80 and temp<20:
-                txt=f"CCD temp set to {temp} deg."
-                await self.ccd.aput_setccdtemperature(temp)
-                self.msg(txt,"yellow")
-            else:
-                txt="Value of CCD temp. not allowed"
-                self.msg(txt,"red")
-        else:
-            txt="U don't have controll"
-            self.msg(txt,"red")
-            await self.ccd_update(True)
-
-            self.tmp_box=QtWidgets.QMessageBox()
-            self.tmp_box.setWindowTitle("TOI message")
-            self.tmp_box.setText("You don't have controll")
-            self.tmp_box.show()
+            #self.tmp_box.show()
 
 
     async def ccd_update(self, event):
@@ -574,17 +667,36 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ccd_readoutmode=await self.ccd.aget_readoutmode()
         self.ccd_readoutmodes=self.ccd.readoutmodes
 
-        self.instGui.ccd_tab.inst_ccdTemp_e.setText(f"{self.ccd_temp:.1f}")
+        # CCD TEMP
+        ccd_temp=self.ccd_temp
+        self.instGui.ccd_tab.inst_ccdTemp_e.setText(f"{ccd_temp:.1f}")
+        if float(ccd_temp)>-49.: self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("color: rgb(204,0,0)")
         self.instGui.ccd_tab.cooler_c.setChecked(self.ccd_cooler)
 
-        if self.ccd_state==0: txt="IDLE"
-        elif self.ccd_state==1: txt="WAITING"
-        elif self.ccd_state==2: txt="EXPOSING"
-        elif self.ccd_state==3: txt="READING"
-        elif self.ccd_state==4: txt="DOWNLOAD"
-        elif self.ccd_state==5: txt="ERROR"
+        # BINX BINY
 
-        self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt)
+        txt=f"{self.ccd_binx}x{self.ccd_biny}"
+        self.instGui.ccd_tab.inst_Bin_e.setText(txt)
+        self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
+        # READ MODES
+        self.ccd_readoutmode = await self.ccd.aget_readoutmode()
+        i = int(self.ccd_readoutmode)
+        modes=["5MHz","3MHz","1MHz","0.05MHz"]
+        txt = modes[i]
+        self.ccd_readmode=txt
+        self.instGui.ccd_tab.inst_read_e.setText(txt)
+        self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
+
+        #if self.ccd_state==0: txt="IDLE"
+        #elif self.ccd_state==1: txt="WAITING"
+        #elif self.ccd_state==2: txt="EXPOSING"
+        #elif self.ccd_state==3: txt="READING"
+        #elif self.ccd_state==4: txt="DOWNLOAD"
+        #elif self.ccd_state==5: txt="ERROR"
+
+        #self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt)
 
 
 
@@ -991,6 +1103,24 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def rotator_update(self, event):
         self.rotator_pos = self.rotator.position
         self.mntGui.telRotator1_e.setText(f"{self.rotator_pos:.2f}")
+
+    # #### USER #########
+
+    @qs.asyncSlot()
+    async def takeControl(self):
+        txt="Control requested"
+        self.obsGui.main_form.control_e.setText(txt)
+        try: await self.user.aput_break_control()
+        except: pass
+        try: await self.user.aput_take_control(3600)
+        except: pass
+        self.msg(txt,"yellow")
+
+    async def user_update(self, event):
+        self.TICuser=self.user.current_user
+        txt=str(self.TICuser["name"])
+        self.obsGui.main_form.control_e.setText(txt)
+        self.msg(f"{txt} have controll","green")
 
 
 # ############ INNE ##############################3

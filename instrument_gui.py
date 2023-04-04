@@ -156,11 +156,17 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           w=w+1
           self.inst_Bin_l=QLabel("Binning:")
+          self.inst_Bin_e=QLineEdit()
+          self.inst_Bin_e.setReadOnly(True)
           self.inst_Bin_s=QComboBox()
-          self.inst_Bin_s.addItems(["1x1","2x2","1x2","2x1"])             
+          self.inst_Bin_s.addItems(["1x1","2x2","1x2","2x1"])
+          self.inst_SetBin_p=QPushButton('Set')
+          self.inst_SetBin_p.clicked.connect(self.parent.ccd_setBin)
           
           grid.addWidget(self.inst_Bin_l, w,0) 
-          grid.addWidget(self.inst_Bin_s, w,1)   
+          grid.addWidget(self.inst_Bin_e, w,1)
+          grid.addWidget(self.inst_Bin_s, w,2)
+          grid.addWidget(self.inst_SetBin_p, w,3)
 
           w=w+1
           self.inst_Subraster_l=QLabel("Subraster:")

@@ -5,18 +5,34 @@
 # Marek Gorski
 #----------------
 
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtCore import QSize
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox
 
-
+import math
+import numpy
 import ephem
+
+import qasync as qs
+from qasync import QEventLoop
+from PyQt5 import QtCore, QtGui
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
+
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+
+from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
+from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
+
 from toi_lib import *
 
 
-class PlanGui(QWidget):
-      def __init__(self, parent):
-          super(PlanGui, self).__init__()
+
+class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+
+      def __init__(self, parent, loop: QEventLoop = None, client_api=None):
+          super().__init__(loop=loop, client_api=client_api)
+          self.subscriber_delay = 1
+          self.subscriber_time_of_data_tolerance = 0.5
+
           self.parent=parent
 
           self.setStyleSheet("font-size: 11pt;")
@@ -26,6 +42,8 @@ class PlanGui(QWidget):
           self.i=0
           self.prev_i=1
           self.next_i=0
+          self.current_i=None
+          self.done=[]
 
           self.updateUI()
           self.update_table()
@@ -47,8 +65,11 @@ class PlanGui(QWidget):
                    ra=self.plan[i]["ra"]
                    dec=self.plan[i]["dec"]
                    az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)
+                   alt=f"{float(arcDeg2float(str(alt))):.1f}"
+                   az=f"{float(arcDeg2float(str(az))):.1f}"
                 tmp_dict["alt"]=alt
                 tmp_dict["az"]=az
+
                 self.plan_meta.append(tmp_dict)
 
       def update_table(self):
@@ -58,25 +79,34 @@ class PlanGui(QWidget):
              for i,tmp in enumerate(self.plan):
                  if self.plan_t.rowCount() < i+1: self.plan_t.insertRow(i)
                  
+                 put_icon=False
                  if i==self.next_i:
-                    pic = QtGui.QPixmap("./Icons/next.png").scaled(QSize(30,30))
-                    icon=QLabel()
-                    icon.setPixmap(pic)
-                    self.plan_t.setCellWidget(i,0,icon)
+                    pic = QtGui.QPixmap("./Icons/next.png").scaled(QtCore.QSize(25,25))
+                    put_icon=True
+
+                 if i==self.current_i:
+                    pic = QtGui.QPixmap("./Icons/current.png").scaled(QtCore.QSize(20,20))
+                    put_icon=True
 
                  if "skip" in self.plan[i].keys():
                     if self.plan[i]["skip"]:
-                       pic = QtGui.QPixmap("./Icons/skip.png").scaled(QSize(30,30))
-                       icon=QLabel()
-                       icon.setPixmap(pic)
-                       self.plan_t.setCellWidget(i,0,icon)
+                       pic = QtGui.QPixmap("./Icons/skip.png").scaled(QtCore.QSize(25,25))
+                       put_icon=True
 
                  if "stop" in self.plan[i].keys():
                     if self.plan[i]["stop"]:
-                       pic = QtGui.QPixmap("./Icons/stop.png").scaled(QSize(30,30))
-                       icon=QLabel()
-                       icon.setPixmap(pic)
-                       self.plan_t.setCellWidget(i,0,icon)
+                       pic = QtGui.QPixmap("./Icons/stop.png").scaled(QtCore.QSize(25,25))
+                       put_icon=True
+
+                 if i in self.done:
+                    pic = QtGui.QPixmap("./Icons/done.png").scaled(QtCore.QSize(20,20))
+                    put_icon=True
+
+                 if put_icon:
+                    icon=QLabel()
+                    icon.setPixmap(pic)
+                    icon.setAlignment(QtCore.Qt.AlignCenter)
+                    self.plan_t.setCellWidget(i,0,icon)
 
                      
                  txt=QTableWidgetItem(self.plan[i]["name"])
@@ -84,7 +114,11 @@ class PlanGui(QWidget):
 
                  if "alt" in self.plan_meta[i].keys():
                     txt=QTableWidgetItem(str(self.plan_meta[i]["alt"]))
-                    self.plan_t.setItem(i,2,txt)                    
+                    self.plan_t.setItem(i,2,txt)
+
+                 if "seq" in self.plan[i].keys():
+                    txt=QTableWidgetItem(str(self.plan[i]["seq"]))
+                    self.plan_t.setItem(i,3,txt)
 
                  if i==self.prev_i:
                     self.plan_t.item(i,1).setBackground(QtGui.QColor(227,253,227))
@@ -93,11 +127,14 @@ class PlanGui(QWidget):
                     self.plan_t.item(i,1).setBackground(QtGui.QColor("lightgreen"))
                     self.plan_t.item(i,2).setBackground(QtGui.QColor("lightgreen"))
 
+          self.plan_t.setColumnWidth(0,30)
+
+
       def setNext(self):
           self.next_i=self.i
           self.update_table()
-          self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ra"])
-          self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["dec"])
+          #self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ra"])
+          #self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["dec"])
 
       def setStop(self):
           if "stop" in self.plan[self.i].keys():          
@@ -173,18 +210,57 @@ class PlanGui(QWidget):
         
           self.plan=[]
           with open(self.fileName, "r") as plik:
+             # plan["name","block","type","ra","dec"]
              for line in plik:
-                 if "OBJECT" in line:
-                    ll=line.split()
-                    ob_type=ll[0]
-                    name=ll[1]
-                    ra=ll[2]
-                    dec=ll[3]
-                    ob = {"name":name}
-                    ob["type"]=ob_type
-                    ob["ra"]=ra
-                    ob["dec"]=dec
-                    self.plan.append(ob)
+                if len(line.strip())>0:
+                   if line.strip()[0]!="#":
+                       if "TEL: zb08" in line: pass
+
+                       elif "ZERO" in line:
+                          ll=line.split()
+                          block=line
+                          ob_type=ll[0]
+                          name=ll[0]
+                          for tmp in ll:
+                             if "seq=" in tmp: seq=tmp.split("=")[1]
+
+                          ob = {"name":name}
+                          ob["block"]=block
+                          ob["type"]=ob_type
+                          ob["seq"]=seq
+                          self.plan.append(ob)
+
+                       elif "DARK" in line:
+                          ll=line.split()
+                          block=line
+                          ob_type=ll[0]
+                          name=ll[0]
+                          for tmp in ll:
+                             if "seq=" in tmp: seq=tmp.split("=")[1]
+
+                          ob = {"name":name}
+                          ob["block"]=block
+                          ob["type"]=ob_type
+                          ob["seq"]=seq
+                          self.plan.append(ob)
+
+                       elif "OBJECT" in line:
+                          ll=line.split()
+                          block=line
+                          ob_type=ll[0]
+                          name=ll[1]
+                          ra=ll[2]
+                          dec=ll[3]
+                          for tmp in ll:
+                             if "seq=" in tmp: seq=tmp.split("=")[1]
+
+                          ob = {"name":name}
+                          ob["block"]=block
+                          ob["type"]=ob_type
+                          ob["seq"]=seq
+                          ob["ra"]=ra
+                          ob["dec"]=dec
+                          self.plan.append(ob)
           self.update_table()          
         
           
@@ -205,6 +281,7 @@ class PlanGui(QWidget):
           self.load_p=QPushButton('Load Plan') 
           self.stop_p=QPushButton('Stop')          
           self.start_p=QPushButton('Start')
+          self.start_p.clicked.connect(self.parent.plan_start)
 
           self.grid.addWidget(self.load_p, w,0)
           self.grid.addWidget(self.stop_p, w,2)
@@ -212,7 +289,7 @@ class PlanGui(QWidget):
           
           w=w+1
           self.plan_t=QTableWidget(0,4)
-          self.plan_t.setHorizontalHeaderLabels(["","Object","Alt",""])
+          self.plan_t.setHorizontalHeaderLabels(["","Object","Alt","Sequence"])
           
           self.grid.addWidget(self.plan_t, w,0,8,5)
           
@@ -284,9 +361,18 @@ class PlanGui(QWidget):
           self.edit_p.clicked.connect(self.pocisniecie_edit)
           
           self.setLayout(self.grid)
+
+          self.plan_t.setColumnWidth(0,30)
+
           del tmp
           
-          
+      async def on_start_app(self):
+          await self.run_background_tasks()
+
+      @qs.asyncClose
+      async def closeEvent(self, event):
+          await self.stop_background_tasks()
+          super().closeEvent(event)
           
           
           
