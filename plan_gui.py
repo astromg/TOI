@@ -35,7 +35,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.parent=parent
 
-          self.setStyleSheet("font-size: 11pt;")
+          #self.setStyleSheet("font-size: 11pt;")
           self.setGeometry(self.parent.plan_geometry[0],self.parent.plan_geometry[1],self.parent.plan_geometry[2],self.parent.plan_geometry[3])
 
           self.plan=[] 
@@ -81,32 +81,57 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                  
                  put_icon=False
                  if i==self.next_i:
-                    pic = QtGui.QPixmap("./Icons/next.png").scaled(QtCore.QSize(25,25))
+                    font=QtGui.QFont()
+                    font.setPointSize(25)
+                    #pic = QtGui.QPixmap("./Icons/next.png").scaled(QtCore.QSize(25,25))
+                    icon=QLabel("\u2192")  # next
+                    icon.setStyleSheet('color:blue;')
+                    icon.setFont(font)
                     put_icon=True
 
                  if i==self.current_i:
-                    pic = QtGui.QPixmap("./Icons/current.png").scaled(QtCore.QSize(20,20))
+                    #pic = QtGui.QPixmap("./Icons/current.png").scaled(QtCore.QSize(20,20))
+                    font=QtGui.QFont()
+                    font.setPointSize(20)
+                    icon=QLabel("\u21BB")  # processing
+                    icon.setStyleSheet('color:green;')
+                    icon.setFont(font)
                     put_icon=True
 
                  if "skip" in self.plan[i].keys():
                     if self.plan[i]["skip"]:
-                       pic = QtGui.QPixmap("./Icons/skip.png").scaled(QtCore.QSize(25,25))
+                       #pic = QtGui.QPixmap("./Icons/skip.png").scaled(QtCore.QSize(25,25))
+                       font=QtGui.QFont()
+                       font.setPointSize(15)
+                       icon=QLabel("\u26D4")     # no go
+                       #icon.setStyleSheet('color:green;')
+                       icon.setFont(font)
                        put_icon=True
 
                  if "stop" in self.plan[i].keys():
                     if self.plan[i]["stop"]:
                        pic = QtGui.QPixmap("./Icons/stop.png").scaled(QtCore.QSize(25,25))
+                       font=QtGui.QFont()
+                       font.setPointSize(20)
+                       icon=QLabel("\u2B23")     # no go
+                       icon.setStyleSheet('color:red;')
+                       icon.setFont(font)
+                       #icon.setPixmap(pic)
                        put_icon=True
 
                  if i in self.done:
-                    pic = QtGui.QPixmap("./Icons/done.png").scaled(QtCore.QSize(20,20))
+                    #pic = QtGui.QPixmap("./Icons/done.png").scaled(QtCore.QSize(20,20))
+                    font=QtGui.QFont()
+                    font.setPointSize(15)
+                    icon=QLabel("\u2713")     # check ok
+                    icon.setStyleSheet('color:green;')
+                    icon.setFont(font)
                     put_icon=True
 
                  if put_icon:
-                    icon=QLabel()
-                    icon.setPixmap(pic)
                     icon.setAlignment(QtCore.Qt.AlignCenter)
                     self.plan_t.setCellWidget(i,0,icon)
+
 
                      
                  txt=QTableWidgetItem(self.plan[i]["name"])
