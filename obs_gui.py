@@ -206,6 +206,9 @@ class SkyView(QWidget):
        QWidget.__init__(self)
        self.parent=parent
        self.mkUI()
+       cid=self.canvas.mpl_connect('button_press_event',self.zaznaczenie)
+
+       self.canSetNext=False
 
        self.tel_az=5
        self.tel_alt=90
@@ -334,6 +337,52 @@ class SkyView(QWidget):
        self.canvas.draw()
        self.show()
 
+   def updateRadar(self):
+       try:
+          for p in self.stars: p[0].remove()
+       except: pass
+       self.stars=[]
+       self.plan = self.parent.planGui.plan
+       self.plan_i = int(self.parent.planGui.i)
+       self.plan_next_i = int(self.parent.planGui.next_i)
+       if len(self.plan) > 0:
+           self.plan_to_show = self.plan
+
+           try:
+             star = self.plan_to_show[self.plan_i]
+             az=float(star["meta_az"])
+             az=az * 2*3.14/360.
+             alt=90-float(star["meta_alt"])
+             point = self.axes.plot(az,alt,color="red",marker="o",markersize="10", markerfacecolor="white", alpha=0.5)
+             self.stars.append(point)
+           except: pass
+
+           alpha=1
+           n=0
+           k=0
+           for star in self.plan_to_show:
+               n=n+1
+               if n>self.plan_next_i:
+                   try:
+                     if k == 0 : alpha=1
+                     elif k == 1 : alpha=0.7
+                     elif k == 2 : alpha=0.5
+                     elif k == 3: alpha=0.3
+                     elif k == 4: alpha=0.2
+                     else: alpha=0.1
+                     az=float(star["meta_az"])
+                     az=az * 2*3.14/360.
+                     alt=90-float(star["meta_alt"])
+                     point = self.axes.plot(az,alt,color="b",marker="*",alpha=alpha)
+                     self.stars.append(point)
+                     k=k+1
+                   except: pass
+
+
+
+           self.canvas.draw()
+           self.show()
+
    def updateMount(self):
        try:
           for p in self.mount: p.remove()
@@ -377,10 +426,22 @@ class SkyView(QWidget):
        #self.axes.set_theta_zero_location('N')
 
        hbox1 = QHBoxLayout()
-       hbox1.addWidget(self.canvas)
+       hbox2 = QHBoxLayout()
+
+       self.snap_c = QCheckBox("Snap to objects")
+       self.snap_c.setChecked(True)
+
+       self.setNext_p = QPushButton('Set Next')
+       self.setNext_p.clicked.connect(self.SetNext)
+
+       hbox1.addWidget(self.snap_c)
+       hbox1.addWidget(self.setNext_p)
+
+       hbox2.addWidget(self.canvas)
 
        self.vbox = QVBoxLayout()
        self.vbox.addLayout(hbox1)
+       self.vbox.addLayout(hbox2)
        self.vbox.setSpacing(10)
        self.setLayout(self.vbox)
 
@@ -401,29 +462,50 @@ class SkyView(QWidget):
 
 #  ============ Klikanie w punkciki ==========================
 
-   def zaznaczenie(self,event):
-       przetrzymywacz=1000.
-       self.i=0
-       if len(self.a)>0:
-          a1=float(event.xdata)
-          h1=float(event.ydata)
-          for i,smiec in enumerate(self.a):
-              #a2=self.a[i]
-              a2=2*math.pi*(self.a[i])/360.
-              h2=float(self.h[i])
-              delta=( h1**2+h2**2-2*h1*h2*math.cos(a1-a2)  )**0.5
-              if delta < przetrzymywacz:
-                 self.i=i                       #indeks zaznaczonego elementu
-                 przetrzymywacz=delta
-          a=self.a[self.i]
-          a=2*math.pi*a/360.
-          self.update()
-          if self.marc_point:
-             self.axes.plot(a, self.h[self.i],"ro")
-             self.canvas.draw()
-             self.show()
+   def SetNext(self):
+       if self.canSetNext == True:
+           self.canSetNext=False
+           self.setNext_p.setStyleSheet("color: black;")
+       else:
+           self.canSetNext=True
+           self.setNext_p.setStyleSheet("color: blue;")
 
-          
+   def zaznaczenie(self,event):
+       az=360.*(float(event.xdata)/(2*3.14))
+       if az < 0: az = az+360.
+       alt=90-float(event.ydata)
+       if self.snap_c.isChecked():
+           ii=0
+           if len(self.plan)>0:
+               przetrzymywacz=1000.
+               for i,tmp in enumerate(self.plan):
+                   if "meta_alt" in self.plan[i].keys() and "meta_az" in self.plan[i].keys():
+                       h1=90.-float(alt)
+                       a1=2*math.pi*(float(az))/360.
+                       h2=90.-float(self.plan[i]["meta_alt"])
+                       a2=2*math.pi*(float(self.plan[i]["meta_az"]))/360.
+                       delta=( h1**2 + h2**2 - 2*h1*h2 * math.cos(a1-a2) )**0.5
+                       if delta < przetrzymywacz:
+                           ii=i
+                           przetrzymywacz=delta
+               self.parent.planGui.i=ii
+               if self.canSetNext:
+                   self.parent.planGui.next_i=ii
+                   self.canSetNext=False
+                   self.setNext_p.setStyleSheet("color: black;")
+               self.parent.planGui.update_table()
+
+
+       else:
+           if self.canSetNext:
+               self.parent.mntGui.setAltAz_r.setChecked(True)
+               self.parent.mntGui.nextAlt_e.setText(f"{alt:.3f}")
+               self.parent.mntGui.nextAz_e.setText(f"{az:.3f}")
+               self.canSetNext=False
+               self.setNext_p.setStyleSheet("color: black;")
+
+       self.updateMount()
+
           
           
           

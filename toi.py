@@ -88,6 +88,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ndit_req=1
         self.plan_runner_origin=""
         self.plan_runner_status=""
+        self.acces=True
 
         # obs model
         self.obs_tel_tic_names=["wk06","zb08","jk15","wg25","sim"]
@@ -192,6 +193,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
+        self.add_background_task(self.user.asubscribe_is_access(self.user_update))
 
         self.add_background_task(self.dome.asubscribe_connected(self.domeCon_update))
         self.add_background_task(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update))
@@ -206,6 +208,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.mount.asubscribe_alt(self.radec_update))
         self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
         self.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
+        self.add_background_task(self.mount.asubscribe_motorstatus(self.mount_update))
 
 
         self.add_background_task(self.fw.asubscribe_connected(self.filterCon_update))
@@ -227,9 +230,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.ccd.asubscribe_coolerpower(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_gain(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_offset(self.ccd_update))
-        self.add_background_task(self.ccd.asubscribe_percentcompleted(self.ccd_update))
-
-        self.add_background_task(self.ccd.asubscribe_readoutmodes(self.ccd_update))
+        #self.add_background_task(self.ccd.asubscribe_percentcompleted(self.ccd_update))
+        #self.add_background_task(self.ccd.asubscribe_readoutmodes(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_readoutmode(self.ccd_update))
 
         self.add_background_task(self.ccd.asubscribe_imageready(self.ccd_imageready))
@@ -275,26 +277,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/opencover"
         #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/closecover"
         #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/coverstate"
-        #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/action"
+        quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/action"
 
         #quest="http://zb08-tcu.oca.lan:11111/api/v1/dome/0/shutterstatus"
 
 
-
+        #quest="http://192.168.7.110:11111/api/v1/camera/0/gain"
         #quest="http://192.168.7.110:11111/api/v1/rotator/0/position"
         #quest="http://192.168.7.110:11111/api/v1/telescope/0/utcdate"
         #quest="http://192.168.7.110:11111/api/v1/dome/0/abortslew"
         #quest="http://192.168.7.110:11111/api/v1/camera/0/sensorname"
-        quest="http://192.168.7.110:11111/api/v1/camera/0/setccdtemperature"
+        #quest="http://192.168.7.110:11111/api/v1/camera/0/setccdtemperature"
 
 
-        r=requests.get(quest)
+        #r=requests.get(quest)
 
         #data={"Command":"MotStat","Raw":"True"}
         #quest="http://192.168.7.110:11111/api/v1/telescope/0/commandstring"
 
 
-        #r=requests.put(quest,data=data)
+        r=requests.put(quest,data=data)
 
         r=r.json()
         print(f"Dupa {r}")
@@ -344,6 +346,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.date_e.setText(str(date))
             self.obsGui.main_form.ut_e.setText(str(ut))
             self.obsGui.main_form.skyView.updateAlmanac()
+            self.obsGui.main_form.skyView.updateRadar()
+            self.planGui.update_table()
+
+            #self.mount_motorsOn = await self.mount.aget_motorstatus()
+            #print(f"Motors: {self.mount_motorsOn}")
 
             await asyncio.sleep(1)
 
@@ -379,7 +386,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             n=float(txt.split("number:")[1].split()[0])
             self.ndit_req=n
 
-        elif "Subexp" in txt:
+        elif "exp" in txt:
             self.msg(txt,"black")
             if "started" in txt:
                 self.plan_runner_status="exp start"
@@ -396,8 +403,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def PlanRun5(self,txt):
         if "_" in txt: done_i = txt.split("_")[1]
         self.planGui.done.append(int(done_i))
-        self.planGui.update_table()
-
+        try: self.planGui.update_table()
+        except UnboundLocalError: pass
 
     # ############ PLAN RUNNER ##########################
 
@@ -589,6 +596,28 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.tmp_box.show()
 
     @qs.asyncSlot()
+    async def ccd_setGain(self):
+        if self.user.current_user["name"]==self.myself:
+            if self.instGui.ccd_tab.inst_setGain_e.currentIndex()==0: g=0
+            elif self.instGui.ccd_tab.inst_setGain_e.currentIndex()==1: g=1
+            elif self.instGui.ccd_tab.inst_setGain_e.currentIndex()==2: g=2
+            else:
+                self.msg(f"not a valid option","red")
+                return
+
+            txt=f"CCD GAIN changed to: {self.instGui.ccd_tab.inst_setGain_e.currentText()} requested"
+            self.msg(txt,"yellow")
+            self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
+            await self.ccd.aput_gain(int(g))
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
+
+    @qs.asyncSlot()
     async def ccd_setReadMode(self):
         if self.user.current_user["name"]==self.myself:
            i=int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
@@ -665,11 +694,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ccd_percent=self.ccd.percentcompleted
         self.ccd_coolerpower=self.ccd.coolerpower
         self.ccd_readoutmode=await self.ccd.aget_readoutmode()
-        self.ccd_readoutmodes=self.ccd.readoutmodes
+        #self.ccd_readoutmodes=self.ccd.readoutmodes
 
         # CCD TEMP
         ccd_temp=self.ccd_temp
-        self.instGui.ccd_tab.inst_ccdTemp_e.setText(f"{ccd_temp:.1f}")
+        ccd_temp_set=await self.ccd.aget_setccdtemperature()
+        self.instGui.ccd_tab.inst_ccdTemp_e.setText(f"{ccd_temp:.1f} / {ccd_temp_set}")
         if float(ccd_temp)>-49.: self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("color: rgb(204,0,0)")
         self.instGui.ccd_tab.cooler_c.setChecked(self.ccd_cooler)
 
@@ -688,6 +718,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.instGui.ccd_tab.inst_read_e.setText(txt)
         self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
+        # GAIN
+        #gain_list = await self.ccd.aget_gains()
+        gain_list = ["1x","2x","4x"]
+        self.ccd_gain = await self.ccd.aget_gain()
+        try:
+            txt = gain_list[int(self.ccd_gain)]
+            self.instGui.ccd_tab.inst_gain_e.setText(txt)
+            self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        except: pass
 
         #if self.ccd_state==0: txt="IDLE"
         #elif self.ccd_state==1: txt="WAITING"
@@ -842,6 +881,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def mount_update(self, event):
         self.mount_slewing=self.mount.slewing
         self.mount_tracking=self.mount.tracking
+        #self.mount_motorsOn=self.mount.motorstatus
+
         #self.mount_parked=self.mount.atpark
         txt=""
         if self.mount_slewing and self.mount_tracking:
@@ -1110,6 +1151,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def takeControl(self):
         txt="Control requested"
         self.obsGui.main_form.control_e.setText(txt)
+        self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
         try: await self.user.aput_break_control()
         except: pass
         try: await self.user.aput_take_control(3600)
@@ -1118,9 +1160,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def user_update(self, event):
         self.TICuser=self.user.current_user
+        self.acces=bool(await self.user.aget_is_access())
         txt=str(self.TICuser["name"])
         self.obsGui.main_form.control_e.setText(txt)
-        self.msg(f"{txt} have controll","green")
+        if self.acces:
+            self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(255, 255, 255); color: rgb(0,150,0);")
+            #self.msg(f"{txt} have controll","green")
+        elif  self.user.current_user["name"]==self.myself:
+            self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(255, 255, 255); color: rgb(150,0,0);")
+            #self.msg(f"{txt} DON'T have controll","red")
+        else:
+            self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
+            #self.msg(f"{txt} have controll","yellow")
+
+
+
 
 
 # ############ INNE ##############################3

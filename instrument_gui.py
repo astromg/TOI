@@ -176,6 +176,24 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           grid.addWidget(self.inst_Subraster_l, w,0) 
           grid.addWidget(self.inst_Subraster_s, w,1)            
 
+
+          w=w+1
+
+          self.inst_gain_l=QLabel("GAIN:")
+          self.inst_gain_e=QLineEdit()
+          self.inst_gain_e.setReadOnly(True)
+          self.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          self.inst_setGain_e=QComboBox()
+          self.inst_setGain_e.addItems(["1x","2x","4x"])
+          self.inst_setGain_p=QPushButton('Set')
+          self.inst_setGain_p.clicked.connect(self.parent.ccd_setGain)
+
+          grid.addWidget(self.inst_gain_l, w,0)
+          grid.addWidget(self.inst_gain_e, w,1)
+          grid.addWidget(self.inst_setGain_e, w,2)
+          grid.addWidget(self.inst_setGain_p, w,3)
+
+
           w=w+1
 
           self.inst_read_l=QLabel("READ MODE:")
@@ -199,7 +217,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_ccdTemp_e=QLineEdit()
           self.inst_ccdTemp_e.setReadOnly(True)
           self.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-          self.inst_setTemp_e=QLineEdit("-50")
+          self.inst_setTemp_e=QLineEdit("-60")
           self.inst_setTemp_p=QPushButton('Set')
           self.inst_setTemp_p.clicked.connect(self.parent.ccd_setTemp)
 

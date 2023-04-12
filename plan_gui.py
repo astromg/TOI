@@ -56,7 +56,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
          else: print("no plan loaded") # ERROR MSG
 
       def recalc(self):
-          self.plan_meta=[]
           for i,tmp in enumerate(self.plan):
              if len(self.plan)>0:
                 tmp_dict=dict()
@@ -67,10 +66,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                    az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)
                    alt=f"{float(arcDeg2float(str(alt))):.1f}"
                    az=f"{float(arcDeg2float(str(az))):.1f}"
-                tmp_dict["alt"]=alt
-                tmp_dict["az"]=az
+                   self.plan[i]["meta_alt"]=alt
+                   self.plan[i]["meta_az"]=az
 
-                self.plan_meta.append(tmp_dict)
 
       def update_table(self):
           self.recalc()
@@ -137,13 +135,15 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                  txt=QTableWidgetItem(self.plan[i]["name"])
                  self.plan_t.setItem(i,1,txt)
 
-                 if "alt" in self.plan_meta[i].keys():
-                    txt=QTableWidgetItem(str(self.plan_meta[i]["alt"]))
-                    self.plan_t.setItem(i,2,txt)
+                 txt=QTableWidgetItem("--")
+                 if "meta_alt" in self.plan[i].keys():
+                    txt=QTableWidgetItem(str(self.plan[i]["meta_alt"]))
+
+                 self.plan_t.setItem(i,2,txt)
 
                  if "seq" in self.plan[i].keys():
                     txt=QTableWidgetItem(str(self.plan[i]["seq"]))
-                    self.plan_t.setItem(i,3,txt)
+                 self.plan_t.setItem(i,3,txt)
 
                  if i==self.prev_i:
                     self.plan_t.item(i,1).setBackground(QtGui.QColor(227,253,227))
@@ -158,30 +158,37 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
       def setNext(self):
           self.next_i=self.i
           self.update_table()
-          #self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ra"])
-          #self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["dec"])
+          self.parent.obsGui.main_form.skyView.updateRadar()
+          if "ra" in self.plan[self.i].keys() and "dec" in self.plan[self.i].keys():
+            self.parent.mntGui.setEq_r.setChecked(True)
+            self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ra"])
+            self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["dec"])
 
       def setStop(self):
           if "stop" in self.plan[self.i].keys():          
              if self.plan[self.i]["stop"]:self.plan[self.i]["stop"]=False
           else: self.plan[self.i]["stop"]=True
           self.update_table()
+          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def setSkip(self):
           if "skip" in self.plan[self.i].keys():          
              if self.plan[self.i]["skip"]:self.plan[self.i]["skip"]=False
           else: self.plan[self.i]["skip"]=True
           self.update_table()
+          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_tabelki(self,i,j):
           self.prev_i=self.i
           self.i=i
           self.update_table()
+          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_del(self):
           self.plan.pop(self.i)
           self.update_table()
           self.repaint()
+          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_first(self):
           self.plan.insert(0,self.plan[self.i])
@@ -190,6 +197,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.update_table()
           self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
           self.repaint()
+          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_last(self):
           self.plan.append(self.plan[self.i])  
@@ -198,6 +206,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.update_table()  
           self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))      
           self.repaint()
+          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_down(self):
           if self.i==len(self.plan)-1:
@@ -210,6 +219,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.update_table()
           self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
           self.repaint()
+          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_up(self):
           if self.i==0:
@@ -222,6 +232,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.update_table()
           self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
           self.repaint()
+          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_swap(self): 
           self.plan[self.i],self.plan[self.prev_i]=self.plan[self.prev_i],self.plan[self.i]
@@ -229,6 +240,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.i,self.prev_i=self.prev_i,self.i
           self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
           self.repaint()      
+          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def loadPlan(self):
           self.fileName=str(QFileDialog.getOpenFileName(self,"Open file",".")[0])
@@ -287,6 +299,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                           ob["dec"]=dec
                           self.plan.append(ob)
           self.update_table()          
+          self.parent.obsGui.main_form.skyView.updateRadar()
         
           
         # =================== OKNO GLOWNE ====================================
