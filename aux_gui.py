@@ -100,10 +100,63 @@ class FocusGui(QWidget):
            
           grid = QGridLayout()
           w=0   
-          self.autoFocus_p = QPushButton('AUTO FOCUS')
-          grid.addWidget(self.autoFocus_p, w, 0)
+          self.fig = Figure((1.0, 1.0), linewidth=-1, dpi=100)
+          self.canvas = FigureCanvas(self.fig)
+          self.axes = self.fig.add_axes([0,0,1,1])
+          self.axes.axis("off")
+          self.axes.plot((1,2,3,4),(1,2,3,4),".")
+          self.canvas.draw()
+          grid.addWidget(self.canvas, w, 0, 1, 4)
+
+          w = w + 1
+
+          self.last_l=QLabel("Last Value:")
+          self.last_e=QLineEdit()
+
+          self.range_l=QLabel("Range:")
+          self.range_e=QLineEdit()
+
+          grid.addWidget(self.last_l, w, 0)
+          grid.addWidget(self.last_e, w, 1)
+          grid.addWidget(self.range_l, w, 2)
+          grid.addWidget(self.range_e, w, 3)
+
+          w = w + 1
+
+          self.steps_l=QLabel("Steps:")
+          self.steps_e=QLineEdit()
+
+          self.method_l=QLabel("Method:")
+          self.method_s = QComboBox()
+          self.method_s.addItems(["RMS_QUAD", "RMS"])
+
+          grid.addWidget(self.steps_l, w, 0)
+          grid.addWidget(self.steps_e, w, 1)
+          grid.addWidget(self.method_l, w, 2)
+          grid.addWidget(self.method_s, w, 3)
+
+          w = w + 1
+          self.autoFocus_p = QPushButton('FIND FOCUS')
+          grid.addWidget(self.autoFocus_p, w, 0,1,4)
 
           self.setLayout(grid)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

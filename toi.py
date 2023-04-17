@@ -183,7 +183,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.rotator = self.observatory_model.get_telescope(tel).get_rotator()
         self.planrunner = self.observatory_model.get_telescope(tel).get_observation_plan()
 
-        self.planrunner.add_info_callback('stream_1', self.PlanRun1)
+        self.planrunner.add_info_callback('exec_json', self.PlanRun1)
         #self.planrunner.add_info_callback('c_sequences', self.PlanRun1)
         #self.planrunner.add_info_callback('c_subcommands', self.PlanRun1)
         #self.planrunner.add_info_callback('c_commands', self.PlanRun1)
@@ -253,6 +253,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def test(self):
+
+        # awaryjny
+        txt=""
+        data={"Action":"telescope:errorstring","Parameters":""}
+        quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
+        r = requests.put(quest,data=data).json()
+        r=r['Value']
+        txt = txt + f"ERROR:  {r}"
+
+        data={"Action":"telescope:clearerror","Parameters":""}
+        quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
+        r = requests.put(quest,data=data).json()
+        r=r['Value']
+
+
+
+        print(txt)
+
+
         #print("dupa")
         #z = await self.rotator.aget_position()
         #print(z)
@@ -277,7 +296,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/opencover"
         #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/closecover"
         #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/coverstate"
-        quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/action"
+        #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/action"
 
         #quest="http://zb08-tcu.oca.lan:11111/api/v1/dome/0/shutterstatus"
 
@@ -296,10 +315,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #quest="http://192.168.7.110:11111/api/v1/telescope/0/commandstring"
 
 
-        r=requests.put(quest,data=data)
+        #r=requests.put(quest,data=data)
 
-        r=r.json()
-        print(f"Dupa {r}")
+        #r=r.json()
+        #print(f"Dupa {r}")
 
 
     async def TOItimer(self):
@@ -311,6 +330,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.time=time.perf_counter()
 
             # Do wywalenia po implementacji w TIC
+
             if self.dit_start>0:
 
                 p=int(100*(self.ndit/self.ndit_req))
@@ -324,15 +344,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 else: p=int(100*(dt/self.dit_exp))
                 self.instGui.ccd_tab.inst_DitProg_n.setValue(p)
                 txt2=f"{int(dt)}/{int(self.dit_exp)}"
-
-                if "Sequence start" in self.plan_runner_status:
-                    txt = "Sequence started"
-                    txt2 = ""
-                elif "Sequence done" in self.plan_runner_status:
-                    txt = f"Sequence {txt} done"
-                    txt2 = "IDLE"
-                elif "exp saving" in self.plan_runner_status:
-                    txt2 = f"saving {txt2}"
 
                 self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt)
                 self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt2)
@@ -359,52 +370,48 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # ############ PLAN RUNNER CALLBACK ##########################
 
     @qs.asyncSlot()
-    async def PlanRun1(self,txt):
-        print(txt)
+    async def PlanRun1(self,info):
+        print(info)
 
-        if self.plan_runner_origin=="Plan Gui":
-            if "Command" in txt and "started" in txt:
-                cur_i = txt.split()[1].split("_")[1]
+
+        if "name" in info.keys() and "started" in info.keys() and "done" in info.keys():
+            if info["name"] == "Night plan" and info["started"] and not info["done"]:
+                self.msg(f"Sequence started","black")
+
+        if "sub_started" in info.keys():
+            if info["sub_started"]:
+                self.ndit=float(info["n_exp"])-1
+                self.ndit_req=float(info["exp_no"])
+                self.dit_exp=float(info["exp_time"])
+                self.dit_start=self.time
+                self.msg(f"{self.dit_exp} [s] exposure started","black")
+
+        if "exp_done" in info.keys():
+            if info["exp_done"] and info["exp_saved"]:
+                self.ndit=float(info["n_exp"])
+
+        if "name" in info.keys() and "done" in info.keys():
+            if info["name"]=="camera-exposure" and info["done"]:
+                self.dit_start=0
+                self.instGui.ccd_tab.inst_DitProg_n.setFormat("IDLE")
+                self.msg("Plan finished","black")
+
+        if "id" in info.keys():
+            if self.plan_runner_origin=="Plan Gui" and "_" in info["id"]:
+                cur_i = info["id"].split("_")[1]
                 self.planGui.current_i=int(cur_i)
                 self.planGui.next_i=self.planGui.current_i+1
                 self.planGui.update_table()
 
-
-        if "Nightplan" in txt and "started" in txt:
-            self.msg(txt,"black")
-            self.instGui.ccd_tab.inst_NditProg_n.setValue(0)
-            self.plan_runner_status="Sequence start"
-            self.instGui.ccd_tab.inst_NditProg_n.setFormat("Sequence requested")
-            self.instGui.ccd_tab.inst_DitProg_n.setValue(0)
-            self.instGui.ccd_tab.inst_DitProg_n.setFormat("")
-        elif "Night plan" in txt and "done" in txt:
-            self.msg(txt,"black")
-            self.plan_runner_status="Sequence done"
-        elif "time:" in txt:
-            t=float(txt.split("time:")[1].split()[0])
-            self.dit_exp=t
-            n=float(txt.split("number:")[1].split()[0])
-            self.ndit_req=n
-
-        elif "exp" in txt:
-            self.msg(txt,"black")
-            if "started" in txt:
-                self.plan_runner_status="exp start"
-                self.dit_start=self.time
-            elif "done" in txt:
-                self.plan_runner_status="exp done"
-                nn=txt.split()[1]
-                self.ndit = float(nn.split("/")[0])
-            elif "saving" in txt:
-                self.plan_runner_status="exp saving"
-        else: self.plan_runner_status=""
+        #else: self.plan_runner_status=""
 
     @qs.asyncSlot()
     async def PlanRun5(self,txt):
-        if "_" in txt: done_i = txt.split("_")[1]
-        self.planGui.done.append(int(done_i))
-        try: self.planGui.update_table()
-        except UnboundLocalError: pass
+        if self.plan_runner_origin=="Plan Gui":
+            if "_" in txt: done_i = txt.split("_")[1]
+            self.planGui.done.append(int(done_i))
+            try: self.planGui.update_table()
+            except UnboundLocalError: pass
 
     # ############ PLAN RUNNER ##########################
 
@@ -414,8 +421,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         for tmp in self.planGui.plan:
             ob=tmp["block"]
             program=program+ob
-
-        print(program)
 
         self.planrunner.load_nightplan_string('program', program, overwrite=True)
         self.planrunner.run_nightplan('program',step_id="00")
@@ -506,13 +511,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==0:
                     if ok_exp and ok_name:
-                        await self.ccd.aput_startexposure(exp,True)
-                        self.ob_type="SCIENCE"
-                        self.ob_name=str(self.instGui.ccd_tab.inst_object_e.text())
-                        txt=f"CCD exposure {exp} s. started"
+                        seq=str(ndit)+"/"+str(self.curent_filter)+"/"+str(exp)
+                        txt=f"OBJECT {name} seq={seq}\n"
+                        self.planrunner.load_nightplan_string('manual', txt, overwrite=True)
+                        self.planrunner.run_nightplan('manual',step_id="00")
                         self.fits_exec=True
-                        self.dit_start=self.time
-                        self.dit_exp=float(exp)
 
                 elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
                     if ok_exp:
@@ -1021,7 +1024,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def domeStatus_update(self, event):
            self.dome_status=self.dome.slewing
            if self.dome_status==False:
-              txt="STOPED"
+              txt="STOPPED"
               self.mntGui.domeStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
            elif self.dome_status==True:
                 txt="MOVING"
@@ -1100,7 +1103,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def set_filter(self):
         if self.user.current_user["name"]==self.myself:
            ind=int(self.mntGui.telFilter_s.currentIndex())
-           fw = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', '19', '20']
+           print("req: ",ind )
+           fw = ['u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', 'empty1', 'empty2']
            filtr=fw[ind]
            txt=f"filter {filtr} requested"
            self.msg(txt,"yellow")
@@ -1115,14 +1119,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def filter_update(self, event):
         fw = self.fw.names
-        fw = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', '19', '20']
+        fw = ['u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', 'empty1', 'empty2']
         pos = int(self.fw.position)
+        print("act: ", pos)
         self.curent_filter=fw[pos]
         self.mntGui.telFilter_e.setText(fw[pos])
 
     async def filterList_update(self, event):
         fw = self.fw.names
-        fw = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', '19', '20']
+        fw = ['u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', 'empty1', 'empty2']
         pos = self.fw.position
         self.mntGui.telFilter_s.clear()
         self.mntGui.telFilter_s.addItems(fw)
