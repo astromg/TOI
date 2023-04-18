@@ -89,6 +89,7 @@ class WelcomeGui(QWidget):
           self.setLayout(grid)
 
 
+# ############### FOCUS ##########################
 
 class FocusGui(QWidget):
       def __init__(self, parent):
@@ -112,9 +113,11 @@ class FocusGui(QWidget):
 
           self.last_l=QLabel("Last Value:")
           self.last_e=QLineEdit()
+          self.last_e.setText("15580")
 
-          self.range_l=QLabel("Range:")
+          self.range_l=QLabel("STEPS No.:")
           self.range_e=QLineEdit()
+          self.range_e.setText("10")
 
           grid.addWidget(self.last_l, w, 0)
           grid.addWidget(self.last_e, w, 1)
@@ -123,8 +126,9 @@ class FocusGui(QWidget):
 
           w = w + 1
 
-          self.steps_l=QLabel("Steps:")
+          self.steps_l=QLabel("Step:")
           self.steps_e=QLineEdit()
+          self.steps_e.setText("50")
 
           self.method_l=QLabel("Method:")
           self.method_s = QComboBox()
@@ -137,6 +141,7 @@ class FocusGui(QWidget):
 
           w = w + 1
           self.autoFocus_p = QPushButton('FIND FOCUS')
+          self.autoFocus_p.clicked.connect(self.parent.findFocus)
           grid.addWidget(self.autoFocus_p, w, 0,1,4)
 
           self.setLayout(grid)

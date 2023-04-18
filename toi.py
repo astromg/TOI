@@ -116,6 +116,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # mount
         self.mount_con=False
+        self.mount_motortatus=False
         self.mount_ra="--:--:--"
         self.mount_dec="--:--:--"
         self.mount_alt="--.--"
@@ -208,7 +209,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.mount.asubscribe_alt(self.radec_update))
         self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
         self.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
-        self.add_background_task(self.mount.asubscribe_motorstatus(self.mount_update))
+        self.add_background_task(self.mount.asubscribe_motorstatus(self.mountMotors_update))
 
 
         self.add_background_task(self.fw.asubscribe_connected(self.filterCon_update))
@@ -333,9 +334,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if self.dit_start>0:
 
+                txt=""
+                print("AHOJ!!!!!!!!!!!! ",self.plan_runner_status)
+                if self.plan_runner_status=="exposing":
+                    txt=txt+"exposing: "
+                elif self.plan_runner_status=="exp done":
+                    txt=txt+"DONE "
+
                 p=int(100*(self.ndit/self.ndit_req))
                 self.instGui.ccd_tab.inst_NditProg_n.setValue(p)
-                txt=f"{int(self.ndit)}/{int(self.ndit_req)}"
+                txt=txt+f"{int(self.ndit)}/{int(self.ndit_req)}"
 
                 dt=self.time-self.dit_start
                 if dt>self.dit_exp:
@@ -366,11 +374,27 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await asyncio.sleep(1)
 
 
+    @qs.asyncSlot()
+    async def findFocus(self):
+        val0 = self.auxGui.focus_tab.last_e.text()
+        step_val = self.auxGui.focus_tab.steps_e.text()
+        step_number = self.auxGui.focus_tab.range_e.text()
+        method = self.auxGui.focus_tab.method_s.currentText()
+        self.ff_find_focus=True
+        self.ff_step=0
+        self.ff_focus0=float(val0)-float(step_val)*int(int(step_number)/2.)
+        self.ff_step_max=int(step_number)
+
+
+
+           #await self.focus.aput_move(val)
+
 
     # ############ PLAN RUNNER CALLBACK ##########################
 
     @qs.asyncSlot()
     async def PlanRun1(self,info):
+        print("####################")
         print(info)
 
 
@@ -378,17 +402,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if info["name"] == "Night plan" and info["started"] and not info["done"]:
                 self.msg(f"Sequence started","black")
 
-        if "sub_started" in info.keys():
-            if info["sub_started"]:
-                self.ndit=float(info["n_exp"])-1
+        if "exp_started" in info.keys() and "exp_done" in info.keys():
+            if info["exp_started"] and not info["exp_done"]:
+                self.ndit=float(info["n_exp"])
                 self.ndit_req=float(info["exp_no"])
                 self.dit_exp=float(info["exp_time"])
                 self.dit_start=self.time
+                self.plan_runner_status="exposing"
                 self.msg(f"{self.dit_exp} [s] exposure started","black")
 
         if "exp_done" in info.keys():
             if info["exp_done"] and info["exp_saved"]:
                 self.ndit=float(info["n_exp"])
+                self.plan_runner_status="exp done"
 
         if "name" in info.keys() and "done" in info.keys():
             if info["name"]=="camera-exposure" and info["done"]:
@@ -743,6 +769,62 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     # ############ MOUNT ##################################
+
+
+    @qs.asyncSlot()
+    async def mount_motorsOnOff(self):
+        if self.user.current_user["name"]==self.myself:
+
+           r = await self.mount.aget_motorstatus()
+           if r=="true":
+               self.mount_motortatus = True
+           else:
+               self.mount_motortatus = False
+
+
+           if self.mount_motortatus:
+              await self.mount.aput_motoroff()
+              txt="MOTOR OFF requested"
+           else:
+               await self.mount.aput_motoron()
+               txt="MOTOR ON requested"
+
+           self.mntGui.domeShutter_e.setText(txt)
+           self.mntGui.domeShutter_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+           self.msg(txt,"yellow")
+
+        else:
+            await self.domeShutterStatus_update(False)
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
+
+
+
+
+    async def mountMotors_update(self,event):
+
+           r = await self.mount.aget_motorstatus()
+           if r=="true":
+               self.mount_motortatus = True
+           else:
+               self.mount_motortatus = False
+
+           if self.mount_motortatus:
+               self.mntGui.mntMotors_c.setChecked(True)
+
+           else:
+               self.mntGui.mntMotors_c.setChecked(False)
+               txt="MOTORS OFF"
+               self.mntGui.mntStat_e.setText(txt)
+               self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+
+
+
+
 
 
     @qs.asyncSlot()

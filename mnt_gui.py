@@ -131,7 +131,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntMotors_c.setChecked(False)
         self.mntMotors_c.setLayoutDirection(Qt.RightToLeft)
         self.mntMotors_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-        #self.mntMotors_c.clicked.connect(self.parent.mount_trackOnOff)
+        self.mntMotors_c.clicked.connect(self.parent.mount_motorsOnOff)
+
 
 
         w=0
