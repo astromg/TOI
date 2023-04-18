@@ -138,3 +138,7 @@ dmypy.json
 # local configuration
 ob/configuration/*
 !ob/configuration/__init__.py
+
+# poetry 
+poetry.lock
+
