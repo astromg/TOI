@@ -789,8 +789,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                await self.mount.aput_motoron()
                txt="MOTOR ON requested"
 
-           self.mntGui.domeShutter_e.setText(txt)
-           self.mntGui.domeShutter_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+           self.mntGui.mntStat_e.setText(txt)
+           self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
            self.msg(txt,"yellow")
 
         else:
