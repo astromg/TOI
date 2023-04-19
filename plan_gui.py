@@ -76,6 +76,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              self.plan_t.clearContents()
              for i,tmp in enumerate(self.plan):
                  if self.plan_t.rowCount() < i+1: self.plan_t.insertRow(i)
+                 icon=None
                  
                  put_icon=False
                  if i==self.next_i:
@@ -106,15 +107,17 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        icon.setFont(font)
                        put_icon=True
 
+
                  if "stop" in self.plan[i].keys():
                     if self.plan[i]["stop"]:
-                       pic = QtGui.QPixmap("./Icons/stop.png").scaled(QtCore.QSize(25,25))
+                       #pic = QtGui.QPixmap("./Icons/stop.png").scaled(QtCore.QSize(25,25))
                        font=QtGui.QFont()
                        font.setPointSize(20)
                        icon=QLabel("\u2B23")     # no go
                        icon.setStyleSheet('color:red;')
                        icon.setFont(font)
                        #icon.setPixmap(pic)
+                       icon.setAlignment(QtCore.Qt.AlignCenter)
                        put_icon=True
 
                  if i in self.done:

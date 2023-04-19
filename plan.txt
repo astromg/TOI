@@ -36,3 +36,12 @@ OBJECT V753_Cen 11:51:15.309 -55:48:15.811                seq=1/V/5
 #OBJECT V474_Mon 05:59:01.08067 -09:22:56.0055             seq=1/V/5
 #OBJECT VX_Hya 09:45:46.84963 -12:00:14.3583               seq=1/V/5
 #OBJECT AI_Vel 08:14:05.14681 -44:34:32.8476               seq=1/V/5
+
+
+
+#OBJECT AI_Vel  seq=1/V/5
+
+#FOCUS pos=15600 seq=1/V/5
+#FOCUS pos=15650 seq=1/V/5
+#FOCUS pos=15700 seq=1/V/5
+#FOCUS pos=15750 seq=1/V/5

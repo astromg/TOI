@@ -128,7 +128,7 @@ class FocusGui(QWidget):
 
           self.steps_l=QLabel("Step:")
           self.steps_e=QLineEdit()
-          self.steps_e.setText("50")
+          self.steps_e.setText("30")
 
           self.method_l=QLabel("Method:")
           self.method_s = QComboBox()
@@ -141,7 +141,7 @@ class FocusGui(QWidget):
 
           w = w + 1
           self.autoFocus_p = QPushButton('FIND FOCUS')
-          self.autoFocus_p.clicked.connect(self.parent.findFocus)
+          self.autoFocus_p.clicked.connect(self.parent.auto_focus)
           grid.addWidget(self.autoFocus_p, w, 0,1,4)
 
           self.setLayout(grid)

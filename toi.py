@@ -88,6 +88,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ndit_req=1
         self.plan_runner_origin=""
         self.plan_runner_status=""
+        self.autofocus_started=False
         self.acces=True
 
         # obs model
@@ -201,6 +202,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.dome.asubscribe_az(self.domeAZ_update))
         self.add_background_task(self.dome.asubscribe_slewing(self.domeStatus_update))
         self.add_background_task(self.dome.asubscribe_slaved(self.domeSlave_update))
+        self.add_background_task(self.focus.asubscribe_fansstatus(self.domeFans_update))
+
+
 
         self.add_background_task(self.mount.asubscribe_connected(self.mountCon_update))
         self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
@@ -263,10 +267,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         r=r['Value']
         txt = txt + f"ERROR:  {r}"
 
-        data={"Action":"telescope:clearerror","Parameters":""}
-        quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
-        r = requests.put(quest,data=data).json()
-        r=r['Value']
+        #data={"Action":"telescope:clearerror","Parameters":""}
+        #quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
+        #r = requests.put(quest,data=data).json()
+        #r=r['Value']
 
 
 
@@ -335,7 +339,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if self.dit_start>0:
 
                 txt=""
-                print("AHOJ!!!!!!!!!!!! ",self.plan_runner_status)
                 if self.plan_runner_status=="exposing":
                     txt=txt+"exposing: "
                 elif self.plan_runner_status=="exp done":
@@ -374,28 +377,23 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await asyncio.sleep(1)
 
 
-    @qs.asyncSlot()
-    async def findFocus(self):
-        val0 = self.auxGui.focus_tab.last_e.text()
-        step_val = self.auxGui.focus_tab.steps_e.text()
-        step_number = self.auxGui.focus_tab.range_e.text()
-        method = self.auxGui.focus_tab.method_s.currentText()
-        self.ff_find_focus=True
-        self.ff_step=0
-        self.ff_focus0=float(val0)-float(step_val)*int(int(step_number)/2.)
-        self.ff_step_max=int(step_number)
-
-
-
-           #await self.focus.aput_move(val)
-
-
     # ############ PLAN RUNNER CALLBACK ##########################
 
     @qs.asyncSlot()
     async def PlanRun1(self,info):
         print("####################")
         print(info)
+
+        # AUTOFOCUS
+        if self.autofocus_started:
+            if "id" in info.keys():
+                if info["id"]=="auto_focus" and info["started"]==True and info["done"]==True:
+                    self.autofocus_started=False
+                    print("Auto Focus KONIEC!!!!!")
+
+
+
+        # OTHER
 
 
         if "name" in info.keys() and "started" in info.keys() and "done" in info.keys():
@@ -438,6 +436,36 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.planGui.done.append(int(done_i))
             try: self.planGui.update_table()
             except UnboundLocalError: pass
+
+
+    # ############ AUTO FOCUS ##########################
+
+    @qs.asyncSlot()
+    async def auto_focus(self):
+        program=""
+
+        v0 = float(self.auxGui.focus_tab.last_e.text())
+        step = float(self.auxGui.focus_tab.steps_e.text())
+        number = float(self.auxGui.focus_tab.range_e.text())
+        method = self.auxGui.focus_tab.method_s.currentText()
+        exp=self.instGui.ccd_tab.inst_Dit_e.text()
+        if len(exp)==0:
+            exp = 5
+            self.msg("no exp specified. exp=5","red")
+
+        seq = "1/"+str(self.curent_filter)+"/"+str(exp)
+
+        pos = v0 - step*int(number/2)
+        for n in range(int(number)):
+            pos = pos + step
+            program = program + f"FOCUS pos={int(pos)} seq={seq}\n"
+
+        print(program)
+        self.planrunner.load_nightplan_string('auto_focus', program, overwrite=True)
+        self.planrunner.run_nightplan('auto_focus',step_id="00")
+        self.fits_exec=True
+        self.plan_runner_origin="auto_focus"
+        self.autofocus_started=True
 
     # ############ PLAN RUNNER ##########################
 
@@ -673,7 +701,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def ccd_setTemp(self):
         if self.user.current_user["name"]==self.myself:
             temp=float(self.instGui.ccd_tab.inst_setTemp_e.text())
-            if temp>-80 and temp<20:
+            if temp>-81 and temp<20:
                 txt=f"CCD temp set to {temp} deg."
                 await self.ccd.aput_setccdtemperature(temp)
                 self.msg(txt,"yellow")
@@ -770,31 +798,27 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     # ############ MOUNT ##################################
 
+#self.focus.aput_fansturnon
+
 
     @qs.asyncSlot()
-    async def mount_motorsOnOff(self):
+    async def domeFansOnOff(self):
         if self.user.current_user["name"]==self.myself:
-
-           r = await self.mount.aget_motorstatus()
-           if r=="true":
-               self.mount_motortatus = True
+           r = await self.focus.aget_fansstatus()
+           if r == "True": self.dome_fanStatus=True
+           else: self.dome_fanStatus=False
+           if self.dome_fanStatus:
+              txt="FANS OFF requested"
+              self.msg(txt,"yellow")
+              await self.focus.aput_fansturnoff()
            else:
-               self.mount_motortatus = False
-
-
-           if self.mount_motortatus:
-              await self.mount.aput_motoroff()
-              txt="MOTOR OFF requested"
-           else:
-               await self.mount.aput_motoron()
-               txt="MOTOR ON requested"
-
-           self.mntGui.mntStat_e.setText(txt)
-           self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
-           self.msg(txt,"yellow")
-
+               txt="FANS ON requested"
+               self.msg(txt,"yellow")
+               await self.focus.aput_fansturnon()
+           self.mntGui.fans_e.setText(txt)
+           self.mntGui.fans_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
         else:
-            await self.domeShutterStatus_update(False)
+            await self.domeFans_update(False)
             txt="U don't have controll"
             self.msg(txt,"red")
             self.tmp_box=QtWidgets.QMessageBox()
@@ -802,20 +826,73 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.tmp_box.setText("You don't have controll")
             self.tmp_box.show()
 
+    async def domeFans_update(self,event):
+           r = await self.focus.aget_fansstatus()
+           if r == "True": self.dome_fanStatus=True
+           else: self.dome_fanStatus=False
+
+           if self.dome_fanStatus:
+               self.mntGui.fans_c.setChecked(True)
+               txt="FANS ON"
+           else:
+               self.mntGui.fans_c.setChecked(False)
+               txt="FANS OFF"
+           self.mntGui.fans_e.setText(txt)
+           self.mntGui.fans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
 
 
 
-    async def mountMotors_update(self,event):
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    @qs.asyncSlot()
+    async def mount_motorsOnOff(self):
+        if self.user.current_user["name"]==self.myself:
            r = await self.mount.aget_motorstatus()
            if r=="true":
                self.mount_motortatus = True
            else:
                self.mount_motortatus = False
+           if self.mount_motortatus:
+              txt="MOTOR OFF requested"
+              self.msg(txt,"yellow")
+              await self.mount.aput_motoroff()
+           else:
+               txt="MOTOR ON requested"
+               self.msg(txt,"yellow")
+               await self.mount.aput_motoron()
+           self.mntGui.mntStat_e.setText(txt)
+           self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+        else:
+            await self.mountMotors_update(False)
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
+    async def mountMotors_update(self,event):
+           r = await self.mount.aget_motorstatus()
+           if r=="true":
+               self.mount_motortatus = True
+           else:
+               self.mount_motortatus = False
            if self.mount_motortatus:
                self.mntGui.mntMotors_c.setChecked(True)
-
+               txt="MOTORS ON"
            else:
                self.mntGui.mntMotors_c.setChecked(False)
                txt="MOTORS OFF"
@@ -823,7 +900,28 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
 
 
+    @qs.asyncSlot()
+    async def FlatLampOnOff(self):
+        if self.user.current_user["name"]==self.myself:
 
+           if self.mntGui.flatLights_c.isChecked():
+               await self.mount.aput_domelamp_on()
+               txt = "Flat Lamp ON requested"
+           else:
+               await self.mount.aput_domelamp_off()
+               txt = "Flat Lamp OFF requested"
+
+
+           self.mntGui.flatLights_e.setText(txt)
+           self.mntGui.flatLights_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+           self.msg(txt,"yellow")
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
 
 
@@ -1203,7 +1301,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         fw = self.fw.names
         fw = ['u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', 'empty1', 'empty2']
         pos = int(self.fw.position)
-        print("act: ", pos)
         self.curent_filter=fw[pos]
         self.mntGui.telFilter_e.setText(fw[pos])
 
