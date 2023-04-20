@@ -338,7 +338,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.fans_c = QCheckBox()
         self.fans_c.setChecked(False)
         self.fans_c.setLayoutDirection(Qt.LeftToRight)
-        self.fans_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.fans_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnYellow.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
         self.fans_c.clicked.connect(self.parent.domeFansOnOff)
 
         self.domeShutter_l = QLabel("SHUTTER: ")
