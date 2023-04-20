@@ -75,9 +75,11 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           if len(self.plan)>0:
              self.plan_t.clearContents()
              for i,tmp in enumerate(self.plan):
-                 if self.plan_t.rowCount() < i+1: self.plan_t.insertRow(i)
-                 icon=None
-                 
+                 if self.plan_t.rowCount() <= i: self.plan_t.insertRow(i)
+                 #item=QTableWidgetItem()
+                 #self.plan_t.setItem(i,0,item)
+
+
                  put_icon=False
                  if i==self.next_i:
                     font=QtGui.QFont()
@@ -93,6 +95,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     font=QtGui.QFont()
                     font.setPointSize(20)
                     icon=QLabel("\u21BB")  # processing
+                    #txt=QTableWidgetItem("\u21BB")
                     icon.setStyleSheet('color:green;')
                     icon.setFont(font)
                     put_icon=True
@@ -102,8 +105,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        #pic = QtGui.QPixmap("./Icons/skip.png").scaled(QtCore.QSize(25,25))
                        font=QtGui.QFont()
                        font.setPointSize(15)
-                       icon=QLabel("\u26D4")     # no go
-                       #icon.setStyleSheet('color:green;')
+                       #txt=QTableWidgetItem("\u26D4")
+                       icon=QLabel("\u26D4")     # skip
                        icon.setFont(font)
                        put_icon=True
 
@@ -114,10 +117,11 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        font=QtGui.QFont()
                        font.setPointSize(20)
                        icon=QLabel("\u2B23")     # no go
+                       #txt=QTableWidgetItem("\u2B23")
                        icon.setStyleSheet('color:red;')
                        icon.setFont(font)
                        #icon.setPixmap(pic)
-                       icon.setAlignment(QtCore.Qt.AlignCenter)
+                       #icon.setAlignment(QtCore.Qt.AlignCenter)
                        put_icon=True
 
                  if i in self.done:
@@ -125,6 +129,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     font=QtGui.QFont()
                     font.setPointSize(15)
                     icon=QLabel("\u2713")     # check ok
+                    #txt=QTableWidgetItem("\u2713")
                     icon.setStyleSheet('color:green;')
                     icon.setFont(font)
                     put_icon=True

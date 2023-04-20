@@ -371,7 +371,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeLights_c.setChecked(False)
         self.domeLights_c.setLayoutDirection(Qt.LeftToRight)
         self.domeLights_c.setStyleSheet(
-            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+            "QCheckBox::indicator:checked {image: url(./Icons/ToggleOnYellow.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
         self.domeLights_e = QLineEdit()
         self.domeLights_e.setReadOnly(True)
@@ -402,7 +402,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.flatLights_e.setText("(TODO)")
         self.flatLights_c.setChecked(False)
         self.flatLights_c.setLayoutDirection(Qt.LeftToRight)
-        self.flatLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.flatLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnYellow.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
         self.flatLights_c.clicked.connect(self.parent.FlatLampOnOff)
 
         self.telCovers_l = QLabel("MIRROR COVERS: ")
