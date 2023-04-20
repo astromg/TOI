@@ -413,11 +413,11 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telCovers_c.setChecked(False)
         self.telCovers_c.setLayoutDirection(Qt.RightToLeft)
         self.telCovers_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-        #self.telCovers_c.clicked.connect(self.parent.covers_openOrClose)
-        self.openCovers_p=QPushButton("Open")
-        self.openCovers_p.clicked.connect(self.parent.covers_open)
-        self.closeCovers_p=QPushButton("Close")
-        self.closeCovers_p.clicked.connect(self.parent.covers_close)
+        self.telCovers_c.clicked.connect(self.parent.covers_openOrClose)
+        #self.openCovers_p=QPushButton("Open")
+        #self.openCovers_p.clicked.connect(self.parent.covers_open)
+        #self.closeCovers_p=QPushButton("Close")
+        #self.closeCovers_p.clicked.connect(self.parent.covers_close)
 
         w=w+1
         self.grid.addWidget(self.flatLights_l, w, 0,1,2)
@@ -425,11 +425,11 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.flatLights_c, w, 3)
 
         self.grid.addWidget(self.telCovers_l, w, 4)
-        #self.grid.addWidget(self.telCovers_e, w, 5,1,2)
-        #self.grid.addWidget(self.telCovers_c, w, 7)
+        self.grid.addWidget(self.telCovers_e, w, 5,1,2)
+        self.grid.addWidget(self.telCovers_c, w, 7)
 
-        self.grid.addWidget(self.openCovers_p, w, 5)
-        self.grid.addWidget(self.closeCovers_p, w, 6)
+        #self.grid.addWidget(self.openCovers_p, w, 5)
+        #self.grid.addWidget(self.closeCovers_p, w, 6)
 
         #########################################################
 

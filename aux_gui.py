@@ -96,17 +96,35 @@ class FocusGui(QWidget):
           super(FocusGui, self).__init__()
           self.parent=parent
           self.mkUI()
+          self.x=[]
+          self.y=[]
+          self.fit_x=[]
+          self.fit_y=[]
+          self.max_sharp=None
+          self.update()
+
+      def update(self):
+          self.axes.clear()
+          if len(self.x)>1 and len(self.y)>1:
+              self.axes.plot(self.x,self.y,"r.")
+          if len(self.fit_x)>1 and len(self.fit_y)>1:
+              self.axes.plot(self.fit_x,self.fit_y)
+          if self.max_sharp:
+              self.axes.axvline(x=self.max_sharp,color="red",alpha=1)
+          self.axes.set_ylim(self.axes.get_ylim()[::-1])
+          self.axes.set_xlabel("focus encoder position")
+          self.axes.set_ylabel("sharpness")
+          self.canvas.draw()
+          self.show()
+
 
       def mkUI(self):
            
           grid = QGridLayout()
           w=0   
-          self.fig = Figure((1.0, 1.0), linewidth=-1, dpi=100)
+          self.fig = Figure((1, 1), linewidth=1, dpi=100)
           self.canvas = FigureCanvas(self.fig)
-          self.axes = self.fig.add_axes([0,0,1,1])
-          self.axes.axis("off")
-          self.axes.plot((1,2,3,4),(1,2,3,4),".")
-          self.canvas.draw()
+          self.axes = self.fig.add_axes([0.1,0.2,0.8,0.75])
           grid.addWidget(self.canvas, w, 0, 1, 4)
 
           w = w + 1
@@ -140,9 +158,15 @@ class FocusGui(QWidget):
           grid.addWidget(self.method_s, w, 3)
 
           w = w + 1
+          self.result_l=QLabel("RESULT:")
+          self.result_e=QLineEdit()
+          self.result_e.setReadOnly(True)
+
           self.autoFocus_p = QPushButton('FIND FOCUS')
           self.autoFocus_p.clicked.connect(self.parent.auto_focus)
-          grid.addWidget(self.autoFocus_p, w, 0,1,4)
+          grid.addWidget(self.result_l, w, 0)
+          grid.addWidget(self.result_e, w, 1)
+          grid.addWidget(self.autoFocus_p, w, 2,1,2)
 
           self.setLayout(grid)
 

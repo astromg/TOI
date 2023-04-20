@@ -40,6 +40,9 @@ from sky_gui import SkyView
 from instrument_gui import InstrumentGui
 from fits_save import *
 
+
+from calcFocus import calc_focus as calFoc
+
 logging.basicConfig(level='INFO')
 
 logger = logging.getLogger(__name__)
@@ -76,7 +79,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obs_window_size=[850,400]
 
         self.mnt_geometry=[0,110+int(self.obs_window_size[1]),850,400]
-        self.plan_geometry=[1546,0,300,600]
+        self.plan_geometry=[1546,0,300,1000]
         self.instrument_geometry=[930,700,500,300]
         self.aux_geometry=[930,0,500,400]
 
@@ -137,6 +140,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.req_ra=""
         self.req_dec=""
         self.req_epoch=""
+        self.program_id=""
+        self.program_name=""
 
 
 
@@ -179,6 +184,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.user = self.observatory_model.get_telescope(tel).get_access_grantor()
         self.dome = self.observatory_model.get_telescope(tel).get_dome()
         self.mount = self.observatory_model.get_telescope(tel).get_mount()
+        self.cover = self.observatory_model.get_telescope(tel).get_covercalibrator()
         self.focus = self.observatory_model.get_telescope(tel).get_focuser()
         self.ccd = self.observatory_model.get_telescope(tel).get_camera()
         self.fw = self.observatory_model.get_telescope(tel).get_filterwheel()
@@ -215,6 +221,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
         self.add_background_task(self.mount.asubscribe_motorstatus(self.mountMotors_update))
 
+        self.add_background_task(self.cover.asubscribe_coverstate(self.covers_update))
 
         self.add_background_task(self.fw.asubscribe_connected(self.filterCon_update))
         self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
@@ -371,6 +378,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.skyView.updateRadar()
             self.planGui.update_table()
 
+
             #self.mount_motorsOn = await self.mount.aget_motorstatus()
             #print(f"Motors: {self.mount_motorsOn}")
 
@@ -381,19 +389,44 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def PlanRun1(self,info):
-        print("####################")
-        print(info)
+
 
         # AUTOFOCUS
         if self.autofocus_started:
             if "id" in info.keys():
                 if info["id"]=="auto_focus" and info["started"]==True and info["done"]==True:
                     self.autofocus_started=False
-                    print("Auto Focus KONIEC!!!!!")
+                    self.msg("Auto-focus sequence finished","black")
+                    max_sharpness_focus, calc_metadata = calFoc.calculate("~/Desktop/fits_zb08")
+                    coef = calc_metadata["poly_coef"]
+                    focus_list_ret = calc_metadata["focus_values"]
+                    sharpness_list_ret = calc_metadata["sharpness_values"]
 
+                    self.auxGui.focus_tab.result_e.setText(f"{max_sharpness_focus:.1f}")
+                    print("FOCUS: ", max_sharpness_focus)
+                    print(coef)
+
+                    fit_x = numpy.linspace(min(focus_list_ret), max(focus_list_ret), 100)
+                    if len(coef)>3:
+                        fit_y = coef[0]* fit_x**4 + coef[1]*fit_x**3 + coef[2]*fit_x**2 +  coef[3]*fit_x + coef[4]
+                    elif len(coef)>1:
+                        fit_y = coef[0]* fit_x**2 + coef[1]*fit_x + coef[2]
+
+                    self.auxGui.focus_tab.x=focus_list_ret
+                    self.auxGui.focus_tab.y=sharpness_list_ret
+                    self.auxGui.focus_tab.fit_x=fit_x
+                    self.auxGui.focus_tab.fit_y=fit_y
+                    self.auxGui.focus_tab.max_sharp=max_sharpness_focus
+                    self.auxGui.focus_tab.update()
+                    self.auxGui.tabWidget.setCurrentIndex(1)
 
 
         # OTHER
+        if "id" in info.keys():
+            self.program_id = info["id"]
+            ut=str(self.ut).split()[1].split(":")[0]+":"+str(self.ut).split()[1].split(":")[1]
+            txt = f"--------  {ut}  --------  {self.program_id}  --------\n {info}\n"
+            self.planGui.prog_call_e.append(txt)
 
 
         if "name" in info.keys() and "started" in info.keys() and "done" in info.keys():
@@ -465,7 +498,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.planrunner.run_nightplan('auto_focus',step_id="00")
         self.fits_exec=True
         self.plan_runner_origin="auto_focus"
+        self.program_name="auto_focus"
         self.autofocus_started=True
+
+
 
     # ############ PLAN RUNNER ##########################
 
@@ -478,8 +514,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.planrunner.load_nightplan_string('program', program, overwrite=True)
         self.planrunner.run_nightplan('program',step_id="00")
+        self.program_name="program"
         self.fits_exec=True
         self.plan_runner_origin="Plan Gui"
+
+    @qs.asyncSlot()
+    async def resume_program(self):
+
+        self.planrunner.stop_nightplan()
+        self.planrunner.run_nightplan(self.program_name,step_id=self.program_id)
+
+
+    @qs.asyncSlot()
+    async def stop_program(self):
+        self.planrunner.stop_nightplan()
+
+
 
 
     # ############ CCD ##################################
@@ -569,6 +619,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         txt=f"OBJECT {name} seq={seq}\n"
                         self.planrunner.load_nightplan_string('manual', txt, overwrite=True)
                         self.planrunner.run_nightplan('manual',step_id="00")
+                        self.program_name="manual"
                         self.fits_exec=True
 
                 elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
@@ -577,6 +628,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         txt="DARK seq="+txt+"\n"
                         self.planrunner.load_nightplan_string('manual', txt, overwrite=True)
                         self.planrunner.run_nightplan('manual',step_id="00")
+                        self.program_name="manual"
                         self.fits_exec=True
 
                 elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==1:
@@ -587,6 +639,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         txt="ZERO seq="+txt+"\n"
                         self.planrunner.load_nightplan_string('manual', txt, overwrite=True)
                         self.planrunner.run_nightplan('manual',step_id="00")
+                        self.program_name="manual"
                         self.fits_exec=True
 
                 else: self.msg(f"not implemented yet","yellow")
@@ -616,6 +669,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             txt="ZERO seq="+txt+"\n"
             self.planrunner.load_nightplan_string('sequence', txt, overwrite=True)
             self.planrunner.run_nightplan('sequence',step_id="00")
+            self.program_name="sequence"
             self.fits_exec=True
             self.dit_start=self.time
 
@@ -623,6 +677,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             txt="DARK seq="+txt+"\n"
             self.planrunner.load_nightplan_string('sequence', txt, overwrite=True)
             self.planrunner.run_nightplan('sequence',step_id="00")
+            self.program_name="sequence"
             self.fits_exec=True
             self.dit_start=self.time
 
@@ -841,22 +896,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            self.mntGui.fans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     @qs.asyncSlot()
     async def mount_motorsOnOff(self):
         if self.user.current_user["name"]==self.myself:
@@ -922,6 +961,69 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.tmp_box.setWindowTitle("TOI message")
             self.tmp_box.setText("You don't have controll")
             self.tmp_box.show()
+
+
+
+
+
+
+    @qs.asyncSlot()
+    async def covers_openOrClose(self):
+        if self.user.current_user["name"]==self.myself:
+           self.cover_status = self.cover.coverstate
+           if self.cover_status==1:
+              txt="mirror OPEN requested"
+              self.msg(txt,"yellow")
+              await self.mount.aput_opencover()
+           else:
+               txt="mirror CLOSE requested"
+               self.msg(txt,"yellow")
+               await self.mount.aput_closecover()
+           self.mntGui.telCovers_e.setText(txt)
+           self.mntGui.telCovers_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+        else:
+            await self.mountMotors_update(False)
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
+
+    async def covers_update(self,event):
+           self.cover_status = self.cover.coverstate
+
+           if self.cover_status==3:
+               self.mntGui.telCovers_c.setChecked(True)
+               txt="OPEN"
+               self.msg(f"covers {txt}","green")
+               self.mntGui.telCovers_e.setStyleSheet("color: rgb(0,150,0); background-color: rgb(233, 233, 233);")
+           elif self.cover_status==1:
+               self.mntGui.telCovers_c.setChecked(False)
+               txt="CLOSED"
+               self.msg(f"covers {txt}","black")
+               self.mntGui.telCovers_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+           elif self.cover_status==2:
+               txt="MOVING"
+               self.msg(f"covers {txt}","yellow")
+               self.mntGui.telCovers_e.setStyleSheet("color: rgb(255, 165, 0); background-color: rgb(233, 233, 233);")
+           else:
+               txt="UNKNOWN"
+               self.msg(f"covers {txt}","red")
+               self.mntGui.telCovers_e.setStyleSheet("color: rgb(233, 0, 0); background-color: rgb(233, 233, 233);")
+
+           self.mntGui.telCovers_e.setText(txt)
+
+
+
+
+
+
+
+
+
+
+
 
 
 

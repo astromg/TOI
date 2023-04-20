@@ -318,17 +318,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           except: pass
           self.grid = QGridLayout()
 
-          w=0
-          self.load_p=QPushButton('Load Plan') 
-          self.stop_p=QPushButton('Stop')          
-          self.start_p=QPushButton('Start')
-          self.start_p.clicked.connect(self.parent.plan_start)
-
-          self.grid.addWidget(self.load_p, w,0)
-          self.grid.addWidget(self.stop_p, w,2)
-          self.grid.addWidget(self.start_p, w,4)
           
-          w=w+1
+          w=0
           self.plan_t=QTableWidget(0,4)
           self.plan_t.setHorizontalHeaderLabels(["","Object","Alt","Sequence"])
           
@@ -383,6 +374,25 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.grid.addWidget(self.add_p, w,0)
           self.grid.addWidget(self.edit_p, w,4)
+          w=w+1
+          self.prog_call_e=QTextEdit()
+          self.prog_call_e.setReadOnly(True)
+          self.prog_call_e.setStyleSheet("background-color: rgb(235,235,235);")
+          self.grid.addWidget(self.prog_call_e,w,0,3,5)
+
+          w=w+3
+          self.load_p=QPushButton('Load Plan')
+          self.stop_p=QPushButton('Stop')
+          self.stop_p.clicked.connect(self.parent.stop_program)
+          self.resume_p=QPushButton('Resume')
+          self.resume_p.clicked.connect(self.parent.resume_program)
+          self.start_p=QPushButton('Start')
+          self.start_p.clicked.connect(self.parent.plan_start)
+
+          self.grid.addWidget(self.load_p, w,0)
+          self.grid.addWidget(self.stop_p, w,2)
+          self.grid.addWidget(self.resume_p, w,3)
+          self.grid.addWidget(self.start_p, w,4)
  
 
 
