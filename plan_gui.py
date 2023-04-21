@@ -76,67 +76,73 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              self.plan_t.clearContents()
              for i,tmp in enumerate(self.plan):
                  if self.plan_t.rowCount() <= i: self.plan_t.insertRow(i)
-                 #item=QTableWidgetItem()
-                 #self.plan_t.setItem(i,0,item)
-
 
                  put_icon=False
                  if i==self.next_i:
                     font=QtGui.QFont()
                     font.setPointSize(25)
-                    #pic = QtGui.QPixmap("./Icons/next.png").scaled(QtCore.QSize(25,25))
-                    icon=QLabel("\u2192")  # next
-                    icon.setStyleSheet('color:blue;')
-                    icon.setFont(font)
-                    put_icon=True
+                    txt=QTableWidgetItem("\u2192")
+                    txt.setFont(font)
+                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                    txt.setForeground(QtGui.QColor("blue"))
+                    self.plan_t.setItem(i,0,txt)
+
+                     # UWAGA - ponizsza metoda zostaje zachowana jako przyklad problemu.
+                     # Gdy sie tak robi, to kazdy kolejny widget po 1, najpierw wskakuje w
+                     # row,col: 0,0 i dopiero potem wskakuje na wlasciwe miesjce. Nie wiem jak to rozwiazac
+
+                     ##pic = QtGui.QPixmap("./Icons/stop.png").scaled(QtCore.QSize(25,25))
+                     #font=QtGui.QFont()
+                     #font.setPointSize(20)
+                     #icon=QLabel("\u2B23")     # no go
+                     #icon.setStyleSheet('color:red;')
+                     #icon.setFont(font)
+                     #icon.setPixmap(pic)
+                     #icon.setAlignment(QtCore.Qt.AlignCenter)
+                     #self.plan_t.setCellWidget(i,0,txt)
 
                  if i==self.current_i:
-                    #pic = QtGui.QPixmap("./Icons/current.png").scaled(QtCore.QSize(20,20))
                     font=QtGui.QFont()
                     font.setPointSize(20)
-                    icon=QLabel("\u21BB")  # processing
-                    #txt=QTableWidgetItem("\u21BB")
-                    icon.setStyleSheet('color:green;')
-                    icon.setFont(font)
-                    put_icon=True
+                    txt=QTableWidgetItem("\u21BB")
+                    txt.setFont(font)
+                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                    txt.setForeground(QtGui.QColor("green"))
+                    self.plan_t.setItem(i,0,txt)
+
+
 
                  if "skip" in self.plan[i].keys():
                     if self.plan[i]["skip"]:
-                       #pic = QtGui.QPixmap("./Icons/skip.png").scaled(QtCore.QSize(25,25))
                        font=QtGui.QFont()
                        font.setPointSize(15)
-                       #txt=QTableWidgetItem("\u26D4")
-                       icon=QLabel("\u26D4")     # skip
-                       icon.setFont(font)
-                       put_icon=True
+                       txt=QTableWidgetItem("\u26D4")
+                       txt.setFont(font)
+                       txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                       self.plan_t.setItem(i,0,txt)
+
 
 
                  if "stop" in self.plan[i].keys():
                     if self.plan[i]["stop"]:
-                       #pic = QtGui.QPixmap("./Icons/stop.png").scaled(QtCore.QSize(25,25))
                        font=QtGui.QFont()
                        font.setPointSize(20)
-                       icon=QLabel("\u2B23")     # no go
-                       #txt=QTableWidgetItem("\u2B23")
-                       icon.setStyleSheet('color:red;')
-                       icon.setFont(font)
-                       #icon.setPixmap(pic)
-                       #icon.setAlignment(QtCore.Qt.AlignCenter)
-                       put_icon=True
+                       txt=QTableWidgetItem("\u2B23")
+                       txt.setFont(font)
+                       txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                       txt.setForeground(QtGui.QColor("red"))
+                       self.plan_t.setItem(i,0,txt)
 
                  if i in self.done:
-                    #pic = QtGui.QPixmap("./Icons/done.png").scaled(QtCore.QSize(20,20))
+
                     font=QtGui.QFont()
                     font.setPointSize(15)
-                    icon=QLabel("\u2713")     # check ok
-                    #txt=QTableWidgetItem("\u2713")
-                    icon.setStyleSheet('color:green;')
-                    icon.setFont(font)
-                    put_icon=True
+                    txt=QTableWidgetItem("\u2713")
+                    txt.setFont(font)
+                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                    txt.setForeground(QtGui.QColor("green"))
+                    self.plan_t.setItem(i,0,txt)
 
-                 if put_icon:
-                    icon.setAlignment(QtCore.Qt.AlignCenter)
-                    self.plan_t.setCellWidget(i,0,icon)
 
 
                      
