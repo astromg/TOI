@@ -228,7 +228,14 @@ class FitsView(QWidget):
        vmin=numpy.mean(image)-1*numpy.std(image)
        vmax=numpy.mean(image)+1*numpy.std(image)
 
-       self.image=self.axes.imshow(image,vmin=vmin,vmax=vmax)
+       im = self.image=self.axes.imshow(image,vmin=vmin,vmax=vmax)
+
+       self.fig.colorbar(im, ax=self.axes)
+       # self.violin_axes.clear()
+       # self.violin_axes.violinplot(image.flat ,showmeans=False,showmedians=True,showextrema=False)
+       self.colorbar = self.fig.colorbar(im, cax=self.colorbar_axes)
+
+
 
        self.canvas.draw()
        self.show()
@@ -238,6 +245,9 @@ class FitsView(QWidget):
        self.canvas = FigureCanvas(self.fig)
        self.axes = self.fig.add_axes([0,0,1,1])
        self.axes.axis("off")
+
+       # self.violin_axes = self.fig.add_axes([0.82,0.0,0.18,1])
+       # self.violin_axes.tick_params(axis='y', which='both', labelleft=False, labelright=True, direction='in')
 
        hbox1 = QHBoxLayout()
        hbox1.addWidget(self.canvas)
