@@ -15,6 +15,7 @@ import pwd
 import os
 import numpy
 
+
 from astropy.time import Time as astroTime
 import astropy.units as u
 
@@ -200,6 +201,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         self.add_background_task(self.TOItimer())
+        self.add_background_task(self.TOItimer10())
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
         self.add_background_task(self.user.asubscribe_is_access(self.user_update))
 
@@ -333,9 +335,53 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #print(f"Dupa {r}")
 
 
-    async def TOItimer(self):
+    async def TOItimer10(self):
         while True:
 
+            tel_url = "http://192.168.7.110:11111/api/v1/"
+
+
+            quest=tel_url+"filterwheel/0/connected"
+            r=requests.get(quest,timeout=(1))
+            if r.status_code == 200:
+                r=r.json()
+                if bool(r["Value"]):
+                    self.mntGui.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
+                    self.mntGui.telFilter_l.setStyleSheet("color: rgb(0,150,0);")
+                else:
+                    self.mntGUI.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+            else:
+                self.mntGui.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+
+
+            quest=tel_url+"telescope/0/connected"
+            r=requests.get(quest).json()
+            if bool(r["Value"]):
+                self.mntGui.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
+                self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
+            else:
+                self.mntGui.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+            quest=tel_url+"dome/0/connected"
+            r=requests.get(quest).json()
+            if bool(r["Value"]):
+                self.mntGui.domeConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
+                self.mntGui.domeConn1_l.setStyleSheet("color: rgb(0,150,0);")
+            else:
+                self.mntGui.domeConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+
+            quest=tel_url+"rotator/0/connected"
+            r=requests.get(quest).json()
+            if bool(r["Value"]):
+                self.mntGui.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
+                self.mntGui.telRotator1_l.setStyleSheet("color: rgb(0,150,0);")
+            else:
+                self.mntGui.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+
+
+            await asyncio.sleep(5)
+
+    async def TOItimer(self):
+        while True:
             # pozostalem TIC-TOI timery
             #print("TIC-TOI")
 
@@ -808,6 +854,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ccd_readoutmode=await self.ccd.aget_readoutmode()
         #self.ccd_readoutmodes=self.ccd.readoutmodes
 
+
         # CCD TEMP
         ccd_temp=self.ccd_temp
         ccd_temp_set=await self.ccd.aget_setccdtemperature()
@@ -1155,12 +1202,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.tmp_box.show()
 
     async def mountCon_update(self, event):
-        self.mount_con=self.mount.connected
-        if self.mount_con:
-           self.mntGui.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
-           self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
-        else:
-           self.mntGUI.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+        pass
+        #self.mount_con=self.mount.connected
+        #if self.mount_con:
+        #   self.mntGui.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
+        #   self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
+        #else:
+        #   self.mntGUI.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
 
 
     async def mount_update(self, event):
@@ -1262,14 +1310,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     async def domeCon_update(self, event):
-        self.dome_con=self.dome.connected
-        if self.dome_con:
-           self.mntGui.domeConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
-           #self.mntGui.domeConn1_l.setText("Dome Connected")
-           self.mntGui.domeConn1_l.setStyleSheet("color: rgb(0,150,0);")
-        else:
-           self.domeGUI.domeConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
-           #self.mntGui.domeConn1_l.setText("Dome NOT Connected")
+        pass
+        #self.dome_con=self.dome.connected
+        #if self.dome_con:
+           #self.mntGui.domeConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
+           ##self.mntGui.domeConn1_l.setText("Dome Connected")
+           #self.mntGui.domeConn1_l.setStyleSheet("color: rgb(0,150,0);")
+        #else:
+           #self.domeGUI.domeConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+           ##self.mntGui.domeConn1_l.setText("Dome NOT Connected")
 
     async def domeShutterStatus_update(self, event):
            self.dome_shutterstatus=self.dome.shutterstatus
@@ -1374,12 +1423,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     async def filterCon_update(self, event):
-        self.fw_con=self.fw.connected
-        if self.fw_con:
-           self.mntGui.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
-           self.mntGui.telFilter_l.setStyleSheet("color: rgb(0,150,0);")
-        else:
-           self.domeGUI.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+        pass
+        #self.fw_con=self.fw.connected
+        #if self.fw_con:
+           #self.mntGui.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
+           #self.mntGui.telFilter_l.setStyleSheet("color: rgb(0,150,0);")
+        #else:
+           #self.domeGUI.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
 
     @qs.asyncSlot()
     async def set_filter(self):
@@ -1419,12 +1469,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     async def rotatorCon_update(self, event):
-        self.rotator_con=self.rotator.connected
-        if self.rotator_con:
-           self.mntGui.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
-           self.mntGui.telRotator1_l.setStyleSheet("color: rgb(0,150,0);")
-        else:
-           self.domeGUI.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+        pass
+        #self.rotator_con=self.rotator.connected
+        #if self.rotator_con:
+           #self.mntGui.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
+           #self.mntGui.telRotator1_l.setStyleSheet("color: rgb(0,150,0);")
+        #else:
+           #self.domeGUI.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
 
 
     async def rotator_update(self, event):
