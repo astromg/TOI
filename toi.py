@@ -397,7 +397,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if info["id"]=="auto_focus" and info["started"]==True and info["done"]==True:
                     self.autofocus_started=False
                     self.msg("Auto-focus sequence finished","black")
-                    max_sharpness_focus, calc_metadata = calFoc.calculate("../../Desktop/focus_zb08")
+                    max_sharpness_focus, calc_metadata = calFoc.calculate("../../Desktop/fits_zb08")
                     coef = calc_metadata["poly_coef"]
                     focus_list_ret = calc_metadata["focus_values"]
                     sharpness_list_ret = calc_metadata["sharpness_values"]
