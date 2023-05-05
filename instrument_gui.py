@@ -50,7 +50,8 @@ class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
           self.tab=QTabWidget()
 
           self.ccd_tab=CCDGui(self.parent,loop=self.parent.loop, client_api=self.parent.client_api)
-          self.tab.addTab(self.ccd_tab,"CCD")
+          self.tab.addTab(self.ccd_tab,"\U0001F534 CCD")
+
 
           self.layout.addWidget(self.tab,0,0)
           del tmp

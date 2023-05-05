@@ -53,6 +53,14 @@ logger = logging.getLogger(__name__)
 # rgb(255, 165, 0)       orange
 
 
+# "\U0001F7E2" green circle
+# "\U0001F7E1" yellow circle
+# "\U0001F534" red circle
+
+# "\u23F0"  budzik
+# "\u23F1"  stoper
+
+
 class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     APP_NAME = "TOI app"
 
@@ -83,6 +91,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.plan_geometry=[1546,0,300,1000]
         self.instrument_geometry=[930,700,500,300]
         self.aux_geometry=[930,0,500,400]
+
+        self.tic_conn="unknown"
+        self.fw_conn="unknown"
+        self.mount_conn="unknown"
+        self.dome_conn="unknown"
+        self.rotator_conn="unknown"
+        self.inst_conn="unknown"
+        self.focus_conn="unknown"
+        self.covercalibrator_conn="unknown"
+
 
         # aux zmienne
         self.fits_exec=False
@@ -304,7 +322,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         #quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
-        #quest="http://192.168.7.110:11111/api/v1/focuser/0/action"
+        #quest="http://192.168.7.110:11111/api/v1/focuser/0/position"
 
         #data={"Brightness":0}
         #quest="http://192.168.7.110:11111/api/v1/covercalibrator/0/opencover"
@@ -323,7 +341,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #quest="http://192.168.7.110:11111/api/v1/camera/0/setccdtemperature"
 
 
-        #r=requests.get(quest)
+        r=requests.get(quest)
 
         #data={"Command":"MotStat","Raw":"True"}
         #quest="http://192.168.7.110:11111/api/v1/telescope/0/commandstring"
@@ -331,63 +349,99 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         #r=requests.put(quest,data=data)
 
-        #r=r.json()
-        #print(f"Dupa {r}")
+        r=r.json()
+        print(f"Dupa {r}")
 
 
     async def TOItimer10(self):
         while True:
 
-            tel_url = "http://192.168.7.110:11111/api/v1/"
+            self.tic_conn = True
 
+            #self.covercalibrator_conn=False
 
-            quest=tel_url+"filterwheel/0/connected"
-            r=requests.get(quest,timeout=(1))
-            if r.status_code == 200:
-                r=r.json()
-                if bool(r["Value"]):
-                    self.mntGui.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
-                    self.mntGui.telFilter_l.setStyleSheet("color: rgb(0,150,0);")
-                else:
-                    self.mntGUI.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
-            else:
-                self.mntGui.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+            if self.tic_conn == True:
 
+                tel_url = "http://192.168.7.110:11111/api/v1/"
 
-            quest=tel_url+"telescope/0/connected"
-            r=requests.get(quest).json()
-            if bool(r["Value"]):
-                self.mntGui.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
-                self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
-            else:
-                self.mntGui.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
-            quest=tel_url+"dome/0/connected"
-            r=requests.get(quest).json()
-            if bool(r["Value"]):
-                self.mntGui.domeConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
-                self.mntGui.domeConn1_l.setStyleSheet("color: rgb(0,150,0);")
-            else:
-                self.mntGui.domeConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+                tmp=self.mount_conn
+                quest=tel_url+"telescope/0/connected"
+                r=requests.get(quest,timeout=(1))
+                if r.status_code == 200:
+                    r=r.json()
+                    if bool(r["Value"]): self.mount_conn = True
+                    else: self.mount_conn = False
+                else: self.mount_conn = False
+                if self.mount_conn != tmp:
+                    if self.mount_conn: self.msg("Mount CONNECTED","green")
+                    else: self.msg("Mount DISCONNECTED","red")
 
-            quest=tel_url+"rotator/0/connected"
-            r=requests.get(quest).json()
-            if bool(r["Value"]):
-                self.mntGui.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
-                self.mntGui.telRotator1_l.setStyleSheet("color: rgb(0,150,0);")
-            else:
-                self.mntGui.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+                tmp=self.dome_conn
+                quest=tel_url+"dome/0/connected"
+                r=requests.get(quest,timeout=(1))
+                if r.status_code == 200:
+                    r=r.json()
+                    if bool(r["Value"]): self.dome_conn = True
+                    else: self.dome_conn = False
+                else: self.dome_conn = False
+                if self.dome_conn != tmp:
+                    if self.dome_conn: self.msg("Dome CONNECTED","green")
+                    else: self.msg("Dome DISCONNECTED","red")
 
+                tmp=self.rotator_conn
+                quest=tel_url+"rotator/0/connected"
+                r=requests.get(quest,timeout=(1))
+                if r.status_code == 200:
+                    r=r.json()
+                    if bool(r["Value"]): self.rotator_conn = True
+                    else: self.rotator_conn = False
+                else: self.rotator_conn = False
+                if self.rotator_conn != tmp:
+                    if self.rotator_conn: self.msg("Rotator CONNECTED","green")
+                    else: self.msg("Rotator DISCONNECTED","red")
 
-            await asyncio.sleep(5)
+                tmp=self.fw_conn
+                quest=tel_url+"filterwheel/0/connected"
+                r=requests.get(quest,timeout=(1))
+                if r.status_code == 200:
+                    r=r.json()
+                    if bool(r["Value"]): self.fw_conn = True
+                    else: self.fw_conn = False
+                else: self.fw_conn = False
+                if self.fw_conn != tmp:
+                    if self.fw_conn: self.msg("Filter wheel CONNECTED","green")
+                    else: self.msg("Filter wheel DISCONNECTED","red")
+
+                tmp=self.focus_conn
+                quest=tel_url+"focuser/0/connected"
+                r=requests.get(quest,timeout=(1))
+                if r.status_code == 200:
+                    r=r.json()
+                    if bool(r["Value"]): self.focus_conn = True
+                    else: self.focus_conn = False
+                else: self.focus_conn = False
+                if self.focus_conn != tmp:
+                    if self.focus_conn: self.msg("Focus CONNECTED","green")
+                    else: self.focus_conn("Focus DISCONNECTED","red")
+
+                tmp=self.inst_conn
+                quest=tel_url+"camera/0/connected"
+                r=requests.get(quest,timeout=(1))
+                if r.status_code == 200:
+                    r=r.json()
+                    if bool(r["Value"]): self.inst_conn = True
+                    else: self.inst_conn = False
+                else: self.inst_conn = False
+                if self.inst_conn != tmp:
+                    if self.inst_conn: self.msg("Instrument CONNECTED","green")
+                    else: self.msg("Instrument DISCONNECTED","red")
+
+            await asyncio.sleep(60)
 
     async def TOItimer(self):
         while True:
-            # pozostalem TIC-TOI timery
-            #print("TIC-TOI")
 
             self.time=time.perf_counter()
-
-            # Do wywalenia po implementacji w TIC
 
             if self.dit_start>0:
 
@@ -412,7 +466,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt)
                 self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt2)
 
-            self.sid,self.jd,self.ut,self.sunrise,self.sunset,self.sun_alt,self.sun_az,self.moon_alt,self.moon_az=UT_SID(self.observatory)
+            self.sid,self.jd,self.ut,self.sunrise,self.sunset,self.sun_alt,self.sun_az,self.moon_alt,self.moon_az,self.moonrise,self.moonset,self.moon_phase=UT_SID(self.observatory)
             self.obsGui.main_form.ojd_e.setText(f"{self.jd:.6f}")
             self.obsGui.main_form.sid_e.setText(str(self.sid).split(".")[0])
             date=str(self.ut).split()[0]
@@ -425,8 +479,56 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.planGui.update_table()
 
 
-            #self.mount_motorsOn = await self.mount.aget_motorstatus()
-            #print(f"Motors: {self.mount_motorsOn}")
+            # Connection status update
+
+
+            if self.tic_conn == True:
+                self.obsGui.main_form.ticStatus2_l.setText("\u262F")
+                self.obsGui.main_form.tic_l.setStyleSheet("color: rgb(0, 0, 0);")
+            else:
+                self.obsGui.main_form.ticStatus2_l.setText("\U0001F534")
+                self.obsGui.main_form.tic_l.setStyleSheet("color: rgb(150,0,0);")
+
+            if self.mount_conn == True:                                       # bo moze przyjmowac jeszcze False i "unknown"
+                self.mntGui.mntConn2_l.setText("\U0001F7E2")
+                self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
+            else:
+                self.mntGui.mntConn2_l.setText("\U0001F534")
+                self.mntGui.mntConn1_l.setStyleSheet("color: rgb(150,0,0);")
+
+            if self.dome_conn == True:
+                self.mntGui.domeConn2_l.setText("\U0001F7E2")
+                self.mntGui.domeConn1_l.setStyleSheet("color: rgb(0,150,0);")
+            else:
+                self.mntGui.domeConn2_l.setText("\U0001F534")
+                self.mntGui.domeConn1_l.setStyleSheet("color: rgb(150,0,0);")
+
+            if self.rotator_conn == True:
+                self.mntGui.comRotator1_l.setText("\U0001F7E2")
+                self.mntGui.telRotator1_l.setStyleSheet("color: rgb(0,150,0);")
+            else:
+                self.mntGui.comRotator1_l.setText("\U0001F534")
+                self.mntGui.telRotator1_l.setStyleSheet("color: rgb(150,0,0);")
+
+            if self.fw_conn == True:
+                self.mntGui.comFilter_l.setText("\U0001F7E2")
+                self.mntGui.telFilter_l.setStyleSheet("color: rgb(0,150,0);")
+            else:
+                self.mntGui.comFilter_l.setText("\U0001F534")
+                self.mntGui.telFilter_l.setStyleSheet("color: rgb(150,0,0);")
+
+            if self.focus_conn == True:
+                self.mntGui.focusConn_l.setText("\U0001F7E2")
+                self.mntGui.telFocus_l.setStyleSheet("color: rgb(0,150,0);")
+            else:
+                self.mntGui.focusConn_l.setText("\U0001F534")
+                self.mntGui.telFocus_l.setStyleSheet("color: rgb(150,0,0);")
+
+
+            if self.inst_conn == True:
+                self.instGui.tab.setTabText(0,"\U0001F7E2 CCD")
+            else:
+                self.instGui.tab.setTabText(0,"\U0001F534 CCD")
 
             await asyncio.sleep(1)
 
@@ -1488,7 +1590,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def takeControl(self):
         txt="Control requested"
         self.obsGui.main_form.control_e.setText(txt)
-        self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+        self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         try: await self.user.aput_break_control()
         except: pass
         try: await self.user.aput_take_control(3600)
@@ -1501,13 +1603,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         txt=str(self.TICuser["name"])
         self.obsGui.main_form.control_e.setText(txt)
         if self.acces:
-            self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(255, 255, 255); color: rgb(0,150,0);")
+            self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(0,150,0);")
             #self.msg(f"{txt} have controll","green")
         elif  self.user.current_user["name"]==self.myself:
-            self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(255, 255, 255); color: rgb(150,0,0);")
+            self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150,0,0);")
             #self.msg(f"{txt} DON'T have controll","red")
         else:
-            self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
+            self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             #self.msg(f"{txt} have controll","yellow")
 
 

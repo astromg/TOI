@@ -99,29 +99,32 @@ class MainForm(QWidget):
           
           grid = QGridLayout()
           w=0   
-          self.tic_l=QLabel("TIC not Connected")
-          self.ticStatus2_l=QLabel("")
-          self.ticStatus2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+          self.tic_l=QLabel("TIC")
+          self.tic_l.setStyleSheet("color: rgb(150,0,0);")
+          self.ticStatus2_l=QLabel("\U0001F534")
 
-          self.control_l=QLabel("Controler:")
+          #self.control_l=QLabel("Controler:")
           self.control_e=QLineEdit("--")
           self.control_e.setReadOnly(True)
+          self.control_e.setStyleSheet("background-color: rgb(233, 233, 233);")
           self.takeControl_p=QPushButton('Take Control')
           self.takeControl_p.clicked.connect(self.parent.takeControl)
 
           grid.addWidget(self.ticStatus2_l, w,0)
           grid.addWidget(self.tic_l, w,1)
-          grid.addWidget(self.control_l, w,3)
-          grid.addWidget(self.control_e, w,5)
+          #grid.addWidget(self.control_l, w,3)
+          grid.addWidget(self.control_e, w,2,1,4)
           grid.addWidget(self.takeControl_p, w,6)
           w=w+1
           self.date_l=QLabel("Date:")
           self.date_e=QLineEdit("--/--/--")
           self.date_e.setReadOnly(True)
+          self.date_e.setStyleSheet("background-color: rgb(233, 233, 233);")
 
           self.ut_l=QLabel("UT:")
           self.ut_e=QLineEdit("--:--:--")
           self.ut_e.setReadOnly(True)
+          self.ut_e.setStyleSheet("background-color: rgb(233, 233, 233);")
 
           grid.addWidget(self.date_l, w,0)
           grid.addWidget(self.date_e, w,1)
@@ -134,10 +137,13 @@ class MainForm(QWidget):
           self.ojd_l=QLabel("OJD:")
           self.ojd_e=QLineEdit("--")
           self.ojd_e.setReadOnly(True)
+          self.ojd_e.setStyleSheet("background-color: rgb(233, 233, 233);")
 
           self.sid_l=QLabel("SID:")
           self.sid_e=QLineEdit("--:--:--")
           self.sid_e.setReadOnly(True)
+          self.sid_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+
 
           grid.addWidget(self.ojd_l, w,0)
           grid.addWidget(self.ojd_e, w,1)
@@ -248,48 +254,6 @@ class SkyView(QWidget):
    def update(self):
        self.axes.clear()
 
-       '''
-       if len(self.parent.planGui.plan)>0:
-          for i,tmp in enumerate(self.parent.planGui.plan):
-
-              planAz = float(arcDeg2float(str(self.parent.planGui.plan[i]["az"])))
-              planAlt = float(arcDeg2float(str(self.parent.planGui.plan[i]["alt"])))
-              planAz=2*math.pi*numpy.array(planAz)/360.
-              planAlt=90.-numpy.array(planAlt)
-
-              if i<self.parent.planGui.next_i:
-                 self.axes.plot(planAz,planAlt,"k*",alpha=0.3)
-              elif i<self.parent.planGui.next_i+1:
-                 self.axes.plot(planAz,planAlt,"b*",alpha=1.0)
-              elif i<self.parent.planGui.next_i+2:
-                 self.axes.plot(planAz,planAlt,"b*",alpha=0.5)
-              elif i<self.parent.planGui.next_i+3:
-                 self.axes.plot(planAz,planAlt,"b*",alpha=0.3)
-              else:
-                 self.axes.plot(planAz,planAlt,"b*",alpha=0.2)
-
-       try:
-          self.tel_az=2*math.pi*float(self.parent.mnt_az)/360.
-          self.tel_alt=90.-float(self.parent.mnt_alt)
-          self.axes.plot(self.tel_az,self.tel_alt,"or",alpha=1.0)
-       except: pass
-
-       try:
-          nextAlt = float(self.parent.mnt.nextAlt_e.text())
-          nextAz =  float(self.parent.mnt.nextAz_e.text())
-          nextAz=2*math.pi*float(nextAz)/360.
-          nextAlt=90.-float(nextAlt)
-          self.axes.plot(nextAz,nextAlt,"gx",alpha=1.0)
-       except: pass
-
-       '''
-       #if len(self.a)>0:
-       #   for h,a,s,al in zip(self.h,self.a,self.symbol,self.alpha):
-       #       a=2*math.pi*a/360.
-       #       self.axes.plot(a, h,str(s),alpha=al)
-       #       self.axes.bar(230,5, width=0.2*math.pi,bottom=90,color='g',alpha=0.05)
-
-
        self.axes.set_theta_direction(-1)
        self.axes.set_theta_zero_location('N')
        self.axes.set_ylim([0,360])
@@ -309,6 +273,9 @@ class SkyView(QWidget):
        try:
           self.txt1.remove()
           self.txt2.remove()
+          self.txt3.remove()
+          self.txt4.remove()
+          self.txt5.remove()
           for p in self.sun: p.remove()
           for p in self.moon: p.remove()
           for p in self.nextOb: p.remove()
@@ -317,12 +284,33 @@ class SkyView(QWidget):
        sunset_tmp=str(self.parent.sunset).split()[1]
        sunrise=sunrise_tmp.split(":")[0]+":"+sunrise_tmp.split(":")[1]
        sunset=sunset_tmp.split(":")[0]+":"+sunset_tmp.split(":")[1]
+
+       moonrise_tmp=str(self.parent.moonrise).split()[1]
+       moonset_tmp=str(self.parent.moonset).split()[1]
+       moonrise=moonrise_tmp.split(":")[0]+":"+moonrise_tmp.split(":")[1]
+       moonset=moonset_tmp.split(":")[0]+":"+moonset_tmp.split(":")[1]
+       moon_phase=f"{self.parent.moon_phase:.2f}"
+
        r,fi = 195, 314.7
        fi = fi * 2*3.14/360.
        self.txt1=self.axes.text(fi,r,f"Sunset: {sunset}",fontsize=9)
+
        r,fi= 183.8, 311
        fi =fi * 2*3.14/360.
        self.txt2=self.axes.text(fi,r,f"Sunrise: {sunrise}",fontsize=9)
+
+       r,fi = 175, 232
+       fi = fi * 2*3.14/360.
+       self.txt3=self.axes.text(fi,r,f"Moon: {moon_phase}",fontsize=9)
+
+       r,fi = 186.5, 228
+       fi = fi * 2*3.14/360.
+       self.txt4=self.axes.text(fi,r,f"Moonrise: {moonrise}",fontsize=9)
+
+       r,fi = 198, 224
+       fi = fi * 2*3.14/360.
+       self.txt5=self.axes.text(fi,r,f"Moonset: {moonset}",fontsize=9)
+
        self.sun=self.axes.plot(self.parent.sun_az*2*3.14/360.,90-self.parent.sun_alt,"oy",alpha=0.7)
        self.moon=self.axes.plot(self.parent.moon_az*2*3.14/360.,90-self.parent.moon_alt,"ok",alpha=0.7)
 

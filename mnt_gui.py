@@ -116,10 +116,11 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.mntConn1_l = QLabel("MOUNT")
         self.mntConn2_l = QLabel(" ")
-        self.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+        self.mntConn2_l.setText("\U0001F534")
+        self.mntConn1_l.setStyleSheet("color: rgb(150,0,0);")
         self.mntConn2_l.setMaximumWidth(25)                                        # UWAGA!!! To steruje szeroskoscia 1 kolumny!!!!!!!
 
-        self.mntStat_l = QLabel("MOUNT STATUS: ")
+        #self.mntStat_l = QLabel("MOUNT STATUS: ")
         self.mntStat_e = QLineEdit()
         self.mntStat_e.setReadOnly(True)
         self.mntStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
@@ -139,8 +140,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.mntConn2_l, w, 0)
         self.grid.addWidget(self.mntConn1_l, w, 1)
 
-        self.grid.addWidget(self.mntStat_l, w, 4)
-        self.grid.addWidget(self.mntStat_e, w, 5, 1, 1)
+        #self.grid.addWidget(self.mntStat_l, w, 4)
+        self.grid.addWidget(self.mntStat_e, w, 2, 1, 3)
 
         self.grid.addWidget(self.mntMotors_l, w, 6)
         self.grid.addWidget(self.mntMotors_c, w, 7)
@@ -241,6 +242,11 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         ###############################################
 
+        self.target_l = QLabel("TARGET: ")
+        self.target_e = QLineEdit("")
+        self.target_e.setReadOnly(True)
+        self.target_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
         self.tracking_l = QLabel("TRACKING: ")
         self.tracking_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         self.tracking_c = QCheckBox()
@@ -255,6 +261,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.guiding_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
         w = w + 1
+        self.grid.addWidget(self.target_l, w, 1)
+        self.grid.addWidget(self.target_e, w, 2, 1, 2)
         self.grid.addWidget(self.guiding_c, w, 4)
         self.grid.addWidget(self.tracking_l, w, 6)
         self.grid.addWidget(self.tracking_c, w, 7)
@@ -286,7 +294,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.domeConn1_l = QLabel("DOME")
         self.domeConn2_l = QLabel(" ")
-        self.domeConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+        self.domeConn2_l.setText("\U0001F534")
+        self.domeConn1_l.setStyleSheet("color: rgb(150,0,0);")
 
         self.domeStat_l = QLabel("DOME STATUS: ")
         self.domeStat_e = QLineEdit()
@@ -455,8 +464,9 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.comRotator1_l = QLabel(" ")
         self.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
-
         self.telRotator1_l = QLabel("ROTATOR: ")
+        self.comRotator1_l.setText("\U0001F534")
+        self.telRotator1_l.setStyleSheet("color: rgb(150,0,0);")
         self.telRotator1_l.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         self.telRotator1_e = QLineEdit()
         self.telRotator1_e.setReadOnly(True)
@@ -476,9 +486,9 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         ##########################################################
 
         self.comFilter_l = QLabel(" ")
-        self.comFilter_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
-
         self.telFilter_l = QLabel("FILTER: ")
+        self.comFilter_l.setText("\U0001F534")
+        self.telFilter_l.setStyleSheet("color: rgb(150,0,0);")
         self.telFilter_e = QLineEdit()
         self.telFilter_e.setReadOnly(True)
         self.telFilter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
@@ -496,7 +506,10 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         ######################################################
 
+        self.focusConn_l = QLabel(" ")
+        self.focusConn_l.setText("\U0001F534")
         self.telFocus_l = QLabel("FOCUS: ")
+        self.telFocus_l.setStyleSheet("color: rgb(150,0,0);")
         self.telFocus_e = QLineEdit()
         self.telFocus_e.setReadOnly(True)
         self.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
@@ -516,7 +529,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telAutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
         w = w + 1
-        self.grid.addWidget(self.telFocus_l, w, 0,1,2)
+        self.grid.addWidget(self.focusConn_l, w, 0)
+        self.grid.addWidget(self.telFocus_l, w, 1)
         self.grid.addWidget(self.telFocus_e, w, 2)
         self.grid.addWidget(self.setFocus_s, w, 3)
         self.grid.addWidget(self.setFocus_p, w, 4)

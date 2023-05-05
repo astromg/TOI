@@ -21,7 +21,12 @@ def UT_SID(obs):
     moon.compute(site)
     moon_alt=float(str(moon.alt).split(":")[0])+float(str(moon.alt).split(":")[1])/60.
     moon_az=float(str(moon.az).split(":")[0])+float(str(moon.az).split(":")[1])/60.
-    return sid, jd, site.date, sunrise, sunset,sun_alt,sun_az,moon_alt,moon_az
+
+    moonrise=site.next_rising(ephem.Moon())
+    moonset=site.next_setting(ephem.Moon())
+    moon_phase = moon.moon_phase
+
+    return sid, jd, site.date, sunrise, sunset,sun_alt,sun_az,moon_alt,moon_az,moonrise,moonset,moon_phase
 
 def RaDecEpoch(obs,ra,dec,epoch):
     site=ephem.Observer()
