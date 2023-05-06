@@ -42,7 +42,7 @@ class MainForm(QWidget):
           self.setStyleSheet("font-size: 11pt;")
           
           self.mkUI()
-          self.update_table()
+          #self.update_table()
           self.obs_t.itemSelectionChanged.connect(self.pocisniecie_tab)
           self.exit_p.clicked.connect(lambda: self.parent.app.closeAllWindows())
 
@@ -55,28 +55,84 @@ class MainForm(QWidget):
 
 
       def update_table(self):
+          #print(self.parent.tel["wk06"].state["dome"])
 
-          for i,txt in enumerate(self.parent.obs_tel_in_table):
-              txt=self.parent.obs_tel_in_table[i]
-              item=QTableWidgetItem(txt)
+          translate_tel_names = {"wk06":"WK-06","zb08":"ZB-08","jk15":"JK-15","wg25":"WG-25","sim":"SIM"}
+
+
+          for i,tel in enumerate(self.parent.obs_tel_tic_names):
+              state = self.parent.tel[tel].state["name"]
+              txt = translate_tel_names[state]
+              item = QTableWidgetItem(txt)
               item.setTextAlignment(QtCore.Qt.AlignHCenter)
               item.setTextAlignment(QtCore.Qt.AlignVCenter)
               self.obs_t.setItem(i,0,item)
-              txt=self.parent.obs_dome_in_table[i]
-              item=QTableWidgetItem(txt)
+
+              item = QTableWidgetItem(" -- ")
+              if "dome" in self.parent.tel[tel].state.keys():
+                  state = self.parent.tel[tel].state["dome"]
+                  if state==0:
+                      item = QTableWidgetItem("OPEN")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(0, 150, 0)))
+                  elif state==1:
+                      item = QTableWidgetItem("CLOSED")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+                  elif state==2:
+                      item = QTableWidgetItem("OPENING")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(255, 160, 0)))
+                  elif state==3:
+                      item = QTableWidgetItem("CLOSING")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(255, 160, 0)))
+                  else:
+                      item = QTableWidgetItem("ERROR")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(150, 0, 0)))
               item.setTextAlignment(QtCore.Qt.AlignHCenter)
               item.setTextAlignment(QtCore.Qt.AlignVCenter)
               self.obs_t.setItem(i,1,item)
-              txt=self.parent.obs_mount_in_table[i]
-              item=QTableWidgetItem(txt)
+
+              item = QTableWidgetItem(" -- ")
+              if "mount" in self.parent.tel[tel].state.keys():
+                  state = self.parent.tel[tel].state["mount"]
+                  if state == "Motors off":
+                      item = QTableWidgetItem("Motors OFF")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+                  elif state == "IDLE":
+                      item = QTableWidgetItem("IDLE")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+                  elif state=="Tracking":
+                      item = QTableWidgetItem("Tracking")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(0, 150, 0)))
+                  elif state=="Slewing":
+                      item = QTableWidgetItem("Slewing")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(255, 160, 0)))
+                  else:
+                      item = QTableWidgetItem("unknown")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
               item.setTextAlignment(QtCore.Qt.AlignHCenter)
               item.setTextAlignment(QtCore.Qt.AlignVCenter)
               self.obs_t.setItem(i,2,item)
-              txt=self.parent.obs_inst_in_table[i]
-              item=QTableWidgetItem(txt)
+
+              item = QTableWidgetItem(" -- ")
+              if "instrument" in self.parent.tel[tel].state.keys():
+                  state = self.parent.tel[tel].state["instrument"]
+                  if state == "warm":
+                      item = QTableWidgetItem("warm")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(150, 0, 0)))
+                  elif state == "IDLE":
+                      item = QTableWidgetItem("IDLE")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+                  elif "exposing" in state:
+                      item = QTableWidgetItem(state)
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(0, 150, 0)))
+                  else:
+                      item = QTableWidgetItem("unknown")
+                      item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
               item.setTextAlignment(QtCore.Qt.AlignHCenter)
               item.setTextAlignment(QtCore.Qt.AlignVCenter)
               self.obs_t.setItem(i,3,item)
+
+          for i,txt in enumerate(self.parent.obs_tel_in_table):
+
               txt=self.parent.obs_program_in_table[i]
               item=QTableWidgetItem(txt)
               item.setTextAlignment(QtCore.Qt.AlignHCenter)
