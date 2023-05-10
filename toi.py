@@ -88,13 +88,15 @@ class TelBasicState():
 
 
         self.parent.add_background_task(self.dome.asubscribe_shutterstatus(self.dome_update))
-        self.parent.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
-        self.parent.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
-        self.parent.add_background_task(self.mount.asubscribe_motorstatus(self.mount_update))
+        self.parent.add_background_task(self.dome.asubscribe_slewing(self.dome_update))
 
-        self.parent.add_background_task(self.ccd.asubscribe_ccdtemperature(self.instrument_update))
-        self.parent.add_background_task(self.ccd.asubscribe_camerastate(self.instrument_update))
-        self.parent.add_background_task(self.fw.asubscribe_position(self.instrument_update))
+        #self.parent.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
+        #self.parent.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
+        #self.parent.add_background_task(self.mount.asubscribe_motorstatus(self.mount_update))
+
+        #self.parent.add_background_task(self.ccd.asubscribe_ccdtemperature(self.instrument_update))
+        #self.parent.add_background_task(self.ccd.asubscribe_camerastate(self.instrument_update))
+        #self.parent.add_background_task(self.fw.asubscribe_position(self.instrument_update))
 
         #self.add_background_task(self.user.asubscribe_current_user(self.user_update))
         #self.add_background_task(self.user.asubscribe_is_access(self.user_update))
@@ -127,7 +129,32 @@ class TelBasicState():
 
 
     def dome_update(self,tmp):
-        self.state["dome"]=self.dome.shutterstatus
+        state="unknown"
+        rgb = (0, 0, 0)
+        shutter=int(self.dome.shutterstatus)
+        moving=bool(self.dome.slewing)
+
+        if moving:
+            state = "MOVING"
+            rgb = (255, 160, 0)
+        elif shutter==0:
+            state="OPEN"
+            rgb = (0, 150, 0)
+        elif shutter==1:
+            state = "CLOSED"
+            rgb = (0, 0, 0)
+        elif shutter==2:
+            state = "OPENING"
+            rgb = (255, 160, 0)
+        elif shutter==3:
+            state = "CLOSING"
+            rgb = (255, 160, 0)
+        else:
+            state = "ERROR"
+            rgb = (150, 0, 0)
+
+        self.state["dome"]=state
+        self.state["dome_rgb"]=rgb
         self.parent.obsGui.main_form.update_table()
 
     def mount_update(self,tmp):
@@ -135,34 +162,61 @@ class TelBasicState():
         tracking=bool(self.mount.tracking)
         motors=self.mount.motorstatus
         state="--"
-        if motors=="false": state="Motors off"
-        else: state="IDLE"
-        if tracking: state="Tracking"
-        if slewing: state="Slewing"
+        if motors=="false":
+            state="MOTORS OFF"
+            rgb = (0, 0, 0)
+        elif slewing:
+            state="SLEWING"
+            rgb = (255, 160, 0)
+        elif tracking:
+            state="TRACKING"
+            rgb = (0, 150, 0)
+        else:
+            state="IDLE"
+            rgb = (0, 0, 0)
         self.state["mount"]=state
+        self.state["mount_rgb"]=rgb
+
 
     def instrument_update(self,tmp):
         state = "--"
-        fw = ['u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', 'empty1', 'empty2']
+        if  self.state["name"]=="zb08":
+            fw = ['u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', 'empty1', 'empty2']
+        else: fw = ['x', 'x', 'x', 'x', 'x', 'q', 'q', 'q', 'q', 'q']
 
         pos = int(self.fw.position)
         filtr=fw[pos]
-
         temp = float(self.ccd.ccdtemperature)
         st = self.ccd.camerastate
-        if temp > CCD_MAX_TEMP: state="warm"
-        elif st==0: state="IDLE"
+        if st==0 and temp > CCD_MAX_TEMP:
+            state="WARM"
+            rgb=(0, 0, 0)
+        elif st==0:
+            state="IDLE"
+            rgb=(0, 0, 0)
+        elif st==1:
+            state="WAITING"
+            rgb=(0, 0, 0)
         elif st==2:
-            state="exposing " +filtr
+            state="EXP " +filtr
+            rgb=(0, 150, 0)
+        elif st==3:
+            state="READING"
+            rgb=(0, 150, 0)
+        elif st==4:
+            state="DOWNLOADING"
+            rgb=(0, 150, 0)
+        else:
+            state="ERROR"
+            rgb=(150,0,0)
         self.state["instrument"]=state
+        self.state["instrument_rgb"]=rgb
 
-        #  'cameraidle': 0,
-        #  'camerawaiting': 1,
-        #  'cameraexposing': 2,
-        #  'camerareading': 3,
-        #  'cameradownload': 4,
-        #  'cameraerror': 5,
-
+    def program_update(self,tmp):
+        state = "--"
+        rgb=(0,0,0)
+        self.state["program"]=state
+        self.state["program_rgb"]=rgb
 
 class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     APP_NAME = "TOI app"
@@ -304,7 +358,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.tel["wk06"]=TelBasicState(self,"wk06")
         self.tel["zb08"]=TelBasicState(self,"zb08")
         self.tel["jk15"]=TelBasicState(self,"jk15")
-        self.tel["wg25"]=TelBasicState(self,"wg25")
+        #self.tel["wg25"]=TelBasicState(self,"wg25")
         self.tel["sim"]=TelBasicState(self,"sim")
 
         self.run_background_tasks()
