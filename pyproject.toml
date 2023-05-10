@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "toi"
-version = "0.1.0"
+version = "0.1.1"
 description = "Telescope Operator Interface"
 authors = ["Marek Górski <you@example.com>"]
 readme = "README.md"

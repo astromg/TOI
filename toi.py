@@ -217,8 +217,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.acces=True
 
         # obs model
-        self.obs_tel_tic_names=["wk06","zb08","jk15","wg25","sim"]
-        self.obs_tel_in_table=["WK06","ZB08","JK15","WG25","SIM"]
+        # self.obs_tel_tic_names=["wk06","zb08","jk15","wg25","sim"]
+        # self.obs_tel_in_table=["WK06","ZB08","JK15","WG25","SIM"]
+        self.obs_tel_tic_names=["wk06","zb08","jk15","sim"]  # wg25 is not working
+        self.obs_tel_in_table=["WK06","ZB08","JK15","SIM"]
         self.obs_dome_in_table=["Moving","Open","Close","Parked","--"]
         self.obs_mount_in_table=["Parked","Slewing","Tracking","Guiding","Parked"]
         self.obs_inst_in_table=["Idle","--","Reading","Exposing V","Exposing K"]
@@ -228,7 +230,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ut=str(ephem.now())
         self.sid="00:00:00"
         self.jd="00.00"
-        self.active_tel_i=4
+        self.active_tel_i=3
         self.active_tel="SIM"
 
         # ccd
@@ -304,7 +306,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.tel["wk06"]=TelBasicState(self,"wk06")
         self.tel["zb08"]=TelBasicState(self,"zb08")
         self.tel["jk15"]=TelBasicState(self,"jk15")
-        self.tel["wg25"]=TelBasicState(self,"wg25")
+        # self.tel["wg25"]=TelBasicState(self,"wg25")  # wg25 is not working (mikolaj)
         self.tel["sim"]=TelBasicState(self,"sim")
 
         self.run_background_tasks()
