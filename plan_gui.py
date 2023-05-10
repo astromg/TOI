@@ -319,7 +319,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         # =================== OKNO GLOWNE ====================================
       def updateUI(self):
 
-          local_dic={"WK06":'WK06 Plan Manager',"ZB08":'ZB08 Plan Manager',"JK15":'JK15 Plan Manager',"WG25":'WG25 Plan Manager',"SIM":'SIM Plan Manager'}
+          # local_dic={"WK06":'WK06 Plan Manager',"ZB08":'ZB08 Plan Manager',"JK15":'JK15 Plan Manager',"WG25":'WG25 Plan Manager',"SIM":'SIM Plan Manager'}
+          local_dic={"WK06":'WK06 Plan Manager',"ZB08":'ZB08 Plan Manager',"JK15":'JK15 Plan Manager',"SIM":'SIM Plan Manager'}
           try: txt = local_dic[self.parent.active_tel]
           except: txt = "unknown Plan Manager"
           self.setWindowTitle(txt)

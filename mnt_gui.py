@@ -102,7 +102,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.setWindowTitle('')
         self.setStyleSheet("font-size: 11pt;")
 
-        local_dic={"WK06":'WK06 Mount Manual Controll',"ZB08":'ZB08 Mount Manual Controll',"JK15":'JK15 Mount Manual Controll',"WG25":'WG25 Mount Manual Controll',"SIM":'SIM Mount Manual Controll'}
+        # local_dic={"WK06":'WK06 Mount Manual Controll',"ZB08":'ZB08 Mount Manual Controll',"JK15":'JK15 Mount Manual Controll',"WG25":'WG25 Mount Manual Controll',"SIM":'SIM Mount Manual Controll'}
+        local_dic={"WK06":'WK06 Mount Manual Controll',"ZB08":'ZB08 Mount Manual Controll',"JK15":'JK15 Mount Manual Controll',"SIM":'SIM Mount Manual Controll'}
         try: txt = local_dic[self.parent.active_tel]
         except: txt = "Unknown Mount Manual Controll"
         self.setWindowTitle(txt)
