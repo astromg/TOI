@@ -102,7 +102,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.setWindowTitle('')
         self.setStyleSheet("font-size: 11pt;")
 
-        local_dic={"WK06":'WK06 Mount Manual Controll',"ZB08":'ZB08 Mount Manual Controll',"JK15":'JK15 Mount Manual Controll',"WG25":'WG25 Mount Manual Controll',"SIM":'SIM Mount Manual Controll'}
+        # local_dic={"WK06":'WK06 Mount Manual Controll',"ZB08":'ZB08 Mount Manual Controll',"JK15":'JK15 Mount Manual Controll',"WG25":'WG25 Mount Manual Controll',"SIM":'SIM Mount Manual Controll'}
+        local_dic={"WK06":'WK06 Mount Manual Controll',"ZB08":'ZB08 Mount Manual Controll',"JK15":'JK15 Mount Manual Controll',"SIM":'SIM Mount Manual Controll'}
         try: txt = local_dic[self.parent.active_tel]
         except: txt = "Unknown Mount Manual Controll"
         self.setWindowTitle(txt)
@@ -124,7 +125,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntStat_e = QLineEdit()
         self.mntStat_e.setReadOnly(True)
         self.mntStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.mntStat_e.setText("(TODO)")
+        self.mntStat_e.setText("--")
 
         self.mntMotors_l = QLabel("MOTORS: ")
         self.mntMotors_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
@@ -342,7 +343,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.fans_e = QLineEdit()
         self.fans_e.setReadOnly(True)
         self.fans_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.fans_e.setText("(TODO)")
+        self.fans_e.setText("--")
 
         self.fans_c = QCheckBox()
         self.fans_c.setChecked(False)
@@ -408,7 +409,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.flatLights_e = QLineEdit()
         self.flatLights_e.setReadOnly(True)
         self.flatLights_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.flatLights_e.setText("(TODO)")
+        self.flatLights_e.setText("--")
         self.flatLights_c.setChecked(False)
         self.flatLights_c.setLayoutDirection(Qt.LeftToRight)
         self.flatLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnYellow.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
