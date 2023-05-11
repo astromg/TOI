@@ -257,7 +257,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.parent.obsGui.main_form.skyView.updateRadar()
 
       def loadPlan(self):
-          self.fileName=str(QFileDialog.getOpenFileName(self,"Open file",".")[0])
+          # With paren=widget windows had blocking itelves on aux
+          self.fileName=str(QFileDialog.getOpenFileName(None,"Open file",".")[0])
         
           self.plan=[]
           with open(self.fileName, "r") as plik:
