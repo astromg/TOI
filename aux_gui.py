@@ -308,9 +308,10 @@ class FitsView(QWidget):
 
         im = self.image = self.axes.imshow(image, vmin=vmin, vmax=vmax)
 
-        if self.colorbar is not None:
-            self.colorbar.remove()
-        self.colorbar = self.fig.colorbar(im, ax=self.axes)
+        # if self.colorbar is None:
+        #     self.colorbar = self.fig.colorbar(im, ax=self.axes)
+        # else:
+        #     self.colorbar.upate_normal(im)
         # self.violin_axes.clear()
         # self.violin_axes.violinplot(image.flat ,showmeans=False,showmedians=True,showextrema=False)
 
