@@ -57,18 +57,23 @@ class AuxGui(QWidget):
         self.focus_tab = FocusGui(self.parent)
         self.tabWidget.addTab(self.focus_tab, "Focus")
 
-        self.guider_tab = GuiderGui(self.parent)
-        self.tabWidget.addTab(self.guider_tab, "Guider")
+        # Sorry I'm commenting it out temporarly
+        # Because weather is generating errors constantly
+        # We took over your develomnet branch, but we can switch to mster
+        # when you synchronize.... (mikolaj)
 
-        self.flat_tab = FlatGui(self.parent)
-        self.tabWidget.addTab(self.flat_tab, "Flats")
+        # self.guider_tab = GuiderGui(self.parent)
+        # self.tabWidget.addTab(self.guider_tab, "Guider")
 
-        self.weather_tab = WeatherGui(self.parent)
-        self.tabWidget.addTab(self.weather_tab, "Weather")
-        self.weather_tab.update()
+        # self.flat_tab = FlatGui(self.parent)
+        # self.tabWidget.addTab(self.flat_tab, "Flats")
 
-        self.cctv_tab = CctvGui(self.parent)
-        self.tabWidget.addTab(self.cctv_tab, "CCTV")
+        # self.weather_tab = WeatherGui(self.parent)
+        # self.tabWidget.addTab(self.weather_tab, "Weather")
+        # self.weather_tab.update()
+        #
+        # self.cctv_tab = CctvGui(self.parent)
+        # self.tabWidget.addTab(self.cctv_tab, "CCTV")
 
         self.fits_tab = FitsGui(self.parent)
         self.tabWidget.addTab(self.fits_tab, "Fits")
