@@ -264,7 +264,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           print(os.environ)
 
           fileName=str(QFileDialog.getOpenFileName(None,"Open file")[0])
-          print(" =============================== ",self.fileName)
+          print(" =============================== ",fileName)
 
           self.plan=[]
           with open(fileName, "r") as plik:
