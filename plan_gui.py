@@ -263,11 +263,11 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           print("============== DUPA1 ================")
           print(os.environ)
 
-          self.fileName=str(QFileDialog.getOpenFileName(None,"Open file")[0])
+          fileName=str(QFileDialog.getOpenFileName(None,"Open file")[0])
           print(" =============================== ",self.fileName)
 
           self.plan=[]
-          with open(self.fileName, "r") as plik:
+          with open(fileName, "r") as plik:
              # plan["name","block","type","ra","dec"]
              for line in plik:
                 if len(line.strip())>0:
