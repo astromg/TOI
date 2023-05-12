@@ -260,7 +260,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
       def loadPlan(self):
           # With paren=widget windows had blocking itelves on aux
 
-          print("============== DUPA1 ================")
+          print("============== DUPA 2 ================")
           print(os.environ)
 
           #self.File_dialog = QFileDialog
