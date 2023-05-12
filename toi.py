@@ -427,6 +427,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #
         self.add_background_task(self.ccd.asubscribe_sensorname(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_update))
+        self.add_background_task(self.ccd.asubscribe_setccdtemperature(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_binx(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_biny(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_camerastate(self.ccd_update))
@@ -1161,7 +1162,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # CCD TEMP
         ccd_temp=self.ccd_temp
-        ccd_temp_set=await self.ccd.aget_setccdtemperature()
+        ccd_temp_set = self.ccd.setccdtemperature
 
 
         if ccd_temp:
