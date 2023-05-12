@@ -263,7 +263,10 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           print("============== DUPA1 ================")
           print(os.environ)
 
-          fileName=str(QFileDialog.getOpenFileName(None,"Open file")[0])
+          self.Filr_dialog = QFileDialog
+          self.Filr_dialog.DontUseNativeDialog
+          fileName = self.Filr_dialog.getOpenFileName(None,"Open file")[0]
+          #fileName=str(QFileDialog.getOpenFileName(None,"Open file")[0])
           print(" =============================== ",fileName)
 
           self.plan=[]
