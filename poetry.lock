@@ -1200,7 +1200,7 @@ tests = ["check-manifest", "coverage", "defusedxml", "markdown2", "olefile", "pa
 
 [[package]]
 name = "pyaraucaria"
-version = "2.6.23"
+version = "2.6.25"
 description = ""
 category = "main"
 optional = false
@@ -1221,7 +1221,7 @@ yaml = ["yaml"]
 type = "git"
 url = "https://github.com/araucaria-project/pyaraucaria.git"
 reference = "HEAD"
-resolved_reference = "f09bba20e2b37b5599f4d55b7c323861cf7045dd"
+resolved_reference = "3124d48405bdb7083c8284783aaff21d159e2eef"
 
 [[package]]
 name = "pycparser"

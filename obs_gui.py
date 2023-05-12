@@ -59,7 +59,6 @@ class MainForm(QWidget):
 
 
     def update_table(self):
-        # print(self.parent.tel["wk06"].state["dome"])
 
         #TODO: I would get rid of this, first - it's hardcoded, second - it introduces another notation for
         # telescopes names (mikolaj)

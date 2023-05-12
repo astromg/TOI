@@ -6,6 +6,7 @@
 #----------------
 
 
+import os
 import math
 import numpy
 import ephem
@@ -258,8 +259,13 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
       def loadPlan(self):
           # With paren=widget windows had blocking itelves on aux
-          self.fileName=str(QFileDialog.getOpenFileName(None,"Open file",".")[0])
-        
+
+          print("============== DUPA1 ================")
+          print(os.environ)
+
+          self.fileName=str(QFileDialog.getOpenFileName(None,"Open file")[0])
+          print(" =============================== ",self.fileName)
+
           self.plan=[]
           with open(self.fileName, "r") as plik:
              # plan["name","block","type","ra","dec"]

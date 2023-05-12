@@ -82,6 +82,8 @@ class TelBasicState():
         self.parent.add_background_task(self.dome.asubscribe_shutterstatus(self.dome_update))
         self.parent.add_background_task(self.dome.asubscribe_slewing(self.dome_update))
 
+        #self.parent.add_background_task(self.dome.asubscribe_slewing(self.test2))
+
         self.parent.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
         self.parent.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
         self.parent.add_background_task(self.mount.asubscribe_motorstatus(self.mount_update))
@@ -94,36 +96,48 @@ class TelBasicState():
         self.state["name"]=tel
 
 
-    def dome_update(self,tmp):
+    def test1(self,tmp):
+        print("============= TEST 1! ================")
+
+
+    def test2(self,tmp):
+        print("============= TEST 2! ================!")
+
+
+    async def dome_update(self,tmp):
         state="unknown"
         rgb = (0, 0, 0)
         shutter=int(self.dome.shutterstatus)
         moving=bool(self.dome.slewing)
 
-        if moving:
-            state = "MOVING"
-            rgb = (255, 160, 0)
-        elif shutter==0:
-            state="OPEN"
-            rgb = (0, 150, 0)
-        elif shutter==1:
-            state = "CLOSED"
-            rgb = (0, 0, 0)
-        elif shutter==2:
-            state = "OPENING"
-            rgb = (255, 160, 0)
-        elif shutter==3:
-            state = "CLOSING"
-            rgb = (255, 160, 0)
+        if shutter:
+            if moving:
+                state = "MOVING"
+                rgb = (255, 160, 0)
+            elif shutter==0:
+                state="OPEN"
+                rgb = (0, 150, 0)
+            elif shutter==1:
+                state = "CLOSED"
+                rgb = (0, 0, 0)
+            elif shutter==2:
+                state = "OPENING"
+                rgb = (255, 160, 0)
+            elif shutter==3:
+                state = "CLOSING"
+                rgb = (255, 160, 0)
+            else:
+                state = "ERROR"
+                rgb = (150, 0, 0)
         else:
-            state = "ERROR"
+            state = "SHUTTER STATUS ERROR"
             rgb = (150, 0, 0)
 
         self.state["dome"]=state
         self.state["dome_rgb"]=rgb
         self.parent.obsGui.main_form.update_table()
 
-    def mount_update(self,tmp):
+    async def mount_update(self,tmp):
         slewing=bool(self.mount.slewing)
         tracking=bool(self.mount.tracking)
         motors=self.mount.motorstatus
@@ -145,48 +159,57 @@ class TelBasicState():
         self.parent.obsGui.main_form.update_table()
         #print(f"DUPA: {self.state['name']} {motors} {slewing} {tracking} {state}")
 
-    def instrument_update(self,tmp):
+    async def instrument_update(self,tmp):
         state = "--"
+        rgb=(0,0,0)
         if  self.state["name"]=="zb08":
             fw = ['u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', 'empty1', 'empty2']
         else: fw = ['?', '?', '?', '?', '?', '?', '?', '?', '?', '?']
-        pos = int(self.fw.position)
-        if pos>len(fw):
-            filtr=fw[pos]
+        pos = self.fw.position
+        if pos:
+            pos=int(pos)
+            if pos<len(fw):
+                filtr=fw[pos]
+            else: filtr="??"
         else: filtr="??"
         try:
             temp = float(self.ccd.ccdtemperature)
         except ValueError: temp=None
         st = self.ccd.camerastate
 
-        if st==0 and temp > CCD_MAX_TEMP:
-            state="WARM"
-            rgb=(0, 0, 0)
-        elif st==0:
-            state="IDLE"
-            rgb=(0, 0, 0)
-        elif st==1:
-            state="WAITING"
-            rgb=(0, 0, 0)
-        elif st==2:
-            state="EXP " +filtr
-            rgb=(0, 150, 0)
-        elif st==3:
-            state="READING"
-            rgb=(0, 150, 0)
-        elif st==4:
-            state="DOWNLOADING"
-            rgb=(0, 150, 0)
+        if st != None:
+            if st==0 and temp > CCD_MAX_TEMP:
+                state="WARM"
+                rgb=(0, 0, 0)
+            elif st==0:
+                state="IDLE"
+                rgb=(0, 0, 0)
+            elif st==1:
+                state="WAITING"
+                rgb=(0, 0, 0)
+            elif st==2:
+                state="EXP " +filtr
+                rgb=(0, 150, 0)
+            elif st==3:
+                state="READING"
+                rgb=(0, 150, 0)
+            elif st==4:
+                state="DOWNLOADING"
+                rgb=(0, 150, 0)
+            else:
+                state="ERROR"
+                rgb=(150,0,0)
         else:
-            state="ERROR"
-            rgb=(150,0,0)
+                state="CAMERA STATUS ERROR"
+                rgb=(150,0,0)
+
         self.state["instrument"]=state
         self.state["instrument_rgb"]=rgb
         self.parent.obsGui.main_form.update_table()
 
         #print(f"DUPA: {self.state['name']} {pos} {filtr} {st} {temp} {state}")
 
-    def program_update(self,tmp):
+    async def program_update(self,tmp):
         state = "--"
         rgb=(0,0,0)
         self.state["program"]=state
@@ -333,7 +356,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # self.tel["wg25"]=TelBasicState(self,"wg25")  # wg25 is not working (mikolaj)
         self.tel["sim"]=TelBasicState(self,"sim")
 
-        self.run_background_tasks()
+        self.obsGui.main_form.update_table()
 
 
 
@@ -346,8 +369,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         txt=f"{tel} selected"
         self.msg(txt,"yellow")
 
-        await self.stop_background_tasks()
-
+        #await self.stop_background_tasks()
         self.user = self.observatory_model.get_telescope(tel).get_access_grantor()
         self.dome = self.observatory_model.get_telescope(tel).get_dome()
         self.mount = self.observatory_model.get_telescope(tel).get_mount()
@@ -371,7 +393,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
         self.add_background_task(self.user.asubscribe_is_access(self.user_update))
 
-        self.add_background_task(self.dome.asubscribe_connected(self.domeCon_update))
+        #self.add_background_task(self.dome.asubscribe_connected(self.domeCon_update))
         self.add_background_task(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update))
         self.add_background_task(self.dome.asubscribe_az(self.domeAZ_update))
         self.add_background_task(self.dome.asubscribe_slewing(self.domeStatus_update))
@@ -379,8 +401,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.focus.asubscribe_fansstatus(self.domeFans_update))
 
 
+        #await self.dome.asubscribe_slewing(self.test4)
 
-        self.add_background_task(self.mount.asubscribe_connected(self.mountCon_update))
+
+        #self.add_background_task(self.mount.asubscribe_connected(self.mountCon_update))
         self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
         self.add_background_task(self.mount.asubscribe_dec(self.radec_update))
         self.add_background_task(self.mount.asubscribe_az(self.radec_update))
@@ -388,19 +412,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
         self.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
         self.add_background_task(self.mount.asubscribe_motorstatus(self.mountMotors_update))
-
+        #
         self.add_background_task(self.cover.asubscribe_coverstate(self.covers_update))
-
-        self.add_background_task(self.fw.asubscribe_connected(self.filterCon_update))
+        #
+        #self.add_background_task(self.fw.asubscribe_connected(self.filterCon_update))
         self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
         self.add_background_task(self.fw.asubscribe_position(self.filter_update))
-
+        #
         self.add_background_task(self.focus.asubscribe_position(self.focus_update))
         self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
-
-        self.add_background_task(self.rotator.asubscribe_connected(self.rotatorCon_update))
+        #
+        #self.add_background_task(self.rotator.asubscribe_connected(self.rotatorCon_update))
         self.add_background_task(self.rotator.asubscribe_position(self.rotator_update))
-
+        #
         self.add_background_task(self.ccd.asubscribe_sensorname(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_binx(self.ccd_update))
@@ -410,10 +434,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.ccd.asubscribe_coolerpower(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_gain(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_offset(self.ccd_update))
-        #self.add_background_task(self.ccd.asubscribe_percentcompleted(self.ccd_update))
-        #self.add_background_task(self.ccd.asubscribe_readoutmodes(self.ccd_update))
+        ##self.add_background_task(self.ccd.asubscribe_percentcompleted(self.ccd_update))
+        self.add_background_task(self.ccd.asubscribe_readoutmodes(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_readoutmode(self.ccd_update))
-
         self.add_background_task(self.ccd.asubscribe_imageready(self.ccd_imageready))
 
         await self.run_background_tasks()
@@ -448,6 +471,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     # ################### METODY POD SUBSKRYPCJE ##################
+
+    def test3(self,tmp):
+        print("========== TEST 3 ==========================")
+
+    def test4(self,tmp):
+        print("========== TEST 4 ==========================")
 
     @qs.asyncSlot()
     async def test(self):
@@ -503,7 +532,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #quest="http://192.168.7.110:11111/api/v1/rotator/0/position"
         #quest="http://192.168.7.110:11111/api/v1/telescope/0/utcdate"
         #quest="http://192.168.7.110:11111/api/v1/dome/0/abortslew"
-        #quest="http://192.168.7.110:11111/api/v1/camera/0/sensorname"
+        quest="http://192.168.7.110:11111/api/v1/camera/0/camerastate"
         #quest="http://192.168.7.110:11111/api/v1/camera/0/setccdtemperature"
 
 
@@ -516,7 +545,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #r=requests.put(quest,data=data)
 
         r=r.json()
-        print(f"Dupa {r}")
+        print(f"ALPACA: {quest}\n {r}\n")
 
 
     async def TOItimer10(self):
@@ -528,7 +557,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if self.tic_conn == True:
 
-                tel_url = "http://192.168.7.110:11111/api/v1/"
+                if self.active_tel=="ZB08":
+                    tel_url = "http://192.168.7.110:11111/api/v1/"
+                elif self.active_tel=="JK15":
+                    tel_url = "http://192.168.7.120:11111/api/v1/"
+                elif self.active_tel=="WK06":
+                    tel_url = "http://192.168.7.100:11111/api/v1/"
+                else:
+                    tel_url = "http://192.168.7.666:11111/api/v1/"
 
                 tmp=self.mount_conn
                 quest=tel_url+"telescope/0/connected"
@@ -873,7 +909,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if self.fits_exec:
             #    txt=f"Exposure finished"
             #    self.msg(txt,"black")
-                self.auxGui.tabWidget.setCurrentIndex(6)
+                self.auxGui.tabWidget.setCurrentIndex(2)
                 #SaveFits(self,image)
 
 
@@ -1119,43 +1155,58 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ccd_cooler=self.ccd.cooleron
         self.ccd_percent=self.ccd.percentcompleted
         self.ccd_coolerpower=self.ccd.coolerpower
-        self.ccd_readoutmode=await self.ccd.aget_readoutmode()
+        #self.ccd_readoutmode=self.ccd.aget_readoutmode
         #self.ccd_readoutmodes=self.ccd.readoutmodes
 
 
         # CCD TEMP
         ccd_temp=self.ccd_temp
         ccd_temp_set=await self.ccd.aget_setccdtemperature()
-        self.instGui.ccd_tab.inst_ccdTemp_e.setText(f"{ccd_temp:.1f} / {ccd_temp_set}")
-        if float(ccd_temp)>CCD_MAX_TEMP:
-            self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(204,0,0)")
-        else: self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(0,150,0)")
-        self.instGui.ccd_tab.cooler_c.setChecked(self.ccd_cooler)
+
+
+        if ccd_temp:
+            txt = f" {ccd_temp:.1f} /"
+        else:
+            txt = " -- /"
+        if ccd_temp_set:
+            txt = txt +  f" {ccd_temp_set:.1f}"
+        else:
+            txt = txt + " -- "
+
+        self.instGui.ccd_tab.inst_ccdTemp_e.setText(txt)
+        if self.ccd_temp:
+            if float(ccd_temp)>CCD_MAX_TEMP:
+                self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(204,0,0)")
+            else: self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(0,150,0)")
+        if self.ccd_cooler != None:
+            self.instGui.ccd_tab.cooler_c.setChecked(self.ccd_cooler)
 
         # BINX BINY
-
-        txt=f"{self.ccd_binx}x{self.ccd_biny}"
-        self.instGui.ccd_tab.inst_Bin_e.setText(txt)
-        self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        if self.ccd_binx and self.ccd_biny:
+            txt=f"{self.ccd_binx}x{self.ccd_biny}"
+            self.instGui.ccd_tab.inst_Bin_e.setText(txt)
+            self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
         # READ MODES
-        self.ccd_readoutmode = await self.ccd.aget_readoutmode()
-        i = int(self.ccd_readoutmode)
-        modes=["5MHz","3MHz","1MHz","0.05MHz"]
-        txt = modes[i]
-        self.ccd_readmode=txt
-        self.instGui.ccd_tab.inst_read_e.setText(txt)
-        self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.ccd_readoutmode = self.ccd.readoutmode
+        if self.ccd_readoutmode:
+            i = int(self.ccd_readoutmode)
+            modes=["5MHz","3MHz","1MHz","0.05MHz"]
+            txt = modes[i]
+            self.ccd_readmode=txt
+            self.instGui.ccd_tab.inst_read_e.setText(txt)
+            self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
         # GAIN
         #gain_list = await self.ccd.aget_gains()
         gain_list = ["1x","2x","4x"]
-        self.ccd_gain = await self.ccd.aget_gain()
-        try:
-            txt = gain_list[int(self.ccd_gain)]
-            self.instGui.ccd_tab.inst_gain_e.setText(txt)
-            self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        except: pass
+        self.ccd_gain = self.ccd.gain
+        if self.ccd_gain:
+            try:
+                txt = gain_list[int(self.ccd_gain)]
+                self.instGui.ccd_tab.inst_gain_e.setText(txt)
+                self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            except: pass
 
         #if self.ccd_state==0: txt="IDLE"
         #elif self.ccd_state==1: txt="WAITING"
@@ -1170,13 +1221,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     # ############ MOUNT ##################################
 
-#self.focus.aput_fansturnon
-
 
     @qs.asyncSlot()
     async def domeFansOnOff(self):
         if self.user.current_user["name"]==self.myself:
-           r = await self.focus.aget_fansstatus()
+           r = self.focus.fansstatus
            if r == "True": self.dome_fanStatus=True
            else: self.dome_fanStatus=False
            if self.dome_fanStatus:
@@ -1199,7 +1248,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.tmp_box.show()
 
     async def domeFans_update(self,event):
-           r = await self.focus.aget_fansstatus()
+           r = self.focus.fansstatus
            if r == "True": self.dome_fanStatus=True
            else: self.dome_fanStatus=False
 
@@ -1216,7 +1265,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def mount_motorsOnOff(self):
         if self.user.current_user["name"]==self.myself:
-           r = await self.mount.aget_motorstatus()
+           r = self.mount.motorstatus
            if r=="true":
                self.mount_motortatus = True
            else:
@@ -1241,7 +1290,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.tmp_box.show()
 
     async def mountMotors_update(self,event):
-           r = await self.mount.aget_motorstatus()
+           r = self.mount.motorstatus
            if r=="true":
                self.mount_motortatus = True
            else:
@@ -1802,9 +1851,9 @@ async def run_qt_app():
         )
 
     toi = TOI(loop=loop, client_api=api, app=app)
-    logger.info("App created")
+    #logger.info("App created")
     await toi.on_start_app()
-    logger.info("the asynchronous start of the application has been completed")
+    #logger.info("the asynchronous start of the application has been completed")
     await future
     return True
 
