@@ -257,12 +257,12 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.repaint()      
           self.parent.obsGui.main_form.skyView.updateRadar()
 
-      def loadPlan(self):
+      async def loadPlan(self):
           # With paren=widget windows had blocking itelves on aux
 
           print("============== DUPA 2 ================")
           print(os.environ)
-
+          #await self.stop_background_tasks()
           self.File_dialog = QFileDialog()
           #self.File_dialog.DontUseNativeDialog
           self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
