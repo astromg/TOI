@@ -262,12 +262,13 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           print("============== DUPA 2 ================")
           print(os.environ)
-          #self.parent.stop_background_tasks()
+          self.parent.stop_background_tasks()
           self.File_dialog = QFileDialog()
           #self.File_dialog.DontUseNativeDialog
           self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
           #self.fileName=str(QFileDialog.getOpenFileName(None,"Open file",".")[0])
           print(" =============================== ",self.fileName)
+          self.parent.run_background_tasks()
 
           self.plan=[]
           with open(self.fileName, "r") as plik:
