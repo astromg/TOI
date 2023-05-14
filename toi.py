@@ -1802,7 +1802,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         try: await self.user.aput_break_control()
         except: pass
-        try: await self.user.aput_take_control(3600)
+        try: await self.user.aput_take_control(12*3600)
         except: pass
         self.msg(txt,"yellow")
 
