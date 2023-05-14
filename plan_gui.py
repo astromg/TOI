@@ -257,7 +257,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.repaint()      
           self.parent.obsGui.main_form.skyView.updateRadar()
 
-      async def loadPlan(self):
+      def loadPlan(self):
           # With paren=widget windows had blocking itelves on aux
 
           print("============== DUPA 2 ================")
