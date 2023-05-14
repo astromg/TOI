@@ -389,7 +389,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         self.add_background_task(self.TOItimer())
-        self.add_background_task(self.TOItimer10())
+        #self.add_background_task(self.TOItimer10())
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
         self.add_background_task(self.user.asubscribe_is_access(self.user_update))
 
