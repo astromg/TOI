@@ -185,6 +185,7 @@ class TelBasicState():
         try:
             temp = float(self.ccd.ccdtemperature)
         except ValueError: temp=None
+        #st = await self.ccd.aget_camerastate()
         st = self.ccd.camerastate
 
         if st != None:
