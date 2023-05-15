@@ -107,10 +107,22 @@ class TelBasicState():
     async def dome_update(self,tmp):
         state="unknown"
         rgb = (0, 0, 0)
-        shutter=int(self.dome.shutterstatus)
-        moving=bool(self.dome.slewing)
+        shutter=self.dome.shutterstatus
+        moving=self.dome.slewing
 
-        if shutter:
+        if shutter == None and moving == None :
+            state = "SHUTTER and STATUS ERROR"
+            rgb = (150, 0, 0)
+
+        elif shutter == None:
+            state = "SHUTTER ERROR"
+            rgb = (150, 0, 0)
+
+        elif moving == None :
+            state = "DOME STATUS ERROR"
+            rgb = (150, 0, 0)
+
+        else:
             if moving:
                 state = "MOVING"
                 rgb = (255, 160, 0)
@@ -127,15 +139,13 @@ class TelBasicState():
                 state = "CLOSING"
                 rgb = (255, 160, 0)
             else:
-                state = "ERROR"
+                state = "SHUTTER ERROR"
                 rgb = (150, 0, 0)
-        else:
-            state = "SHUTTER STATUS ERROR"
-            rgb = (150, 0, 0)
 
         self.state["dome"]=state
         self.state["dome_rgb"]=rgb
         self.parent.obsGui.main_form.update_table()
+        #print(f"DOME STATUS: {self.state['name']} {shutter} {moving} {state}")
 
     async def mount_update(self,tmp):
         slewing=bool(self.mount.slewing)
