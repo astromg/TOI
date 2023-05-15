@@ -1168,7 +1168,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ccd_percent=self.ccd.percentcompleted
         self.ccd_coolerpower=self.ccd.coolerpower
         #self.ccd_readoutmode=self.ccd.aget_readoutmode
-        #self.ccd_readoutmodes=self.ccd.readoutmodes
+        self.ccd_readoutmode = self.ccd.readoutmode
+
+        print(f"GAIN: {self.ccd_gain}")
 
         # CCD TEMP
         ccd_temp=self.ccd_temp
@@ -1200,6 +1202,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # READ MODES
         self.ccd_readoutmode = self.ccd.readoutmode
+
+        print(f"RM: {self.ccd_readoutmode}" )
+
         if self.ccd_readoutmode != None:
             i = int(self.ccd_readoutmode)
             modes=["5MHz","3MHz","1MHz","0.05MHz"]
@@ -1207,6 +1212,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.ccd_readmode=txt
             self.instGui.ccd_tab.inst_read_e.setText(txt)
             self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
+
 
         # GAIN
         #gain_list = await self.ccd.aget_gains()
