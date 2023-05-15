@@ -1170,7 +1170,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #self.ccd_readoutmode=self.ccd.aget_readoutmode
         #self.ccd_readoutmodes=self.ccd.readoutmodes
 
-
         # CCD TEMP
         ccd_temp=self.ccd_temp
         ccd_temp_set = self.ccd.setccdtemperature
@@ -1201,7 +1200,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # READ MODES
         self.ccd_readoutmode = self.ccd.readoutmode
-        if self.ccd_readoutmode:
+        if self.ccd_readoutmode != None:
             i = int(self.ccd_readoutmode)
             modes=["5MHz","3MHz","1MHz","0.05MHz"]
             txt = modes[i]
@@ -1213,7 +1212,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #gain_list = await self.ccd.aget_gains()
         gain_list = ["1x","2x","4x"]
         self.ccd_gain = self.ccd.gain
-        if self.ccd_gain:
+        if self.ccd_gain != None:
             try:
                 txt = gain_list[int(self.ccd_gain)]
                 self.instGui.ccd_tab.inst_gain_e.setText(txt)
