@@ -260,15 +260,15 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
       def loadPlan(self):
           # With paren=widget windows had blocking itelves on aux
 
-          print("============== DUPA 1 ================")
-          print(os.environ)
+          #print("============== TEST 1 ================")
+          #print(os.environ)
           #self.parent.stop_background_tasks()
           self.File_dialog = QFileDialog()
-          print("============== DUPA 2 ================")
+          #print("============== TEST 2 ================")
           #self.File_dialog.DontUseNativeDialog
           self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
           #self.fileName=str(QFileDialog.getOpenFileName(None,"Open file",".")[0])
-          print(" =============================== ",self.fileName)
+          #print(" =============================== ",self.fileName)
           #self.parent.run_background_tasks()
 
           self.plan=[]

@@ -435,6 +435,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #
         #self.add_background_task(self.rotator.asubscribe_connected(self.rotatorCon_update))
         self.add_background_task(self.rotator.asubscribe_position(self.rotator_update))
+        self.add_background_task(self.rotator.asubscribe_ismoving(self.rotator_update))
+
+
         #
         self.add_background_task(self.ccd.asubscribe_sensorname(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_update))
@@ -479,16 +482,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.ccd_update(None)
 
 
-
-
-
     # ################### METODY POD SUBSKRYPCJE ##################
 
     def test3(self,tmp):
-        print("========== TEST 3 ==========================")
+        print("========== TMP TEST 3 ==========================")
 
     def test4(self,tmp):
-        print("========== TEST 4 ==========================")
+        print("========== TMP TEST 4 ==========================")
 
     @qs.asyncSlot()
     async def test(self):
@@ -1170,7 +1170,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #self.ccd_readoutmode=self.ccd.aget_readoutmode
         self.ccd_readoutmode = self.ccd.readoutmode
 
-        print(f"GAIN: {self.ccd_gain}")
+        #print(f"GAIN: {self.ccd_gain}")
 
         # CCD TEMP
         ccd_temp=self.ccd_temp
@@ -1203,7 +1203,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # READ MODES
         self.ccd_readoutmode = self.ccd.readoutmode
 
-        print(f"RM: {self.ccd_readoutmode}" )
+        #print(f"RM: {self.ccd_readoutmode}" )
 
         if self.ccd_readoutmode != None:
             i = int(self.ccd_readoutmode)
@@ -1730,12 +1730,24 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.focus_editing=True
 
     async def focus_update(self, event):
-        val = self.focus.position
-        self.focus_value=val
-        self.mntGui.telFocus_e.setText(str(val))
+        self.focus_value = self.focus.position
+        self.focus_moving = self.focus.ismoving
+
+        if self.focus_value != None:
+            self.mntGui.telFocus_e.setText(str(self.focus_value))
+            if self.focus_moving != None:
+                if self.focus_moving:
+                    self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+                else:
+                    self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        else:
+            self.mntGui.telFocus_e.setText(f"ERROR")
+            self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
+            self.msg("Focus position Error","red")
+
         if not self.focus_editing:
            self.mntGui.setFocus_s.valueChanged.disconnect(self.focusClicked)
-           self.mntGui.setFocus_s.setValue(int(val))
+           self.mntGui.setFocus_s.setValue(int(self.focus_value))
            self.mntGui.setFocus_s.valueChanged.connect(self.focusClicked)
 
 
@@ -1808,7 +1820,20 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def rotator_update(self, event):
         self.rotator_pos = self.rotator.position
-        self.mntGui.telRotator1_e.setText(f"{self.rotator_pos:.2f}")
+        self.rotator_moving = self.rotator.ismoving
+        if self.rotator_pos != None:
+            self.mntGui.telRotator1_e.setText(f"{self.rotator_pos:.2f}")
+            if self.rotator_moving != None:
+                if self.rotator_moving:
+                    self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+                else:
+                    self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        else:
+            self.mntGui.telRotator1_e.setText(f"ERROR")
+            self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
+            self.msg("Rotator position Error","red")
+
+
 
     # #### USER #########
 
