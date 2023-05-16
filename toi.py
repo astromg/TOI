@@ -399,43 +399,43 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 
-        self.add_background_task(self.TOItimer())
-        self.add_background_task(self.TOItimer10())
-        self.add_background_task(self.user.asubscribe_current_user(self.user_update))
-        self.add_background_task(self.user.asubscribe_is_access(self.user_update))
+        #self.add_background_task(self.TOItimer())
+        #self.add_background_task(self.TOItimer10())
+        #self.add_background_task(self.user.asubscribe_current_user(self.user_update))
+        #self.add_background_task(self.user.asubscribe_is_access(self.user_update))
 
-        #self.add_background_task(self.dome.asubscribe_connected(self.domeCon_update))
-        self.add_background_task(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update))
-        self.add_background_task(self.dome.asubscribe_az(self.domeAZ_update))
-        self.add_background_task(self.dome.asubscribe_slewing(self.domeStatus_update))
-        self.add_background_task(self.dome.asubscribe_slaved(self.domeSlave_update))
-        self.add_background_task(self.focus.asubscribe_fansstatus(self.domeFans_update))
-
-
-        #await self.dome.asubscribe_slewing(self.test4)
+        ##self.add_background_task(self.dome.asubscribe_connected(self.domeCon_update))
+        #self.add_background_task(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update))
+        #self.add_background_task(self.dome.asubscribe_az(self.domeAZ_update))
+        #self.add_background_task(self.dome.asubscribe_slewing(self.domeStatus_update))
+        #self.add_background_task(self.dome.asubscribe_slaved(self.domeSlave_update))
+        #self.add_background_task(self.focus.asubscribe_fansstatus(self.domeFans_update))
 
 
-        #self.add_background_task(self.mount.asubscribe_connected(self.mountCon_update))
-        self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
-        self.add_background_task(self.mount.asubscribe_dec(self.radec_update))
-        self.add_background_task(self.mount.asubscribe_az(self.radec_update))
-        self.add_background_task(self.mount.asubscribe_alt(self.radec_update))
-        self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
-        self.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
-        self.add_background_task(self.mount.asubscribe_motorstatus(self.mountMotors_update))
-        #
-        self.add_background_task(self.cover.asubscribe_coverstate(self.covers_update))
-        #
-        #self.add_background_task(self.fw.asubscribe_connected(self.filterCon_update))
-        self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
-        self.add_background_task(self.fw.asubscribe_position(self.filter_update))
-        #
-        self.add_background_task(self.focus.asubscribe_position(self.focus_update))
-        self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
-        #
-        #self.add_background_task(self.rotator.asubscribe_connected(self.rotatorCon_update))
-        self.add_background_task(self.rotator.asubscribe_position(self.rotator_update))
-        self.add_background_task(self.rotator.asubscribe_ismoving(self.rotator_update))
+        ##await self.dome.asubscribe_slewing(self.test4)
+
+
+        ##self.add_background_task(self.mount.asubscribe_connected(self.mountCon_update))
+        #self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
+        #self.add_background_task(self.mount.asubscribe_dec(self.radec_update))
+        #self.add_background_task(self.mount.asubscribe_az(self.radec_update))
+        #self.add_background_task(self.mount.asubscribe_alt(self.radec_update))
+        #self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
+        #self.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
+        #self.add_background_task(self.mount.asubscribe_motorstatus(self.mountMotors_update))
+        ##
+        #self.add_background_task(self.cover.asubscribe_coverstate(self.covers_update))
+        ##
+        ##self.add_background_task(self.fw.asubscribe_connected(self.filterCon_update))
+        #self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
+        #self.add_background_task(self.fw.asubscribe_position(self.filter_update))
+        ##
+        #self.add_background_task(self.focus.asubscribe_position(self.focus_update))
+        #self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
+        ##
+        ##self.add_background_task(self.rotator.asubscribe_connected(self.rotatorCon_update))
+        #self.add_background_task(self.rotator.asubscribe_position(self.rotator_update))
+        #self.add_background_task(self.rotator.asubscribe_ismoving(self.rotator_update))
 
 
         #
