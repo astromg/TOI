@@ -258,72 +258,102 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.parent.obsGui.main_form.skyView.updateRadar()
 
       def loadPlan(self):
-          # With paren=widget windows had blocking itelves on aux
 
-          #print("============== TEST 1 ================")
-          #print(os.environ)
-          #self.parent.stop_background_tasks()
           self.File_dialog = QFileDialog()
-          #print("============== TEST 2 ================")
-          #self.File_dialog.DontUseNativeDialog
           self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
-          #self.fileName=str(QFileDialog.getOpenFileName(None,"Open file",".")[0])
-          #print(" =============================== ",self.fileName)
-          #self.parent.run_background_tasks()
 
-          self.plan=[]
-          with open(self.fileName, "r") as plik:
-             # plan["name","block","type","ra","dec"]
-             for line in plik:
-                if len(line.strip())>0:
-                   if line.strip()[0]!="#":
-                       if "TEL: zb08" in line: pass
+          if self.fileName:
 
-                       elif "ZERO" in line:
-                          ll=line.split()
-                          block=line
-                          ob_type=ll[0]
-                          name=ll[0]
-                          for tmp in ll:
-                             if "seq=" in tmp: seq=tmp.split("=")[1]
+              self.plan = []
+              self.done = []
+              self.i = 0
+              self.prev_i = -1
+              self.next_i = 0
+              self.current_i = -1
 
-                          ob = {"name":name}
-                          ob["block"]=block
-                          ob["type"]=ob_type
-                          ob["seq"]=seq
-                          self.plan.append(ob)
+              #ob["name","block","type","ra","dec","seq"]
+              #on["wait","wait_ut","wait_sunset","wait_sunrise"]
 
-                       elif "DARK" in line:
-                          ll=line.split()
-                          block=line
-                          ob_type=ll[0]
-                          name=ll[0]
-                          for tmp in ll:
-                             if "seq=" in tmp: seq=tmp.split("=")[1]
+              # TODO ob["uid"]
 
-                          ob = {"name":name}
-                          ob["block"]=block
-                          ob["type"]=ob_type
-                          ob["seq"]=seq
-                          self.plan.append(ob)
+              with open(self.fileName, "r") as plik:
+                 if plik != None:
+                     for line in plik:
+                        if len(line.strip())>0:
+                           if line.strip()[0]!="#":
+                               if "TEL: zb08" in line: pass  # wprowadzic do planow jako obowiazek?
 
-                       elif "OBJECT" in line:
-                          ll=line.split()
-                          block=line
-                          ob_type=ll[0]
-                          name=ll[1]
-                          ra=ll[2]
-                          dec=ll[3]
-                          for tmp in ll:
-                             if "seq=" in tmp: seq=tmp.split("=")[1]
+                               elif "STOP" in line:
+                                  ob = {"name":"STOP"}
+                                  ob["type"]="MARKER"
+                                  self.plan.append(ob)
 
-                          ob = {"name":name}
-                          ob["block"]=block
-                          ob["type"]=ob_type
-                          ob["seq"]=seq
-                          ob["ra"]=ra
-                          ob["dec"]=dec
-                          self.plan.append(ob)
+                               elif "WAIT" in line:
+                                  ob = {"name":"WAIT"}
+                                  ob["type"]="MARKER"
+
+                                  ll = line.split()
+                                  for tmp in ll:
+                                     if "t=" in tmp:
+                                        ob["wait"]=tmp.split("=")[1]
+                                     if "ut=" in tmp:
+                                        ob["wait_ut"]=tmp.split("=")[1]
+                                     if "sunset=" in tmp:
+                                        ob["wait_sunset"]=tmp.split("=")[1]
+                                     if "sunrise=" in tmp:
+                                        ob["wait_sunrise"]=tmp.split("=")[1]
+
+                                  self.plan.append(ob)
+
+                               # AUTOFOCUS method=[fast,robust]
+                               # SKYFLAT
+                               # DOMEFLAT
+
+                               elif "ZERO" in line:
+                                  ll=line.split()
+                                  block=line
+                                  ob_type=ll[0]
+                                  name=ll[0]
+                                  for tmp in ll:
+                                     if "seq=" in tmp: seq=tmp.split("=")[1]
+
+                                  ob = {"name":name}
+                                  ob["block"]=block
+                                  ob["type"]=ob_type
+                                  ob["seq"]=seq
+                                  self.plan.append(ob)
+
+                               elif "DARK" in line:
+                                  ll=line.split()
+                                  block=line
+                                  ob_type=ll[0]
+                                  name=ll[0]
+                                  for tmp in ll:
+                                     if "seq=" in tmp: seq=tmp.split("=")[1]
+
+                                  ob = {"name":name}
+                                  ob["block"]=block
+                                  ob["type"]=ob_type
+                                  ob["seq"]=seq
+                                  self.plan.append(ob)
+
+                               elif "OBJECT" in line:
+                                  ll=line.split()
+                                  block=line
+                                  ob_type=ll[0]
+                                  name=ll[1]
+                                  ra=ll[2]
+                                  dec=ll[3]
+                                  for tmp in ll:
+                                     if "seq=" in tmp: seq=tmp.split("=")[1]
+
+                                  ob = {"name":name}
+                                  ob["block"]=block
+                                  ob["type"]=ob_type
+                                  ob["seq"]=seq
+                                  ob["ra"]=ra
+                                  ob["dec"]=dec
+                                  self.plan.append(ob)
           self.update_table()          
           self.parent.obsGui.main_form.skyView.updateRadar()
         

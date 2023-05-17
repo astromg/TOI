@@ -49,10 +49,11 @@ logging.basicConfig(level='INFO')
 logger = logging.getLogger(__name__)
 
 # text
-# rgb(150,0,0)     red
-# rgb(0,150,0)     green
-# rgb(255, 160, 0) orange
-# rgb(0,0,0)       black
+# rgb(150,0,0)       red
+# rgb(0,150,0)       green
+# rgb(217, 239, 217) light green
+# rgb(255, 160, 0)   orange
+# rgb(0,0,0)         black
 
 # background
 # rgb(136, 142, 228)     blue
@@ -289,8 +290,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # active telescope & universal
         self.ut=str(ephem.now())
-        self.sid="00:00:00"
-        self.jd="00.00"
         self.active_tel_i=3
         self.active_tel="SIM"
 
@@ -435,6 +434,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #
         #self.add_background_task(self.rotator.asubscribe_connected(self.rotatorCon_update))
         self.add_background_task(self.rotator.asubscribe_position(self.rotator_update))
+        self.add_background_task(self.rotator.asubscribe_mechanicalposition(self.rotator_update))
         self.add_background_task(self.rotator.asubscribe_ismoving(self.rotator_update))
 
 
@@ -680,12 +680,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt)
                 self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt2)
 
-            self.sid,self.jd,self.ut,self.sunrise,self.sunset,self.sun_alt,self.sun_az,self.moon_alt,self.moon_az,self.moonrise,self.moonset,self.moon_phase=UT_SID(self.observatory)
-            self.obsGui.main_form.ojd_e.setText(f"{self.jd:.6f}")
-            self.obsGui.main_form.sid_e.setText(str(self.sid).split(".")[0])
-            date=str(self.ut).split()[0]
+            self.almanac = Almanac(self.observatory)
+            self.obsGui.main_form.ojd_e.setText(f"{self.almanac['jd']:.6f}")
+            self.obsGui.main_form.sid_e.setText(str(self.almanac["sid"]).split(".")[0])
+            date=str(self.almanac["ut"]).split()[0]
             date=date.split("/")[2]+"/"+date.split("/")[1]+"/"+date.split("/")[0]
-            ut=str(self.ut).split()[1]
+            ut=str(self.almanac["ut"]).split()[1]
             self.obsGui.main_form.date_e.setText(str(date))
             self.obsGui.main_form.ut_e.setText(str(ut))
             self.obsGui.main_form.skyView.updateAlmanac()
@@ -786,7 +786,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # OTHER
         if "id" in info.keys():
             self.program_id = info["id"]
-            ut=str(self.ut).split()[1].split(":")[0]+":"+str(self.ut).split()[1].split(":")[1]
+            ut=str(self.almanac["ut"]).split()[1].split(":")[0]+":"+str(self.almanac["ut"]).split()[1].split(":")[1]
             txt = f"--------  {ut}  --------  {self.program_id}  --------\n {info}\n"
             self.planGui.prog_call_e.append(txt)
 
@@ -1819,13 +1819,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     async def rotator_update(self, event):
+
         self.rotator_pos = self.rotator.position
         self.rotator_moving = self.rotator.ismoving
         if self.rotator_pos != None:
             self.mntGui.telRotator1_e.setText(f"{self.rotator_pos:.2f}")
+
             if self.rotator_moving != None:
                 if self.rotator_moving:
-                    self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+                    self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(217, 239, 217); color: black;")
+                    try:
+                        diff = self.rotator_pos_prev - self.rotator_pos
+                        if diff > 1:
+                            self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+                    except AttributeError: pass
+
                 else:
                     self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         else:
@@ -1833,6 +1841,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
             self.msg("Rotator position Error","red")
 
+        self.rotator_pos_prev = self.rotator_pos
 
 
     # #### USER #########

@@ -342,16 +342,16 @@ class SkyView(QWidget):
             for p in self.nextOb: p.remove()
         except:
             pass
-        sunrise_tmp = str(self.parent.sunrise).split()[1]
-        sunset_tmp = str(self.parent.sunset).split()[1]
+        sunrise_tmp = str(self.parent.almanac["sunrise"]).split()[1]
+        sunset_tmp = str(self.parent.almanac["sunset"]).split()[1]
         sunrise = sunrise_tmp.split(":")[0] + ":" + sunrise_tmp.split(":")[1]
         sunset = sunset_tmp.split(":")[0] + ":" + sunset_tmp.split(":")[1]
 
-        moonrise_tmp = str(self.parent.moonrise).split()[1]
-        moonset_tmp = str(self.parent.moonset).split()[1]
+        moonrise_tmp = str(self.parent.almanac["moonrise"]).split()[1]
+        moonset_tmp = str(self.parent.almanac["moonset"]).split()[1]
         moonrise = moonrise_tmp.split(":")[0] + ":" + moonrise_tmp.split(":")[1]
         moonset = moonset_tmp.split(":")[0] + ":" + moonset_tmp.split(":")[1]
-        moon_phase = f"{self.parent.moon_phase:.2f}"
+        moon_phase = f"{self.parent.almanac['moon_phase']:.2f}"
 
         r, fi = 195, 314.7
         fi = fi * 2 * 3.14 / 360.
@@ -373,8 +373,8 @@ class SkyView(QWidget):
         fi = fi * 2 * 3.14 / 360.
         self.txt5 = self.axes.text(fi, r, f"Moonset: {moonset}", fontsize=9)
 
-        self.sun = self.axes.plot(self.parent.sun_az * 2 * 3.14 / 360., 90 - self.parent.sun_alt, "oy", alpha=0.7)
-        self.moon = self.axes.plot(self.parent.moon_az * 2 * 3.14 / 360., 90 - self.parent.moon_alt, "ok", alpha=0.7)
+        self.sun = self.axes.plot(self.parent.almanac["sun_az"] * 2 * 3.14 / 360., 90 - self.parent.almanac["sun_alt"], "oy", alpha=0.7)
+        self.moon = self.axes.plot(self.parent.almanac["moon_az"] * 2 * 3.14 / 360., 90 - self.parent.almanac["moon_alt"], "ok", alpha=0.7)
 
         try:
             next_az = self.parent.mntGui.nextAz_e.text()
