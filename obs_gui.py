@@ -103,6 +103,17 @@ class MainForm(QWidget):
             item.setTextAlignment(QtCore.Qt.AlignVCenter)
             self.obs_t.setItem(i, 3, item)
 
+            item = QTableWidgetItem(" -- ")
+            if "program" in self.parent.tel[tel].state.keys():
+                state = self.parent.tel[tel].state["program"]
+                rgb = self.parent.tel[tel].state["program_rgb"]
+                item = QTableWidgetItem(state)
+                item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
+            item.setTextAlignment(QtCore.Qt.AlignHCenter)
+            item.setTextAlignment(QtCore.Qt.AlignVCenter)
+            self.obs_t.setItem(i, 4, item)
+
+
             #item = QTableWidgetItem(" -- ")
             #if "mount" in self.parent.tel[tel].state.keys():
                 #state = self.parent.tel[tel].state["mount"]

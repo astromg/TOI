@@ -277,6 +277,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ndit_req=1
         self.plan_runner_origin=""
         self.plan_runner_status=""
+        self.ob={"run":False,"done":False}
         self.autofocus_started=False
         self.acces=True
 
@@ -654,8 +655,51 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def TOItimer(self):
         while True:
-
             self.time=time.perf_counter()
+
+            if self.ob["done"] and self.planGui.next_i==-1:
+                self.ob["run"]=False
+
+            if self.ob["run"] and self.ob["done"]:
+                if self.planGui.next_i > 0 and self.planGui.next_i < len(self.planGui.plan):
+                    self.plan_start()
+
+            elif self.ob["run"] and "name" in self.ob.keys():
+                if "wait" in self.ob.keys() and "ob_start_time" in self.ob.keys():
+                    dt = self.time - self.ob["ob_start_time"]
+                    if float(dt) > float(self.ob["wait"]):
+                        self.ob["done"]=True
+                        self.planGui.done.append(self.ob["uid"])
+                        self.msg(f"{self.ob['name']} {self.ob['wait']} s DONE","green")
+                        self.planGui.current_i=-1
+
+                if "wait_ut" in self.ob.keys():
+                    req_ut = str(self.ob["wait_ut"])
+                    ut = str(self.almanac["ut"]).split()[1]
+                    ut = 3600*float(ut.split(":")[0])+60*float(ut.split(":")[1])+float(ut.split(":")[2])
+                    req_ut = 3600*float(req_ut.split(":")[0])+60*float(req_ut.split(":")[1])+float(req_ut.split(":")[2])
+                    if req_ut < ut :
+                        self.ob["done"]=True
+                        self.planGui.done.append(self.ob["uid"])
+                        self.msg(f"{self.ob['name']} UT {self.ob['wait_ut']} DONE","green")
+                        self.planGui.current_i=-1
+
+                if "wait_sunrise" in self.ob.keys():
+                    if float(self.almanac["sun_alt"]) > float(self.ob["wait_sunrise"]):
+                        self.ob["done"]=True
+                        self.planGui.done.append(self.ob["uid"])
+                        self.msg(f"{self.ob['name']} sunrise {self.ob['wait_sunrise']} DONE","green")
+                        self.planGui.current_i=-1
+
+                if "wait_sunset" in self.ob.keys():
+                    if float(self.almanac["sun_alt"]) < float(self.ob["wait_sunset"]):
+                        self.ob["done"]=True
+                        self.planGui.done.append(self.ob["uid"])
+                        self.msg(f"{self.ob['name']} sunset {self.ob['wait_sunset']} DONE","green")
+                        self.planGui.current_i=-1
+
+
+
 
             if self.dit_start>0:
 
@@ -811,6 +855,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         if "name" in info.keys() and "done" in info.keys():
             if info["name"]=="camera-exposure" and info["done"]:
+                self.ob["done"]=True
+                self.planGui.done.append(self.ob["uid"])
+                self.planGui.current_i=-1
                 self.dit_start=0
                 self.instGui.ccd_tab.inst_DitProg_n.setFormat("IDLE")
                 self.msg("Plan finished","black")
@@ -818,19 +865,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if "id" in info.keys():
             if self.plan_runner_origin=="Plan Gui" and "_" in info["id"]:
                 cur_i = info["id"].split("_")[1]
-                self.planGui.current_i=int(cur_i)
-                self.planGui.next_i=self.planGui.current_i+1
                 self.planGui.update_table()
 
         #else: self.plan_runner_status=""
 
     @qs.asyncSlot()
     async def PlanRun5(self,txt):
-        if self.plan_runner_origin=="Plan Gui":
-            if "_" in txt: done_i = txt.split("_")[1]
-            self.planGui.done.append(int(done_i))
-            try: self.planGui.update_table()
-            except UnboundLocalError: pass
+        pass
+        #if self.plan_runner_origin=="Plan Gui":
+        #    if "_" in txt: done_i = txt.split("_")[1]
+        #    self.planGui.done.append(int(done_i))
+        #    try: self.planGui.update_table()
+        #    except UnboundLocalError: pass
 
 
     # ############ AUTO FOCUS ##########################
@@ -869,16 +915,82 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def plan_start(self):
-        program=""
-        for tmp in self.planGui.plan:
-            ob=tmp["block"]
-            program=program+ob
 
-        self.planrunner.load_nightplan_string('program', program, overwrite=True)
-        self.planrunner.run_nightplan('program',step_id="00")
-        self.program_name="program"
-        self.fits_exec=True
-        self.plan_runner_origin="Plan Gui"
+        if self.planGui.next_i > 0 and self.planGui.next_i < len(self.planGui.plan):
+            self.ob = self.planGui.plan[self.planGui.next_i]
+            self.ob["done"]=False
+            self.ob["run"]=True
+            #print(self.ob)
+            if "uid" in self.ob.keys():
+                if self.ob["uid"] not in self.planGui.done:
+                    if "type" in self.ob.keys() and "name" in self.ob.keys():
+                        self.planGui.current_i = self.planGui.next_i
+                        if self.ob["type"] == "MARKER" and self.ob["name"] == "STOP":
+                            self.ob["done"]=False
+                            self.ob["run"]=False
+
+                        if self.ob["type"] == "MARKER" and self.ob["name"] == "WAIT":
+                            if "wait" in self.ob.keys():
+                                self.ob["ob_start_time"] = self.time
+                                self.ob["done"]=False
+                                self.ob["run"]=True
+                                self.msg(f"{self.ob['name']} {self.ob['wait']} s. start","black")
+                            if "wait_ut" in self.ob.keys():
+                                self.ob["done"]=False
+                                self.ob["run"]=True
+                                self.msg(f"{self.ob['name']} UT {self.ob['wait_ut']} start","black")
+                            if "wait_sunset" in self.ob.keys():
+                                self.ob["done"]=False
+                                self.ob["run"]=True
+                                self.msg(f"{self.ob['name']} sunset {self.ob['wait_sunset']} start","black")
+                            if "wait_sunrise" in self.ob.keys():
+                                self.ob["done"]=False
+                                self.ob["run"]=True
+                                self.msg(f"{self.ob['name']} sunrise {self.ob['wait_sunrise']} start","black")
+
+
+                        if self.ob["type"] == "ZERO" and "block" in self.ob.keys():
+                            program = self.ob["block"]
+                            self.planrunner.load_nightplan_string('program', program, overwrite=True)
+                            self.planrunner.run_nightplan('program',step_id="00")
+
+                            self.program_name="program"
+                            self.fits_exec=True
+                            self.plan_runner_origin="Plan Gui"
+
+                        if self.ob["type"] == "DARK" and "block" in self.ob.keys():
+                            program = self.ob["block"]
+                            self.planrunner.load_nightplan_string('program', program, overwrite=True)
+                            self.planrunner.run_nightplan('program',step_id="00")
+
+                            self.program_name="program"
+                            self.fits_exec=True
+                            self.plan_runner_origin="Plan Gui"
+
+
+                        if self.ob["type"] == "OBJECT" and "block" in self.ob.keys():
+                            program = self.ob["block"]
+                            self.planrunner.load_nightplan_string('program', program, overwrite=True)
+                            self.planrunner.run_nightplan('program',step_id="00")
+
+                            self.program_name="program"
+                            self.fits_exec=True
+                            self.plan_runner_origin="Plan Gui"
+
+                        self.next_ob()
+
+                else:
+                    self.next_ob()
+
+
+    def next_ob(self):
+        i = self.planGui.current_i
+        if i < len(self.planGui.plan)-1:
+            self.planGui.next_i = i + 1
+            ob = self.planGui.plan[self.planGui.next_i]
+            if "skip" in ob.keys():
+                if ob["skip"]: self.next_ob()
+        else: self.planGui.next_i = -1
 
     @qs.asyncSlot()
     async def resume_program(self):
@@ -889,6 +1001,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def stop_program(self):
+        self.ob["run"]=False
         self.planrunner.stop_nightplan()
 
 
