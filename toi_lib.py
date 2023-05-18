@@ -3,6 +3,33 @@
 import ephem
 
 
+def Almanac(obs):
+    site=ephem.Observer()
+    site.date=ephem.now()
+    site.lon=obs[1]
+    site.lat=obs[0]
+    site.elevation=float(obs[2])
+    alm={}
+    alm["ut"]=site.date
+    alm["sid"]=site.sidereal_time()
+    alm["jd"]=ephem.julian_date(site)
+    alm["sunrise"]=site.next_rising(ephem.Sun())
+    alm["sunset"]=site.next_setting(ephem.Sun())
+    sun=ephem.Sun()
+    sun.compute(site)
+    alm["sun_alt"]=float(str(sun.alt).split(":")[0])+float(str(sun.alt).split(":")[1])/60.
+    alm["sun_az"]=float(str(sun.az).split(":")[0])+float(str(sun.az).split(":")[1])/60.
+    moon=ephem.Moon()
+    moon.compute(site)
+    alm["moon_alt"]=float(str(moon.alt).split(":")[0])+float(str(moon.alt).split(":")[1])/60.
+    alm["moon_az"]=float(str(moon.az).split(":")[0])+float(str(moon.az).split(":")[1])/60.
+    alm["moonrise"]=site.next_rising(moon)
+    alm["moonset"]=site.next_setting(moon)
+    alm["moon_phase"] = moon.moon_phase
+
+    return alm
+
+
 def UT_SID(obs):
     site=ephem.Observer()
     site.date=ephem.now()

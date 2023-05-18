@@ -6,9 +6,11 @@
 #----------------
 
 
+import os
 import math
 import numpy
 import ephem
+import uuid
 
 import qasync as qs
 from qasync import QEventLoop
@@ -60,6 +62,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              if len(self.plan)>0:
                 tmp_dict=dict()
                 az,alt="--","--"
+                if "uid" not in self.plan[i].keys():
+                   self.plan[i]["uid"]=str(uuid.uuid4())[:8]
                 if "ra" in self.plan[i].keys():
                    ra=self.plan[i]["ra"]
                    dec=self.plan[i]["dec"]
@@ -77,6 +81,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              for i,tmp in enumerate(self.plan):
                  if self.plan_t.rowCount() <= i: self.plan_t.insertRow(i)
 
+                 #print(self.plan[i])
                  put_icon=False
                  if i==self.next_i:
                     font=QtGui.QFont()
@@ -133,16 +138,16 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        txt.setForeground(QtGui.QColor("red"))
                        self.plan_t.setItem(i,0,txt)
 
-                 if i in self.done:
+                 if "uid" in self.plan[i].keys():
+                     if self.plan[i]["uid"] in self.done:
 
-                    font=QtGui.QFont()
-                    font.setPointSize(15)
-                    txt=QTableWidgetItem("\u2713")
-                    txt.setFont(font)
-                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                    txt.setForeground(QtGui.QColor("green"))
-                    self.plan_t.setItem(i,0,txt)
-
+                         font=QtGui.QFont()
+                         font.setPointSize(15)
+                         txt=QTableWidgetItem("\u2713")
+                         txt.setFont(font)
+                         txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                         txt.setForeground(QtGui.QColor("green"))
+                         self.plan_t.setItem(i,0,txt)
 
 
                      
@@ -155,8 +160,17 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                  self.plan_t.setItem(i,2,txt)
 
+                 txt=QTableWidgetItem("--")
                  if "seq" in self.plan[i].keys():
                     txt=QTableWidgetItem(str(self.plan[i]["seq"]))
+                 elif "wait" in self.plan[i].keys():
+                    txt=QTableWidgetItem("wait="+str(self.plan[i]["wait"]))
+                 elif "wait_ut" in self.plan[i].keys():
+                    txt=QTableWidgetItem("wait_ut="+str(self.plan[i]["wait_ut"]))
+                 elif "wait_sunrise" in self.plan[i].keys():
+                    txt=QTableWidgetItem("wait_sunrise="+str(self.plan[i]["wait_sunrise"]))
+                 elif "wait_sunset" in self.plan[i].keys():
+                    txt=QTableWidgetItem("wait_sunset="+str(self.plan[i]["wait_sunset"]))
                  self.plan_t.setItem(i,3,txt)
 
                  if i==self.prev_i:
@@ -257,62 +271,107 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.parent.obsGui.main_form.skyView.updateRadar()
 
       def loadPlan(self):
-          # With paren=widget windows had blocking itelves on aux
-          self.fileName=str(QFileDialog.getOpenFileName(None,"Open file",".")[0])
-        
-          self.plan=[]
-          with open(self.fileName, "r") as plik:
-             # plan["name","block","type","ra","dec"]
-             for line in plik:
-                if len(line.strip())>0:
-                   if line.strip()[0]!="#":
-                       if "TEL: zb08" in line: pass
 
-                       elif "ZERO" in line:
-                          ll=line.split()
-                          block=line
-                          ob_type=ll[0]
-                          name=ll[0]
-                          for tmp in ll:
-                             if "seq=" in tmp: seq=tmp.split("=")[1]
+          self.File_dialog = QFileDialog()
+          self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
 
-                          ob = {"name":name}
-                          ob["block"]=block
-                          ob["type"]=ob_type
-                          ob["seq"]=seq
-                          self.plan.append(ob)
+          if self.fileName:
 
-                       elif "DARK" in line:
-                          ll=line.split()
-                          block=line
-                          ob_type=ll[0]
-                          name=ll[0]
-                          for tmp in ll:
-                             if "seq=" in tmp: seq=tmp.split("=")[1]
+              self.plan = []
+              self.done = []
+              self.i = 0
+              self.prev_i = -1
+              self.next_i = 0
+              self.current_i = -1
 
-                          ob = {"name":name}
-                          ob["block"]=block
-                          ob["type"]=ob_type
-                          ob["seq"]=seq
-                          self.plan.append(ob)
+              #ob["name","block","type","ra","dec","seq"]
+              #on["wait","wait_ut","wait_sunset","wait_sunrise"]
 
-                       elif "OBJECT" in line:
-                          ll=line.split()
-                          block=line
-                          ob_type=ll[0]
-                          name=ll[1]
-                          ra=ll[2]
-                          dec=ll[3]
-                          for tmp in ll:
-                             if "seq=" in tmp: seq=tmp.split("=")[1]
+              # TODO ob["uid"]
 
-                          ob = {"name":name}
-                          ob["block"]=block
-                          ob["type"]=ob_type
-                          ob["seq"]=seq
-                          ob["ra"]=ra
-                          ob["dec"]=dec
-                          self.plan.append(ob)
+              with open(self.fileName, "r") as plik:
+                 if plik != None:
+                     for line in plik:
+                        if len(line.strip())>0:
+                           if line.strip()[0]!="#":
+                               if "TEL: zb08" in line: pass  # wprowadzic do planow jako obowiazek?
+
+                               elif "STOP" in line:
+                                  block=line
+                                  ob = {"name":"STOP"}
+                                  ob["type"]="MARKER"
+                                  ob["block"]=block
+                                  self.plan.append(ob)
+
+                               elif "WAIT" in line:
+                                  ob = {"name":"WAIT"}
+                                  ob["type"]="MARKER"
+                                  block=line
+                                  ob["block"]=block
+
+                                  ll = line.split()
+                                  for tmp in ll:
+                                     if "wait=" in tmp:
+                                        ob["wait"]=tmp.split("=")[1]
+                                     if "ut=" in tmp:
+                                        ob["wait_ut"]=tmp.split("=")[1]
+                                     if "sunset=" in tmp:
+                                        ob["wait_sunset"]=tmp.split("=")[1]
+                                     if "sunrise=" in tmp:
+                                        ob["wait_sunrise"]=tmp.split("=")[1]
+
+
+                                  self.plan.append(ob)
+
+                               # AUTOFOCUS method=[fast,robust]
+                               # SKYFLAT
+                               # DOMEFLAT
+
+                               elif "ZERO" in line:
+                                  ll=line.split()
+                                  block=line
+                                  ob_type=ll[0]
+                                  name=ll[0]
+                                  for tmp in ll:
+                                     if "seq=" in tmp: seq=tmp.split("=")[1]
+
+                                  ob = {"name":name}
+                                  ob["block"]=block
+                                  ob["type"]=ob_type
+                                  ob["seq"]=seq
+                                  self.plan.append(ob)
+
+                               elif "DARK" in line:
+                                  ll=line.split()
+                                  block=line
+                                  ob_type=ll[0]
+                                  name=ll[0]
+                                  for tmp in ll:
+                                     if "seq=" in tmp: seq=tmp.split("=")[1]
+
+                                  ob = {"name":name}
+                                  ob["block"]=block
+                                  ob["type"]=ob_type
+                                  ob["seq"]=seq
+                                  self.plan.append(ob)
+
+                               elif "OBJECT" in line:
+                                  ll=line.split()
+                                  block=line
+                                  ob_type=ll[0]
+                                  name=ll[1]
+                                  ra=ll[2]
+                                  dec=ll[3]
+                                  for tmp in ll:
+                                     if "seq=" in tmp: seq=tmp.split("=")[1]
+
+                                  ob = {"name":name}
+                                  ob["block"]=block
+                                  ob["type"]=ob_type
+                                  ob["seq"]=seq
+                                  ob["ra"]=ra
+                                  ob["dec"]=dec
+                                  self.plan.append(ob)
           self.update_table()          
           self.parent.obsGui.main_form.skyView.updateRadar()
         
