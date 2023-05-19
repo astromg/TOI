@@ -440,6 +440,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           
           w=w+1
           self.delAll_p=QPushButton('Del All') 
+          self.delAll_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
           self.down_p=QPushButton('Down')          
           self.last_p=QPushButton('Last')
 
@@ -455,7 +456,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           w=w+1
           self.add_p=QPushButton('Add') 
+          self.add_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
           self.edit_p=QPushButton('Edit')          
+          self.edit_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
 
 
           self.grid.addWidget(self.add_p, w,0)

@@ -243,8 +243,11 @@ class MainForm(QWidget):
 
         w = w + 1
         self.shutdown_p = QPushButton('Shutdown')
+        self.shutdown_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
         self.weatherStop_p = QPushButton('Weather Stop')
+        self.weatherStop_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
         self.EmStop_p = QPushButton('Emergency Stop')
+        self.EmStop_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
 
         grid.addWidget(self.shutdown_p, w, 0)
         grid.addWidget(self.weatherStop_p, w, 1)
@@ -427,7 +430,7 @@ class SkyView(QWidget):
             k = 0
             for star in self.plan_to_show:
                 n = n + 1
-                if n > self.plan_next_i:
+                if n > self.plan_next_i-1:
                     try:
                         if k == 0:
                             alpha = 1

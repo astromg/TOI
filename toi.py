@@ -1017,7 +1017,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def stop_program(self):
-        print("Plan STOP")
+        self.msg("STOP requested","yellow")
         self.ob["run"]=False
         self.planrunner.stop_nightplan()
 
@@ -1048,8 +1048,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             image = self.ccd.imagearray
             image =  numpy.asarray(image).astype(numpy.int16)
 
-            stats = FFS(image,threshold=10,kernel_size=9,fwhm=6)
-            coo,adu = stats.find_stars()
+            stats = FFS(image,threshold=5,kernel_size=9,fwhm=6)
+            coo=[]
+            adu=[]
+            try:
+                coo,adu = stats.find_stars()
+            except: pass
 
             sat_coo=[]
             sat_adu=[]

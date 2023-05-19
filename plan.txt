@@ -1,12 +1,18 @@
 
 
 WAIT sunset=-12
+WAIT wait=60
+WAIT wait=300
+STOP
+STOP
+STOP
+STOP
 
 ZERO seq=2/2/0
 DARK seq=2/2/5
 
 
-SKYFLAT az=90:00:00 alt=+70:00:00 seq=2/2/5
+#SKYFLAT az=90:00:00 alt=+70:00:00 seq=2/2/5
 #OBJECT FF_Aql 22:58:14.75 +17:21:39.29 seq=2/2/5
 #OBJECT FF_Aql 18:58:14.75 +17:21:39.29 seq=2/2/5,2/1/4
 
@@ -41,4 +47,18 @@ OBJECT O_Cen 13:26:47.28 -47:28:46.1                      seq=1/V/5
 OBJECT NGC_2627 08:37:14.2 -29:57:07.0                      seq=1/V/5
 
 #OBJECT AI_Vel  seq=1/V/5
+
+
+STOP
+STOP
+STOP
+STOP
+STOP
+STOP
+STOP
+STOP
+STOP
+STOP
+STOP
+STOP
 

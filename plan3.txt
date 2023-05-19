@@ -4,7 +4,7 @@ WAIT wait=10
 ZERO seq=2/2/0
 STOP
 DARK seq=4/2/1
-#WAIT ut=22:00:00
+WAIT ut=22:30:00
 #WAIT sunset=-12
 
 WAIT wait=10
