@@ -1,12 +1,13 @@
 
 
-WAIT sunset=-12
-
 DARK seq=1/2/5
-DARK seq=3/2/3
+DARK seq=2/2/3
+WAIT wait=5
 ZERO seq=2/2/0
+STOP
 DARK seq=4/2/1
 DARK seq=2/2/6
+STOP
 #DARK seq=4/2/6
 
 # SKYFLAT az=90:00:00 alt=+70:00:00 seq=2/2/5
@@ -39,3 +40,8 @@ DARK seq=2/2/6
 #OBJECT V474_Mon 05:59:01.08067 -09:22:56.0055           seq=2/2/5
 #OBJECT VX_Hya 09:45:46.84963 -12:00:14.3583             seq=2/2/5
 #OBJECT AI_Vel 08:14:05.14681 -44:34:32.8476             seq=2/2/5
+
+
+WAIT sunset=-12
+
+WAIT wait=10

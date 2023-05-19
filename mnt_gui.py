@@ -380,18 +380,19 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeLights_c = QCheckBox("")
         self.domeLights_c.setChecked(False)
         self.domeLights_c.setLayoutDirection(Qt.LeftToRight)
-        self.domeLights_c.setStyleSheet(
-            "QCheckBox::indicator:checked {image: url(./Icons/ToggleOnYellow.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.domeLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnYellow.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.domeLights_c.clicked.connect(self.parent.domeLightOnOff)
 
         self.domeLights_e = QLineEdit()
         self.domeLights_e.setReadOnly(True)
         self.domeLights_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.domeLights_e.setText("(TODO)")
+        self.domeLights_e.setText("--")
 
         w = w + 1
         self.grid.addWidget(self.domeLights_l, w, 0,1,2)
         self.grid.addWidget(self.domeLights_e, w, 2)
         self.grid.addWidget(self.domeLights_c, w, 3)
+
 
 
         ############################################

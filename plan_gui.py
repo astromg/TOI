@@ -57,25 +57,38 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.edit_window.raise_()
          else: print("no plan loaded") # ERROR MSG
 
-      def recalc(self):
+      def update_plan(self):
+          if self.next_i > len(self.plan)-1:
+              print("zadzialalem")
+              self.next_i = -1
           for i,tmp in enumerate(self.plan):
              if len(self.plan)>0:
+
+                if "skip" in self.plan[i].keys() and i == self.next_i:
+                    if self.plan[i]["skip"]:
+                        self.next_i = self.next_i+1
+
+                if "uid" not in self.plan[i].keys():
+                    self.plan[i]["uid"]=str(uuid.uuid4())[:8]
+                if self.plan[i]["uid"] in self.done and i == self.next_i:
+                    self.next_i = self.next_i+1
+
+
                 tmp_dict=dict()
                 az,alt="--","--"
-                if "uid" not in self.plan[i].keys():
-                   self.plan[i]["uid"]=str(uuid.uuid4())[:8]
+
                 if "ra" in self.plan[i].keys():
-                   ra=self.plan[i]["ra"]
-                   dec=self.plan[i]["dec"]
-                   az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)
-                   alt=f"{float(arcDeg2float(str(alt))):.1f}"
-                   az=f"{float(arcDeg2float(str(az))):.1f}"
-                   self.plan[i]["meta_alt"]=alt
-                   self.plan[i]["meta_az"]=az
+                    ra=self.plan[i]["ra"]
+                    dec=self.plan[i]["dec"]
+                    az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)
+                    alt=f"{float(arcDeg2float(str(alt))):.1f}"
+                    az=f"{float(arcDeg2float(str(az))):.1f}"
+                    self.plan[i]["meta_alt"]=alt
+                    self.plan[i]["meta_az"]=az
 
 
       def update_table(self):
-          self.recalc()
+          self.update_plan()
           if len(self.plan)>0:
              self.plan_t.clearContents()
              for i,tmp in enumerate(self.plan):
@@ -128,8 +141,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
 
-                 if "stop" in self.plan[i].keys():
-                    if self.plan[i]["stop"]:
+                 if "name" in self.plan[i].keys():
+                    if self.plan[i]["name"]=="STOP":
                        font=QtGui.QFont()
                        font.setPointSize(20)
                        txt=QTableWidgetItem("\u2B23")
@@ -191,6 +204,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.parent.mntGui.setEq_r.setChecked(True)
             self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ra"])
             self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["dec"])
+          if "type" in self.plan[self.i].keys() and "name" in self.plan[self.i].keys():
+             if self.plan[self.i]["type"] != "MARKER":
+                self.parent.instGui.ccd_tab.inst_object_e.setText(self.plan[self.i]["name"])
 
       def setStop(self):
           if "stop" in self.plan[self.i].keys():          
@@ -286,8 +302,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
               #ob["name","block","type","ra","dec","seq"]
               #on["wait","wait_ut","wait_sunset","wait_sunrise"]
-
-              # TODO ob["uid"]
 
               with open(self.fileName, "r") as plik:
                  if plik != None:
@@ -403,7 +417,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.skip_p=QPushButton('Skip')
 
           self.grid.addWidget(self.next_p, w,0)
-          self.grid.addWidget(self.stopHere_p, w,1)
+          #self.grid.addWidget(self.stopHere_p, w,1)
           self.grid.addWidget(self.skip_p, w,4)
           
           w=w+1
@@ -446,6 +460,15 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.grid.addWidget(self.add_p, w,0)
           self.grid.addWidget(self.edit_p, w,4)
+          w=w+1
+
+          self.ob_l=QLabel("current OB:")
+          self.ob_e=QLineEdit("")
+          self.ob_e.setReadOnly(True)
+          self.ob_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          self.grid.addWidget(self.ob_l, w,0)
+          self.grid.addWidget(self.ob_e, w,1,1,4)
+
           w=w+1
           self.prog_call_e=QTextEdit()
           self.prog_call_e.setReadOnly(True)

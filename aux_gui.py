@@ -305,13 +305,20 @@ class FitsView(QWidget):
         self.mkUI()
         self.colorbar = None
 
-    def update(self, image):
+    def update(self, image,sat_coo,ok_coo):
         self.axes.clear()
         self.axes.axis("off")
         vmin = numpy.mean(image) - 1 * numpy.std(image)
         vmax = numpy.mean(image) + 1 * numpy.std(image)
 
         im = self.image = self.axes.imshow(image, vmin=vmin, vmax=vmax)
+
+        if len(sat_coo)>2:
+            x,y = zip(*sat_coo)
+            self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
+        if len(ok_coo)>2:
+            x,y = zip(*ok_coo)
+            self.axes.plot(x, y, color="white", marker="o", markersize="5", markerfacecolor="none",linestyle="")
 
         # if self.colorbar is None:
         #     self.colorbar = self.fig.colorbar(im, ax=self.axes)
@@ -332,13 +339,16 @@ class FitsView(QWidget):
         # self.violin_axes = self.fig.add_axes([0.82,0.0,0.18,1])
         # self.violin_axes.tick_params(axis='y', which='both', labelleft=False, labelright=True, direction='in')
 
-        hbox1 = QHBoxLayout()
-        hbox1.addWidget(self.canvas)
+        grid = QGridLayout()
+        grid.addWidget(self.canvas,0,0)
 
-        self.vbox = QVBoxLayout()
-        self.vbox.addLayout(hbox1)
-        self.vbox.setSpacing(10)
-        self.setLayout(self.vbox)
+        #self.stat_e=QTextEdit()
+        #self.stat_e.setReadOnly(True)
+        #self.stat_e.setStyleSheet("background-color: rgb(235,235,235);")
+
+        #grid.addWidget(self.stat_e,1,0)
+
+        self.setLayout(grid)
 
         self.axes.clear()
         self.resize(400, 500)

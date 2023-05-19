@@ -1,16 +1,24 @@
 
 
-WAIT t=60
-WAIT ut=22:00:00
-WAIT sunset=-12
+WAIT wait=10
+ZERO seq=2/2/0
+STOP
+DARK seq=4/2/1
+#WAIT ut=22:00:00
+#WAIT sunset=-12
 
+WAIT wait=10
+WAIT wait=5
+STOP
+WAIT wait=10
+WAIT wait=5
 STOP
 
-DARK seq=1/2/5
-DARK seq=3/2/3
-ZERO seq=2/2/0
-DARK seq=4/2/1
-DARK seq=2/2/6
+#DARK seq=1/2/5
+#DARK seq=3/2/3
+#ZERO seq=2/2/0
+#DARK seq=4/2/1
+#DARK seq=2/2/6
 WAIT wait=5
 WAIT wait_sunrise=-5
 WAIT wait_sunset=55

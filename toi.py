@@ -43,6 +43,7 @@ from fits_save import *
 
 
 from calcFocus import calc_focus as calFoc
+from ffs_lib.ffs import FFS
 
 logging.basicConfig(level='INFO')
 
@@ -389,6 +390,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ccd = self.observatory_model.get_telescope(tel).get_camera()
         self.fw = self.observatory_model.get_telescope(tel).get_filterwheel()
         self.rotator = self.observatory_model.get_telescope(tel).get_rotator()
+        self.cctv = self.observatory_model.get_telescope(tel).get_cctv()
         self.planrunner = self.observatory_model.get_telescope(tel).get_observation_plan()
 
         self.planrunner.add_info_callback('exec_json', self.PlanRun1)
@@ -657,6 +659,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         while True:
             self.time=time.perf_counter()
 
+
+            if self.ob["run"] and "name" in self.ob.keys():
+                txt = self.ob["name"]
+                if "seq" in self.ob.keys():
+                    txt = txt + " " + self.ob["seq"]
+                self.planGui.ob_e.setText(txt)
+            else: self.planGui.ob_e.setText("")
+
             if self.ob["done"] and self.planGui.next_i==-1:
                 self.ob["run"]=False
 
@@ -665,6 +675,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.plan_start()
 
             elif self.ob["run"] and "name" in self.ob.keys():
+
                 if "wait" in self.ob.keys() and "ob_start_time" in self.ob.keys():
                     dt = self.time - self.ob["ob_start_time"]
                     if float(dt) > float(self.ob["wait"]):
@@ -856,7 +867,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if "name" in info.keys() and "done" in info.keys():
             if info["name"]=="camera-exposure" and info["done"]:
                 self.ob["done"]=True
-                self.planGui.done.append(self.ob["uid"])
+                if "uid" in self.ob.keys():
+                    self.planGui.done.append(self.ob["uid"])
                 self.planGui.current_i=-1
                 self.dit_start=0
                 self.instGui.ccd_tab.inst_DitProg_n.setFormat("IDLE")
@@ -901,7 +913,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             pos = pos + step
             program = program + f"FOCUS pos={int(pos)} seq={seq}\n"
 
-        print(program)
+        #print(program)
         self.planrunner.load_nightplan_string('auto_focus', program, overwrite=True)
         self.planrunner.run_nightplan('auto_focus',step_id="00")
         self.fits_exec=True
@@ -916,11 +928,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def plan_start(self):
 
-        if self.planGui.next_i > 0 and self.planGui.next_i < len(self.planGui.plan):
+        if self.planGui.next_i > -1 and self.planGui.next_i < len(self.planGui.plan):
             self.ob = self.planGui.plan[self.planGui.next_i]
             self.ob["done"]=False
             self.ob["run"]=True
             #print(self.ob)
+
+
             if "uid" in self.ob.keys():
                 if self.ob["uid"] not in self.planGui.done:
                     if "type" in self.ob.keys() and "name" in self.ob.keys():
@@ -928,6 +942,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         if self.ob["type"] == "MARKER" and self.ob["name"] == "STOP":
                             self.ob["done"]=False
                             self.ob["run"]=False
+                            self.planGui.current_i = -1
+
 
                         if self.ob["type"] == "MARKER" and self.ob["name"] == "WAIT":
                             if "wait" in self.ob.keys():
@@ -984,13 +1000,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     def next_ob(self):
-        i = self.planGui.current_i
-        if i < len(self.planGui.plan)-1:
-            self.planGui.next_i = i + 1
-            ob = self.planGui.plan[self.planGui.next_i]
-            if "skip" in ob.keys():
-                if ob["skip"]: self.next_ob()
-        else: self.planGui.next_i = -1
+        self.planGui.next_i = self.planGui.next_i + 1
+        self.planGui.update_table()
+        #i = self.planGui.current_i
+        #if i < len(self.planGui.plan)-1:
+        #    self.planGui.next_i = i + 1
+        #    ob = self.planGui.plan[self.planGui.next_i]
+        #else: self.planGui.next_i = -1
 
     @qs.asyncSlot()
     async def resume_program(self):
@@ -1001,6 +1017,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def stop_program(self):
+        print("Plan STOP")
         self.ob["run"]=False
         self.planrunner.stop_nightplan()
 
@@ -1030,7 +1047,39 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             res = await self.ccd.aget_imagearray()
             image = self.ccd.imagearray
             image =  numpy.asarray(image).astype(numpy.int16)
-            self.auxGui.fits_tab.fitsView.update(image)
+
+            stats = FFS(image,threshold=4,kernel_size=9,fwhm=6)
+            coo,adu = stats.find_stars()
+
+            sat_coo=[]
+            sat_adu=[]
+            ok_coo=[]
+            ok_adu=[]
+
+            if len(coo)>1:
+                coo = numpy.array(coo)
+                adu = numpy.array(adu)
+                maska1 = numpy.array(adu) > 45000
+
+                sat_coo = coo[maska1]
+                sat_adu = adu[maska1]
+
+                maska2 = [not val for val in maska1]
+
+                ok_coo = coo[maska2]
+                ok_adu = adu[maska2]
+
+            txt = f"\nstars no.: {len(coo)}\n"
+            txt = txt + f"saturated: {len(sat_coo)}\n"
+            if len(ok_adu)>0:
+                txt = txt + f"brightests star ADU: {ok_adu[0]}\n"
+            txt = txt + f"min/max ADU: {stats.min}:.0f / {stats.max}:.0f\n"
+            txt = txt + f"mean/median: {stats.mean}:.0f / {stats.median}:.0f\n"
+            txt = txt + f"rms / sigma_quantile: {stats.rms}:.0f / {stats.sigma_quantile}:.0f\n"
+            print(txt)
+
+            self.auxGui.fits_tab.fitsView.update(image,sat_coo,ok_coo)
+
             if self.fits_exec:
             #    txt=f"Exposure finished"
             #    self.msg(txt,"black")
@@ -1446,14 +1495,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
            if self.mntGui.flatLights_c.isChecked():
                await self.mount.aput_domelamp_on()
-               txt = "Flat Lamp ON requested"
+               txt = " ON "
+               self.mntGui.flatLights_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
            else:
                await self.mount.aput_domelamp_off()
-               txt = "Flat Lamp OFF requested"
+               txt = " OFF "
+               self.mntGui.flatLights_e.setStyleSheet("color: rgb(0,0,0); background-color: rgb(233, 233, 233);")
 
 
            self.mntGui.flatLights_e.setText(txt)
-           self.mntGui.flatLights_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
            self.msg(txt,"yellow")
         else:
             txt="U don't have controll"
@@ -1463,6 +1513,31 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.tmp_box.setText("You don't have controll")
             self.tmp_box.show()
 
+
+
+    @qs.asyncSlot()
+    async def domeLightOnOff(self):
+        if self.user.current_user["name"]==self.myself:
+
+           if self.mntGui.domeLights_c.isChecked():
+               await self.cctv.aput_ir(True)
+               txt = " ON "
+               self.mntGui.domeLights_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+           else:
+               await self.cctv.aput_ir(False)
+               txt = " OFF "
+               self.mntGui.domeLights_e.setStyleSheet("color: rgb(0,0,0); background-color: rgb(233, 233, 233);")
+
+
+           self.mntGui.domeLights_e.setText(txt)
+           self.msg(txt,"yellow")
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
 
 
