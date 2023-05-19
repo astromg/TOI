@@ -1048,7 +1048,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             image = self.ccd.imagearray
             image =  numpy.asarray(image).astype(numpy.int16)
 
-            stats = FFS(image,threshold=4,kernel_size=9,fwhm=6)
+            stats = FFS(image,threshold=10,kernel_size=9,fwhm=6)
             coo,adu = stats.find_stars()
 
             sat_coo=[]
