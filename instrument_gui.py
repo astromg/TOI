@@ -163,7 +163,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_Bin_s=QComboBox()
           self.inst_Bin_s.addItems(["1x1","2x2","1x2","2x1"])
           self.inst_SetBin_p=QPushButton('Set')
-          self.inst_SetBin_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
+          self.inst_SetBin_p.setStyleSheet(" color: gray;")
           self.inst_SetBin_p.clicked.connect(self.parent.ccd_setBin)
           
           grid.addWidget(self.inst_Bin_l, w,0) 
@@ -242,11 +242,11 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=w+1          
           
           self.inst_Snap_p=QPushButton('SNAP')
-          self.inst_Snap_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
+          self.inst_Snap_p.setStyleSheet(" color: gray;")
           self.inst_Pause_p=QPushButton('PAUSE')
-          self.inst_Pause_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
+          self.inst_Pause_p.setStyleSheet(" color: gray;")
           self.inst_Stop_p=QPushButton('STOP')
-          self.inst_Stop_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
+          self.inst_Stop_p.setStyleSheet(" color: gray;")
           self.inst_Start_p=QPushButton('START')
           self.inst_Start_p.clicked.connect(self.parent.ccd_startExp)
           

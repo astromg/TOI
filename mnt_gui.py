@@ -452,7 +452,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telM3_s = QComboBox()
         self.telM3_s.addItems(["Imager", "Spectro", "empty"])
         self.telM3_p = QPushButton('SET')
-        self.telM3_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
+        self.telM3_p.setStyleSheet(" color: gray;")
 
 
         w=w+1
@@ -477,7 +477,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.setRotator1_e = QLineEdit()
         self.setRotator1_p = QPushButton('SET')
-        self.setRotator1_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
+        self.setRotator1_p.setStyleSheet(" color: gray;")
 
         w=w+1
         self.grid.addWidget(self.comRotator1_l, w, 0)

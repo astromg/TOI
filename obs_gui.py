@@ -243,11 +243,11 @@ class MainForm(QWidget):
 
         w = w + 1
         self.shutdown_p = QPushButton('Shutdown')
-        self.shutdown_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
+        self.shutdown_p.setStyleSheet(" color: gray;")
         self.weatherStop_p = QPushButton('Weather Stop')
-        self.weatherStop_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
+        self.weatherStop_p.setStyleSheet(" color: gray;")
         self.EmStop_p = QPushButton('Emergency Stop')
-        self.EmStop_p.setStyleSheet("background-color: rgb(241, 139, 193); color: black;")
+        self.EmStop_p.setStyleSheet(" color: gray;")
 
         grid.addWidget(self.shutdown_p, w, 0)
         grid.addWidget(self.weatherStop_p, w, 1)
