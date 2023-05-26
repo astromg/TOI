@@ -342,12 +342,13 @@ class FitsView(QWidget):
         grid = QGridLayout()
         grid.addWidget(self.canvas,0,0)
 
-        #self.stat_e=QTextEdit()
-        #self.stat_e.setReadOnly(True)
-        #self.stat_e.setStyleSheet("background-color: rgb(235,235,235);")
+        self.stat_e=QTextEdit()
+        self.stat_e.setReadOnly(True)
+        self.stat_e.setStyleSheet("background-color: rgb(235,235,235);")
 
-        #grid.addWidget(self.stat_e,1,0)
+        grid.addWidget(self.stat_e,1,0)
 
+        grid.setRowMinimumHeight(0,350)
         self.setLayout(grid)
 
         self.axes.clear()

@@ -258,7 +258,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mnt_geometry=[0,110+int(self.obs_window_size[1]),850,400]
         self.plan_geometry=[1546,0,300,1000]
         self.instrument_geometry=[930,700,500,300]
-        self.aux_geometry=[930,0,500,400]
+        self.aux_geometry=[930,0,500,550]
 
         self.tic_conn="unknown"
         self.fw_conn="unknown"
@@ -1048,11 +1048,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             image = self.ccd.imagearray
             image =  numpy.asarray(image).astype(numpy.int16)
 
-            stats = FFS(image,threshold=5,kernel_size=9,fwhm=6)
+            stats = FFS(image)
             coo=[]
             adu=[]
             try:
-                coo,adu = stats.find_stars()
+                coo,adu = stats.find_stars(threshold=5,kernel_size=9,fwhm=6)
+                fwhm_x = stats.fwhm(saturation=45000)
             except: pass
 
             sat_coo=[]
@@ -1073,15 +1074,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 ok_coo = coo[maska2]
                 ok_adu = adu[maska2]
 
-            txt = f"\nstars no.: {len(coo)}\n"
-            txt = txt + f"saturated: {len(sat_coo)}\n"
+            txt = f"stars detected:".ljust(28) + f"{len(coo)}".ljust(11)
+            txt = txt + f"saturated:".ljust(30) +f"{len(sat_coo)}\n"
+
             if len(ok_adu)>0:
-                txt = txt + f"brightests star ADU: {ok_adu[0]}\n"
-            txt = txt + f"min/max ADU: {stats.min}:.0f / {stats.max}:.0f\n"
-            txt = txt + f"mean/median: {stats.mean}:.0f / {stats.median}:.0f\n"
-            txt = txt + f"rms / sigma_quantile: {stats.rms}:.0f / {stats.sigma_quantile}:.0f\n"
+                txt = txt + f"stars max ADU:".ljust(25)+f"{ok_adu[0]} ".ljust(9)
+            if stats.fwhm_x == None or stats.fwhm_y == None:
+                stats.fwhm_x,stats.fwhm_y=0,0
+            txt = txt + f"FWHM X/Y:".ljust(20)+f"{float(stats.fwhm_x):.1f} / {float(stats.fwhm_y):.1f}\n"
+
+
+            txt = txt + f"min ADU:".ljust(30)  +f"{stats.min:.0f}".ljust(11)
+            txt = txt + f"max ADU:".ljust(30)  +f"{stats.max:.0f}\n"
+
+
+            txt = txt + f"mean/median:".ljust(25) +   f"{stats.mean:.0f} / {stats.median:.0f}".ljust(11)
+            txt = txt + f"rms / sigma_q:".ljust(30)  +  f"{stats.rms:.0f} / {stats.sigma_quantile:.0f}\n"
             print(txt)
 
+
+            self.auxGui.fits_tab.fitsView.stat_e.setText(txt)
             self.auxGui.fits_tab.fitsView.update(image,sat_coo,ok_coo)
 
             if self.fits_exec:
