@@ -349,6 +349,8 @@ class FitsView(QWidget):
         grid.addWidget(self.stat_e,1,0)
 
         grid.setRowMinimumHeight(0,350)
+        grid.setRowStretch(0,1)
+        grid.setRowStretch(1,0)
         self.setLayout(grid)
 
         self.axes.clear()

@@ -246,7 +246,8 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_Pause_p=QPushButton('PAUSE')
           self.inst_Pause_p.setStyleSheet(" color: gray;")
           self.inst_Stop_p=QPushButton('STOP')
-          self.inst_Stop_p.setStyleSheet(" color: gray;")
+          self.inst_Stop_p.clicked.connect(self.parent.ccd_stopExp)
+          #self.inst_Stop_p.setStyleSheet(" color: gray;")
           self.inst_Start_p=QPushButton('START')
           self.inst_Start_p.clicked.connect(self.parent.ccd_startExp)
           

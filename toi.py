@@ -178,7 +178,7 @@ class TelBasicState():
             fw = ['u', 'g', 'r', 'i', 'z', 'B', 'V', 'Ic', 'empty1', 'empty2']
         else: fw = ['?', '?', '?', '?', '?', '?', '?', '?', '?', '?']
         pos = self.fw.position
-        if pos:
+        if pos!=None:
             pos=int(pos)
             if pos<len(fw):
                 filtr=fw[pos]
@@ -466,15 +466,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         #await self.user_update(None)
         #await self.domeCon_update(None)
+
         await self.domeShutterStatus_update(None)
         await self.domeStatus_update(None)
         await self.domeAZ_update(None)
+
         #await self.domeSlave_update(None)
         #await self.domeFans_update(None)
         #await self.mountCon_update(None)
         #await self.radec_update(None)
+
         await self.mount_update(None)
         await self.mountMotors_update(None)
+
         #await self.covers_update(None)
         #await self.filterCon_update(None)
         #await self.filterList_update(None)
@@ -734,6 +738,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt)
                 self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt2)
+
+            else:
+                self.instGui.ccd_tab.inst_NditProg_n.setFormat("")
+                #self.instGui.ccd_tab.inst_DitProg_n.setFormat("")
+
 
             self.almanac = Almanac(self.observatory)
             self.obsGui.main_form.ojd_e.setText(f"{self.almanac['jd']:.6f}")
@@ -1074,25 +1083,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 ok_coo = coo[maska2]
                 ok_adu = adu[maska2]
 
-            txt = f"stars detected:".ljust(28) + f"{len(coo)}".ljust(11)
-            txt = txt + f"saturated:".ljust(30) +f"{len(sat_coo)}\n"
+            txt = f"stars detected:".ljust(17) + f"{len(coo)}".ljust(9)
+            txt = txt + f"saturated:".ljust(15) +f"{len(sat_coo)}\n"
 
             if len(ok_adu)>0:
-                txt = txt + f"stars max ADU:".ljust(25)+f"{ok_adu[0]} ".ljust(9)
+                txt = txt + f"stars max ADU:".ljust(17)+f"{ok_adu[0]}".ljust(9)
             if stats.fwhm_x == None or stats.fwhm_y == None:
                 stats.fwhm_x,stats.fwhm_y=0,0
-            txt = txt + f"FWHM X/Y:".ljust(20)+f"{float(stats.fwhm_x):.1f} / {float(stats.fwhm_y):.1f}\n"
+            txt = txt + f"FWHM X/Y:".ljust(13)+f"{float(stats.fwhm_x):.1f}/{float(stats.fwhm_y):.1f}\n"
 
 
-            txt = txt + f"min ADU:".ljust(30)  +f"{stats.min:.0f}".ljust(11)
-            txt = txt + f"max ADU:".ljust(30)  +f"{stats.max:.0f}\n"
+            txt = txt + f"min ADU:".ljust(17)  +f"{stats.min:.0f}".ljust(9)
+            txt = txt + f"max ADU:".ljust(15)  +f"{stats.max:.0f}\n"
 
 
-            txt = txt + f"mean/median:".ljust(25) +   f"{stats.mean:.0f} / {stats.median:.0f}".ljust(11)
-            txt = txt + f"rms / sigma_q:".ljust(30)  +  f"{stats.rms:.0f} / {stats.sigma_quantile:.0f}\n"
-            print(txt)
+            txt = txt + f"mean/median:".ljust(15) +   f"{stats.mean:.0f}/{stats.median:.0f}".ljust(11)
+            txt = txt + f"rms/sigma_q:".ljust(15)  +  f"{stats.rms:.0f}/{stats.sigma_quantile:.0f}\n"
+            #print(txt)
 
-
+            font=QtGui.QFont("Courier New")
+            self.auxGui.fits_tab.fitsView.stat_e.setFont(font)
             self.auxGui.fits_tab.fitsView.stat_e.setText(txt)
             self.auxGui.fits_tab.fitsView.update(image,sat_coo,ok_coo)
 
@@ -1104,7 +1114,24 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 
+    @qs.asyncSlot()
+    async def ccd_stopExp(self):
+        if self.user.current_user["name"]==self.myself:
+            self.dit_start=0
+            self.ob["run"]=False
+            self.planrunner.stop_nightplan()
+            await self.ccd.aput_stopexposure()
+            self.msg(f"exposure STOP requested","red")
 
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            await self.ccd_update(True)
+
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
     @qs.asyncSlot()
     async def ccd_startExp(self):
