@@ -36,13 +36,13 @@ from scipy.ndimage.filters import maximum_filter
               coo (numpy.ndarray): An sorted array of coordinates representing the positions of stars.
               adu (numpy.ndarray): An sorted array of ADU values corresponding to the detected stars.
 
-        fwhm(self,saturation=65000,radius=10,all_stars=False): Calculates the average fwhm for stars in the X and Y axis.
+        fwhm(self,saturation=65000,radius=10,all_stars=True): Calculates the average fwhm for stars in the X and Y axis.
 
           Args:
             saturation (float): Saturation level above fwhm calculation will be ignored for a star. Defaults to 65000
             radius (int): Radius in which fwhm will be calculated. Defaults to 10
             all_stars (bool): If True, fwhm will be calculated for all stars. 
-                              If False, only for 100 non saturated brightests. Defaults to False
+                              If False, only for 100 non saturated brightests. Defaults to True
 
           Returns: 
             fwhm_x,fwhm_y (float,float): Median of fwhm for X and Y axis, respectively
@@ -117,23 +117,24 @@ class FFS:
 
         return self.coo, self.adu
 
-    def fwhm(self,saturation=65000,radius=10,all_stars=False):
+    def fwhm(self,saturation=65000,radius=10,all_stars=True):
         radius=int(radius)
         self.fwhm_xarr=[]
         self.fwhm_yarr=[]
         self.fwhm_x=None
         self.fwhm_y=None
         for i,tmp in enumerate(self.coo):
-            if all_stars: i_max = 100
-            else: i_max = len(self.adu)
+            if all_stars: i_max = len(self.adu)
+            else: i_max = 100
+            d1=d2=d3=d4 = None            
             if self.adu[i] < int(saturation) and i<i_max:
                 x,y = self.coo[i]
                 max_adu = self.adu[i]
-                half_adu = (max_adu-self.sigma_quantile)/2.
+                half_adu = (max_adu-self.median)/2.
 
-                d1=d2=d3=d4 = None
-                if True:                 
-                    line = self.image[x-radius:x,y] - self.sigma_quantile - half_adu
+                if True:           
+                    line = self.image[x-radius:x+radius,y] - self.median - half_adu  
+                    line = self.image[x-radius+1:x+1,y] - self.median - half_adu
                     maska1,maska2 = line > 0, line < 0
                     pos,neg = line[maska1], line[maska2]
                     if len(pos) > 0 and len(neg) > 0:
@@ -141,9 +142,9 @@ class FFS:
                         line = list(line)  
                         lower_i,upper_i = line.index(lower),line.index(upper)
                         lower_adu,upper_adu = line[lower_i],line[upper_i]
-                        d1 = radius - upper_i + numpy.abs(lower_adu)/(numpy.abs(lower_adu)+numpy.abs(upper_adu))
+                        d1 = radius - upper_i - numpy.abs(lower_adu)/(numpy.abs(lower_adu)+numpy.abs(upper_adu))
           
-                    line = self.image[x:x+radius,y] - self.sigma_quantile - half_adu
+                    line = self.image[x:x+radius,y] - self.median - half_adu
                     maska1,maska2 = line > 0, line < 0
                     pos,neg = line[maska1], line[maska2]
                     if len(pos) > 0 and len(neg) > 0:
@@ -151,9 +152,10 @@ class FFS:
                         line = list(line)  
                         lower_i,upper_i = line.index(lower),line.index(upper)
                         lower_adu,upper_adu = line[lower_i],line[upper_i]
-                        d2 =  upper_i + numpy.abs(lower_adu)/(numpy.abs(lower_adu)+numpy.abs(upper_adu))
+                        d2 =  upper_i + 1 - numpy.abs(lower_adu)/(numpy.abs(lower_adu)+numpy.abs(upper_adu))
 
-                    line = self.image[x,y-radius:y] - self.sigma_quantile - half_adu
+
+                    line = self.image[x,y-radius+1:y+1] - self.median - half_adu
                     maska1,maska2 = line > 0, line < 0
                     pos,neg = line[maska1], line[maska2]
                     if len(pos) > 0 and len(neg) > 0:
@@ -161,9 +163,9 @@ class FFS:
                         line = list(line)  
                         lower_i,upper_i = line.index(lower),line.index(upper)
                         lower_adu,upper_adu = line[lower_i],line[upper_i]
-                        d3 = radius - upper_i + numpy.abs(lower_adu)/(numpy.abs(lower_adu)+numpy.abs(upper_adu))
+                        d3 = radius - upper_i - numpy.abs(lower_adu)/(numpy.abs(lower_adu)+numpy.abs(upper_adu))
           
-                    line = self.image[x,y:y+radius] - self.sigma_quantile - half_adu
+                    line = self.image[x,y:y+radius] - self.median - half_adu
                     maska1,maska2 = line > 0, line < 0
                     pos,neg = line[maska1], line[maska2]
                     if len(pos) > 0 and len(neg) > 0:
@@ -171,18 +173,17 @@ class FFS:
                         line = list(line)  
                         lower_i,upper_i = line.index(lower),line.index(upper)
                         lower_adu,upper_adu = line[lower_i],line[upper_i]
-                        d4 =  upper_i + numpy.abs(lower_adu)/(numpy.abs(lower_adu)+numpy.abs(upper_adu))
+                        d4 =  upper_i + 1 - numpy.abs(lower_adu)/(numpy.abs(lower_adu)+numpy.abs(upper_adu))
 
-                    if d1!=None and d2!=None:
-                        dx = (d1+d2)
-                    else: dx = 0    
-                    
-                    if d3!=None and d4!=None:
-                        dy = (d3+d4)
-                    else: dy = 0  
-
-                    self.fwhm_xarr.append(dx)  
-                    self.fwhm_yarr.append(dy)
+            if d1!=None and d2!=None:
+                dx = (d1+d2)
+            else: dx = 0    
+            
+            if d3!=None and d4!=None:
+                dy = (d3+d4)
+            else: dy = 0 
+            self.fwhm_xarr.append(dx)  
+            self.fwhm_yarr.append(dy)
         
         self.fwhm_xarr,self.fwhm_yarr=numpy.array(self.fwhm_xarr),numpy.array(self.fwhm_yarr)
         

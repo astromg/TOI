@@ -1055,7 +1055,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             res = await self.ccd.aget_imagearray()
             image = self.ccd.imagearray
-            image =  numpy.asarray(image).astype(numpy.int16)
+            image =  numpy.asarray(image) - 32768
+            image = image.astype(numpy.int16)
 
             stats = FFS(image)
             coo=[]
