@@ -298,37 +298,43 @@ class FitsGui(QWidget):
         self.setLayout(grid)
 
 
+  # ######### Fits GUI #############
+
 class FitsView(QWidget):
     def __init__(self, parent):
         QWidget.__init__(self)
         self.parent = parent
         self.mkUI()
         self.colorbar = None
+        self.image=[]
 
-    def update(self, image,sat_coo,ok_coo):
+    def plot_image(self):
         self.axes.clear()
         self.axes.axis("off")
-        vmin = numpy.mean(image) - 1 * numpy.std(image)
-        vmax = numpy.mean(image) + 1 * numpy.std(image)
+        if len(self.image)>0:
 
-        im = self.image = self.axes.imshow(image, vmin=vmin, vmax=vmax)
+            vmin = numpy.mean(self.image) - 1 * numpy.std(self.image)
+            vmax = numpy.mean(self.image) + 1 * numpy.std(self.image)
 
-        if len(sat_coo)>2:
-            x,y = zip(*sat_coo)
-            self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
-        if len(ok_coo)>2:
-            x,y = zip(*ok_coo)
-            self.axes.plot(x, y, color="white", marker="o", markersize="5", markerfacecolor="none",linestyle="")
+            im = self.axes.imshow(self.image, vmin=vmin, vmax=vmax)
 
-        # if self.colorbar is None:
-        #     self.colorbar = self.fig.colorbar(im, ax=self.axes)
-        # else:
-        #     self.colorbar.upate_normal(im)
-        # self.violin_axes.clear()
-        # self.violin_axes.violinplot(image.flat ,showmeans=False,showmedians=True,showextrema=False)
+            if len(self.sat_coo)>2 and self.show_c.checkState():
+                x,y = zip(*self.sat_coo)
+                self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
+            if len(self.ok_coo)>2 and self.show_c.checkState():
+                x,y = zip(*self.ok_coo)
+                self.axes.plot(x, y, color="white", marker="o", markersize="5", markerfacecolor="none",linestyle="")
 
-        self.canvas.draw()
-        self.show()
+            self.canvas.draw()
+            self.show()
+
+    def update(self, image,sat_coo,ok_coo):
+        self.image = image
+        self.sat_coo = sat_coo
+        self.ok_coo = ok_coo
+        self.plot_image()
+
+
 
     def mkUI(self):
         self.fig = Figure((1.0, 1.0), linewidth=-1, dpi=100)
@@ -340,17 +346,26 @@ class FitsView(QWidget):
         # self.violin_axes.tick_params(axis='y', which='both', labelleft=False, labelright=True, direction='in')
 
         grid = QGridLayout()
-        grid.addWidget(self.canvas,0,0)
+
+        self.show_c = QCheckBox("Mark stars")
+        self.show_c.setChecked(True)
+        self.show_c.clicked.connect(self.plot_image)
+
+        grid.addWidget(self.show_c,0,0)
+
+        grid.addWidget(self.canvas,1,0)
 
         self.stat_e=QTextEdit()
         self.stat_e.setReadOnly(True)
         self.stat_e.setStyleSheet("background-color: rgb(235,235,235);")
 
-        grid.addWidget(self.stat_e,1,0)
+        grid.addWidget(self.stat_e,2,0)
 
-        grid.setRowMinimumHeight(0,350)
-        grid.setRowStretch(0,1)
-        grid.setRowStretch(1,0)
+
+        grid.setRowMinimumHeight(1,350)
+        grid.setRowStretch(0,0)
+        grid.setRowStretch(1,1)
+        grid.setRowStretch(2,0)
         self.setLayout(grid)
 
         self.axes.clear()
