@@ -1,0 +1,17 @@
+FROM python:3.9
+
+ENV POETRY_VERSION=1.3.2
+
+# System deps:
+RUN pip install "poetry==$POETRY_VERSION"
+
+
+WORKDIR ./
+COPY ./TOI /.
+COPY ./ocabox/ ./ocabox/
+COPY TOI/pyproject.toml ./
+
+
+RUN ["poetry", "install"]
+STOPSIGNAL SIGINT
+ENTRYPOINT ["poetry", "run", "toi"]

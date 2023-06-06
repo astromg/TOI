@@ -8,7 +8,7 @@ repository = "https://github.com/astromg/TOI"  # to be moved to https://github.c
 keywords = ["astronomy", "telescopes"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 PyQt5 = "^5.15.7"
 astropy = ">=5.0.4,<5.1.0"
 requests = "^2.28.1"
@@ -16,8 +16,8 @@ ephem = "^4.1.4"
 matplotlib = "^3.6.3"
 numpy = "^1.24.1"
 qasync = "^0.23.0"
-# ocabox = {git = "https://github.com/araucaria-project/ocabox.git"}
-ocabox = {path = "../ocabox", develop = true}
+#ocabox = {git = "https://github.com/araucaria-project/ocabox.git"}
+ocabox = {path = "./ocabox", develop = true}
 paho-mqtt = "^1.6.1"
 
 

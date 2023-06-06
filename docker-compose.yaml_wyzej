@@ -1,0 +1,15 @@
+version: '3.8'
+
+networks:
+  toi-network:
+    driver: bridge
+
+services:
+  toi:
+    build:
+      context: ./
+      args:
+        OCABOX_ROUTER_PORT: ${OCABOX_CLIENT_PORT}
+    stop_signal: SIGINT
+    networks:
+      - toi-network
