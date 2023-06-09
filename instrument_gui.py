@@ -86,8 +86,8 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.inst_object_e.setText("SKY_FLAT")
           elif self.inst_Obtype_s.currentIndex()==4:
               self.inst_object_e.setText("DOME_FLAT")
-          elif self.inst_Obtype_s.currentIndex()==5:
-              self.inst_object_e.setText("FOCUS")
+          #elif self.inst_Obtype_s.currentIndex()==5:
+          #    self.inst_object_e.setText("FOCUS")
           else: pass
 
         # =================== OKNO GLOWNE ====================================
@@ -104,6 +104,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_Obtype_l=QLabel("TYPE:")
           self.inst_Obtype_s=QComboBox()
           self.inst_Obtype_s.addItems(["Science","Zero","Dark","Sky Flat","DomeFlat","Focus"])
+          #self.inst_Obtype_s.addItems(["Science","Zero","Dark","Sky Flat","DomeFlat"])
           self.inst_Obtype_s.currentIndexChanged.connect(self.ObsTypeChanged)
           
           grid.addWidget(self.inst_object_l, w,0)
@@ -141,6 +142,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_Seq_l=QLabel("Sequence:")
           self.inst_Seq_e=QLineEdit() 
           self.inst_Seq_p=QPushButton('EXECUTE')
+          self.inst_Seq_p.setStyleSheet(" color: gray;")
           self.inst_Seq_p.clicked.connect(self.parent.ccd_startSequence)
 
 

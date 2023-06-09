@@ -256,9 +256,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obs_window_size=[850,400]
 
         self.mnt_geometry=[0,110+int(self.obs_window_size[1]),850,400]
-        self.plan_geometry=[1546,0,300,1000]
-        self.instrument_geometry=[930,700,500,300]
-        self.aux_geometry=[930,0,500,550]
+        self.plan_geometry=[1490,0,420,1100]
+        self.instrument_geometry=[930,700,510,300]
+        self.aux_geometry=[930,0,510,550]
 
         self.tic_conn="unknown"
         self.fw_conn="unknown"
@@ -406,7 +406,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
         self.add_background_task(self.user.asubscribe_is_access(self.user_update))
 
-        #self.add_background_task(self.dome.asubscribe_connected(self.domeCon_update))
+        self.add_background_task(self.dome.asubscribe_connected(self.domeCon_update))
         self.add_background_task(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update))
         self.add_background_task(self.dome.asubscribe_az(self.domeAZ_update))
         self.add_background_task(self.dome.asubscribe_slewing(self.domeStatus_update))
@@ -508,10 +508,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         r=r['Value']
         txt = txt + f"ERROR:  {r}"
 
-        #data={"Action":"telescope:clearerror","Parameters":""}
-        #quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
-        #r = requests.put(quest,data=data).json()
-        #r=r['Value']
+        data={"Action":"telescope:clearerror","Parameters":""}
+        quest="http://192.168.7.110:11111/api/v1/telescope/0/action"
+        r = requests.put(quest,data=data).json()
+        r=r['Value']
 
 
 
@@ -551,11 +551,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #quest="http://192.168.7.110:11111/api/v1/rotator/0/position"
         #quest="http://192.168.7.110:11111/api/v1/telescope/0/utcdate"
         #quest="http://192.168.7.110:11111/api/v1/dome/0/abortslew"
-        quest="http://192.168.7.110:11111/api/v1/camera/0/camerastate"
+        #quest="http://192.168.7.110:11111/api/v1/camera/0/camerastate"
         #quest="http://192.168.7.110:11111/api/v1/camera/0/setccdtemperature"
 
 
-        r=requests.get(quest)
+        #r=requests.get(quest)
 
         #data={"Command":"MotStat","Raw":"True"}
         #quest="http://192.168.7.110:11111/api/v1/telescope/0/commandstring"
@@ -691,6 +691,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if "wait_ut" in self.ob.keys():
                     req_ut = str(self.ob["wait_ut"])
                     ut = str(self.almanac["ut"]).split()[1]
+                    print(ut,req_ut)
                     ut = 3600*float(ut.split(":")[0])+60*float(ut.split(":")[1])+float(ut.split(":")[2])
                     req_ut = 3600*float(req_ut.split(":")[0])+60*float(req_ut.split(":")[1])+float(req_ut.split(":")[2])
                     if req_ut < ut :
@@ -698,6 +699,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.planGui.done.append(self.ob["uid"])
                         self.msg(f"{self.ob['name']} UT {self.ob['wait_ut']} DONE","green")
                         self.planGui.current_i=-1
+
 
                 if "wait_sunrise" in self.ob.keys():
                     if float(self.almanac["sun_alt"]) > float(self.ob["wait_sunrise"]):
@@ -712,6 +714,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.planGui.done.append(self.ob["uid"])
                         self.msg(f"{self.ob['name']} sunset {self.ob['wait_sunset']} DONE","green")
                         self.planGui.current_i=-1
+
+
 
 
 
@@ -823,7 +827,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if info["id"]=="auto_focus" and info["started"]==True and info["done"]==True:
                     self.autofocus_started=False
                     self.msg("Auto-focus sequence finished","black")
-                    max_sharpness_focus, calc_metadata = calFoc.calculate("../../Desktop/fits_zb08")
+                    max_sharpness_focus, calc_metadata = calFoc.calculate("../../Desktop/fits_zb08/focus/actual")
                     coef = calc_metadata["poly_coef"]
                     focus_list_ret = calc_metadata["focus_values"]
                     sharpness_list_ret = calc_metadata["sharpness_values"]
@@ -874,7 +878,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.plan_runner_status="exp done"
 
         if "name" in info.keys() and "done" in info.keys():
-            if info["name"]=="camera-exposure" and info["done"]:
+            if info["name"]=="Night plan" and info["done"]:
                 self.ob["done"]=True
                 if "uid" in self.ob.keys():
                     self.planGui.done.append(self.ob["uid"])
@@ -915,12 +919,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             exp = 5
             self.msg("no exp specified. exp=5","red")
 
-        seq = "1/"+str(self.curent_filter)+"/"+str(exp)
-
-        pos = v0 - step*int(number/2)
-        for n in range(int(number)):
-            pos = pos + step
-            program = program + f"FOCUS pos={int(pos)} seq={seq}\n"
+        seq = f"{int(number)}/"+str(self.curent_filter)+"/"+str(exp)
+        pos = f"{int(v0)}/{int(step)}"
+        program = f"FOCUS seq={seq} pos={pos}"
 
         #print(program)
         self.planrunner.load_nightplan_string('auto_focus', program, overwrite=True)
@@ -941,7 +942,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.ob = self.planGui.plan[self.planGui.next_i]
             self.ob["done"]=False
             self.ob["run"]=True
-            #print(self.ob)
 
 
             if "uid" in self.ob.keys():
@@ -976,6 +976,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                         if self.ob["type"] == "ZERO" and "block" in self.ob.keys():
                             program = self.ob["block"]
+                            print("DUPA ",program)
                             self.planrunner.load_nightplan_string('program', program, overwrite=True)
                             self.planrunner.run_nightplan('program',step_id="00")
 
@@ -984,6 +985,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.plan_runner_origin="Plan Gui"
 
                         if self.ob["type"] == "DARK" and "block" in self.ob.keys():
+                            program = self.ob["block"]
+                            self.planrunner.load_nightplan_string('program', program, overwrite=True)
+                            self.planrunner.run_nightplan('program',step_id="00")
+
+                            self.program_name="program"
+                            self.fits_exec=True
+                            self.plan_runner_origin="Plan Gui"
+
+                        if self.ob["type"] == "DOMEFLAT" and "block" in self.ob.keys():
+                            program = self.ob["block"]
+                            self.planrunner.load_nightplan_string('program', program, overwrite=True)
+                            self.planrunner.run_nightplan('program',step_id="00")
+
+                            self.program_name="program"
+                            self.fits_exec=True
+                            self.plan_runner_origin="Plan Gui"
+
+
+                        if self.ob["type"] == "SKYFLAT" and "block" in self.ob.keys():
                             program = self.ob["block"]
                             self.planrunner.load_nightplan_string('program', program, overwrite=True)
                             self.planrunner.run_nightplan('program',step_id="00")
@@ -1055,7 +1075,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             res = await self.ccd.aget_imagearray()
             image = self.ccd.imagearray
-            image =  numpy.asarray(image) - 32768
+            image =  numpy.asarray(image)
             image = image.astype(numpy.int16)
 
             stats = FFS(image)
@@ -1102,8 +1122,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             txt = txt + f"rms/sigma_q:".ljust(15)  +  f"{stats.rms:.0f}/{stats.sigma_quantile:.0f}\n"
             #print(txt)
 
-            font=QtGui.QFont("Courier New")
-            self.auxGui.fits_tab.fitsView.stat_e.setFont(font)
+            #font=QtGui.QFont("Courier New",5)
+            #self.auxGui.fits_tab.fitsView.stat_e.setFont(font)
             self.auxGui.fits_tab.fitsView.stat_e.setText(txt)
             self.auxGui.fits_tab.fitsView.update(image,sat_coo,ok_coo)
 
@@ -1115,24 +1135,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 
-    @qs.asyncSlot()
-    async def ccd_stopExp(self):
-        if self.user.current_user["name"]==self.myself:
-            self.dit_start=0
-            self.ob["run"]=False
-            self.planrunner.stop_nightplan()
-            await self.ccd.aput_stopexposure()
-            self.msg(f"exposure STOP requested","red")
 
-        else:
-            txt="U don't have controll"
-            self.msg(txt,"red")
-            await self.ccd_update(True)
-
-            self.tmp_box=QtWidgets.QMessageBox()
-            self.tmp_box.setWindowTitle("TOI message")
-            self.tmp_box.setText("You don't have controll")
-            self.tmp_box.show()
 
     @qs.asyncSlot()
     async def ccd_startExp(self):
@@ -1210,6 +1213,30 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.program_name="manual"
                         self.fits_exec=True
 
+                elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==3:
+                    if ok_exp:
+                        ndit=int(self.instGui.ccd_tab.inst_Ndit_e.text())
+                        exp=int(self.instGui.ccd_tab.inst_Dit_e.text())
+                        txt=str(ndit)+"/"+str(self.curent_filter)+"/"+str(exp)
+                        txt="SKYFLAT seq="+txt+"\n"
+                        self.planrunner.load_nightplan_string('manual', txt, overwrite=True)
+                        self.planrunner.run_nightplan('manual',step_id="00")
+                        self.program_name="manual"
+                        self.fits_exec=True
+
+
+                elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==4:
+                    if ok_exp:
+                        ndit=int(self.instGui.ccd_tab.inst_Ndit_e.text())
+                        exp=int(self.instGui.ccd_tab.inst_Dit_e.text())
+                        txt=str(ndit)+"/"+str(self.curent_filter)+"/"+str(exp)
+                        txt="DOMEFLAT seq="+txt+"\n"
+                        self.planrunner.load_nightplan_string('manual', txt, overwrite=True)
+                        self.planrunner.run_nightplan('manual',step_id="00")
+                        self.program_name="manual"
+                        self.fits_exec=True
+
+
                 else: self.msg(f"not implemented yet","yellow")
 
 
@@ -1222,6 +1249,27 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.tmp_box.setWindowTitle("TOI message")
             self.tmp_box.setText("You don't have controll")
             self.tmp_box.show()
+
+
+    @qs.asyncSlot()
+    async def ccd_stopExp(self):
+        if self.user.current_user["name"]==self.myself:
+            self.dit_start=0
+            self.ob["run"]=False
+            self.planrunner.stop_nightplan()
+            await self.ccd.aput_stopexposure()
+            self.msg(f"exposure STOP requested","red")
+
+        else:
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            await self.ccd_update(True)
+
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
+
 
     @qs.asyncSlot()
     async def ccd_startSequence(self):
@@ -1868,10 +1916,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.tmp_box.setText("You don't have controll")
             self.tmp_box.show()
 
+    @qs.asyncSlot()
+    async def dome_stop(self):
+        if True: #self.user.current_user["name"]==self.myself:
+           await self.dome.aput_abortslew()
+           self.msg("DOME STOP requested","yellow")
+
+        else:
+            await self.domeShutterStatus_update(False)
+            txt="U don't have controll"
+            self.msg(txt,"red")
+            self.tmp_box=QtWidgets.QMessageBox()
+            self.tmp_box.setWindowTitle("TOI message")
+            self.tmp_box.setText("You don't have controll")
+            self.tmp_box.show()
 
     async def domeCon_update(self, event):
         pass
         #self.dome_con=self.dome.connected
+        #print("DUPA!!!!!!!!", self.dome_con)
         #if self.dome_con:
            #self.mntGui.domeConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
            ##self.mntGui.domeConn1_l.setText("Dome Connected")

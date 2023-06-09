@@ -325,6 +325,9 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.domeNextAz_e = QLineEdit()
 
+        self.domeStop_p = QPushButton('STOP')
+        self.domeStop_p.clicked.connect(self.parent.dome_stop)
+
         self.domeSet_p = QPushButton('MOVE')
         self.domeSet_p.clicked.connect(self.parent.dome_move2Az)
 
@@ -332,6 +335,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.domeAz_l, w, 0,1,2)
         self.grid.addWidget(self.domeAz_e, w, 2)
         self.grid.addWidget(self.domeNextAz_e, w, 3)
+        self.grid.addWidget(self.domeStop_p, w, 4)
         self.grid.addWidget(self.domeSet_p, w, 5)
         self.grid.addWidget(self.domeAuto_l, w, 6)
         self.grid.addWidget(self.domeAuto_c, w, 7)

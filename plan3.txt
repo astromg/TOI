@@ -1,6 +1,27 @@
 
+DARK seq=4/g/1
+ZERO seq=3/i/0
+ZERO seq=5/g/0
 
-WAIT wait=10
+STOP
+
+WAIT ut=15:00:00
+WAIT ut=15:01:00
+WAIT ut=15:02:00
+WAIT ut=15:03:00
+WAIT ut=15:04:00
+WAIT ut=15:05:00
+WAIT ut=15:06:00
+
+WAIT wait=5
+WAIT wait=5
+WAIT wait=5
+WAIT wait=5
+
+
+
+
+STOP
 ZERO seq=2/2/0
 STOP
 DARK seq=4/2/1,2/2/8

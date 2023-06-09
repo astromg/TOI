@@ -1,0 +1,35 @@
+
+
+# OPEN COVERS MANUALLY
+
+WAIT wait=10
+ZERO seq=4/i/0
+DARK seq=3/i/3
+STOP
+
+# OPEN MIRROR COVERS MANUALLY
+
+WAIT ut=14:42:00
+#DOMEFLAT seq=3/i/5
+DOMEFLAT seq=3/i/5,3/g/5
+STOP
+
+# OPEN DOME MAUUALLY
+
+#WAIT wait_sunset=60
+SKYFLAT 23:50:50 -68:30:00 seq=3/v/a
+#SKYFLAT 23:50:50 -68:30:00 seq=3/v/a,3/g/a
+STOP
+
+# MAKE FOCUS FIND MANUALLY
+
+OBJECT V764_Mon 07:37:43.200 -07:43:37.985                seq=1/V/5
+OBJECT V753_Cen 11:51:15.309 -55:48:15.811                seq=1/V/5
+OBJECT WY_Ant 10:16:04.946 -29:43:42.417                  seq=1/V/5
+OBJECT WZ_Hya 10:13:24.127 -13:08:17.360                  seq=1/V/5
+OBJECT AD_CMi 07:52:47.18247 +01:35:50.4974               seq=1/V/5
+OBJECT VZ_Cnc 08:40:52.12545 +09:49:27.1487               seq=1/V/5
+OBJECT V474_Mon 05:59:01.08067 -09:22:56.0055             seq=1/V/5
+OBJECT VX_Hya 09:45:46.84963 -12:00:14.3583               seq=1/V/5
+OBJECT AI_Vel 08:14:05.14681 -44:34:32.8476               seq=1/V/5
+

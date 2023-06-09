@@ -337,9 +337,34 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                                   self.plan.append(ob)
 
-                               # AUTOFOCUS method=[fast,robust]
-                               # SKYFLAT
-                               # DOMEFLAT
+                               elif "DOMEFLAT" in line:
+                                  ll=line.split()
+                                  block=line
+                                  ob_type=ll[0]
+                                  name=ll[0]
+                                  for tmp in ll:
+                                     if "seq=" in tmp: seq=tmp.split("=")[1]
+
+                                  ob = {"name":name}
+                                  ob["block"]=block
+                                  ob["type"]=ob_type
+                                  ob["seq"]=seq
+                                  self.plan.append(ob)
+
+                               elif "SKYFLAT" in line:
+                                  ll=line.split()
+                                  block=line
+                                  ob_type=ll[0]
+                                  name=ll[0]
+                                  for tmp in ll:
+                                     if "seq=" in tmp: seq=tmp.split("=")[1]
+
+                                  ob = {"name":name}
+                                  ob["block"]=block
+                                  ob["type"]=ob_type
+                                  ob["seq"]=seq
+                                  self.plan.append(ob)
+
 
                                elif "ZERO" in line:
                                   ll=line.split()
