@@ -23,7 +23,7 @@ class AuxGui(QWidget):
     def __init__(self, parent):
         super(AuxGui, self).__init__()
         self.parent = parent
-        self.setStyleSheet("font-size: 11pt;")
+        #self.setStyleSheet("font-size: 11pt;")
         self.setGeometry(self.parent.aux_geometry[0], self.parent.aux_geometry[1], self.parent.aux_geometry[2],
                          self.parent.aux_geometry[3])
 
@@ -92,19 +92,49 @@ class WelcomeGui(QWidget):
         grid = QGridLayout()
         w = 0
         self.pic_l = QLabel(" ")
+        txt=""
         if self.parent.active_tel == "WK06":
             png_file = './Icons/wk06.png'
+            txt = "Welcome to Wojciech Krzeminski WK06 Telescope\n"
         elif self.parent.active_tel == "ZB08":
             png_file = './Icons/zb08.png'
+            txt = "Welcome to Zbigniew Kolaczkowski ZB08 Telescope\n"
         elif self.parent.active_tel == "JK15":
             png_file = './Icons/jk15.png'
+            txt = "Welcome to Janusz Kaluzny JK08 Telescope\n"
         elif self.parent.active_tel == "WG25":
             png_file = './Icons/wg25.png'
         elif self.parent.active_tel == "SIM":
             png_file = './Icons/oca.png'
         self.pic_l.setPixmap(QtGui.QPixmap(png_file).scaled(400, 300))
         grid.addWidget(self.pic_l, w, 0)
+
+        txt = txt + "\nWhats New?"
+        txt = txt + "\n--- 09.06.23 ---\nMajor plan execution BUG in TOI was fixed. \nDOMEFLAT and SKYFLAT for Plan and Manual is working now\t"
+
+
+        self.info_e=QTextEdit()
+        self.info_e.setReadOnly(True)
+        self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
+        self.info_e.setText(txt)
+        font=QtGui.QFont("Courier New",10)
+        self.info_e.setFont(font)
+
+
+        w=w+1
+        grid.addWidget(self.info_e, w, 0)
+
         self.setLayout(grid)
+
+#        grid.setRowMinimumHeight(1,350)
+#        grid.setRowStretch(0,0)
+#        grid.setRowStretch(1,1)
+#        grid.setRowStretch(2,0)
+#        self.setLayout(grid)
+
+
+
+
 
 
 # ############### FOCUS ##########################
@@ -358,6 +388,8 @@ class FitsView(QWidget):
         self.stat_e=QTextEdit()
         self.stat_e.setReadOnly(True)
         self.stat_e.setStyleSheet("background-color: rgb(235,235,235);")
+        font=QtGui.QFont("Courier New",9)
+        self.stat_e.setFont(font)
 
         grid.addWidget(self.stat_e,2,0)
 

@@ -58,6 +58,7 @@ logger = logging.getLogger(__name__)
 
 # background
 # rgb(136, 142, 228)     blue
+# rgb(234, 245, 249)     light blue
 # rgb(255, 165, 0)       orange
 
 
@@ -2122,7 +2123,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if self.rotator_moving != None:
                 if self.rotator_moving:
-                    self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(217, 239, 217); color: black;")
+                    self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(234, 245, 249); color: black;")
                     try:
                         diff = self.rotator_pos_prev - self.rotator_pos
                         if diff > 1:
