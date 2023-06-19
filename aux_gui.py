@@ -95,10 +95,16 @@ class WelcomeGui(QWidget):
         txt=""
         if self.parent.active_tel == "WK06":
             png_file = './Icons/wk06.png'
-            txt = "Welcome to Wojciech Krzeminski WK06 Telescope\n"
+            txt = "Welcome to Wojciech Krzeminski WK06 Telescope <br>"
         elif self.parent.active_tel == "ZB08":
             png_file = './Icons/zb08.png'
-            txt = "Welcome to Zbigniew Kolaczkowski ZB08 Telescope\n"
+            txt = "<h4>Welcome to Zbigniew Kolaczkowski <u>ZB08</u> Telescope</h4>"
+            txt = txt + "<table>"
+            txt = txt + "<tr><td>Ritchey–Chrétien <b>f6.85</b>  </td><td>|    focal length = <b>5480</b>mm </td></tr>"
+            txt = txt + "<tr><td>filters: </td><td>|    Sloan (<b>ugriz</b>), JC (<b>BVI</b>) + diff </td></tr>"
+            txt = txt + "<tr><td>Instrument: </td><td>|    Andor iKon-L <b>2048x2048</b> </td></tr>"
+            txt = txt + "<tr><td>  Pixscale = <b>0.504</b>'/pix </td><td>|    FOV = <b>17.2</b> arcmin   </td> </tr>"
+            txt = txt + "</table>"
         elif self.parent.active_tel == "JK15":
             png_file = './Icons/jk15.png'
             txt = "Welcome to Janusz Kaluzny JK08 Telescope\n"
@@ -109,14 +115,14 @@ class WelcomeGui(QWidget):
         self.pic_l.setPixmap(QtGui.QPixmap(png_file).scaled(400, 300))
         grid.addWidget(self.pic_l, w, 0)
 
-        txt = txt + "\nWhats New?"
-        txt = txt + "\n--- 09.06.23 ---\nMajor plan execution BUG in TOI was fixed. \nDOMEFLAT and SKYFLAT for Plan and Manual is working now\t"
+        txt = txt + "<h4>Whats New?</h4>"
+        txt = txt + "--- 09.06.23 --- <br> Major plan execution BUG in TOI was fixed. <br>DOMEFLAT and SKYFLAT for Plan and Manual is working now<br>"
 
 
         self.info_e=QTextEdit()
         self.info_e.setReadOnly(True)
         self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
-        self.info_e.setText(txt)
+        self.info_e.setHtml(txt)
         font=QtGui.QFont("Courier New",10)
         self.info_e.setFont(font)
 
