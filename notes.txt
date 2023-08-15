@@ -1,21 +1,130 @@
 
-# ZMIENNE
+
+# text
+# rgb(150,0,0)       red
+# rgb(0,150,0)       green
+# rgb(217, 239, 217) light green
+# rgb(255, 160, 0)   orange
+# rgb(0,0,0)         black
+
+# background
+# rgb(136, 142, 228)     blue
+# rgb(234, 245, 249)     light blue
+# rgb(240, 232, 151)     light yellow
+# rgb(255, 165, 0)       orange
+# rgb(233, 233, 233)     grey
 
 
-self.tel =
+# "\U0001F7E2" green circle
+# "\U0001F7E1" yellow circle
+# "\U0001F534" red circle
+
+# "\u23F0"  budzik
+# "\u23F1"  stoper
+
+"background-color: rgb(136, 142, 228); color: black;" - moving blue
+"background-color: rgb(233, 233, 233); color: black;" - grey
+"background-color: rgb(255, 255, 255); color: black;"
 
 
 
 
 
+# ######### AUTOFLAT ########################
 
 
+        --------  19: 31 - -------  manual - -------
+        {'id': 'manual', 'name': 'Night plan', 'started': True, 'done': False, 'skipped': False,
+         'timestamp_utc': '2023-08-14 19:31:56.093583', 'c_type': 'night_plan'}
+
+    --------  19: 31 - -------  00 - -------
+    {'id': '00', 'name': 'Sequence', 'started': True, 'done': False, 'skipped': False,
+     'timestamp_utc': '2023-08-14 19:31:56.093672', 'c_type': 'sequence'}
 
 
+--------  19: 31 - -------  00_00 - -------
+{'seq': '5/Ic/a', 'id': '00_00', 'name': 'SKYFLAT', 'started': True, 'done': False, 'skipped': False,
+ 'timestamp_utc': '2023-08-14 19:31:56.370572', 'c_type': 'command'}
 
+--------  19: 31 - -------  00_00_00 - -------
+{'follow_tol': 2.0, 'uobi': 0, 'id': '00_00_00', 'name': 'dome-slew', 'started': True, 'done': False, 'skipped': False,
+ 'timestamp_utc': '2023-08-14 19:31:56.370837', 'c_type': 'subcommand'}
 
+--------  19: 31 - -------  00_00_00 - -------
+{'follow_tol': 2.0, 'uobi': 0, 'id': '00_00_00', 'name': 'dome-slew', 'started': True, 'done': False, 'skipped': True,
+ 'timestamp_utc': '2023-08-14 19:31:56.382716', 'c_type': 'subcommand'}
 
+--------  19: 31 - -------  00_00_01 - -------
+{'filter': 'Ic', 'uobi': 0, 'id': '00_00_01', 'name': 'change-filter', 'started': True, 'done': False, 'skipped': False,
+ 'timestamp_utc': '2023-08-14 19:31:56.382796', 'c_type': 'subcommand'}
 
+--------  19: 31 - -------  00_00_01 - -------
+{'filter': 'Ic', 'uobi': 0, 'id': '00_00_01', 'name': 'change-filter', 'started': True, 'done': False, 'skipped': True,
+ 'timestamp_utc': '2023-08-14 19:31:56.393425', 'c_type': 'subcommand'}
+
+--------  19: 31 - -------  00_00_02 - -------
+{'sub_exp': 1, 'exp_time': None, 'exp_no': 5, 'type': 'flat', 'light': True, 'obj_name': 'test', 'req_ra': None,
+ 'req_dec': None, 'epoch': '2000', 'filter': 'Ic', 'focus_id': 32633, 'auto_exposure': True, 'observer': '', 'uobi': 0,
+ 'id': '00_00_02', 'name': 'camera-exposure', 'started': True, 'done': False, 'skipped': False,
+ 'timestamp_utc': '2023-08-14 19:31:56.393700', 'c_type': 'subcommand'}
+
+--------  19: 31 - -------  00_00_02 - -------
+{'auto_exp_start': True, 'auto_exp_finnished': False, 'auto_exp_sub_no': 1, 'auto_exp_time': 1.0, 'sub_exp': 1,
+ 'exp_time': None, 'exp_no': 5, 'type': 'flat', 'light': True, 'obj_name': 'test', 'req_ra': None, 'req_dec': None,
+ 'epoch': '2000', 'filter': 'Ic', 'focus_id': 32633, 'auto_exposure': True, 'observer': '', 'uobi': 0, 'id': '00_00_02',
+ 'name': 'camera-exposure', 'started': True, 'done': False, 'skipped': False,
+ 'timestamp_utc': '2023-08-14 19:31:56.393851', 'c_type': 'subcommand'}
+
+--------  19: 32 - -------  00_00_02 - -------
+{'auto_exp_start': True, 'auto_exp_finnished': True, 'auto_exp_sub_no': 1, 'auto_exp_time': 1.0, 'sub_exp': 1,
+ 'exp_time': None, 'exp_no': 5, 'type': 'flat', 'light': True, 'obj_name': 'test', 'req_ra': None, 'req_dec': None,
+ 'epoch': '2000', 'filter': 'Ic', 'focus_id': 32633, 'auto_exposure': True, 'observer': '', 'uobi': 0, 'id': '00_00_02',
+ 'name': 'camera-exposure', 'started': True, 'done': False, 'skipped': False,
+ 'timestamp_utc': '2023-08-14 19:32:12.511586', 'c_type': 'subcommand'}
+
+--------  19: 32 - -------  00_00_02 - -------
+{'test_exp_mean': 168.39999999999998, 'sub_exp': 1, 'exp_time': None, 'exp_no': 5, 'type': 'flat', 'light': True,
+ 'obj_name': 'test', 'req_ra': None, 'req_dec': None, 'epoch': '2000', 'filter': 'Ic', 'focus_id': 32633,
+ 'auto_exposure': True, 'observer': '', 'uobi': 0, 'id': '00_00_02', 'name': 'camera-exposure', 'started': True,
+ 'done': False, 'skipped': False, 'timestamp_utc': '2023-08-14 19:32:12.511783', 'c_type': 'subcommand'}
+
+--------  19: 32 - -------  00_00_02 - -------
+{'auto_exp_start': True, 'auto_exp_finnished': False, 'auto_exp_sub_no': 2, 'auto_exp_time': 1.0, 'sub_exp': 1,
+ 'exp_time': None, 'exp_no': 5, 'type': 'flat', 'light': True, 'obj_name': 'test', 'req_ra': None, 'req_dec': None,
+ 'epoch': '2000', 'filter': 'Ic', 'focus_id': 32633, 'auto_exposure': True, 'observer': '', 'uobi': 0, 'id': '00_00_02',
+ 'name': 'camera-exposure', 'started': True, 'done': False, 'skipped': False,
+ 'timestamp_utc': '2023-08-14 19:32:12.513083', 'c_type': 'subcommand'}
+
+--------  19: 32 - -------  00_00_02 - -------
+{'auto_exp_start': True, 'auto_exp_finnished': True, 'auto_exp_sub_no': 2, 'auto_exp_time': 1.0, 'sub_exp': 1,
+ 'exp_time': None, 'exp_no': 5, 'type': 'flat', 'light': True, 'obj_name': 'test', 'req_ra': None, 'req_dec': None,
+ 'epoch': '2000', 'filter': 'Ic', 'focus_id': 32633, 'auto_exposure': True, 'observer': '', 'uobi': 0, 'id': '00_00_02',
+ 'name': 'camera-exposure', 'started': True, 'done': False, 'skipped': False,
+ 'timestamp_utc': '2023-08-14 19:32:29.501207', 'c_type': 'subcommand'}
+
+--------  19: 32 - -------  00_00_02 - -------
+{'test_exp_mean': 165.89, 'sub_exp': 1, 'exp_time': None, 'exp_no': 5, 'type': 'flat', 'light': True,
+ 'obj_name': 'test', 'req_ra': None, 'req_dec': None, 'epoch': '2000', 'filter': 'Ic', 'focus_id': 32633,
+ 'auto_exposure': True, 'observer': '', 'uobi': 0, 'id': '00_00_02', 'name': 'camera-exposure', 'started': True,
+ 'done': False, 'skipped': False, 'timestamp_utc': '2023-08-14 19:32:29.501368', 'c_type': 'subcommand'}
+
+--------  19: 32 - -------  00_00_02 - -------
+{'sub_exp': 1, 'exp_time': None, 'exp_no': 5, 'type': 'flat', 'light': True, 'obj_name': 'test', 'req_ra': None,
+ 'req_dec': None, 'epoch': '2000', 'filter': 'Ic', 'focus_id': 32633, 'auto_exposure': True, 'observer': '', 'uobi': 0,
+ 'id': '00_00_02', 'name': 'camera-exposure', 'started': True, 'done': False, 'skipped': True,
+ 'timestamp_utc': '2023-08-14 19:32:29.501439', 'c_type': 'subcommand'}
+
+--------  19: 32 - -------  00_00 - -------
+{'seq': '5/Ic/a', 'id': '00_00', 'name': 'SKYFLAT', 'started': True, 'done': False, 'skipped': True,
+ 'timestamp_utc': '2023-08-14 19:32:29.501467', 'c_type': 'command'}
+
+--------  19: 32 - -------  00 - -------
+{'id': '00', 'name': 'Sequence', 'started': True, 'done': True, 'skipped': False,
+ 'timestamp_utc': '2023-08-14 19:32:29.737638', 'c_type': 'sequence'}
+
+--------  19: 32 - -------  manual - -------
+{'id': 'manual', 'name': 'Night plan', 'started': True, 'done': True, 'skipped': False,
+ 'timestamp_utc': '2023-08-14 19:32:29.737786', 'c_type': 'night_plan'}
 
 
 

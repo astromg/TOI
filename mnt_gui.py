@@ -33,49 +33,95 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.updateUI()
 
     def updateNextRaDec(self):
+        self.nextRa_e.setStyleSheet("background-color: white; color: black;")
+        self.nextDec_e.setStyleSheet("background-color: white; color: black;")
+        self.nextAlt_e.setStyleSheet("background-color: white; color: black;")
+        self.nextAz_e.setStyleSheet("background-color: white; color: black;")
+        self.parent.nextOB_ok = False
+        airmass = None
         if self.setEq_r.isChecked():
-            self.nextRa_e.setStyleSheet("background-color: rgb(245, 178, 79);")
-            self.nextDec_e.setStyleSheet("background-color: rgb(245, 178, 79);")
-            ok = False
-            try:
-                ra = self.nextRa_e.text()
-                dec = self.nextDec_e.text()
-                ok = True
-            except:
-                ok = False
-            if ok:
+            ra = self.nextRa_e.text()
+            dec = self.nextDec_e.text()
+            if len(ra)>0 and len(dec)>0:
+                self.parent.nextOB_ok = True
+            else: self.parent.nextOB_ok = None
+            if self.parent.nextOB_ok:
                 try:
-                  az, alt = RaDec2AltAz(self.parent.observatory, ephem.now(), ra, dec)
-                  az = arcDeg2float(str(az))
-                  alt = arcDeg2float(str(alt))
-
-                  self.nextAlt_e.setText("%.4f" % alt)
-                  self.nextAz_e.setText("%.4f" % az)
-                  self.nextRa_e.setStyleSheet("background-color: white;")
-                  self.nextDec_e.setStyleSheet("background-color: white")
-                except: pass
+                    az, alt = RaDec2AltAz(self.parent.observatory, ephem.now(), ra, dec)
+                    az = arcDeg2float(str(az))
+                    alt = arcDeg2float(str(alt))
+                    self.nextAlt_e.setText("%.2f" % alt)
+                    self.nextAz_e.setText("%.2f" % az)
+                except:
+                    self.parent.nextOB_ok = False
+                    self.nextRa_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+                    self.nextDec_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+            if self.parent.nextOB_ok:
+                if ":" in ra:
+                    try:
+                        if float(ra.split(":")[0]) < 0 or float(ra.split(":")[0]) > 24:
+                            self.parent.nextOB_ok = False
+                            self.nextRa_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+                    except ValueError: pass
+                else:
+                    if float(ra) < 0 or float(ra) > 24:
+                        self.parent.nextOB_ok = False
+                        self.nextRa_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+                if ":" in dec:
+                    try:
+                        if float(dec.split(":")[0]) < -90 or float(dec.split(":")[0]) > 90:
+                            self.parent.nextOB_ok = False
+                            self.nextDec_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+                    except ValueError: pass
+                else:
+                    if float(dec) < 0 or float(dec) > 24:
+                        self.parent.nextOB_ok = False
+                        self.nextDec_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
         if self.setAltAz_r.isChecked():
-            self.nextAlt_e.setStyleSheet("background-color: rgb(245, 178, 79);")
-            self.nextAz_e.setStyleSheet("background-color: rgb(245, 178, 79);")
-            ok = False
-            try:
-                alt = self.nextAlt_e.text()
-                az = self.nextAz_e.text()
-                ok = True
-            except:
-                ok = False
-            if ok:
+            alt = self.nextAlt_e.text()
+            az = self.nextAz_e.text()
+            if len(str(alt)) > 0 and len(str(az)) > 0:
+                self.parent.nextOB_ok = True
+            else: self.parent.nextOB_ok = None
+            if self.parent.nextOB_ok:
                 try:
-                  ra, dec = AltAz2RaDec(self.parent.observatory, ephem.now(), alt, az)
+                    ra, dec = AltAz2RaDec(self.parent.observatory, ephem.now(), alt, az)
+                    self.nextRa_e.setText(str(ra))
+                    self.nextDec_e.setText(str(dec))
+                except:
+                    self.parent.nextOB_ok = False
+                    self.nextAlt_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+                    self.nextAz_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+        if self.parent.nextOB_ok:
+            if float(alt) < 0 or float(alt) > 80:
+                self.parent.nextOB_ok = False
+                self.nextAlt_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+            if float(az) > 360 or float(az)<0:
+                self.parent.nextOB_ok = False
+                self.nextAz_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+        if self.parent.nextOB_ok:
+            airmass = calc_airmass(float(alt))
+            if airmass != None:
+                self.nextAirmass_e.setText("%.1f" % airmass)
+            else:
+                self.nextAirmass_e.setText(" -- ")
+        if self.parent.nextOB_ok or self.parent.nextOB_ok == None:
+            if self.setEq_r.isChecked():
+                self.nextAlt_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+                self.nextAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+                self.nextRa_e.setStyleSheet("background-color: white; color: black;")
+                self.nextDec_e.setStyleSheet("background-color: white; color: black;")
+            elif self.setAltAz_r.isChecked():
+                self.nextAlt_e.setStyleSheet("background-color: white; color: black;")
+                self.nextAz_e.setStyleSheet("background-color: white; color: black;")
+                self.nextRa_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+                self.nextDec_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        if  self.parent.nextOB_ok:
+            if float(alt) > 0 and float(alt) < 30:
+                self.nextAlt_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
 
-                  self.nextRa_e.setText(str(ra))
-                  self.nextDec_e.setText(str(dec))
-                  self.nextAlt_e.setStyleSheet("background-color: white;")
-                  self.nextAz_e.setStyleSheet("background-color: white")
-                except: pass
-
-    def update_(self):
+    def select(self):
         if self.setEq_r.isChecked():
             self.nextAz_e.setReadOnly(True)
             self.nextAz_e.setStyleSheet("background-color: rgb(233, 233, 233);")
@@ -86,7 +132,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.nextDec_e.setReadOnly(False)
             self.nextDec_e.setStyleSheet("background-color: white;")
 
-        if self.setAltAz_r.isChecked():
+        else:
             self.nextAz_e.setReadOnly(False)
             self.nextAz_e.setStyleSheet("background-color: white;")
             self.nextAlt_e.setReadOnly(False)
@@ -95,6 +141,23 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.nextRa_e.setStyleSheet("background-color: rgb(233, 233, 233);")
             self.nextDec_e.setReadOnly(True)
             self.nextDec_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.updateNextRaDec()
+
+    def selectRaDec(self,event):
+        self.setEq_r.setChecked(True)
+        self.nextAz_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.nextAlt_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.nextRa_e.setStyleSheet("background-color: white;")
+        self.nextDec_e.setStyleSheet("background-color: white;")
+        self.updateNextRaDec()
+
+    def selectAltAz(self,event):
+        self.setAltAz_r.setChecked(True)
+        self.nextAz_e.setStyleSheet("background-color: white;")
+        self.nextAlt_e.setStyleSheet("background-color: white;")
+        self.nextRa_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.nextDec_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.updateNextRaDec()
 
     # =================== OKNO GLOWNE ====================================
     def updateUI(self):
@@ -102,8 +165,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.setWindowTitle('')
         self.setStyleSheet("font-size: 11pt;")
 
-        # local_dic={"WK06":'WK06 Mount Manual Controll',"ZB08":'ZB08 Mount Manual Controll',"JK15":'JK15 Mount Manual Controll',"WG25":'WG25 Mount Manual Controll',"SIM":'SIM Mount Manual Controll'}
-        local_dic={"WK06":'WK06 Mount Manual Controll',"ZB08":'ZB08 Mount Manual Controll',"JK15":'JK15 Mount Manual Controll',"SIM":'SIM Mount Manual Controll'}
+        local_dic={"wk06":'WK06 Mount Manual Controll',"zb08":'ZB08 Mount Manual Controll',"jk15":'JK15 Mount Manual Controll',"sim":'SIM Mount Manual Controll'}
         try: txt = local_dic[self.parent.active_tel]
         except: txt = "Unknown Mount Manual Controll"
         self.setWindowTitle(txt)
@@ -156,7 +218,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntAirmass_e = QLineEdit()
         self.mntAirmass_e.setReadOnly(True)
         self.mntAirmass_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.mntAirmass_e.setText("(TODO)")
+        self.mntAirmass_e.setText(" -- ")
 
         self.nextAirmass_l = QLabel("Next Airmass: ")
         self.nextAirmass_e = QLineEdit()
@@ -186,10 +248,12 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
         self.nextRa_l = QLabel("NEXT RA: ")
-        self.nextRa_e = QLineEdit("00:00:00")
+        self.nextRa_e = QLineEdit("")
+        self.nextRa_e.mousePressEvent = self.selectRaDec
 
         self.nextDec_l = QLabel("NEXT DEC: ")
-        self.nextDec_e = QLineEdit("00:00:00")
+        self.nextDec_e = QLineEdit("")
+        self.nextDec_e.mousePressEvent = self.selectRaDec
 
         self.setEq_r = QRadioButton("")
         self.setEq_r.setChecked(True)
@@ -213,23 +277,21 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntAz_e.setReadOnly(True)
         self.mntAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
-
         self.mntAlt_l = QLabel("TELESCOPE ALT [d]: ")
         self.mntAlt_e = QLineEdit()
         self.mntAlt_e.setReadOnly(True)
         self.mntAlt_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
 
-
         self.nextAz_l = QLabel("NEXT AZ: ")
         self.nextAz_e = QLineEdit()
-        self.nextAz_e.setReadOnly(True)
         self.nextAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.nextAz_e.mousePressEvent = self.selectAltAz
 
         self.nextAlt_l = QLabel("NEXT ALT: ")
         self.nextAlt_e = QLineEdit()
-        self.nextAlt_e.setReadOnly(True)
         self.nextAlt_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.nextAlt_e.mousePressEvent = self.selectAltAz
 
         w = w + 1
         self.grid.addWidget(self.mntAz_l, w, 0,1,2)
@@ -245,8 +307,10 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.target_l = QLabel("TARGET: ")
         self.target_e = QLineEdit("")
-        self.target_e.setReadOnly(True)
-        self.target_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.target_e.editingFinished.connect(self.parent.target_provided)
+        self.target_e.textChanged.connect(self.parent.target_changed)
+        #self.target_e.setReadOnly(True)
+        #self.target_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
         self.tracking_l = QLabel("TRACKING: ")
         self.tracking_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
@@ -259,7 +323,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.guiding_c = QCheckBox("GUIDING: ")
         self.guiding_c.setChecked(False)
         self.guiding_c.setLayoutDirection(Qt.RightToLeft)
-        self.guiding_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.guiding_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
 
         w = w + 1
         self.grid.addWidget(self.target_l, w, 1)
@@ -317,6 +381,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeAuto_c.setChecked(False)
         self.domeAuto_c.setLayoutDirection(Qt.RightToLeft)
         self.domeAuto_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.domeAuto_c.clicked.connect(self.parent.domeFollow)
 
         self.domeAz_l = QLabel("DOME AZ: ")
         self.domeAz_e = QLineEdit()
@@ -324,6 +389,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
         self.domeNextAz_e = QLineEdit()
+        self.domeNextAz_e.textChanged.connect(self.parent.domeAZ_check)
 
         self.domeStop_p = QPushButton('STOP')
         self.domeStop_p.clicked.connect(self.parent.dome_stop)
@@ -352,7 +418,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.fans_c = QCheckBox()
         self.fans_c.setChecked(False)
         self.fans_c.setLayoutDirection(Qt.LeftToRight)
-        self.fans_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnYellow.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.fans_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
         self.fans_c.clicked.connect(self.parent.domeFansOnOff)
 
         self.domeShutter_l = QLabel("SHUTTER: ")
@@ -384,7 +450,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeLights_c = QCheckBox("")
         self.domeLights_c.setChecked(False)
         self.domeLights_c.setLayoutDirection(Qt.LeftToRight)
-        self.domeLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnYellow.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.domeLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
         self.domeLights_c.clicked.connect(self.parent.domeLightOnOff)
 
         self.domeLights_e = QLineEdit()
@@ -417,7 +483,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.flatLights_e.setText("--")
         self.flatLights_c.setChecked(False)
         self.flatLights_c.setLayoutDirection(Qt.LeftToRight)
-        self.flatLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnYellow.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.flatLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
         self.flatLights_c.clicked.connect(self.parent.FlatLampOnOff)
 
         self.telCovers_l = QLabel("MIRROR COVERS: ")
@@ -480,6 +546,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
         self.setRotator1_e = QLineEdit()
+        self.setRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.setRotator1_e.setReadOnly(True)
         self.setRotator1_p = QPushButton('SET')
         self.setRotator1_p.setStyleSheet(" color: gray;")
 
@@ -522,10 +590,14 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telFocus_e.setReadOnly(True)
         self.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         self.setFocus_s = QSpinBox()
-        tel = self.parent.obs_tel_tic_names[self.parent.active_tel_i]
-        if tel=="zb08":
-            self.setFocus_s.setRange(0,28000)
-            self.setFocus_s.setSingleStep(50)
+        if self.parent.active_tel != None:
+            tel = self.parent.obs_tel_tic_names[self.parent.active_tel_i]
+            if tel=="zb08":
+                self.setFocus_s.setRange(0,28000)
+                self.setFocus_s.setSingleStep(50)
+            if tel=="jk15":
+                self.setFocus_s.setRange(0,50000)
+                self.setFocus_s.setSingleStep(50)
         self.setFocus_s.valueChanged.connect(self.parent.focusClicked)
         self.setFocus_p = QPushButton('SET')
         self.setFocus_p.clicked.connect(self.parent.set_focus)
@@ -534,7 +606,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telAutoFocus_c = QCheckBox()
         self.telAutoFocus_c.setChecked(True)
         self.telAutoFocus_c.setLayoutDirection(Qt.RightToLeft)
-        self.telAutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.telAutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
 
         w = w + 1
         self.grid.addWidget(self.focusConn_l, w, 0)
@@ -555,16 +627,17 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.line_l, w, 0, 1, 8)
 
         w = w + 1
-        self.testowyPocisk_p = QPushButton('Test')
-        self.testowyPocisk_p.clicked.connect(self.parent.test)
-        self.grid.addWidget(self.testowyPocisk_p, w, 4)
+        self.testowyPocisk_p = QPushButton('Update')
+        self.testowyPocisk_p.clicked.connect(self.parent.force_update)
+        self.grid.addWidget(self.testowyPocisk_p, w, 0,1,2)
+
 
         ##########################################################
 
         self.setLayout(self.grid)
 
-        self.setEq_r.toggled.connect(self.update_)
-        self.setAltAz_r.toggled.connect(self.update_)
+        self.setEq_r.toggled.connect(self.select)
+        self.setAltAz_r.toggled.connect(self.select)
 
         self.nextRa_e.textChanged.connect(self.updateNextRaDec)
         self.nextDec_e.textChanged.connect(self.updateNextRaDec)

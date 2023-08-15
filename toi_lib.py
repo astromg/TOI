@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
 
 import ephem
+import numpy
+
+def readCatalog(plik):
+    l = []
+    with open(plik, "r") as f:
+        for line in f:
+            if len(line.strip()) > 0:
+                if line.strip().split()[0] != "#":
+                    l.append(line)
+    return l
 
 
 def Almanac(obs):
@@ -94,6 +104,18 @@ def AltAz2RaDec(obs,time,alt,az):
     ra,dec = site.radec_of(az=az,alt=alt)
 
     return ra,dec    
+
+def calc_airmass(h):
+    try:
+        float(h)
+        ok = True
+    except:
+        ok = False
+    if ok and h > 20:
+        z = 2 * numpy.pi * ( float(h) / 360. )
+        a= 1./numpy.sin(z) - 0.0018167*(1./numpy.sin(z) -1) - 0.002875 * (1./numpy.sin(z) -1)*(1./numpy.sin(z) -1) - 0.0008083 * (1./numpy.sin(z) -1)**3
+    else: a = None
+    return a
 
 
 def hmsRa2float(hms):

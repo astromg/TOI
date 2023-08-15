@@ -1,0 +1,45 @@
+OBJECT BF23 23:39:05.0 -48:23:10.0      seq=1/Ic/10
+OBJECT BF00 00:34:18.0 -49:39:55.0      seq=1/Ic/10
+OBJECT BF01 01:45:15.0 -47:48:00.0      seq=1/Ic/10
+OBJECT BF02 02:32:34.0 -47:02:55.0      seq=1/Ic/10
+OBJECT BF03 03:38:39.0 -47:53:05.0      seq=1/Ic/10
+OBJECT BF04 04:34:30.0 -45:39:25.0      seq=1/Ic/10
+OBJECT BF05 05:23:00.0 -48:51:45.0      seq=1/Ic/10
+OBJECT BF06 06:32:38.0 -48:57:45.0      seq=1/Ic/10
+OBJECT BF07 07:05:55.0 -63:31:15.0      seq=1/Ic/10
+OBJECT BF08 08:41:49.0 -64:07:35.0      seq=1/Ic/10
+OBJECT BF09 09:36:00.0 -43:05:40.0      seq=1/Ic/10
+OBJECT BF10 10:17:07.0 -26:00:30.0      seq=1/Ic/10
+OBJECT BF11 11:33:10.0 -34:19:35.0      seq=1/Ic/10
+OBJECT BF12 12:49:45.0 -35:14:50.0      seq=1/Ic/10
+OBJECT BF13 13:09:23.0 -29:31:30.0      seq=1/Ic/10
+OBJECT BF14 14:34:24.0 -32:27:50.0      seq=1/Ic/10
+OBJECT BF15 15:14:45.0 -34:06:45.0      seq=1/Ic/10
+
+OBJECT   Blanco_1   00:03:24.7   -29:57:29   seq=1/Ic/10  Focus field ok=50 kiepsko
+OBJECT   47Tucanae 00:24:05.7   -72:04:52.6  seq=1/Ic/10  Focus field ok=400  # globular cluster
+OBJECT   FF01      00:59:55.5  -71:44:21.5    seq=1/Ic/5  # Focus field ok=20 SMC Focus field
+OBJECT   NGC6025    16:03:07.0   -60:25:48    seq=1/Ic/5   # Focus field ok=150
+OBJECT   NGC6031    16:07:37.7   -54:00:50    seq=1/Ic/5   # Focus field ok=40
+OBJECT   NGC6067    16:13:11.8   -54:13:37    seq=1/Ic/10  # Focus field ok=300
+OBJECT   NGC6087    16:18:53.0   -57:54:58    seq=1/Ic/10  # Focus field ok=120
+OBJECT   NGC6200    16:44:06.0   -47:28:00   seq=1/Ic/10  # Focus filed ok=200
+OBJECT   NGC6204    16:46:09.1   -47:01:37   seq=1/Ic/10  # Focus field ok=80
+OBJECT   NGC6231    16:54:10.8   -41:48:43   seq=1/Ic/10  # Focus field ok=80
+OBJECT   NGC6242    16:55:30.7   -39:28:26   seq=1/Ic/20  # Focus field ok=125
+OBJECT   NGC6281    17:04:43.0   -37:56:53   seq=1/Ic/10  # Focus fields ok=75
+OBJECT   IC4651     17:24:50.9   -49:55:01   seq=1/Ic/10  # Focus field ok=200
+OBJECT   M6         17:40:16.6   -32:14:31   seq=1/Ic/5   # Focus field ok=300    Butterfly Cluster
+OBJECT   M7         17:53:47.3   -34:50:28   seq=1/Ic/5   # Focus field ok=140
+OBJECT   M23        17:56:56.9   -18:59:13    seq=1/Ic/10  # Focus field ok=250
+OBJECT   M21        18:04:08.6   -22:30:18    seq=1/Ic/5   # Focus field ok=120
+OBJECT   M24        18:16:48.0   -18:33:00   seq=1/Ic/5   # Focus field ok=175
+OBJECT   M16        18:18:45.1   -13:47:31   seq=1/Ic/5   # Focus Field ok=200 Eagle Nebula
+OBJECT   M25        18:31:44.9   -19:06:50   seq=1/Ic/10  # Focus field ok=100
+OBJECT   M26        18:45:16.1   -09:23:10   seq=1/Ic/10  # Focus field ok=150
+OBJECT   M18        18:19:57.4   -17:05:20    seq=1/Ic/10  # Focus field ok=200
+OBJECT   M11        18:51:03.8   -06:16:19   seq=1/Ic/10  # Focus field ok=200
+OBJECT    M55        19:39:59.7  -30:57:53.1   seq=1/Ic/5   # Focus field ok=120 # globular cluster
+OBJECT    M75        20:06:04.7  -21:55:16.2  seq=1/Ic/5         # NO GOOD Focus globular cluster
+OBJECT    M72        20:53:27.8  -12:32:13.7   seq=1/Ic/15 Focus field ok=100 globular
+OBJECT    M30        21:40:22.1  -23:10:47.5   seq=1/Ic/5  # Focus field ok=20    globular

@@ -59,7 +59,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
       def update_plan(self):
           if self.next_i > len(self.plan)-1:
-              print("zadzialalem")
               self.next_i = -1
           for i,tmp in enumerate(self.plan):
              if len(self.plan)>0:
@@ -200,13 +199,23 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.next_i=self.i
           self.update_table()
           self.parent.obsGui.main_form.skyView.updateRadar()
+
+      def import_to_manuall(self):
           if "ra" in self.plan[self.i].keys() and "dec" in self.plan[self.i].keys():
             self.parent.mntGui.setEq_r.setChecked(True)
             self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ra"])
             self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["dec"])
+            self.parent.mntGui.updateNextRaDec()
           if "type" in self.plan[self.i].keys() and "name" in self.plan[self.i].keys():
              if self.plan[self.i]["type"] != "MARKER":
                 self.parent.instGui.ccd_tab.inst_object_e.setText(self.plan[self.i]["name"])
+                self.parent.mntGui.target_e.setText(self.plan[self.i]["name"])
+                self.parent.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
+                if "seq" in self.plan[self.i].keys():
+                    self.parent.instGui.ccd_tab.Select2_r.setChecked(True)
+                    self.parent.instGui.ccd_tab.inst_Seq_e.setText(self.plan[self.i]["seq"])
+
+
 
       def setStop(self):
           if "stop" in self.plan[self.i].keys():          
@@ -300,7 +309,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.next_i = 0
               self.current_i = -1
 
-              #ob["name","block","type","ra","dec","seq"]
+              #ob["name","block","type","ra","dec","seq","comment"]
               #on["wait","wait_ut","wait_sunset","wait_sunrise"]
 
               with open(self.fileName, "r") as plik:
@@ -401,15 +410,21 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   name=ll[1]
                                   ra=ll[2]
                                   dec=ll[3]
-                                  for tmp in ll:
-                                     if "seq=" in tmp: seq=tmp.split("=")[1]
 
                                   ob = {"name":name}
                                   ob["block"]=block
                                   ob["type"]=ob_type
-                                  ob["seq"]=seq
                                   ob["ra"]=ra
                                   ob["dec"]=dec
+
+                                  if "seq=" in line:
+                                      seq=line.split("seq=")[1].split()[0]
+                                      ob["seq"] = seq
+
+                                  if "comment=" in line:
+                                      comment = line.split("comment=")[1].split("\"")[1]
+                                      ob["comment"]=comment
+
                                   self.plan.append(ob)
           self.update_table()          
           self.parent.obsGui.main_form.skyView.updateRadar()
@@ -419,7 +434,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
       def updateUI(self):
 
           # local_dic={"WK06":'WK06 Plan Manager',"ZB08":'ZB08 Plan Manager',"JK15":'JK15 Plan Manager',"WG25":'WG25 Plan Manager',"SIM":'SIM Plan Manager'}
-          local_dic={"WK06":'WK06 Plan Manager',"ZB08":'ZB08 Plan Manager',"JK15":'JK15 Plan Manager',"SIM":'SIM Plan Manager'}
+          local_dic={"wk06":'WK06 Plan Manager',"zb08":'ZB08 Plan Manager',"jk15":'JK15 Plan Manager',"sim":'SIM Plan Manager'}
           try: txt = local_dic[self.parent.active_tel]
           except: txt = "unknown Plan Manager"
           self.setWindowTitle(txt)
@@ -437,14 +452,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.grid.addWidget(self.plan_t, w,0,8,5)
           
           w=w+8
-          self.next_p=QPushButton('Next') 
-          self.stopHere_p=QPushButton('Stop')          
-          self.skip_p=QPushButton('Skip')
+          self.import_p = QPushButton('Import to MANUAL')
+          self.grid.addWidget(self.import_p, w, 0,1,3)
 
-          self.grid.addWidget(self.next_p, w,0)
-          #self.grid.addWidget(self.stopHere_p, w,1)
-          self.grid.addWidget(self.skip_p, w,4)
-          
           w=w+1
           self.line_l=QFrame()
           self.line_l.setFrameShape(QFrame.HLine)
@@ -484,9 +494,14 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.add_p.setStyleSheet(" color: gray;")
           self.edit_p=QPushButton('Edit')          
           self.edit_p.setStyleSheet(" color: gray;")
+          self.next_p=QPushButton('Next')
+          self.stopHere_p=QPushButton('Stop')
+          self.skip_p=QPushButton('Skip')
 
-
-          self.grid.addWidget(self.add_p, w,0)
+          self.grid.addWidget(self.next_p, w,0)
+          #self.grid.addWidget(self.stopHere_p, w,1)
+          self.grid.addWidget(self.add_p, w,1)
+          self.grid.addWidget(self.skip_p, w, 2)
           self.grid.addWidget(self.edit_p, w,4)
           w=w+1
 
@@ -522,6 +537,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.load_p.clicked.connect(self.loadPlan)
           self.plan_t.cellClicked.connect(self.pocisniecie_tabelki)
 
+          self.import_p.clicked.connect(self.import_to_manuall)
           self.next_p.clicked.connect(self.setNext)
           self.stopHere_p.clicked.connect(self.setStop)
           self.skip_p.clicked.connect(self.setSkip)

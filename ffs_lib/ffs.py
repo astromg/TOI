@@ -84,13 +84,14 @@ class FFS:
 
     def find_stars(self,threshold=5.,method="sigma quantile",kernel_size=9,fwhm=2):
 
+        self.coo=[]
+        self.adu=[]
         self.threshold = float(threshold)
         self.method = method
         self.fwhm_adopted = float(fwhm)
         self.kernel_size = int(kernel_size)
         self.kernel_sigma = float(fwhm)/2.355
         self.kernel = self.gauss_kernel(self.kernel_size,self.kernel_sigma)
-
 
         if self.method == "rms Poisson":
           self.sigma = self.noise
@@ -100,20 +101,20 @@ class FFS:
           self.sigma = self.sigma_quantile
         else: raise ValueError(f"Invalid method type {self.method}") 
 
-
         maska1 = self.image > self.median + self.threshold * self.sigma
         data2 = convolve2d(self.image, self.kernel, mode='same')
         maska2 = (data2 == maximum_filter(data2, 3))
         maska = numpy.logical_and(maska1, maska2) 
         coo = numpy.argwhere(maska)
-        self.coo = coo
-        x,y=zip(*self.coo)
-        val = self.image[x,y]
-        sorted_i = numpy.argsort(val.astype(float))[::-1]
-        sorted_coo = self.coo[sorted_i]
-        sorted_val = val[sorted_i]
-        self.coo = sorted_coo
-        self.adu = sorted_val
+        if len(coo)>1:
+            self.coo = coo
+            x,y=zip(*self.coo)
+            val = self.image[x,y]
+            sorted_i = numpy.argsort(val.astype(float))[::-1]
+            sorted_coo = self.coo[sorted_i]
+            sorted_val = val[sorted_i]
+            self.coo = sorted_coo
+            self.adu = sorted_val
 
         return self.coo, self.adu
 

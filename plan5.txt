@@ -1,0 +1,96 @@
+
+OBJECT AU_Peg	    21:24:00.24     +18:16:43.77	  seq=1/Ic/15      P=2.4121	           mV=9.21	     priority=4	     comment="binary and dusty envelope"
+OBJECT BL_Her	    18:01:09.22     +19:14:56.69	  seq=1/Ic/6	     P=1.307445	       mV=10.48     priority=4
+OBJECT BX_Del	    20:21:18.97     +18:26:16.29	  seq=1/Ic/60	     P=1.091787	       mV=12.31     priority=4        ~35k ADU przy 60 sec - wówczas ze 2 tuziny wysaturowanych gwiazd
+OBJECT FM_Del	    20:33:44.25     +16:16:17.52	  seq=1/Ic/10	     P=3.954	           mV=12.36     priority=4
+OBJECT RT_TrA	    16:34:30.89     -63:08:00.81	  seq=1/Ic/4	     P=1.9461124	       mV=9.70     priority=4
+OBJECT SW_Tau	    04:24:32.97     +04:07:24.08	seq=1/Ic/4	     P=1.583535	       mV=9.75     priority=4
+OBJECT V2022_Sgr	18:40:38.97     -25:22:49.96	  seq=1/Ic/20	  not sure whitch star     P=1.533171	       mV=13.57     priority=4
+OBJECT V439_Oph	17:43:33.27     +03:35:36.06	  seq=1/Ic/20	     P=1.89303	       mV=12.14     priority=4
+OBJECT V553_Cen  	14:46:33.63     -32:10:15.26	  seq=1/Ic/10	     P=2.06055	       mV=8.32     priority=4
+OBJECT V606_Pup	    07:28:44.79     -44:28:16.74	seq=1/Ic/5	     P=1.43775	       mV=11.25     priority=4   comment="exp not verified"
+OBJECT V971_Aql	19:26:04.79     -10:54:30.93	  seq=1/Ic/15	     P=1.62454	       mV=12.03     priority=4
+OBJECT VY_Pyx	    08:54:29.63     -23:31:18.57	seq=1/Ic/5	     P=1.23995	       mV=7.24     priority=4    comment="exp not verified"
+OBJECT VZ_Aql	    19:05:02.96     -06:50:58.61	  seq=1/Ic/20	     P=1.668261	       mI=12.6     priority=4          50k ADU przy 50 sec lecz w polu dziesiątki gwiazd wysaturowane
+OBJECT DU_Ara	    17:23:12.61     -63:53:47.50       seq=1/Ic/30	     P=1.6394925	       mV=12.00     priority=4      z tuzin gwiazd w polu się satutuje
+OBJECT V745_Oph	17:20:02.93     +03:48:56.00       seq=1/Ic/90	     P=1.59646	       mV=13.00     priority=4
+OBJECT BV_Cha	    13:02:21.18     -79:45:26.40     seq=1/Ic/5	     P=1.2380317	       mV=12.10     priority=4  comment="exp not verified"
+OBJECT KZ_Cen	    12:01:55.19     -46:16:41.40     seq=1/Ic/5	     P=1.5200403	       mV=12.53     priority=4  comment="exp not verified"
+OBJECT DD_Mus	    12:14:39.69     -68:32:35.90     seq=1/Ic/5	     P=1.6972479	       mV=13.40     priority=4  comment="exp not verified"
+OBJECT AL_Lyr	    19:19:29.61     +27:33:44.43	  seq=1/Ic/12	     P=12.978	           mV=11.98     priority=4		 comment="pW Vir"
+OBJECT AL_Vir	    14:11:09.04     -13:18:38.43	  seq=1/Ic/20	     P=10.3065	       mV=9.10     priority=4		     comment="pW Vir?"
+OBJECT AP_Her	    18:50:27.72     +15:56:24.66	  seq=1/Ic/6	     P=10.411	           mV=10.63     priority=4		 comment="pW Vir"
+OBJECT CO_Pup	    08:26:11.95     -30:17:08.33	seq=1/Ic/5	     P=16.042	           mV=10.82     priority=4   comment="exp not verified"
+OBJECT DD_Vel	    09:12:09.63     -50:22:33.61	seq=1/Ic/5	     P=13.198	           mV=12.58     priority=4   comment="exp not verified"
+OBJECT HQ_Car	    10:20:31.98     -61:14:57.41	seq=1/Ic/5	     P=14.067	           mV=12.39     priority=4   comment="exp not verified"
+OBJECT HQ_Cen	    13:52:51.25     -56:29:22.76	  seq=1/Ic/80	     P=19.917	           mV=11.70     priority=4 ponizej 30k ADU, ale pobliskie sie saturuja
+OBJECT MR_Ara	    17:56:41.01     -45:46:24.33	  seq=1/Ic/12	     P=19.814	           mV=11.37     priority=4
+OBJECT QX_Aqr	    21:14:06.02     +00:19:12.16	seq=1/Ic/25	     P=15.285	           mV=12.31     priority=4
+OBJECT RS_Pav	    18:07:22.00     -58:57:42.04	  seq=1/Ic/5	     P=19.96997	       mV=10.53     priority=4              40k ADU przy 5 sek
+OBJECT ST_Pup	    06:48:56.41     -37:16:33.33	seq=1/Ic/5	     P=18.73	           mV=10.34     priority=4   comment="exp not verified"
+OBJECT TX_Del	    20:50:12.69     +03:39:08.36	  seq=1/Ic/2	 nie wiem czy nie saturowana     P=6.165907	       mV=8.84     priority=4		      comment="binary - pW Vir?"
+OBJECT V741_Sgr	18:20:46.05     -29:48:46.73	  seq=1/Ic/30 bardzo jasna gwiazda w polu	     P=15.16817	       mV=-9.999     priority=4
+OBJECT VZ_Tau	    05:05:14.25     +21:45:48.91	seq=1/Ic/5	     P=13.943	           mV=12.78     priority=4   comment="exp not verified"
+OBJECT W_Vir	    13:26:01.99     -03:22:43.43	  seq=1/Ic/40	     P=17.2736	       mV=10.48     priority=4
+OBJECT PZ_Aql	    18:55:56.05     -02:52:47.0	 seq=1/Ic/5	     P=8.7577481	       mV=11.79     priority=4		   comment="pW Vir", 40k ADU przy 5 sek
+OBJECT V375_Lup	15:28:32.86     -30:51:49.7	   seq=1/Ic/55	     P=6.4768	           mV=12.70     priority=4
+OBJECT V420_Cen	11:39:50.34     -47:57:51.25       seq=1/Ic/20	     P=24.54994	       mV=9.77     priority=4		       comment="RV Tau"
+OBJECT V1711_Sgr	20:01:07.98     -30:30:38.90	  seq=1/Ic/6	     P=28.46	           mV=10.70     priority=4		   comment="RV Tau"
+OBJECT TW_Cap	    20:14:28.41     -13:50:07.88	  seq=1/Ic/5       P=28.585	           mV=10.65	     priority=4	   comment="RV Tau", ~40k ADU przy 5 sec
+
+
+# group RR Lyr
+
+OBJECT AA_Aql	     20:38:15.07	-02:53:25.01	    seq=1/Ic/10  priority=4  P=0.3617877	mV=10.53
+OBJECT AV_Peg	     21:52:02.79	+22:34:29.37	  seq=1/Ic/5  priority=4  P=0.3903814	mV=11.90
+OBJECT BB_Eri	     04:53:37.51	-19:26:01.06	  seq=1/Ic/20  priority=4  P=0.5699097	mV=11.54
+OBJECT BH_Peg	     22:53:01.03	+15:47:16.60	  seq=1/Ic/5  priority=4  P=0.640993	mV=10.44
+OBJECT BK_Tuc	     23:29:33.31	-72:32:39.79	  seq=1/Ic/30  priority=4  P=0.5500676	mV=12.89
+OBJECT BR_Aqr	     23:38:32.89	-09:19:07.46	    seq=1/Ic/7  priority=4  P=0.4818717	mV=11.38
+OBJECT BT_Aqr	     20:57:48.40	-05:41:06.67	    seq=1/Ic/30  priority=4  P=0.4063595	mV=12.46
+OBJECT CD_Vel	     09:44:38.24	-45:52:37.11	  seq=1/Ic/5  priority=4  P=0.5735076	mV=12.01   comment="exp not verified"
+OBJECT CP_Aqr	     21:10:12.84	-01:43:16.13	    seq=1/Ic/15  priority=4  P=0.4634018	mV=11.63
+OBJECT DH_Hya	     09:00:14.82	-09:46:44.29	  seq=1/Ic/5  priority=4  P=0.4890007	mV=11.90   comment="exp not verified"
+OBJECT DN_Aqr	     23:19:17.20	-24:12:58.82	    seq=1/Ic/10  priority=4  P=0.6337558	mV=11.21
+OBJECT DX_Del	     20:47:28.35	+12:27:50.68	    seq=1/Ic/5  priority=4  P=0.4726191	mV=10.10
+OBJECT EW_Cam	     07:27:27.98	+72:42:12.50	  seq=1/Ic/5  priority=4  P=0.628408	mV=9.48   comment="exp not verified"
+OBJECT HH_Pup	     07:20:35.55	-46:42:30.09	  seq=1/Ic/5  priority=4  P=0.3907454	mV=11.44  comment="exp not verified"
+OBJECT RR_Cet	     01:32:08.17	+01:20:30.23	  seq=1/Ic/3  priority=4  P=0.55302836	mV=9.94
+OBJECT RR_Gru	     21:38:03.56	-44:41:12.09	    seq=1/Ic/35  priority=4  P=0.5524640	mV=12.63
+OBJECT RR_Leo	     10:07:43.46	+23:59:30.31	  seq=1/Ic/5  priority=4  P=0.4524021	mV=10.87
+OBJECT RU_Scl	     00:02:48.10	-24:56:43.07	  seq=1/Ic/5  priority=4  P=0.4933549	mV=10.39
+OBJECT RV_Cet	     02:15:14.90	-10:48:00.71	  seq=1/Ic/15  priority=4  P=0.62341	mV=10.97
+OBJECT RV_Phe	     23:28:31.45	-47:27:13.04	    seq=1/Ic/15  priority=4  P=0.5964071	mV=11.88
+OBJECT RX_Cet	     00:33:38.28	-15:29:14.80	  seq=1/Ic/20  priority=4  P=0.57373	mV=11.50   comment="exp not verified"
+OBJECT RX_Eri	     04:49:44.29	-15:44:28.24	  seq=1/Ic/2  priority=4  P=0.5872453	mV=9.96
+OBJECT S_Ara	     17:59:10.73	-49:26:00.45	    seq=1/Ic/15  priority=4  P=0.451848	mV=10.46
+OBJECT SS_For	     02:07:51.97	-26:51:57.71	  seq=1/Ic/6  priority=4  P=0.49543	mV=10.30
+OBJECT ST_Pic	     06:14:01.16	-61:28:23.52	  seq=1/Ic/5  priority=4  P=0.4857445	mV=9.696  comment="exp not verified"
+OBJECT SV_Eri	     03:11:52.10	-11:21:14.06	  seq=1/Ic/3  priority=4  P=0.713877	mV=10.14
+OBJECT SW_And	     00:23:43.08	+29:24:03.62	  seq=1/Ic/5  priority=4  P=0.442262	mV=9.15
+OBJECT SX_For	     03:30:22.34	-36:03:13.50	  seq=1/Ic/8  priority=4  P=0.6053423	mV=10.97
+OBJECT SZ_Gem	     07:53:43.45	+19:16:23.92	  seq=1/Ic/5  priority=4  P=0.5011303  mV=12.07   comment="exp not verified"
+OBJECT TT_Lyn	     09:03:07.78	+44:35:08.11	  seq=1/Ic/5  priority=4  P=0.597434355	mV=9.51   comment="exp not verified"
+OBJECT U_Lep	     04:56:17.98	-21:13:02.02	  seq=1/Ic/10  priority=4  P=0.5814789	mV=10.63  comment="exp not verified"
+OBJECT U_Pic	     04:50:06.62	-50:39:25.23	  seq=1/Ic/12  priority=4  P=0.4403750	mV=11.26
+OBJECT UU_Cet	     00:04:05.12	-16:59:51.54	  seq=1/Ic/15  priority=4  P=0.6060736	mV=11.95
+OBJECT V341_Aql	 20:32:31.55	+00:35:07.04	      seq=1/Ic/15  priority=4  P=0.5780230	mV=10.83
+OBJECT V4424_Sgr	 19:54:01.90	-30:15:10.43	    seq=1/Ic/5  priority=4  P=0.4245034	mV=10.32        ~38k ADU przy 5 sec
+OBJECT V675_Sgr	 18:13:35.40	-34:19:01.85	        seq=1/Ic/10  priority=4  P=0.6422935	mV=10.18
+OBJECT V_Ind	     21:11:29.90	-45:04:28.39	    seq=1/Ic/4  priority=4  P=0.4796017	mV=10.21
+OBJECT VW_Scl	     01:18:14.97	-39:12:44.84	  seq=1/Ic/10  priority=4  P=0.5109117	mV=11.17
+OBJECT W_Tuc	     00:58:09.70	-63:23:44.36	  seq=1/Ic/10  priority=4  P=0.6422382	mV=11.23    comment="exp not verified"
+OBJECT WY_Ant	     10:16:04.94	-29:43:42.41	  seq=1/Ic/5  priority=4  P=0.5743427	mV=10.87    comment="exp not verified"
+OBJECT X_Ari	     03:08:30.88	+10:26:45.21	  seq=1/Ic/2  priority=4  P=0.6511796	mV=9.50
+OBJECT X_Ret	     03:25:20.09	-65:03:18.61	  seq=1/Ic/15  priority=4  P=0.49201	mV=11.88
+OBJECT XZ_Gru	     22:47:34.68	-39:03:33.00	    seq=1/Ic/5  priority=4  P=0.8831035	mV=10.79
+OBJECT Z_Mic	     21:16:22.70	-30:17:03.06	    seq=1/Ic/30  priority=4  P=0.5869258	mV=11.54
+OBJECT AE_Boo	     14:47:35.26	+16:50:43.55	    seq=1/Ic/15  priority=4  P=0.3148921	mV=10.62		comment="RRc"
+OBJECT CS_Eri	     02:37:05.75	-42:57:48.03	  seq=1/Ic/8  priority=4  P=0.311331	mV=9.47	    	comment="RRc"
+OBJECT EV_Psc	     23:54:08.12	+00:57:49.08	  seq=1/Ic/5  priority=4  P=0.3062573	mV=10.64		comment="RRc"
+OBJECT IY_Eri	     02:07:28.15	-57:52:09.96	  seq=1/Ic/12  priority=4  P=0.375026	mV=11.16		comment="RRc"
+OBJECT LS_Her	     16:02:03.79	+17:28:50.41	    seq=1/Ic/16  priority=4  P=0.230808	mV=10.93		comment="RRc"
+OBJECT MT_Tel	     19:02:12.27	-46:39:12.08	    seq=1/Ic/3  priority=4  P=0.3169011	mV=8.94	    	comment="RRc"
+OBJECT RU_Psc	     01:14:26.03	+24:24:56.36	  seq=1/Ic/7  priority=4  P=0.390385	mV=10.22		comment="RRc"
+OBJECT RU_Sex	     09:45:40.74	-06:43:59.84	  seq=1/Ic/5  priority=4  P=0.350232	mV=10.79		comment="RRc, exp not verified"
+OBJECT T_Sex	     09:53:28.39	+02:03:26.34	  seq=1/Ic/5  priority=4  P=0.32469759	mV=10.26		comment="RRc, exp not verified"

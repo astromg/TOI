@@ -81,15 +81,6 @@ def calculate(fits_path, focus_keyword="FOCUS", focus_list=None, crop=10, method
 
         coef = numpy.polyfit(focus_list_ret, sharpness_list_ret, 4)
 
-        dy = numpy.polyder(coef)     # 1st derivative
-        d2y = numpy.polyder(dy)      # 2nd derivative   
-        roots = numpy.roots(dy)      # zero points
-        val=numpy.polyval(d2y,roots)
-
-        max_sharpness_focus = roots[numpy.argmin(val)]   # value with max sharpness
-        calc_metadata = {"poly_coef": coef,"focus_values": focus_list_ret, "sharpness_values": sharpness_list_ret}
-
-        return max_sharpness_focus, calc_metadata 
 
     # ##### RMS with parabolic fit ######
     elif method == "rms":
@@ -126,15 +117,22 @@ def calculate(fits_path, focus_keyword="FOCUS", focus_list=None, crop=10, method
 
         coef = numpy.polyfit(focus_list_ret, sharpness_list_ret, 2)
 
-        dy = numpy.polyder(coef)     # 1st derivative
-        d2y = numpy.polyder(dy)      # 2nd derivative   
-        roots = numpy.roots(dy)      # zero points
-        val = numpy.polyval(d2y, roots)
+    a = numpy.max(focus_list_ret)
+    b = numpy.min(focus_list_ret)
+    x = numpy.linspace(a,b,1000)
+    y = numpy.polyval(coef,x)
+    k = numpy.argmax(y)
+    max_sharpness_focus = x[k]
 
-        max_sharpness_focus = roots[numpy.argmin(val)]   # value with max sharpness
-        calc_metadata = {"poly_coef": coef,"focus_values": focus_list_ret, "sharpness_values": sharpness_list_ret}
+    if numpy.abs(numpy.max(sharpness_list_ret) - numpy.min(sharpness_list_ret)) < 5:
+        status = "to small sharpness range"
+    elif y[0] >= y[k] or y[-1] >= y[k]:
+        status = "wrong range"
+    else : status = "ok"
 
-        return max_sharpness_focus, calc_metadata 
+    calc_metadata = {"status":status,"poly_coef": coef,"focus_values": focus_list_ret, "sharpness_values": sharpness_list_ret}
+
+    return max_sharpness_focus, calc_metadata
 
 
 

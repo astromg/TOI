@@ -27,8 +27,8 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.setWindowTitle('Telescope Operator Interface')
         self.main_form = MainForm(self.parent)
         self.setCentralWidget(self.main_form)
-        self.resize(self.parent.obs_window_size[0], self.parent.obs_window_size[1])
-        self.move(self.parent.obs_window_position[0], self.parent.obs_window_position[0])
+        self.move(self.parent.obs_window_geometry[0], self.parent.obs_window_geometry[1])
+        self.resize(self.parent.obs_window_geometry[2], self.parent.obs_window_geometry[3])
 
     async def on_start_app(self):
         await self.run_background_tasks()
@@ -54,7 +54,7 @@ class MainForm(QWidget):
     async def pocisniecie_tab(self):
         i = self.obs_t.currentRow()
         self.parent.active_tel_i = i
-        self.parent.active_tel = self.parent.obs_tel_in_table[i]
+        self.parent.active_tel = self.parent.obs_tel_tic_names[i]
         await self.parent.teleskop_switched()
 
 
@@ -66,52 +66,54 @@ class MainForm(QWidget):
         translate_tel_names = {"wk06": "WK-06", "zb08": "ZB-08", "jk15": "JK-15", "sim": "SIM"}
 
         for i, tel in enumerate(self.parent.obs_tel_tic_names):
-            state = self.parent.tel[tel].state["name"]
-            txt = translate_tel_names[state]
-            item = QTableWidgetItem(txt)
-            item.setTextAlignment(QtCore.Qt.AlignHCenter)
-            item.setTextAlignment(QtCore.Qt.AlignVCenter)
-            self.obs_t.setItem(i, 0, item)
+            try:
+                state = self.parent.tel[tel].state["name"]
+                txt = translate_tel_names[state]
+                item = QTableWidgetItem(txt)
+                item.setTextAlignment(QtCore.Qt.AlignHCenter)
+                item.setTextAlignment(QtCore.Qt.AlignVCenter)
+                self.obs_t.setItem(i, 0, item)
 
-            item = QTableWidgetItem(" -- ")
-            if "dome" in self.parent.tel[tel].state.keys():
-                state = self.parent.tel[tel].state["dome"]
-                rgb = self.parent.tel[tel].state["dome_rgb"]
-                item = QTableWidgetItem(state)
-                item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
-            item.setTextAlignment(QtCore.Qt.AlignHCenter)
-            item.setTextAlignment(QtCore.Qt.AlignVCenter)
-            self.obs_t.setItem(i, 1, item)
+                item = QTableWidgetItem(" -- ")
+                if "dome" in self.parent.tel[tel].state.keys():
+                    state = self.parent.tel[tel].state["dome"]
+                    rgb = self.parent.tel[tel].state["dome_rgb"]
+                    item = QTableWidgetItem(state)
+                    item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
+                item.setTextAlignment(QtCore.Qt.AlignHCenter)
+                item.setTextAlignment(QtCore.Qt.AlignVCenter)
+                self.obs_t.setItem(i, 1, item)
 
-            item = QTableWidgetItem(" -- ")
-            if "mount" in self.parent.tel[tel].state.keys():
-                state = self.parent.tel[tel].state["mount"]
-                rgb = self.parent.tel[tel].state["mount_rgb"]
-                item = QTableWidgetItem(state)
-                item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
-            item.setTextAlignment(QtCore.Qt.AlignHCenter)
-            item.setTextAlignment(QtCore.Qt.AlignVCenter)
-            self.obs_t.setItem(i, 2, item)
+                item = QTableWidgetItem(" -- ")
+                if "mount" in self.parent.tel[tel].state.keys():
+                    state = self.parent.tel[tel].state["mount"]
+                    rgb = self.parent.tel[tel].state["mount_rgb"]
+                    item = QTableWidgetItem(state)
+                    item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
+                item.setTextAlignment(QtCore.Qt.AlignHCenter)
+                item.setTextAlignment(QtCore.Qt.AlignVCenter)
+                self.obs_t.setItem(i, 2, item)
 
-            item = QTableWidgetItem(" -- ")
-            if "instrument" in self.parent.tel[tel].state.keys():
-                state = self.parent.tel[tel].state["instrument"]
-                rgb = self.parent.tel[tel].state["instrument_rgb"]
-                item = QTableWidgetItem(state)
-                item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
-            item.setTextAlignment(QtCore.Qt.AlignHCenter)
-            item.setTextAlignment(QtCore.Qt.AlignVCenter)
-            self.obs_t.setItem(i, 3, item)
+                item = QTableWidgetItem(" -- ")
+                if "instrument" in self.parent.tel[tel].state.keys():
+                    state = self.parent.tel[tel].state["instrument"]
+                    rgb = self.parent.tel[tel].state["instrument_rgb"]
+                    item = QTableWidgetItem(state)
+                    item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
+                item.setTextAlignment(QtCore.Qt.AlignHCenter)
+                item.setTextAlignment(QtCore.Qt.AlignVCenter)
+                self.obs_t.setItem(i, 3, item)
 
-            item = QTableWidgetItem(" -- ")
-            if "program" in self.parent.tel[tel].state.keys():
-                state = self.parent.tel[tel].state["program"]
-                rgb = self.parent.tel[tel].state["program_rgb"]
-                item = QTableWidgetItem(state)
-                item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
-            item.setTextAlignment(QtCore.Qt.AlignHCenter)
-            item.setTextAlignment(QtCore.Qt.AlignVCenter)
-            self.obs_t.setItem(i, 4, item)
+                item = QTableWidgetItem(" -- ")
+                if "program" in self.parent.tel[tel].state.keys():
+                    state = self.parent.tel[tel].state["program"]
+                    rgb = self.parent.tel[tel].state["program_rgb"]
+                    item = QTableWidgetItem(state)
+                    item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
+                item.setTextAlignment(QtCore.Qt.AlignHCenter)
+                item.setTextAlignment(QtCore.Qt.AlignVCenter)
+                self.obs_t.setItem(i, 4, item)
+            except KeyError: pass
 
 
             #item = QTableWidgetItem(" -- ")
@@ -243,11 +245,11 @@ class MainForm(QWidget):
 
         w = w + 1
         self.shutdown_p = QPushButton('Shutdown')
-        self.shutdown_p.setStyleSheet(" color: gray;")
+        #self.shutdown_p.setStyleSheet(" color: gray;")
         self.weatherStop_p = QPushButton('Weather Stop')
-        self.weatherStop_p.setStyleSheet(" color: gray;")
+        #self.weatherStop_p.setStyleSheet(" color: gray;")
         self.EmStop_p = QPushButton('Emergency Stop')
-        self.EmStop_p.setStyleSheet(" color: gray;")
+        self.EmStop_p.setStyleSheet(" color: rgb(133, 5, 5);")
 
         grid.addWidget(self.shutdown_p, w, 0)
         grid.addWidget(self.weatherStop_p, w, 1)
@@ -351,11 +353,13 @@ class SkyView(QWidget):
             self.txt3.remove()
             self.txt4.remove()
             self.txt5.remove()
+            self.txt6.remove()
             for p in self.sun: p.remove()
             for p in self.moon: p.remove()
             for p in self.nextOb: p.remove()
         except:
             pass
+        sun_h = f"{self.parent.almanac['sun_alt']:.0f}"
         sunrise_tmp = str(self.parent.almanac["sunrise"]).split()[1]
         sunset_tmp = str(self.parent.almanac["sunset"]).split()[1]
         sunrise = sunrise_tmp.split(":")[0] + ":" + sunrise_tmp.split(":")[1]
@@ -375,17 +379,22 @@ class SkyView(QWidget):
         fi = fi * 2 * 3.14 / 360.
         self.txt2 = self.axes.text(fi, r, f"Sunrise: {sunrise}", fontsize=9)
 
+        r, fi = 173, 307
+        fi = fi * 2 * 3.14 / 360.
+        self.txt3 = self.axes.text(fi, r, f"Sun Alt: {sun_h}", fontsize=9)
+
+
         r, fi = 175, 232
         fi = fi * 2 * 3.14 / 360.
-        self.txt3 = self.axes.text(fi, r, f"Moon: {moon_phase}", fontsize=9)
+        self.txt4 = self.axes.text(fi, r, f"Moon: {moon_phase}", fontsize=9)
 
         r, fi = 186.5, 228
         fi = fi * 2 * 3.14 / 360.
-        self.txt4 = self.axes.text(fi, r, f"Moonrise: {moonrise}", fontsize=9)
+        self.txt5 = self.axes.text(fi, r, f"Moonrise: {moonrise}", fontsize=9)
 
         r, fi = 198, 224
         fi = fi * 2 * 3.14 / 360.
-        self.txt5 = self.axes.text(fi, r, f"Moonset: {moonset}", fontsize=9)
+        self.txt6= self.axes.text(fi, r, f"Moonset: {moonset}", fontsize=9)
 
         self.sun = self.axes.plot(self.parent.almanac["sun_az"] * 2 * 3.14 / 360., 90 - self.parent.almanac["sun_alt"], "oy", alpha=0.7)
         self.moon = self.axes.plot(self.parent.almanac["moon_az"] * 2 * 3.14 / 360., 90 - self.parent.almanac["moon_alt"], "ok", alpha=0.7)
@@ -551,37 +560,38 @@ class SkyView(QWidget):
             self.setNext_p.setStyleSheet("color: blue;")
 
     def zaznaczenie(self, event):
-        az = 360. * (float(event.xdata) / (2 * 3.14))
-        if az < 0: az = az + 360.
-        alt = 90 - float(event.ydata)
-        if self.snap_c.isChecked():
-            ii = 0
-            if len(self.plan) > 0:
-                przetrzymywacz = 1000.
-                for i, tmp in enumerate(self.plan):
-                    if "meta_alt" in self.plan[i].keys() and "meta_az" in self.plan[i].keys():
-                        h1 = 90. - float(alt)
-                        a1 = 2 * math.pi * (float(az)) / 360.
-                        h2 = 90. - float(self.plan[i]["meta_alt"])
-                        a2 = 2 * math.pi * (float(self.plan[i]["meta_az"])) / 360.
-                        delta = (h1 ** 2 + h2 ** 2 - 2 * h1 * h2 * math.cos(a1 - a2)) ** 0.5
-                        if delta < przetrzymywacz:
-                            ii = i
-                            przetrzymywacz = delta
-                self.parent.planGui.i = ii
+        if event.xdata != None:
+            az = 360. * (float(event.xdata) / (2 * 3.14))
+            if az < 0: az = az + 360.
+            alt = 90 - float(event.ydata)
+            if self.snap_c.isChecked():
+                ii = 0
+                if len(self.plan) > 0:
+                    przetrzymywacz = 1000.
+                    for i, tmp in enumerate(self.plan):
+                        if "meta_alt" in self.plan[i].keys() and "meta_az" in self.plan[i].keys():
+                            h1 = 90. - float(alt)
+                            a1 = 2 * math.pi * (float(az)) / 360.
+                            h2 = 90. - float(self.plan[i]["meta_alt"])
+                            a2 = 2 * math.pi * (float(self.plan[i]["meta_az"])) / 360.
+                            delta = (h1 ** 2 + h2 ** 2 - 2 * h1 * h2 * math.cos(a1 - a2)) ** 0.5
+                            if delta < przetrzymywacz:
+                                ii = i
+                                przetrzymywacz = delta
+                    self.parent.planGui.i = ii
+                    if self.canSetNext:
+                        self.parent.planGui.next_i = ii
+                        self.canSetNext = False
+                        self.setNext_p.setStyleSheet("color: black;")
+                    self.parent.planGui.update_table()
+
+
+            else:
                 if self.canSetNext:
-                    self.parent.planGui.next_i = ii
+                    self.parent.mntGui.setAltAz_r.setChecked(True)
+                    self.parent.mntGui.nextAlt_e.setText(f"{alt:.3f}")
+                    self.parent.mntGui.nextAz_e.setText(f"{az:.3f}")
                     self.canSetNext = False
                     self.setNext_p.setStyleSheet("color: black;")
-                self.parent.planGui.update_table()
 
-
-        else:
-            if self.canSetNext:
-                self.parent.mntGui.setAltAz_r.setChecked(True)
-                self.parent.mntGui.nextAlt_e.setText(f"{alt:.3f}")
-                self.parent.mntGui.nextAz_e.setText(f"{az:.3f}")
-                self.canSetNext = False
-                self.setNext_p.setStyleSheet("color: black;")
-
-        self.updateMount()
+            self.updateMount()

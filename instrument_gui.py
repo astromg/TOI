@@ -11,7 +11,7 @@ import time
 import qasync as qs
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QRadioButton, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
 
 from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 from qasync import QEventLoop
@@ -35,8 +35,7 @@ class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
       def updateUI(self):
 
-          # local_dic={"WK06":'WK06 Instrument Manual Controll',"ZB08":'ZB08 Instrument Manual Controll',"JK15":'JK15 Instrument Manual Controll',"WG25":'WG25 Instrument Manual Controll',"SIM":'SIM Instrument Manual Controll'}
-          local_dic={"WK06":'WK06 Instrument Manual Controll',"ZB08":'ZB08 Instrument Manual Controll',"JK15":'JK15 Instrument Manual Controll',"SIM":'SIM Instrument Manual Controll'}
+          local_dic={"wk06":'WK06 Instrument Manual Controll',"zb08":'ZB08 Instrument Manual Controll',"jk15":'JK15 Instrument Manual Controll',"sim":'SIM Instrument Manual Controll'}
           try: txt = local_dic[self.parent.active_tel]
           except: txt = "unknow Instrument Manual Controll"
           self.setWindowTitle(txt)
@@ -78,17 +77,45 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           if self.inst_Obtype_s.currentIndex()==0:
               self.inst_object_e.setText("")
           elif self.inst_Obtype_s.currentIndex()==1:
-              self.inst_object_e.setText("ZERO")
+              self.inst_object_e.setText("zero")
               self.inst_Dit_e.setText("0")
           elif self.inst_Obtype_s.currentIndex()==2:
-              self.inst_object_e.setText("DARK")
+              self.inst_object_e.setText("dark")
           elif self.inst_Obtype_s.currentIndex()==3:
-              self.inst_object_e.setText("SKY_FLAT")
+              self.inst_object_e.setText("skyflat")
           elif self.inst_Obtype_s.currentIndex()==4:
-              self.inst_object_e.setText("DOME_FLAT")
+              self.inst_object_e.setText("domeflat")
           #elif self.inst_Obtype_s.currentIndex()==5:
           #    self.inst_object_e.setText("FOCUS")
           else: pass
+
+      def Select(self):
+          if self.Select1_r.isChecked():
+              self.inst_Seq_e.setText("")
+              self.inst_Ndit_e.setStyleSheet("background-color: white; color: black;")
+              self.inst_Dit_e.setStyleSheet("background-color: white; color: black;")
+              self.inst_Seq_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          else:
+              self.inst_Ndit_e.setText("")
+              self.inst_Dit_e.setText("")
+              self.inst_Ndit_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+              self.inst_Dit_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+              self.inst_Seq_e.setStyleSheet("background-color: white; color: black;")
+
+      def Select1(self,tmp):
+          self.Select1_r.setChecked(True)
+          self.inst_Seq_e.setText("")
+          self.inst_Ndit_e.setStyleSheet("background-color: white; color: black;")
+          self.inst_Dit_e.setStyleSheet("background-color: white; color: black;")
+          self.inst_Seq_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
+      def Select2(self,tmp):
+          self.Select2_r.setChecked(True)
+          self.inst_Ndit_e.setText("")
+          self.inst_Dit_e.setText("")
+          self.inst_Ndit_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          self.inst_Dit_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          self.inst_Seq_e.setStyleSheet("background-color: white; color: black;")
 
         # =================== OKNO GLOWNE ====================================
       def mkUI(self):
@@ -103,8 +130,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.inst_Obtype_l=QLabel("TYPE:")
           self.inst_Obtype_s=QComboBox()
-          self.inst_Obtype_s.addItems(["Science","Zero","Dark","Sky Flat","DomeFlat","Focus"])
-          #self.inst_Obtype_s.addItems(["Science","Zero","Dark","Sky Flat","DomeFlat"])
+          self.inst_Obtype_s.addItems(["Science","Zero","Dark","Sky Flat","Dome Flat"])
           self.inst_Obtype_s.currentIndexChanged.connect(self.ObsTypeChanged)
           
           grid.addWidget(self.inst_object_l, w,0)
@@ -114,41 +140,56 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         
           w=w+1
           self.inst_Ndit_l=QLabel("N:")
-          self.inst_Ndit_e=QLineEdit() 
-
+          self.inst_Ndit_e=QLineEdit()
           self.inst_Dit_l=QLabel("EXP TIME [s]:")
-          self.inst_Dit_e=QLineEdit()   
-          
+          self.inst_Dit_e=QLineEdit()
+          self.Select1_r = QRadioButton("")
+          self.Select1_r.setChecked(True)
+          self.Select1_r.toggled.connect(self.Select)
+          self.inst_Ndit_e.mousePressEvent = self.Select1  # connect
+          self.inst_Dit_e.mousePressEvent = self.Select1   # connect
+
           grid.addWidget(self.inst_Ndit_l, w,0)
           grid.addWidget(self.inst_Ndit_e, w,1)
           grid.addWidget(self.inst_Dit_l, w,2)
           grid.addWidget(self.inst_Dit_e, w,3)
-          
+          grid.addWidget(self.Select1_r, w, 4)
+
+          w=w+1
+          self.inst_Seq_l=QLabel("Sequence:")
+          self.inst_Seq_e=QLineEdit()
+          self.inst_Seq_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          self.Select2_r = QRadioButton("")
+          self.Select2_r.toggled.connect(self.Select)
+          self.inst_Seq_e.mousePressEvent = self.Select2   # connect
+
+
+
+          #self.inst_Seq_p=QPushButton('EXECUTE')
+          #self.inst_Seq_p.setStyleSheet(" color: gray;")
+          #self.inst_Seq_p.clicked.connect(self.parent.ccd_startSequence)
+
+
+          grid.addWidget(self.inst_Seq_l, w,0)
+          grid.addWidget(self.inst_Seq_e, w,1,1,3)
+          #grid.addWidget(self.inst_Seq_p, w,2,1,2)
+          grid.addWidget(self.Select2_r, w, 4)
+
           w=w+1
           self.inst_NditProg_n=QProgressBar(self)
+          self.inst_NditProg_n.setStyleSheet("background-color: rgb(233, 233, 233)")
           self.inst_NditProg_n.setValue(0)
           self.inst_NditProg_n.setFormat("0/1")
 
 
           self.inst_DitProg_n=QProgressBar(self)
+          self.inst_DitProg_n.setStyleSheet("background-color: rgb(233, 233, 233)")
           #self.inst_DitProg_n.setValue(75)
           #self.inst_DitProg_n.setFormat("237/300")
 
 
           grid.addWidget(self.inst_NditProg_n, w,0,1,2)
           grid.addWidget(self.inst_DitProg_n, w,2,1,2)
-          
-          w=w+1
-          self.inst_Seq_l=QLabel("Sequence:")
-          self.inst_Seq_e=QLineEdit() 
-          self.inst_Seq_p=QPushButton('EXECUTE')
-          self.inst_Seq_p.setStyleSheet(" color: gray;")
-          self.inst_Seq_p.clicked.connect(self.parent.ccd_startSequence)
-
-
-          grid.addWidget(self.inst_Seq_l, w,0)
-          grid.addWidget(self.inst_Seq_e, w,1)
-          grid.addWidget(self.inst_Seq_p, w,2,1,2)
           
           w=w+1
           self.inst_Mode_l=QLabel("Mode:")
@@ -244,7 +285,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=w+1          
           
           self.inst_Snap_p=QPushButton('SNAP')
-          self.inst_Snap_p.setStyleSheet(" color: gray;")
+          self.inst_Snap_p.clicked.connect(self.parent.ccd_Snap)
           self.inst_Pause_p=QPushButton('PAUSE')
           self.inst_Pause_p.setStyleSheet(" color: gray;")
           self.inst_Stop_p=QPushButton('STOP')
@@ -268,7 +309,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
      
           
           self.setLayout(grid)
-          
+
       async def on_start_app(self):
           await self.run_background_tasks()
 

@@ -31,7 +31,7 @@ class AuxGui(QWidget):
 
     def updateUI(self):
 
-        local_dic = {"WK06": 'WK06 Aux Monitor', "ZB08": 'ZB08 Aux Monitor', "JK15": 'JK15 Aux Monitor', "SIM": 'SIM Aux Monitor'}
+        local_dic = {"wk06": 'WK06 Aux Monitor', "zb08": 'ZB08 Aux Monitor', "jk15": 'JK15 Aux Monitor', "sim": 'SIM Aux Monitor'}
         # local_dic = {"WK06": 'WK06 Aux Monitor', "ZB08": 'ZB08 Aux Monitor', "JK15": 'JK15 Aux Monitor',
         #              "WG25": 'WG25 Aux Monitor', "SIM": 'SIM Aux Monitor'}
         try:
@@ -68,9 +68,6 @@ class AuxGui(QWidget):
         # self.flat_tab = FlatGui(self.parent)
         # self.tabWidget.addTab(self.flat_tab, "Flats")
 
-        # self.weather_tab = WeatherGui(self.parent)
-        # self.tabWidget.addTab(self.weather_tab, "Weather")
-        # self.weather_tab.update()
         #
         # self.cctv_tab = CctvGui(self.parent)
         # self.tabWidget.addTab(self.cctv_tab, "CCTV")
@@ -89,35 +86,49 @@ class WelcomeGui(QWidget):
         self.mkUI()
 
     def mkUI(self):
-        grid = QGridLayout()
-        w = 0
-        self.pic_l = QLabel(" ")
+
         txt=""
-        if self.parent.active_tel == "WK06":
+        if self.parent.active_tel == "wk06":
             png_file = './Icons/wk06.png'
-            txt = "Welcome to Wojciech Krzeminski WK06 Telescope <br>"
-        elif self.parent.active_tel == "ZB08":
+            txt = "Welcome to Wojciech Krzeminski WK06 Telescope"
+        elif self.parent.active_tel == "zb08":
             png_file = './Icons/zb08.png'
             txt = "<h4>Welcome to Zbigniew Kolaczkowski <u>ZB08</u> Telescope</h4>"
+            txt = txt + "------------------------------------------------"
             txt = txt + "<table>"
             txt = txt + "<tr><td>Ritchey–Chrétien <b>f6.85</b>  </td><td>|    focal length = <b>5480</b>mm </td></tr>"
             txt = txt + "<tr><td>filters: </td><td>|    Sloan (<b>ugriz</b>), JC (<b>BVI</b>) + diff </td></tr>"
             txt = txt + "<tr><td>Instrument: </td><td>|    Andor iKon-L <b>2048x2048</b> </td></tr>"
-            txt = txt + "<tr><td>  Pixscale = <b>0.504</b>'/pix </td><td>|    FOV = <b>17.2</b> arcmin   </td> </tr>"
+            txt = txt + "<tr><td>Pixscale = <b>0.504</b>'/pix </td><td>|    FOV = <b>17.2</b> arcmin   </td> </tr>"
             txt = txt + "</table>"
-        elif self.parent.active_tel == "JK15":
+            txt = txt + "------------------------------------------------"
+        elif self.parent.active_tel == "jk15":
             png_file = './Icons/jk15.png'
             txt = "Welcome to Janusz Kaluzny JK08 Telescope\n"
-        elif self.parent.active_tel == "WG25":
+        elif self.parent.active_tel == "wg25":
             png_file = './Icons/wg25.png'
-        elif self.parent.active_tel == "SIM":
-            png_file = './Icons/oca.png'
-        self.pic_l.setPixmap(QtGui.QPixmap(png_file).scaled(400, 300))
-        grid.addWidget(self.pic_l, w, 0)
+        else: png_file = './Icons/oca.png'
 
         txt = txt + "<h4>Whats New?</h4>"
+        txt = txt + "--- 04.08.23 --- <br> <br> <br>"
         txt = txt + "--- 09.06.23 --- <br> Major plan execution BUG in TOI was fixed. <br>DOMEFLAT and SKYFLAT for Plan and Manual is working now<br>"
 
+        grid = QGridLayout()
+        w = 0
+
+        self.pic_l = QLabel(" ")
+        self.pic_l.setPixmap(QtGui.QPixmap(png_file).scaled(300, 200))
+        grid.addWidget(self.pic_l, w,0,2,1)
+
+        self.wind_l = QLabel("Wind:")
+        self.wind_e = QLineEdit()
+        self.temp_l = QLabel("Temp:")
+        self.temp_e = QLineEdit()
+        grid.addWidget(self.temp_l, w, 1)
+        grid.addWidget(self.temp_e, w, 2)
+        w = w + 1
+        grid.addWidget(self.wind_l, w, 1)
+        grid.addWidget(self.wind_e, w, 2)
 
         self.info_e=QTextEdit()
         self.info_e.setReadOnly(True)
@@ -125,22 +136,10 @@ class WelcomeGui(QWidget):
         self.info_e.setHtml(txt)
         font=QtGui.QFont("Courier New",10)
         self.info_e.setFont(font)
-
-
-        w=w+1
-        grid.addWidget(self.info_e, w, 0)
+        w=w+2
+        grid.addWidget(self.info_e, w,0,1,3)
 
         self.setLayout(grid)
-
-#        grid.setRowMinimumHeight(1,350)
-#        grid.setRowStretch(0,0)
-#        grid.setRowStretch(1,1)
-#        grid.setRowStretch(2,0)
-#        self.setLayout(grid)
-
-
-
-
 
 
 # ############### FOCUS ##########################
@@ -184,11 +183,11 @@ class FocusGui(QWidget):
 
         self.last_l = QLabel("Last Value:")
         self.last_e = QLineEdit()
-        self.last_e.setText("15580")
+        self.last_e.setText("15350")
 
         self.range_l = QLabel("STEPS No.:")
         self.range_e = QLineEdit()
-        self.range_e.setText("10")
+        self.range_e.setText("8")
 
         grid.addWidget(self.last_l, w, 0)
         grid.addWidget(self.last_e, w, 1)
@@ -199,7 +198,7 @@ class FocusGui(QWidget):
 
         self.steps_l = QLabel("Step:")
         self.steps_e = QLineEdit()
-        self.steps_e.setText("30")
+        self.steps_e.setText("50")
 
         self.method_l = QLabel("Method:")
         self.method_s = QComboBox()
@@ -249,63 +248,6 @@ class FlatGui(QWidget):
         grid = QGridLayout()
         w = 0
         self.setLayout(grid)
-
-
-# ######### weather GUI ##############################
-
-class WeatherGui(QWidget):
-    def __init__(self, parent):
-        super(WeatherGui, self).__init__()
-        self.parent = parent
-        self.mqtt_client = mqtt.Client()
-        self.ut = ""
-        self.wind = ""
-        self.temp = ""
-        self.mkUI()
-        self.update()
-
-    def mkUI(self):
-        grid = QGridLayout()
-        w = 0
-        self.ut_l = QLabel("UT:")
-        self.ut_e = QLineEdit()
-        grid.addWidget(self.ut_l, w, 0)
-        grid.addWidget(self.ut_e, w, 1)
-        w = w + 1
-        self.wind_l = QLabel("Wind:")
-        self.wind_e = QLineEdit()
-        grid.addWidget(self.wind_l, w, 0)
-        grid.addWidget(self.wind_e, w, 1)
-        w = w + 1
-        self.temp_l = QLabel("Temp:")
-        self.temp_e = QLineEdit()
-        grid.addWidget(self.temp_l, w, 0)
-        grid.addWidget(self.temp_e, w, 1)
-        self.setLayout(grid)
-
-    def update(self):
-        try:
-            self.mqtt_broker = 'docker.oca.lan'
-            self.mqtt_port = 1883
-            self.mqtt_topic_weather = 'weather'
-            self.mqtt_client.connect(self.mqtt_broker, self.mqtt_port)
-            self.mqtt_client.message_callback_add(self.mqtt_topic_weather, self.on_weather_message)
-            self.mqtt_client.on_connect = self.on_mqtt_connect
-            self.mqtt_client.loop_start()
-            # mqtt_client.loop_stop()
-        except:
-            pass
-
-    def on_weather_message(self, client, userdata, message):
-        weather = message.payload.decode('utf-8')
-        weather_dict = json.loads(weather)
-        self.ut, self.wind, self.temp = weather_dict["dataGMTTime"], weather_dict["wind"], weather_dict["temp"]
-        self.ut_e.setText(self.ut)
-        self.wind_e.setText(str(self.wind))
-        self.temp_e.setText(str(self.temp))
-
-    def on_mqtt_connect(self, client, userdata, flags, rc):
-        if rc == 0: self.mqtt_client.subscribe((self.mqtt_topic_weather, 1))
 
 
 class CctvGui(QWidget):
@@ -383,7 +325,7 @@ class FitsView(QWidget):
 
         grid = QGridLayout()
 
-        self.show_c = QCheckBox("Mark stars")
+        self.show_c = QCheckBox("Mark saturated stars")
         self.show_c.setChecked(True)
         self.show_c.clicked.connect(self.plot_image)
 
