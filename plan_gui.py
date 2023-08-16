@@ -231,6 +231,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.update_table()
           self.parent.obsGui.main_form.skyView.updateRadar()
 
+      def pocisniecie_headera(self,index):
+          print(index)
+
       def pocisniecie_tabelki(self,i,j):
           self.prev_i=self.i
           self.i=i
@@ -447,7 +450,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           
           w=0
           self.plan_t=QTableWidget(0,4)
-          self.plan_t.setHorizontalHeaderLabels(["","Object","Alt","Sequence"])
+          self.plan_t.setHorizontalHeaderLabels(["","Object","Alt","Comment"])
           
           self.grid.addWidget(self.plan_t, w,0,8,5)
           
@@ -536,6 +539,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.load_p.clicked.connect(self.loadPlan)
           self.plan_t.cellClicked.connect(self.pocisniecie_tabelki)
+          self.plan_t.horizontalHeader().sectionClicked.connect(self.pocisniecie_headera)
 
           self.import_p.clicked.connect(self.import_to_manuall)
           self.next_p.clicked.connect(self.setNext)

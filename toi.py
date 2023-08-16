@@ -305,23 +305,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         #self.add_background_task(self.TOItimer())
+
         self.add_background_task(self.TOItimer0())
-        self.add_background_task(self.TOItimer1())
-        self.add_background_task(self.TOItimer2())
-        self.add_background_task(self.TOItimer3())
-        self.add_background_task(self.TOItimer4())
-        self.add_background_task(self.TOItimer5())
-        self.add_background_task(self.TOItimer6())
-        self.add_background_task(self.TOItimer7())
-        self.add_background_task(self.TOItimer8())
-        self.add_background_task(self.TOItimer9())
-        self.add_background_task(self.TOItimer10())
-        self.add_background_task(self.TOItimer11())
-        self.add_background_task(self.TOItimer12())
-        self.add_background_task(self.TOItimer13())
-        self.add_background_task(self.TOItimer14())
-        self.add_background_task(self.TOItimer15())
-        self.add_background_task(self.TOItimer16())
+
+        # self.add_background_task(self.TOItimer1())
+        # self.add_background_task(self.TOItimer2())
+        # self.add_background_task(self.TOItimer3())
+        # self.add_background_task(self.TOItimer4())
+        # self.add_background_task(self.TOItimer5())
+        # self.add_background_task(self.TOItimer6())
+        # self.add_background_task(self.TOItimer7())
+        # self.add_background_task(self.TOItimer8())
+        # self.add_background_task(self.TOItimer9())
+        # self.add_background_task(self.TOItimer10())
+        # self.add_background_task(self.TOItimer11())
+        # self.add_background_task(self.TOItimer12())
+        # self.add_background_task(self.TOItimer13())
+        # self.add_background_task(self.TOItimer14())
+        # self.add_background_task(self.TOItimer15())
+        # self.add_background_task(self.TOItimer16())
 
         await self.run_background_tasks()
 
@@ -344,6 +346,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.shutdown_p.clicked.connect(self.shutdown)
         self.obsGui.main_form.weatherStop_p.clicked.connect(self.weatherStop)
         self.obsGui.main_form.EmStop_p.clicked.connect(self.EmStop)
+
+        self.force_update()
 
 
     # ################### METODY POD SUBSKRYPCJE ##################
@@ -931,6 +935,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                         if self.ob["type"] == "OBJECT" and "block" in self.ob.keys():
                             program = self.ob["block"]
+                            if "comment" in program:
+                                program = program.split("comment")[0]
                             self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
                             await self.planrunner.arun_nightplan('program', step_id="00")
 
