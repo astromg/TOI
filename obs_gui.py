@@ -36,6 +36,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     @qs.asyncClose
     async def closeEvent(self, event):
         await self.stop_background_tasks()
+        await self.stop_background_tasks()
         super().closeEvent(event)
 
 
@@ -417,9 +418,12 @@ class SkyView(QWidget):
         except:
             pass
         self.stars = []
-        self.plan = self.parent.planGui.plan
-        self.plan_i = int(self.parent.planGui.i)
-        self.plan_next_i = int(self.parent.planGui.next_i)
+        self.plan = []
+        try:
+            self.plan = self.parent.planGui.plan
+            self.plan_i = int(self.parent.planGui.i)
+            self.plan_next_i = int(self.parent.planGui.next_i)
+        except AttributeError: pass
         if len(self.plan) > 0:
             self.plan_to_show = self.plan
 

@@ -15,7 +15,7 @@ import uuid
 import qasync as qs
 from qasync import QEventLoop
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
+from PyQt5.QtWidgets import QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -40,6 +40,12 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           #self.setStyleSheet("font-size: 11pt;")
           self.setGeometry(self.parent.plan_geometry[0],self.parent.plan_geometry[1],self.parent.plan_geometry[2],self.parent.plan_geometry[3])
 
+          self.table_header = ["","Object","Alt @ UT","Comment"]
+          self.show_seq = False
+          self.show_ut = True
+          self.show_ob = False
+
+
           self.plan=[] 
           self.i=0
           self.prev_i=1
@@ -57,52 +63,93 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.edit_window.raise_()
          else: print("no plan loaded") # ERROR MSG
 
-      def update_plan(self):
+
+      def check_next_i(self):
           if self.next_i > len(self.plan)-1:
               self.next_i = -1
-          for i,tmp in enumerate(self.plan):
-             if len(self.plan)>0:
+              self.check_next_i()
 
-                if "skip" in self.plan[i].keys() and i == self.next_i:
-                    if self.plan[i]["skip"]:
-                        self.next_i = self.next_i+1
+          if "uid" in self.plan[self.next_i].keys():
+              if self.plan[self.next_i]["uid"] in self.done:
+                  self.next_i = self.next_i + 1
+                  self.check_next_i()
 
-                if "uid" not in self.plan[i].keys():
-                    self.plan[i]["uid"]=str(uuid.uuid4())[:8]
-                if self.plan[i]["uid"] in self.done and i == self.next_i:
-                    self.next_i = self.next_i+1
+          if "skip" in self.plan[self.next_i].keys():
+              if self.plan[self.next_i]["skip"]:
+                  self.next_i = self.next_i + 1
+                  self.check_next_i()
 
 
-                tmp_dict=dict()
-                az,alt="--","--"
+      def update_plan(self):
+          self.check_next_i()
+          ob_date = str(ephem.Date(ephem.now())).split()[0]
+          for i, tmp in enumerate(self.plan):
 
-                if "ra" in self.plan[i].keys():
-                    ra=self.plan[i]["ra"]
-                    dec=self.plan[i]["dec"]
-                    az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)
-                    alt=f"{float(arcDeg2float(str(alt))):.1f}"
-                    az=f"{float(arcDeg2float(str(az))):.1f}"
-                    self.plan[i]["meta_alt"]=alt
-                    self.plan[i]["meta_az"]=az
+              if i == self.next_i:
+                  ob_time = ephem.now()
+
+              if "uid" not in self.plan[i].keys():
+                  self.plan[i]["uid"] = str(uuid.uuid4())[:8]
+
+              if "ra" in self.plan[i].keys():
+                  ra=self.plan[i]["ra"]
+                  dec=self.plan[i]["dec"]
+                  az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)
+                  alt=f"{float(arcDeg2float(str(alt))):.1f}"
+                  az=f"{float(arcDeg2float(str(az))):.1f}"
+                  self.plan[i]["meta_alt"]=alt
+                  self.plan[i]["meta_az"]=az
+
+              if i >= self.next_i:
+                  if "wait_ut" in self.plan[i].keys():
+                      if ob_time < ephem.Date(ob_date+" "+self.plan[i]["wait_ut"]):
+                          ob_time =  ephem.Date(ob_date+" "+self.plan[i]["wait_ut"])
+                  self.plan[i]["meta_plan_ut"] = str(ephem.Date(ob_time))
+                  if "ra" in self.plan[i].keys():
+                      ra = self.plan[i]["ra"]
+                      dec = self.plan[i]["dec"]
+                      az, alt = RaDec2AltAz(self.parent.observatory, ob_time, ra, dec)
+                      alt = f"{float(arcDeg2float(str(alt))):.1f}"
+                      az = f"{float(arcDeg2float(str(az))):.1f}"
+                      self.plan[i]["meta_plan_alt"] = alt
+                      self.plan[i]["meta_plan_az"] = az
+                  if "wait" in self.plan[i].keys():
+                      ob_time =  ob_time + ephem.second * float(self.plan[i]["wait"])
+                  if self.plan[i]["uid"] in self.done:
+                      ob_time = ob_time
+                  else:
+                      if "seq" in self.plan[i].keys():
+                          slotTime = 0
+                          seq = self.plan[i]["seq"]
+                          for x_seq in seq.split(","):
+                              if "a" not in x_seq:
+                                  slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(self.parent.overhed)))
+                          ob_time = ob_time + ephem.second * slotTime
+
+
+
+
 
 
       def update_table(self):
-          self.update_plan()
           if len(self.plan)>0:
+             self.update_plan()
              self.plan_t.clearContents()
              for i,tmp in enumerate(self.plan):
                  if self.plan_t.rowCount() <= i: self.plan_t.insertRow(i)
 
-                 #print(self.plan[i])
-                 put_icon=False
-                 if i==self.next_i:
-                    font=QtGui.QFont()
-                    font.setPointSize(25)
-                    txt=QTableWidgetItem("\u2192")
-                    txt.setFont(font)
-                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                    txt.setForeground(QtGui.QColor("blue"))
-                    self.plan_t.setItem(i,0,txt)
+                 # IKONKI
+
+                 if "uid" in self.plan[i].keys():
+                     if self.plan[i]["uid"] in self.done:
+
+                         font=QtGui.QFont()
+                         font.setPointSize(15)
+                         txt=QTableWidgetItem("\u2713")
+                         txt.setFont(font)
+                         txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                         txt.setForeground(QtGui.QColor("green"))
+                         self.plan_t.setItem(i,0,txt)
 
                      # UWAGA - ponizsza metoda zostaje zachowana jako przyklad problemu.
                      # Gdy sie tak robi, to kazdy kolejny widget po 1, najpierw wskakuje w
@@ -118,17 +165,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                      #icon.setAlignment(QtCore.Qt.AlignCenter)
                      #self.plan_t.setCellWidget(i,0,txt)
 
-                 if i==self.current_i:
-                    font=QtGui.QFont()
-                    font.setPointSize(20)
-                    txt=QTableWidgetItem("\u21BB")
-                    txt.setFont(font)
-                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                    txt.setForeground(QtGui.QColor("green"))
-                    self.plan_t.setItem(i,0,txt)
-
-
-
                  if "skip" in self.plan[i].keys():
                     if self.plan[i]["skip"]:
                        font=QtGui.QFont()
@@ -138,10 +174,18 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        txt.setTextAlignment(QtCore.Qt.AlignCenter)
                        self.plan_t.setItem(i,0,txt)
 
+                 if "type" in self.plan[i].keys():
+                    if self.plan[i]["type"]=="WAIT":
+                       font=QtGui.QFont()
+                       font.setPointSize(15)
+                       txt=QTableWidgetItem("\u29D6")
+                       txt.setFont(font)
+                       txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                       txt.setForeground(QtGui.QColor("darkCyan"))
+                       self.plan_t.setItem(i,0,txt)
 
-
-                 if "name" in self.plan[i].keys():
-                    if self.plan[i]["name"]=="STOP":
+                 if "type" in self.plan[i].keys():
+                    if self.plan[i]["type"]=="STOP":
                        font=QtGui.QFont()
                        font.setPointSize(20)
                        txt=QTableWidgetItem("\u2B23")
@@ -150,71 +194,103 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        txt.setForeground(QtGui.QColor("red"))
                        self.plan_t.setItem(i,0,txt)
 
-                 if "uid" in self.plan[i].keys():
-                     if self.plan[i]["uid"] in self.done:
+                 if i==self.current_i:
+                    font=QtGui.QFont()
+                    font.setPointSize(20)
+                    txt=QTableWidgetItem("\u21BB")
+                    txt.setFont(font)
+                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                    txt.setForeground(QtGui.QColor("blue"))
+                    self.plan_t.setItem(i,0,txt)
 
-                         font=QtGui.QFont()
-                         font.setPointSize(15)
-                         txt=QTableWidgetItem("\u2713")
-                         txt.setFont(font)
-                         txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                         txt.setForeground(QtGui.QColor("green"))
-                         self.plan_t.setItem(i,0,txt)
+                 if i==self.next_i and self.current_i<0:
+                    font=QtGui.QFont()
+                    font.setPointSize(25)
+                    txt=QTableWidgetItem("\u2192")
+                    txt.setFont(font)
+                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                    txt.setForeground(QtGui.QColor("blue"))
+                    self.plan_t.setItem(i,0,txt)
 
+                 # 1 KOLUMNA
 
-                     
-                 txt=QTableWidgetItem(self.plan[i]["name"])
+                 if self.show_ob:
+                     txt=self.plan[i]["block"]
+                 else:
+                     txt = self.plan[i]["name"]
+                 txt=QTableWidgetItem(txt)
                  self.plan_t.setItem(i,1,txt)
 
-                 txt=QTableWidgetItem("--")
-                 if "meta_alt" in self.plan[i].keys():
-                    txt=QTableWidgetItem(str(self.plan[i]["meta_alt"]))
+                 # 2 KOLUMNA
 
+                 if self.show_ut:
+                     txt = ""
+                     if "meta_plan_ut" in self.plan[i].keys()  and i >= self.next_i:
+                         tmp = str(self.plan[i]["meta_plan_ut"]).split()[1]
+                         txt = tmp.split(":")[0]+":"+tmp.split(":")[1]
+                     if "meta_plan_alt" in self.plan[i].keys() and i >= self.next_i:
+                         txt = txt + " (" + str(self.plan[i]["meta_plan_alt"])+")"
+
+                 else:
+                     txt = ""
+                     if "meta_alt" in self.plan[i].keys():
+                         txt = str(self.plan[i]["meta_alt"])
+                 txt=QTableWidgetItem(txt)
                  self.plan_t.setItem(i,2,txt)
 
+                 # 3 KOLUMNA
+
                  txt=QTableWidgetItem("--")
-                 if "seq" in self.plan[i].keys():
-                    txt=QTableWidgetItem(str(self.plan[i]["seq"]))
-                 elif "wait" in self.plan[i].keys():
-                    txt=QTableWidgetItem("wait="+str(self.plan[i]["wait"]))
-                 elif "wait_ut" in self.plan[i].keys():
-                    txt=QTableWidgetItem("wait_ut="+str(self.plan[i]["wait_ut"]))
-                 elif "wait_sunrise" in self.plan[i].keys():
-                    txt=QTableWidgetItem("wait_sunrise="+str(self.plan[i]["wait_sunrise"]))
-                 elif "wait_sunset" in self.plan[i].keys():
-                    txt=QTableWidgetItem("wait_sunset="+str(self.plan[i]["wait_sunset"]))
+                 if self.show_seq:
+                     if "seq" in self.plan[i].keys(): txt = QTableWidgetItem(str(self.plan[i]["seq"]))
+                 else:
+                     if "comment" in self.plan[i].keys(): txt = QTableWidgetItem(str(self.plan[i]["comment"]))
+
                  self.plan_t.setItem(i,3,txt)
 
                  if i==self.prev_i:
                     self.plan_t.item(i,1).setBackground(QtGui.QColor(227,253,227))
                     self.plan_t.item(i,2).setBackground(QtGui.QColor(227,253,227))
+                    self.plan_t.item(i, 3).setBackground(QtGui.QColor(227, 253, 227))
                  if i==self.i:
                     self.plan_t.item(i,1).setBackground(QtGui.QColor("lightgreen"))
                     self.plan_t.item(i,2).setBackground(QtGui.QColor("lightgreen"))
+                    self.plan_t.item(i, 3).setBackground(QtGui.QColor("lightgreen"))
 
-          self.plan_t.setColumnWidth(0,30)
+          #self.plan_t.setColumnWidth(0,30)
+          self.plan_t.resizeColumnsToContents()
+          self.plan_t.horizontalHeader().setStretchLastSection(True)
+          self.parent.obsGui.main_form.skyView.updateRadar()
 
 
       def setNext(self):
           self.next_i=self.i
           self.update_table()
-          self.parent.obsGui.main_form.skyView.updateRadar()
+
 
       def import_to_manuall(self):
-          if "ra" in self.plan[self.i].keys() and "dec" in self.plan[self.i].keys():
-            self.parent.mntGui.setEq_r.setChecked(True)
-            self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ra"])
-            self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["dec"])
-            self.parent.mntGui.updateNextRaDec()
-          if "type" in self.plan[self.i].keys() and "name" in self.plan[self.i].keys():
-             if self.plan[self.i]["type"] != "MARKER":
-                self.parent.instGui.ccd_tab.inst_object_e.setText(self.plan[self.i]["name"])
-                self.parent.mntGui.target_e.setText(self.plan[self.i]["name"])
-                self.parent.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
-                if "seq" in self.plan[self.i].keys():
-                    self.parent.instGui.ccd_tab.Select2_r.setChecked(True)
-                    self.parent.instGui.ccd_tab.inst_Seq_e.setText(self.plan[self.i]["seq"])
+          if "type" in self.plan[self.i].keys():
+              if self.plan[self.i]["type"] in ["OBJECT","DARK","ZERO","SKYFLAT","DOMEFLAT"]:
+                  if "ra" in self.plan[self.i].keys() and "dec" in self.plan[self.i].keys():
+                      self.parent.mntGui.setEq_r.setChecked(True)
+                      self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ra"])
+                      self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["dec"])
+                      self.parent.mntGui.updateNextRaDec()
+                      if "name" in self.plan[self.i].keys():
+                          self.parent.mntGui.target_e.setText(self.plan[self.i]["name"])
+                          self.parent.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
+                  if "name" in self.plan[self.i].keys():
+                      self.parent.instGui.ccd_tab.inst_object_e.setText(self.plan[self.i]["name"])
+                  if "seq" in self.plan[self.i].keys():
+                      self.parent.instGui.ccd_tab.Select2_r.setChecked(True)
+                      self.parent.instGui.ccd_tab.inst_Seq_e.setText(self.plan[self.i]["seq"])
+                  if self.plan[self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
 
+          if self.plan[self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
+          elif self.plan[self.i]["type"] == "ZERO": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
+          elif self.plan[self.i]["type"] == "DARK": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(2)
+          elif self.plan[self.i]["type"] == "SKYFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(3)
+          elif self.plan[self.i]["type"] == "DOMEFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(4)
 
 
       def setStop(self):
@@ -222,29 +298,59 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              if self.plan[self.i]["stop"]:self.plan[self.i]["stop"]=False
           else: self.plan[self.i]["stop"]=True
           self.update_table()
-          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def setSkip(self):
           if "skip" in self.plan[self.i].keys():          
              if self.plan[self.i]["skip"]:self.plan[self.i]["skip"]=False
           else: self.plan[self.i]["skip"]=True
           self.update_table()
-          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_headera(self,index):
-          print(index)
+          if index == 3:
+              if self.show_seq:
+                  self.table_header[3] = "Comment"
+                  self.plan_t.setHorizontalHeaderLabels(self.table_header)
+                  self.show_seq = False
+              else:
+                  self.table_header[3] = "Seq"
+                  self.plan_t.setHorizontalHeaderLabels(self.table_header)
+                  self.show_seq = True
+
+          elif index == 2:
+              if self.show_ut:
+                  self.table_header[2] = "Alt"
+                  self.plan_t.setHorizontalHeaderLabels(self.table_header)
+                  self.show_ut = False
+              else:
+                  self.table_header[2] = "Alt @ UT"
+                  self.plan_t.setHorizontalHeaderLabels(self.table_header)
+                  self.show_ut = True
+
+          elif index == 1:
+              if self.show_ob:
+                  self.table_header[1] = "Object"
+                  self.plan_t.setHorizontalHeaderLabels(self.table_header)
+                  self.show_ob = False
+              else:
+                  self.table_header[1] = "OB"
+                  self.plan_t.setHorizontalHeaderLabels(self.table_header)
+                  self.show_ob = True
+
+
+
+
+          self.update_table()
 
       def pocisniecie_tabelki(self,i,j):
           self.prev_i=self.i
           self.i=i
           self.update_table()
-          self.parent.obsGui.main_form.skyView.updateRadar()
+          self.repaint()
 
       def pocisniecie_del(self):
           self.plan.pop(self.i)
           self.update_table()
           self.repaint()
-          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_first(self):
           self.plan.insert(0,self.plan[self.i])
@@ -253,7 +359,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.update_table()
           self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
           self.repaint()
-          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_last(self):
           self.plan.append(self.plan[self.i])  
@@ -262,7 +367,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.update_table()  
           self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))      
           self.repaint()
-          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_down(self):
           if self.i==len(self.plan)-1:
@@ -271,24 +375,22 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              self.i=0     
           else:   
              self.plan[self.i],self.plan[self.i+1]=self.plan[self.i+1],self.plan[self.i]
-             self.i_prev,self.i=self.i,self.i+1
+             self.i=self.i+1
           self.update_table()
           self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
           self.repaint()
-          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_up(self):
           if self.i==0:
              self.plan.append(self.plan[0])  
              self.plan.pop(0)
-             self.i=len(self.plan)
+             self.i=len(self.plan)-1
           else:  
              self.plan[self.i],self.plan[self.i-1]=self.plan[self.i-1],self.plan[self.i]
-             self.i_prev,self.i=self.i,self.i-1
+             self.i=self.i-1
           self.update_table()
           self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
           self.repaint()
-          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def pocisniecie_swap(self): 
           self.plan[self.i],self.plan[self.prev_i]=self.plan[self.prev_i],self.plan[self.i]
@@ -296,7 +398,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.i,self.prev_i=self.prev_i,self.i
           self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
           self.repaint()      
-          self.parent.obsGui.main_form.skyView.updateRadar()
 
       def loadPlan(self):
 
@@ -304,7 +405,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
 
           if self.fileName:
-
               self.plan = []
               self.done = []
               self.i = 0
@@ -323,31 +423,22 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                if "TEL: zb08" in line: pass  # wprowadzic do planow jako obowiazek?
 
                                elif "STOP" in line:
-                                  block=line
-                                  ob = {"name":"STOP"}
-                                  ob["type"]="MARKER"
-                                  ob["block"]=block
-                                  self.plan.append(ob)
+                                   ob = {"name":"STOP"}
+                                   ob["type"]="STOP"
+                                   ob["block"]=line
+                                   self.plan.append(ob)
 
                                elif "WAIT" in line:
-                                  ob = {"name":"WAIT"}
-                                  ob["type"]="MARKER"
-                                  block=line
-                                  ob["block"]=block
-
-                                  ll = line.split()
-                                  for tmp in ll:
-                                     if "wait=" in tmp:
-                                        ob["wait"]=tmp.split("=")[1]
-                                     if "ut=" in tmp:
-                                        ob["wait_ut"]=tmp.split("=")[1]
-                                     if "sunset=" in tmp:
-                                        ob["wait_sunset"]=tmp.split("=")[1]
-                                     if "sunrise=" in tmp:
-                                        ob["wait_sunrise"]=tmp.split("=")[1]
-
-
-                                  self.plan.append(ob)
+                                   ll=line.split()
+                                   name = ll[1]
+                                   ob = {"name":name}
+                                   ob["type"]="WAIT"
+                                   ob["block"]=line
+                                   if "wait=" in line: ob["wait"]=line.split("wait=")[1].split()[0]
+                                   if "ut=" in line: ob["wait_ut"] = line.split("ut=")[1].split()[0]
+                                   if "sunset=" in line: ob["wait_sunset"] = line.split("sunset=")[1].split()[0]
+                                   if "sunrise=" in line: ob["wait_sunrise"] = line.split("sunrise=")[1].split()[0]
+                                   self.plan.append(ob)
 
                                elif "DOMEFLAT" in line:
                                   ll=line.split()
@@ -376,7 +467,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   ob["type"]=ob_type
                                   ob["seq"]=seq
                                   self.plan.append(ob)
-
 
                                elif "ZERO" in line:
                                   ll=line.split()
@@ -425,21 +515,19 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                       ob["seq"] = seq
 
                                   if "comment=" in line:
-                                      comment = line.split("comment=")[1].split("\"")[1]
-                                      ob["comment"]=comment
+                                      ob["comment"] = line.split("comment=")[1].split("\"")[1]
 
                                   self.plan.append(ob)
           self.update_table()          
-          self.parent.obsGui.main_form.skyView.updateRadar()
+
         
           
         # =================== OKNO GLOWNE ====================================
       def updateUI(self):
 
-          # local_dic={"WK06":'WK06 Plan Manager',"ZB08":'ZB08 Plan Manager',"JK15":'JK15 Plan Manager',"WG25":'WG25 Plan Manager',"SIM":'SIM Plan Manager'}
-          local_dic={"wk06":'WK06 Plan Manager',"zb08":'ZB08 Plan Manager',"jk15":'JK15 Plan Manager',"sim":'SIM Plan Manager'}
-          try: txt = local_dic[self.parent.active_tel]
-          except: txt = "unknown Plan Manager"
+          txt = " Plan Manager"
+          if self.parent.active_tel != None:
+              txt = self.parent.active_tel + txt
           self.setWindowTitle(txt)
 
           tmp=QWidget()
@@ -447,11 +535,13 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           except: pass
           self.grid = QGridLayout()
 
-          
           w=0
           self.plan_t=QTableWidget(0,4)
-          self.plan_t.setHorizontalHeaderLabels(["","Object","Alt","Comment"])
-          
+          self.plan_t.setHorizontalHeaderLabels(self.table_header)
+          self.plan_t.setSelectionMode(QAbstractItemView.NoSelection)
+          self.plan_t.verticalHeader().hide()
+          self.plan_t.setStyleSheet("selection-background-color: green;")
+
           self.grid.addWidget(self.plan_t, w,0,8,5)
           
           w=w+8
@@ -524,18 +614,18 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=w+3
           self.load_p=QPushButton('Load Plan')
           self.stop_p=QPushButton('Stop')
-          self.stop_p.clicked.connect(self.parent.stop_program)
+
           self.resume_p=QPushButton('Resume')
-          self.resume_p.clicked.connect(self.parent.resume_program)
           self.start_p=QPushButton('Start')
-          self.start_p.clicked.connect(self.parent.plan_start)
 
           self.grid.addWidget(self.load_p, w,0)
           self.grid.addWidget(self.stop_p, w,2)
           self.grid.addWidget(self.resume_p, w,3)
           self.grid.addWidget(self.start_p, w,4)
- 
 
+          self.stop_p.clicked.connect(self.parent.stop_program)
+          self.resume_p.clicked.connect(self.parent.resume_program)
+          self.start_p.clicked.connect(self.parent.plan_start)
 
           self.load_p.clicked.connect(self.loadPlan)
           self.plan_t.cellClicked.connect(self.pocisniecie_tabelki)
@@ -551,11 +641,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.first_p.clicked.connect(self.pocisniecie_first)
           self.last_p.clicked.connect(self.pocisniecie_last)
           self.swap_p.clicked.connect(self.pocisniecie_swap)
-
           self.edit_p.clicked.connect(self.pocisniecie_edit)
           
           self.setLayout(self.grid)
-
           self.plan_t.setColumnWidth(0,30)
 
           del tmp
@@ -567,9 +655,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
       async def closeEvent(self, event):
           await self.stop_background_tasks()
           super().closeEvent(event)
-          
-          
-          
+
 class EditWindow(QWidget):
       def __init__(self, parent):
           super(EditWindow, self).__init__()
@@ -626,7 +712,14 @@ class EditWindow(QWidget):
                  if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
                  else: txt=txt+"# "+k+"=\n"
 
-          if ob["type"]=="MARKER":
+          if ob["type"]=="STOP":
+             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
+             txt=""
+             for k in local_keys:
+                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
+                 else: txt=txt+"# "+k+"=\n"
+
+          if ob["type"]=="WAIT":
              local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
              txt=""
              for k in local_keys:

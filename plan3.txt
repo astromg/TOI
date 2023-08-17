@@ -41,8 +41,8 @@ STOP
 #DARK seq=4/2/1
 #DARK seq=2/2/6
 WAIT wait=5
-WAIT wait_sunrise=-5
-WAIT wait_sunset=55
+WAIT sunrise=-5
+WAIT sunset=55
 WAIT ut=15:41:00
 WAIT wait=10
 WAIT wait=5

@@ -67,7 +67,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mnt_geometry = [self.obs_window_geometry[0],self.obs_window_geometry[1]+self.obs_window_geometry[3]+100,850,400]
         self.aux_geometry = [self.obs_window_geometry[0]+self.obs_window_geometry[2]+60,self.obs_window_geometry[1],510,550]
         self.instrument_geometry = [self.aux_geometry[0],self.aux_geometry[1]+self.aux_geometry[3]+70,510,300]
-        self.plan_geometry = [self.aux_geometry[0]+self.aux_geometry[2]+10,self.aux_geometry[1],420,1100]
+        self.plan_geometry = [self.aux_geometry[0]+self.aux_geometry[2]+10,self.aux_geometry[1],490,1100]
 
         self.tic_conn="unknown"
         self.fw_conn="unknown"
@@ -169,6 +169,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.msg=self.obsGui.main_form.msg
         self.oca_tel_stat()
 
+        # self.dome = self.parent.observatory_model.get_telescope(tel).get_dome()
+        # self.mount = self.parent.observatory_model.get_telescope(tel).get_mount()
+        # self.ccd = self.parent.observatory_model.get_telescope(tel).get_camera()
+        # self.fw = self.parent.observatory_model.get_telescope(tel).get_filterwheel()
+        #
+        # self.add_background_task(self.dome.asubscribe_shutterstatus(self.obsGui.dome_update))
+        # self.add_background_task(self.dome.asubscribe_slewing(self.obsGui.dome_update))
+        #
+        # self.add_background_task(self.mount.asubscribe_tracking(self.obsGui.mount_update))
+        # self.add_background_task(self.mount.asubscribe_slewing(self.obsGui.mount_update))
+        # self.add_background_task(self.mount.asubscribe_motorstatus(self.obsGui.mount_update))
+        #
+        # self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.obsGui.instrument_update))
+        # self.add_background_task(self.ccd.asubscribe_camerastate(self.obsGui.instrument_update))
+        # self.add_background_task(self.fw.asubscribe_position(self.obsGui.instrument_update))
+
+        self.add_background_task(self.TOItimer())
+
+
         # MQTT
         try:
             self.mqtt_client = mqtt.Client()
@@ -222,11 +241,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         elif tel == "jk15": self.cfg_focus_directory = "../../Desktop/fits_jk15/focus/actual"
         self.cfg_focus_record_file = "./focus_data.txt"
         self.catalog_file="./object_catalog.txt"
+        self.overhed = 20
 
-        self.dome = self.tel[self.active_tel].dome
-        self.mount = self.tel[self.active_tel].mount
-        self.ccd =  self.tel[self.active_tel].ccd
-        self.fw =  self.tel[self.active_tel].fw
+        #self.dome = self.tel[self.active_tel].dome
+        #self.mount = self.tel[self.active_tel].mount
+        #self.ccd =  self.tel[self.active_tel].ccd
+        #self.fw =  self.tel[self.active_tel].fw
 
 
         self.dome_con=False
@@ -238,12 +258,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.telescope = self.observatory_model.get_telescope(tel)
         #await self.stop_background_tasks()
         self.user = self.telescope.get_access_grantor()
-        #self.dome = self.telescope.get_dome()
-        #self.mount = self.telescope.get_mount()
+        self.dome = self.telescope.get_dome()
+        self.mount = self.telescope.get_mount()
         self.cover = self.telescope.get_covercalibrator()
         self.focus = self.telescope.get_focuser()
-        #self.ccd = self.telescope.get_camera()
-        #self.fw = self.telescope.get_filterwheel()
+        self.ccd = self.telescope.get_camera()
+        self.fw = self.telescope.get_filterwheel()
         self.rotator = self.telescope.get_rotator()
         self.cctv = self.telescope.get_cctv()
         self.planrunner = self.telescope.get_observation_plan()
@@ -290,7 +310,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.rotator.asubscribe_mechanicalposition(self.rotator_update))
         self.add_background_task(self.rotator.asubscribe_ismoving(self.rotator_update))
         #
-        #self.add_background_task(self.ccd.asubscribe_sensorname(self.ccd_update))
+        # #self.add_background_task(self.ccd.asubscribe_sensorname(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update))
         self.add_background_task(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update))
         self.add_background_task(self.ccd.asubscribe_binx(self.ccd_bin_update))
@@ -303,28 +323,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.ccd.asubscribe_readoutmode(self.ccd_rm_update))
         self.add_background_task(self.ccd.asubscribe_imageready(self.ccd_imageready))
 
-
-        #self.add_background_task(self.TOItimer())
-
+        self.add_background_task(self.TOItimer())
         self.add_background_task(self.TOItimer0())
 
-        # self.add_background_task(self.TOItimer1())
-        # self.add_background_task(self.TOItimer2())
-        # self.add_background_task(self.TOItimer3())
-        # self.add_background_task(self.TOItimer4())
-        # self.add_background_task(self.TOItimer5())
-        # self.add_background_task(self.TOItimer6())
-        # self.add_background_task(self.TOItimer7())
-        # self.add_background_task(self.TOItimer8())
-        # self.add_background_task(self.TOItimer9())
-        # self.add_background_task(self.TOItimer10())
-        # self.add_background_task(self.TOItimer11())
-        # self.add_background_task(self.TOItimer12())
-        # self.add_background_task(self.TOItimer13())
-        # self.add_background_task(self.TOItimer14())
-        # self.add_background_task(self.TOItimer15())
-        # self.add_background_task(self.TOItimer16())
-
+        await self.stop_background_tasks()
         await self.run_background_tasks()
 
         filter_list = await self.fw.aget_names() # To jest dziwny slownik
@@ -347,7 +349,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.weatherStop_p.clicked.connect(self.weatherStop)
         self.obsGui.main_form.EmStop_p.clicked.connect(self.EmStop)
 
-        self.force_update()
+        #self.force_update()
 
 
     # ################### METODY POD SUBSKRYPCJE ##################
@@ -389,8 +391,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         while True:
 
             self.tic_conn = True
-
-            #self.covercalibrator_conn=False
 
             if self.tic_conn == True:
 
@@ -477,85 +477,35 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             await asyncio.sleep(5)
 
-    async def TOItimer1(self):
-        await self.mountMotors_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer2(self):
-        await self.filter_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer3(self):
-        await self.focus_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer4(self):
-        await self.domeAZ_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer5(self):
-        await self.domeStatus_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer6(self):
-        await self.domeShutterStatus_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer7(self):
-        await self.radec_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer8(self):
-        await self.mount_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer9(self):
-        await self.covers_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer10(self):
-        await self.domeFans_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer11(self):
-        await self.ccd_update(None)
-        await asyncio.sleep(5)
-
-
-    async def TOItimer12(self):
-        await self.ccd_bin_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer13(self):
-        await self.ccd_rm_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer14(self):
-        await self.ccd_gain_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer15(self):
-        await self.ccd_temp_update(None)
-        await asyncio.sleep(5)
-
-    async def TOItimer16(self):
-        await self.ccd_cooler_update(None)
-        await asyncio.sleep(5)
-
     async def TOItimer(self):
         while True:
             self.time=time.perf_counter()
-
 
             if self.ob["run"] and "name" in self.ob.keys():
                 txt = self.ob["name"]
                 if "seq" in self.ob.keys():
                     txt = txt + " " + self.ob["seq"]
                 self.planGui.ob_e.setText(txt)
+
+                if "seq" in self.ob.keys():
+                    self.instGui.ccd_tab.Select2_r.setChecked(True)
+                    self.instGui.ccd_tab.inst_Seq_e.setText(self.ob["seq"])
+                if "ra" in self.ob.keys() and "dec" in self.ob.keys():
+                    self.mntGui.setEq_r.setChecked(True)
+                    self.mntGui.nextRa_e.setText(self.ob["ra"])
+                    self.mntGui.nextDec_e.setText(self.ob["dec"])
+                    self.mntGui.updateNextRaDec()
+                    if "name" in self.ob.keys():
+                        self.mntGui.target_e.setText(self.ob["name"])
+                        self.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
+                if "name" in self.ob.keys():
+                      self.instGui.ccd_tab.inst_object_e.setText(self.ob["name"])
+
             else: self.planGui.ob_e.setText("")
 
             if self.ob["done"] and self.planGui.next_i==-1:
                 self.ob["run"]=False
+
 
             if self.ob["run"] and self.ob["done"]:
                 if self.planGui.next_i > 0 and self.planGui.next_i < len(self.planGui.plan):
@@ -635,7 +585,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.date_e.setText(str(date))
             self.obsGui.main_form.ut_e.setText(str(ut))
             self.obsGui.main_form.skyView.updateAlmanac()
-            self.obsGui.main_form.skyView.updateRadar()
+            #self.obsGui.main_form.skyView.updateRadar()
             self.planGui.update_table()
 
 
@@ -800,18 +750,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 
-        #else: self.plan_runner_status=""
-
-    @qs.asyncSlot()
-    async def PlanRun5(self,txt):
-        pass
-        #if self.plan_runner_origin=="Plan Gui":
-        #    if "_" in txt: done_i = txt.split("_")[1]
-        #    self.planGui.done.append(int(done_i))
-        #    try: self.planGui.update_table()
-        #    except UnboundLocalError: pass
-
-
     # ############ AUTO FOCUS ##########################
 
     @qs.asyncSlot()
@@ -869,13 +807,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if self.ob["uid"] not in self.planGui.done:
                     if "type" in self.ob.keys() and "name" in self.ob.keys():
                         self.planGui.current_i = self.planGui.next_i
-                        if self.ob["type"] == "MARKER" and self.ob["name"] == "STOP":
+
+                        if self.ob["type"] == "STOP":
                             self.ob["done"]=False
                             self.ob["run"]=False
                             self.planGui.current_i = -1
 
 
-                        if self.ob["type"] == "MARKER" and self.ob["name"] == "WAIT":
+                        if self.ob["type"] == "WAIT":
                             if "wait" in self.ob.keys():
                                 self.ob["ob_start_time"] = self.time
                                 self.ob["done"]=False
@@ -964,6 +903,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.msg("STOP requested","yellow")
         self.ob["run"]=False
         await self.planrunner.astop_nightplan()
+        self.planGui.current_i = -1
 
 
     # ############ CCD ##################################
@@ -2011,9 +1951,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             #self.msg(f"{txt} have controll","yellow")
 
-
-
-
 # ############ INNE ##############################3
 
     def WarningWindow(self,txt):
@@ -2033,35 +1970,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncClose
     async def closeEvent(self, event):
+        await self.stop_background_tasks()
         super().closeEvent(event)
 
-# ##################################################################
+
 # ############### ALL TELESCOPES TELEMETRY #########################
-# ##################################################################
+
 
 class TelBasicState():
     def __init__(self, parent, tel):
         super().__init__()
 
         self.parent=parent
-
-        self.dome = self.parent.observatory_model.get_telescope(tel).get_dome()
-        self.mount = self.parent.observatory_model.get_telescope(tel).get_mount()
-        self.ccd = self.parent.observatory_model.get_telescope(tel).get_camera()
-        self.fw = self.parent.observatory_model.get_telescope(tel).get_filterwheel()
-
-        self.parent.add_background_task(self.dome.asubscribe_shutterstatus(self.dome_update))
-        self.parent.add_background_task(self.dome.asubscribe_slewing(self.dome_update))
-        #
-        self.parent.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
-        self.parent.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
-        self.parent.add_background_task(self.mount.asubscribe_motorstatus(self.mount_update))
-        #
-        self.parent.add_background_task(self.ccd.asubscribe_ccdtemperature(self.instrument_update))
-        self.parent.add_background_task(self.ccd.asubscribe_camerastate(self.instrument_update))
-        self.parent.add_background_task(self.fw.asubscribe_position(self.instrument_update))
-
-        self.parent.add_background_task(self.parent.TOItimer())
 
         self.state={}
         self.state["name"]=tel
