@@ -28,6 +28,19 @@
 
 
 
+# ######## OB ##############################
+          # ob["name","block","type","ra","dec","seq","comment"]
+          # ob["wait","wait_ut","wait_sunset","wait_sunrise"]
+          # [meta_alt,meta_az,meta_plan_ut,meta_plan_alt,meta_plan_az,skip]
+
+# ######### PLAN ###############################
+          self.plan=[]              # lista OB
+          self.i=0                  # aktualne podswietlenie
+          self.prev_i=1             # poprzednie podswietlenie
+          self.next_i=0             # zmienna funkcjonalna, nastepny obiekt do obserwacji
+          self.current_i=-1         # zmienna funckjonalna, ktore ob wlasnie sie wykonuje.
+          self.done=[]              # lista uuid wykonanych ob
+
 
 
 # ######### AUTOFLAT ########################

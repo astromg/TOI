@@ -1,16 +1,19 @@
 
+WAIT wait=5
+ZERO seq=15/Ic/0
+DARK seq=5/Ic/600
 
-WAIT sunset=-12
-WAIT wait=60
-WAIT wait=300
-STOP
+
+#WAIT sunset=-12
+#WAIT wait=60
+#WAIT wait=300
+#STOP
 STOP
 STOP
 STOP
 
-WAIT wait=10
-ZERO seq=2/u/0
-DARK seq=2/u/5
+#WAIT wait=10
+
 
 
 #SKYFLAT az=90:00:00 alt=+70:00:00 seq=2/u/5

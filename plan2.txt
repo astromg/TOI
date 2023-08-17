@@ -1,10 +1,21 @@
 
-WAIT wait=10
-ZERO seq=5/u/0
-ZERO seq=10/u/0
+WAIT wait=5
+WAIT wait=2
+WAIT wait=300
+WAIT wait=60
+WAIT wait=70
+WAIT wait=80
+WAIT wait=90
+WAIT wait=40
+WAIT wait=50
+WAIT wait=60
+WAIT wait=70
+ZERO seq=2/g/0
+ZERO seq=2/r/0
+ZERO seq=2/i/0
 DARK seq=10/u/600
-#DARK seq=2/u/3
-#WAIT wait=5
+DARK seq=2/u/3
+WAIT wait=5
 
 STOP
 DARK seq=4/u/1

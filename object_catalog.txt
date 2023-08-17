@@ -39,7 +39,7 @@
   M25        18:31:44.9   -19:06:50
   M18        18:19:57.4   -17:05:20     # Focus field
   M26        18:45:16.1   -09:23:10
-  M11        18:51:03.8   -06:16:19     # Focus field
+  M11        18:51:03.8   -06:16:19     # Focus fieldm, cluster, pretty
   M55       19:39:59.7  -30:57:53.1     # globular cluster
   M75       20:06:04.7  -21:55:16.2     # globular cluster
   M72       20:53:27.8  -12:32:13.7     # Focus field, globular cluster

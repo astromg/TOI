@@ -5,28 +5,15 @@
 # Marek Gorski
 #----------------
 
-
-import os
-import math
-import numpy
-import ephem
 import uuid
-
 import qasync as qs
 from qasync import QEventLoop
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
+from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar)
 
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-
-from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 
 from toi_lib import *
-
-
 
 class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
@@ -41,17 +28,16 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.setGeometry(self.parent.plan_geometry[0],self.parent.plan_geometry[1],self.parent.plan_geometry[2],self.parent.plan_geometry[3])
 
           self.table_header = ["","Object","Alt @ UT","Comment"]
-          self.show_seq = False
+          self.show_seq = False      # zmienne decydujaca o wyswietlaniu co jest w kolumnach w tabelce
           self.show_ut = True
           self.show_ob = False
 
-
-          self.plan=[] 
-          self.i=0
-          self.prev_i=1
-          self.next_i=0
-          self.current_i=None
-          self.done=[]
+          self.plan=[]
+          self.i=0                  # aktualne podswietlenie
+          self.prev_i=1             # poprzednie podswietlenie
+          self.next_i=0             # zmienna funkcjonalna, nastepny obiekt do obserwacji
+          self.current_i=-1         # zmienna funckjonalna, ktore ob wlasnie sie wykonuje.
+          self.done=[]              # lista uuid wykonanych ob
 
           self.updateUI()
           self.update_table()
@@ -64,7 +50,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
          else: print("no plan loaded") # ERROR MSG
 
 
-      def check_next_i(self):
+      def check_next_i(self):                   # sprawdza czy nastepny obiekt nie zostal juz wykonany, albo skip
           if self.next_i > len(self.plan)-1:
               self.next_i = -1
               self.check_next_i()
@@ -80,18 +66,18 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   self.check_next_i()
 
 
-      def update_plan(self):
+      def update_plan(self):                                     # przelicza czasu planow, etc.
           self.check_next_i()
           ob_date = str(ephem.Date(ephem.now())).split()[0]
           for i, tmp in enumerate(self.plan):
 
-              if i == self.next_i:
+              if i == self.next_i or i == self.current_i:
                   ob_time = ephem.now()
 
-              if "uid" not in self.plan[i].keys():
+              if "uid" not in self.plan[i].keys():               # nadaje uuid jak nie ma
                   self.plan[i]["uid"] = str(uuid.uuid4())[:8]
 
-              if "ra" in self.plan[i].keys():
+              if "ra" in self.plan[i].keys():                    # liczy aktualna wysokosc na horyzontem
                   ra=self.plan[i]["ra"]
                   dec=self.plan[i]["dec"]
                   az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)
@@ -100,7 +86,12 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   self.plan[i]["meta_alt"]=alt
                   self.plan[i]["meta_az"]=az
 
-              if i >= self.next_i:
+              # liczy planowana wysokosc nad horyzontem
+              tmp_ok = False
+              if self.current_i > -1 and i >= self.current_i: tmp_ok = True
+              if i >= self.next_i: tmp_ok = True
+              if tmp_ok:
+                  print(self.current_i,self.next_i,i)
                   if "wait_ut" in self.plan[i].keys():
                       if ob_time < ephem.Date(ob_date+" "+self.plan[i]["wait_ut"]):
                           ob_time =  ephem.Date(ob_date+" "+self.plan[i]["wait_ut"])
@@ -125,10 +116,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                               if "a" not in x_seq:
                                   slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(self.parent.overhed)))
                           ob_time = ob_time + ephem.second * slotTime
-
-
-
-
 
 
       def update_table(self):
@@ -203,7 +190,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     txt.setForeground(QtGui.QColor("blue"))
                     self.plan_t.setItem(i,0,txt)
 
-                 if i==self.next_i and self.current_i<0:
+                 if i==self.next_i: #and self.current_i<0:
                     font=QtGui.QFont()
                     font.setPointSize(25)
                     txt=QTableWidgetItem("\u2192")
@@ -225,7 +212,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                  if self.show_ut:
                      txt = ""
-                     if "meta_plan_ut" in self.plan[i].keys()  and i >= self.next_i:
+                     if "meta_plan_ut" in self.plan[i].keys()  and (i >= self.next_i or (i >= self.current_i and self.current_i>-1)):
                          tmp = str(self.plan[i]["meta_plan_ut"]).split()[1]
                          txt = tmp.split(":")[0]+":"+tmp.split(":")[1]
                      if "meta_plan_alt" in self.plan[i].keys() and i >= self.next_i:
@@ -268,7 +255,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.update_table()
 
 
-      def import_to_manuall(self):
+      def import_to_manuall(self):                  # uzupelnia nazwe i wspolrzedne w oknie manual
           if "type" in self.plan[self.i].keys():
               if self.plan[self.i]["type"] in ["OBJECT","DARK","ZERO","SKYFLAT","DOMEFLAT"]:
                   if "ra" in self.plan[self.i].keys() and "dec" in self.plan[self.i].keys():
@@ -336,9 +323,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   self.plan_t.setHorizontalHeaderLabels(self.table_header)
                   self.show_ob = True
 
-
-
-
           self.update_table()
 
       def pocisniecie_tabelki(self,i,j):
@@ -348,58 +332,86 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.repaint()
 
       def pocisniecie_del(self):
-          self.plan.pop(self.i)
-          self.update_table()
-          self.repaint()
+          if self.i != self.current_i:
+              self.plan.pop(self.i)
+              self.update_table()
+              self.repaint()
 
       def pocisniecie_first(self):
-          self.plan.insert(0,self.plan[self.i])
-          self.plan.pop(self.i+1)
-          self.i=0              
-          self.update_table()
-          self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
-          self.repaint()
+          if self.i != self.current_i:
+              self.plan.insert(0,self.plan[self.i])
+              self.plan.pop(self.i+1)
+              if self.i > self.current_i and self.current_i>-1:
+                  self.current_i = self.current_i + 1
+                  self.next_i = self.next_i + 1
+                  self.check_next_i()
+              self.i=0
+              self.update_table()
+              self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
+              self.repaint()
 
       def pocisniecie_last(self):
-          self.plan.append(self.plan[self.i])  
-          self.plan.pop(self.i)
-          self.i=len(self.plan)-1
-          self.update_table()  
-          self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))      
-          self.repaint()
-
-      def pocisniecie_down(self):
-          if self.i==len(self.plan)-1:
-             self.plan.insert(0,self.plan[self.i])
-             self.plan.pop(len(self.plan)-1)
-             self.i=0     
-          else:   
-             self.plan[self.i],self.plan[self.i+1]=self.plan[self.i+1],self.plan[self.i]
-             self.i=self.i+1
-          self.update_table()
-          self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
-          self.repaint()
+          if self.i != self.current_i:
+              self.plan.append(self.plan[self.i])
+              self.plan.pop(self.i)
+              if self.i < self.current_i and self.current_i>-1:
+                  self.current_i = self.current_i - 1
+                  self.next_i = self.next_i - 1
+                  self.check_next_i()
+              self.i=len(self.plan)-1
+              self.update_table()
+              self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
+              self.repaint()
 
       def pocisniecie_up(self):
-          if self.i==0:
-             self.plan.append(self.plan[0])  
-             self.plan.pop(0)
-             self.i=len(self.plan)-1
-          else:  
-             self.plan[self.i],self.plan[self.i-1]=self.plan[self.i-1],self.plan[self.i]
-             self.i=self.i-1
-          self.update_table()
-          self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
-          self.repaint()
+          if self.i != self.current_i:
+              if self.i - 1 == self.current_i:
+                  self.current_i = self.current_i + 1
+                  self.next_i = self.next_i + 1
+              if self.i==0:
+                  self.plan.append(self.plan[0])
+                  self.plan.pop(0)
+                  self.i=len(self.plan)-1
+              else:
+                  self.plan[self.i],self.plan[self.i-1]=self.plan[self.i-1],self.plan[self.i]
+                  self.i=self.i-1
+              self.update_table()
+              self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
+              self.repaint()
 
-      def pocisniecie_swap(self): 
-          self.plan[self.i],self.plan[self.prev_i]=self.plan[self.prev_i],self.plan[self.i]
-          self.update_table()
-          self.i,self.prev_i=self.prev_i,self.i
-          self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))              
-          self.repaint()      
+      def pocisniecie_down(self):
+          if self.i != self.current_i:
+              if self.i + 1 == self.current_i:
+                  self.current_i = self.current_i -1
+                  self.next_i = self.next_i - 1
+              if self.i==len(self.plan)-1:
+                  self.plan.insert(0,self.plan[self.i])
+                  self.plan.pop(len(self.plan)-1)
+                  self.i=0
+              else:
+                  self.plan[self.i],self.plan[self.i+1]=self.plan[self.i+1],self.plan[self.i]
+                  self.i=self.i+1
+              self.update_table()
+              self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
+              self.repaint()
+
+
+
+
+      def pocisniecie_swap(self):
+          if self.i != self.current_i and self.prev_i != self.current_i:
+              self.plan[self.i],self.plan[self.prev_i]=self.plan[self.prev_i],self.plan[self.i]
+              self.update_table()
+              self.i,self.prev_i=self.prev_i,self.i
+              self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
+              self.repaint()
 
       def loadPlan(self):
+
+          # ob["name","block","type","ra","dec","seq","comment"]
+          # ob["wait","wait_ut","wait_sunset","wait_sunrise"]
+          # [meta_alt,meta_az,meta_plan_ut,meta_plan_alt,meta_plan_az,skip]
+
 
           self.File_dialog = QFileDialog()
           self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
@@ -411,9 +423,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.prev_i = -1
               self.next_i = 0
               self.current_i = -1
-
-              #ob["name","block","type","ra","dec","seq","comment"]
-              #on["wait","wait_ut","wait_sunset","wait_sunrise"]
 
               with open(self.fileName, "r") as plik:
                  if plik != None:
@@ -655,6 +664,11 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
       async def closeEvent(self, event):
           await self.stop_background_tasks()
           super().closeEvent(event)
+
+
+# #############################################
+# ######### OKNO EDYCJI #######################
+# #############################################
 
 class EditWindow(QWidget):
       def __init__(self, parent):
