@@ -487,6 +487,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     txt = txt + " " + self.ob["seq"]
                 self.planGui.ob_e.setText(txt)
 
+                if "type" in self.ob.keys():
+                    if self.ob["type"] == "OBJECT":
+                        self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
+                    elif self.ob["type"] == "ZERO":
+                        self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
+                    elif self.ob["type"] == "DARK":
+                        self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(2)
+                    elif self.ob["type"] == "SKYFLAT":
+                        self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(3)
+                    elif self.ob["type"] == "DOMEFLAT":
+                        self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(4)
+
                 if "seq" in self.ob.keys():
                     self.instGui.ccd_tab.Select2_r.setChecked(True)
                     self.instGui.ccd_tab.inst_Seq_e.setText(self.ob["seq"])
@@ -500,6 +512,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
                 if "name" in self.ob.keys():
                       self.instGui.ccd_tab.inst_object_e.setText(self.ob["name"])
+
+
 
             else: self.planGui.ob_e.setText("")
 
@@ -648,7 +662,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def PlanRun1(self,info):
-        print(info)
         # AUTOFOCUS
         if self.autofocus_started:
             if "id" in info.keys():

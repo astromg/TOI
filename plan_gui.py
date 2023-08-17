@@ -91,7 +91,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               if self.current_i > -1 and i >= self.current_i: tmp_ok = True
               if i >= self.next_i: tmp_ok = True
               if tmp_ok:
-                  print(self.current_i,self.next_i,i)
                   if "wait_ut" in self.plan[i].keys():
                       if ob_time < ephem.Date(ob_date+" "+self.plan[i]["wait_ut"]):
                           ob_time =  ephem.Date(ob_date+" "+self.plan[i]["wait_ut"])
@@ -161,7 +160,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        txt.setTextAlignment(QtCore.Qt.AlignCenter)
                        self.plan_t.setItem(i,0,txt)
 
-                 if "type" in self.plan[i].keys():
+                 if "type" in self.plan[i].keys():    # wait
                     if self.plan[i]["type"]=="WAIT":
                        font=QtGui.QFont()
                        font.setPointSize(15)
@@ -171,7 +170,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        txt.setForeground(QtGui.QColor("darkCyan"))
                        self.plan_t.setItem(i,0,txt)
 
-                 if "type" in self.plan[i].keys():
+                 if "type" in self.plan[i].keys():     # stop
                     if self.plan[i]["type"]=="STOP":
                        font=QtGui.QFont()
                        font.setPointSize(20)
@@ -181,7 +180,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        txt.setForeground(QtGui.QColor("red"))
                        self.plan_t.setItem(i,0,txt)
 
-                 if i==self.current_i:
+                 if i==self.current_i:          # aktualnie robiony
                     font=QtGui.QFont()
                     font.setPointSize(20)
                     txt=QTableWidgetItem("\u21BB")
@@ -190,7 +189,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     txt.setForeground(QtGui.QColor("blue"))
                     self.plan_t.setItem(i,0,txt)
 
-                 if i==self.next_i: #and self.current_i<0:
+                 if i==self.next_i and self.current_i<0:    # nastepmy
                     font=QtGui.QFont()
                     font.setPointSize(25)
                     txt=QTableWidgetItem("\u2192")
