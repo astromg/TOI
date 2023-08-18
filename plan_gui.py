@@ -334,6 +334,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
       def pocisniecie_del(self):
           if self.i != self.current_i:
+              if self.i < self.current_i: self.current_i = self.current_i - 1
+              if self.i < self.next_i: self.next_i = self.next_i - 1
               self.plan.pop(self.i)
               self.update_table()
               self.repaint()
