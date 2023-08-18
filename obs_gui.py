@@ -413,6 +413,24 @@ class SkyView(QWidget):
         self.show()
 
     def updateRadar(self):
+
+        # ### MOUNT ###
+        try:
+            for p in self.mount: p.remove()
+        except:
+            pass
+        color = "r"
+        if self.parent.mount_tracking: color = "g"
+        if self.parent.mount_slewing: color = "orange"
+        if self.parent.mount_alt:
+            alt = 90 - self.parent.mount_alt
+            az = self.parent.mount_az
+            az = az * 2 * 3.14 / 360.
+            self.mount = self.axes.plot(az, alt, color = color, marker = "o", markersize = "10", markerfacecolor = "white", alpha = 0.7)
+            self.canvas.draw()
+            self.show()
+
+        # ### STARS ###
         try:
             for p in self.stars: p[0].remove()
         except:
@@ -426,19 +444,6 @@ class SkyView(QWidget):
         except AttributeError: pass
         if len(self.plan) > 0:
             self.plan_to_show = self.plan
-
-            try:
-                star = self.plan_to_show[self.plan_i]
-                az = float(star["meta_az"])
-                az = az * 2 * 3.14 / 360.
-                alt = 90 - float(star["meta_alt"])
-                point = self.axes.plot(az, alt, color="red", marker="o", markersize="10", markerfacecolor="white",
-                                       alpha=0.5)
-                self.stars.append(point)
-            except:
-                pass
-
-            alpha = 1
             n = 0
             k = 0
             for star in self.plan_to_show:
@@ -460,11 +465,22 @@ class SkyView(QWidget):
                         az = float(star["meta_az"])
                         az = az * 2 * 3.14 / 360.
                         alt = 90 - float(star["meta_alt"])
-                        point = self.axes.plot(az, alt, color="b", marker="*", alpha=alpha)
+                        point = self.axes.plot(az, alt, color="dodgerblue", marker="*", alpha=alpha)
                         self.stars.append(point)
                         k = k + 1
                     except:
                         pass
+            try:
+                star = self.plan_to_show[self.plan_i]
+                az = float(star["meta_az"])
+                az = az * 2 * 3.14 / 360.
+                alt = 90 - float(star["meta_alt"])
+                #point = self.axes.plot(az, alt, color="red", marker="o", markersize="10", markerfacecolor="white",alpha=0.5)
+                point = self.axes.plot(az, alt, color="b", marker="*")
+                self.stars.append(point)
+            except:
+                pass
+
 
             self.canvas.draw()
             self.show()
@@ -481,7 +497,10 @@ class SkyView(QWidget):
             alt = 90 - self.parent.mount_alt
             az = self.parent.mount_az
             az = az * 2 * 3.14 / 360.
-            self.mount = self.axes.plot(az, alt, color=color, marker="+")
+            self.mount = self.axes.plot(az, alt, color = color, marker = "o", markersize = "10", markerfacecolor = "white", alpha = 0.7)
+
+
+
             self.canvas.draw()
             self.show()
 
@@ -598,4 +617,4 @@ class SkyView(QWidget):
                     self.canSetNext = False
                     self.setNext_p.setStyleSheet("color: black;")
 
-            self.updateMount()
+            self.updateRadar()

@@ -1520,7 +1520,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
             self.mntGui.tracking_c.setChecked(False)
         self.mntGui.mntStat_e.setText(txt)
-        self.obsGui.main_form.skyView.updateMount()
+        self.obsGui.main_form.skyView.updateRadar()
         self.msg(f"Mount {txt}","black")
 
         if self.mount_slewing:
@@ -1545,7 +1545,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if "--" not in str(self.mount_alt) and "--" not in str(self.mount_az) and self.mount_alt != None and self.mount_az != None:
            self.mntGui.mntAlt_e.setText(f"{self.mount_alt:.3f}")
            self.mntGui.mntAz_e.setText(f"{self.mount_az:.3f}")
-           self.obsGui.main_form.skyView.updateMount()
+           self.obsGui.main_form.skyView.updateRadar()
            airmass = calc_airmass(float(self.mount_alt))
            if airmass != None:
                self.mntGui.mntAirmass_e.setText("%.1f" % airmass)

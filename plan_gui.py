@@ -235,13 +235,15 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                  self.plan_t.setItem(i,3,txt)
 
                  if i==self.prev_i:
-                    self.plan_t.item(i,1).setBackground(QtGui.QColor(227,253,227))
-                    self.plan_t.item(i,2).setBackground(QtGui.QColor(227,253,227))
-                    self.plan_t.item(i, 3).setBackground(QtGui.QColor(227, 253, 227))
+                    self.plan_t.item(i,1).setBackground(QtGui.QColor(230, 236, 240))
+                    self.plan_t.item(i,2).setBackground(QtGui.QColor(230, 236, 240))
+                    self.plan_t.item(i, 3).setBackground(QtGui.QColor(230, 236, 240))
                  if i==self.i:
-                    self.plan_t.item(i,1).setBackground(QtGui.QColor("lightgreen"))
-                    self.plan_t.item(i,2).setBackground(QtGui.QColor("lightgreen"))
-                    self.plan_t.item(i, 3).setBackground(QtGui.QColor("lightgreen"))
+                    self.plan_t.item(i,1).setBackground(QtGui.QColor(125, 195, 227))
+                    self.plan_t.item(i,2).setBackground(QtGui.QColor(125, 195, 227))
+                    self.plan_t.item(i, 3).setBackground(QtGui.QColor(125, 195, 227))
+
+
 
           #self.plan_t.setColumnWidth(0,30)
           self.plan_t.resizeColumnsToContents()
