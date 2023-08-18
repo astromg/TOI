@@ -214,7 +214,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                      if "meta_plan_ut" in self.plan[i].keys()  and (i >= self.next_i or (i >= self.current_i and self.current_i>-1)):
                          tmp = str(self.plan[i]["meta_plan_ut"]).split()[1]
                          txt = tmp.split(":")[0]+":"+tmp.split(":")[1]
-                     if "meta_plan_alt" in self.plan[i].keys() and i >= self.next_i:
+                     if "meta_plan_alt" in self.plan[i].keys() and (i >= self.next_i or (i >= self.current_i and self.current_i>-1)):
                          txt = txt + " (" + str(self.plan[i]["meta_plan_alt"])+")"
 
                  else:

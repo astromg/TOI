@@ -384,7 +384,6 @@ class SkyView(QWidget):
         fi = fi * 2 * 3.14 / 360.
         self.txt3 = self.axes.text(fi, r, f"Sun Alt: {sun_h}", fontsize=9)
 
-
         r, fi = 175, 232
         fi = fi * 2 * 3.14 / 360.
         self.txt4 = self.axes.text(fi, r, f"Moon: {moon_phase}", fontsize=9)
@@ -426,7 +425,7 @@ class SkyView(QWidget):
             alt = 90 - self.parent.mount_alt
             az = self.parent.mount_az
             az = az * 2 * 3.14 / 360.
-            self.mount = self.axes.plot(az, alt, color = color, marker = "o", markersize = "10", markerfacecolor = "white", alpha = 0.7)
+            self.mount = self.axes.plot(az, alt, color = color, marker = "o", markersize = "10", markerfacecolor = "white", alpha = 0.9)
             self.canvas.draw()
             self.show()
 
@@ -476,11 +475,10 @@ class SkyView(QWidget):
                 az = az * 2 * 3.14 / 360.
                 alt = 90 - float(star["meta_alt"])
                 #point = self.axes.plot(az, alt, color="red", marker="o", markersize="10", markerfacecolor="white",alpha=0.5)
-                point = self.axes.plot(az, alt, color="b", marker="*")
+                point = self.axes.plot(az, alt, color="b", marker="D", markersize = "5", markerfacecolor = "white", alpha = 0.9)
                 self.stars.append(point)
             except:
                 pass
-
 
             self.canvas.draw()
             self.show()

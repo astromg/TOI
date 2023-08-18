@@ -235,6 +235,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def teleskop_switched(self):
+        self.tmp = 0
         tel=self.obs_tel_tic_names[self.active_tel_i]
         self.active_tel = tel
         if tel == "zb08": self.cfg_focus_directory = "../../Desktop/fits_zb08/focus/actual"
@@ -277,7 +278,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #self.planrunner.add_info_callback('stream_1', self.PlanRun5)
 
 
-
+        self.ephemeris = self.observatory_model.get_ephemeris()
+        #self.add_background_task(self.ephemeris.asubscribe_utc(self.test1))
 
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
         #self.add_background_task(self.user.asubscribe_is_access(self.user_update))
@@ -325,6 +327,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.TOItimer0())
+        #self.add_background_task(self.auto_update())
+
 
         await self.stop_background_tasks()
         await self.run_background_tasks()
@@ -354,6 +358,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     # ################### METODY POD SUBSKRYPCJE ##################
 
+    def test1(self,tmp):
+
+        if (float(self.ephemeris.utc) - self.tmp) > 1.5:
+            #print(self.ephemeris.utc-self.tmp)
+            print(f"================== LOST {self.ephemeris.utc} {self.tmp} ")
+        self.tmp = float(self.ephemeris.utc)
     def test3(self,tmp):
         print("========== TMP TEST 3 ==========================")
 
@@ -383,9 +393,29 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         print("====== UPDATE DONE ======")
         self.msg(" UPDATE DONE ", "red")
 
-
-
-
+    @qs.asyncSlot()
+    async def auto_update(self):
+        while True:
+            try:
+                await self.mountMotors_update(None)
+            except: pass
+            # await self.filter_update(None)
+            # await self.focus_update(None)
+            # await self.domeAZ_update(None)
+            # await self.domeStatus_update(None)
+            # await self.domeShutterStatus_update(None)
+            # await self.radec_update(None)
+            # await self.mount_update(None)
+            # await self.covers_update(None)
+            # await self.domeFans_update(None)
+            # await self.ccd_update(None)
+            # await self.ccd_bin_update(None)
+            # await self.ccd_rm_update(None)
+            # await self.ccd_gain_update(None)
+            # await self.ccd_temp_update(None)
+            # await self.ccd_cooler_update(None)
+            print("UPDATE!")
+        await asyncio.sleep(3)
 
     async def TOItimer0(self):
         while True:
@@ -564,23 +594,31 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if self.dit_start>0:
 
-                txt=""
-                if self.plan_runner_status=="exposing":
-                    txt=txt+"exposing: "
-                elif self.plan_runner_status=="exp done":
-                    txt=txt+"DONE "
+                # txt=""
+                # if self.plan_runner_status=="exposing":
+                #     txt=txt+"exposing: "
+                # elif self.plan_runner_status=="exp done":
+                #     txt=txt+"DONE "
 
-                p=int(100*(self.ndit/self.ndit_req))
-                self.instGui.ccd_tab.inst_NditProg_n.setValue(p)
-                txt=txt+f"{int(self.ndit)}/{int(self.ndit_req)}"
 
                 dt=self.time-self.dit_start
                 if dt>self.dit_exp:
                     dt=self.dit_exp
+                    if self.plan_runner_status == "exposing":
+                        txt = "reading: "
+                else:
+                    if self.plan_runner_status == "exposing":
+                        txt = "exposing: "
+                if self.plan_runner_status=="exp done":
+                    txt="DONE "
                 if int(self.dit_exp)==0: p=100
                 else: p=int(100*(dt/self.dit_exp))
                 self.instGui.ccd_tab.inst_DitProg_n.setValue(p)
                 txt2=f"{int(dt)}/{int(self.dit_exp)}"
+
+                p=int(100*(self.ndit/self.ndit_req))
+                self.instGui.ccd_tab.inst_NditProg_n.setValue(p)
+                txt=txt+f"{int(self.ndit)}/{int(self.ndit_req)}"
 
                 self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt)
                 self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt2)
