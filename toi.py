@@ -82,6 +82,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.nextOB_ok = None
 
+        # observer
+        self.observer = ""
+
         # weather telemetry
         self.telemetry_temp = None
         self.telemetry_wind = None
@@ -282,7 +285,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #self.add_background_task(self.ephemeris.asubscribe_utc(self.test1))
 
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
-        #self.add_background_task(self.user.asubscribe_is_access(self.user_update))
 
         self.add_background_task(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update))
         self.add_background_task(self.dome.asubscribe_az(self.domeAZ_update))
@@ -327,7 +329,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.TOItimer0())
-        #self.add_background_task(self.auto_update())
+
 
 
         await self.stop_background_tasks()
@@ -373,7 +375,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def force_update(self):
         print("====== UPDATE START ======")
-        self.msg(" UPDATE START ","red")
+        #self.msg(" UPDATE START ","red")
+        #mount_conn = await self.telescope.is_telescope_alpaca_server_available()
+        #self.msg(str(mount_conn),"red")
+        #self.msg(self.mount.connected,"red")
+        await self.user_update(None)
         await self.mountMotors_update(None)
         await self.filter_update(None)
         await self.focus_update(None)
@@ -391,119 +397,30 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.ccd_temp_update(None)
         await self.ccd_cooler_update(None)
         print("====== UPDATE DONE ======")
-        self.msg(" UPDATE DONE ", "red")
-
-    @qs.asyncSlot()
-    async def auto_update(self):
-        while True:
-            try:
-                await self.mountMotors_update(None)
-            except: pass
-            # await self.filter_update(None)
-            # await self.focus_update(None)
-            # await self.domeAZ_update(None)
-            # await self.domeStatus_update(None)
-            # await self.domeShutterStatus_update(None)
-            # await self.radec_update(None)
-            # await self.mount_update(None)
-            # await self.covers_update(None)
-            # await self.domeFans_update(None)
-            # await self.ccd_update(None)
-            # await self.ccd_bin_update(None)
-            # await self.ccd_rm_update(None)
-            # await self.ccd_gain_update(None)
-            # await self.ccd_temp_update(None)
-            # await self.ccd_cooler_update(None)
-            print("UPDATE!")
-        await asyncio.sleep(3)
+        #self.msg(" UPDATE DONE ", "red")
 
     async def TOItimer0(self):
         while True:
 
-            self.tic_conn = True
+            self.tic_conn = await self.observatory_model.is_tic_server_available()
 
-            if self.tic_conn == True:
+            if self.tic_conn:
+                tmp = await self.telescope.is_telescope_alpaca_server_available()
+                self.tel_alpaca_conn = tmp["alpaca"]
 
-                if self.active_tel=="zb08":
-                    tel_url = "http://192.168.7.110:11111/api/v1/"
-                elif self.active_tel=="jk15":
-                    tel_url = "http://192.168.7.120:11111/api/v1/"
-                elif self.active_tel=="wk06":
-                    tel_url = "http://192.168.7.100:11111/api/v1/"
-                else:
-                    tel_url = "http://192.168.7.666:11111/api/v1/"
+            if self.tic_conn and self.tel_alpaca_conn:
 
-                tmp=self.mount_conn
-                quest=tel_url+"telescope/0/connected"
-                r=requests.get(quest,timeout=(1))
-                if r.status_code == 200:
-                    r=r.json()
-                    if bool(r["Value"]): self.mount_conn = True
-                    else: self.mount_conn = False
-                else: self.mount_conn = False
-                if self.mount_conn != tmp:
-                    if self.mount_conn: self.msg("Mount CONNECTED","green")
-                    else: self.msg("Mount DISCONNECTED","red")
+                self.mount_conn = True
+                #self.mount_conn = await self.self.mount.aget_connected()
+                self.dome_conn = True
+                self.rotator_conn = True
+                self.fw_conn = True
+                self.focus_conn = True
+                self.inst_conn = True
 
-                tmp=self.dome_conn
-                quest=tel_url+"dome/0/connected"
-                r=requests.get(quest,timeout=(1))
-                if r.status_code == 200:
-                    r=r.json()
-                    if bool(r["Value"]): self.dome_conn = True
-                    else: self.dome_conn = False
-                else: self.dome_conn = False
-                if self.dome_conn != tmp:
-                    if self.dome_conn: self.msg("Dome CONNECTED","green")
-                    else: self.msg("Dome DISCONNECTED","red")
-
-                tmp=self.rotator_conn
-                quest=tel_url+"rotator/0/connected"
-                r=requests.get(quest,timeout=(1))
-                if r.status_code == 200:
-                    r=r.json()
-                    if bool(r["Value"]): self.rotator_conn = True
-                    else: self.rotator_conn = False
-                else: self.rotator_conn = False
-                if self.rotator_conn != tmp:
-                    if self.rotator_conn: self.msg("Rotator CONNECTED","green")
-                    else: self.msg("Rotator DISCONNECTED","red")
-
-                tmp=self.fw_conn
-                quest=tel_url+"filterwheel/0/connected"
-                r=requests.get(quest,timeout=(1))
-                if r.status_code == 200:
-                    r=r.json()
-                    if bool(r["Value"]): self.fw_conn = True
-                    else: self.fw_conn = False
-                else: self.fw_conn = False
-                if self.fw_conn != tmp:
-                    if self.fw_conn: self.msg("Filter wheel CONNECTED","green")
-                    else: self.msg("Filter wheel DISCONNECTED","red")
-
-                tmp=self.focus_conn
-                quest=tel_url+"focuser/0/connected"
-                r=requests.get(quest,timeout=(1))
-                if r.status_code == 200:
-                    r=r.json()
-                    if bool(r["Value"]): self.focus_conn = True
-                    else: self.focus_conn = False
-                else: self.focus_conn = False
-                if self.focus_conn != tmp:
-                    if self.focus_conn: self.msg("Focus CONNECTED","green")
-                    else: self.focus_conn("Focus DISCONNECTED","red")
-
-                tmp=self.inst_conn
-                quest=tel_url+"camera/0/connected"
-                r=requests.get(quest,timeout=(1))
-                if r.status_code == 200:
-                    r=r.json()
-                    if bool(r["Value"]): self.inst_conn = True
-                    else: self.inst_conn = False
-                else: self.inst_conn = False
-                if self.inst_conn != tmp:
-                    if self.inst_conn: self.msg("Instrument CONNECTED","green")
-                    else: self.msg("Instrument DISCONNECTED","red")
+                #try:
+                #    await self.force_update()
+                #except: print("UPDATE MISSED")
 
             await asyncio.sleep(5)
 
@@ -645,11 +562,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
             if self.tic_conn == True:
-                self.obsGui.main_form.ticStatus2_l.setText("\u262F")
-                self.obsGui.main_form.tic_l.setStyleSheet("color: rgb(0, 0, 0);")
+                self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
+                self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: green;")
             else:
-                self.obsGui.main_form.ticStatus2_l.setText("\U0001F534")
-                self.obsGui.main_form.tic_l.setStyleSheet("color: rgb(150,0,0);")
+                self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
+                self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
 
             if self.mount_conn == True:                                       # bo moze przyjmowac jeszcze False i "unknown"
                 self.mntGui.mntConn2_l.setText("\U0001F7E2")
@@ -848,6 +765,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def plan_start(self):
 
+        self.observer = self.auxGui.welcome_tab.observer_e.text()
+
         if self.planGui.next_i > -1 and self.planGui.next_i < len(self.planGui.plan):
             self.ob = self.planGui.plan[self.planGui.next_i]
             self.ob["done"]=False
@@ -1018,6 +937,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def ccd_Snap(self):
+        self.observer = self.auxGui.welcome_tab.observer_e.text()
         if await self.user.aget_is_access():
             self.dit_start=0
             ok_ndit = False
@@ -1085,6 +1005,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             ok_exp = False
             ok_name = False
             ok_seq = False
+            ok = True
 
             name=self.instGui.ccd_tab.inst_object_e.text().strip()
 
@@ -1152,17 +1073,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     txt=f"ZERO {name} seq={seq}  \n"
 
                 elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==3:
-                    txt=f"SKYFLAT {name} seq={seq}   \n"
+                    txt = f"SKYFLAT {name} seq={seq}   \n"
+                    if self.mount_motortatus: pass
+                    else:
+                        ok = False
+                        self.WarningWindow("Motors should be ON for SKYFLAT")
 
                 elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==4:
                     txt=f"DOMEFLAT {name} seq={seq}   \n"
+                    if self.mount_motortatus: pass
+                    else:
+                        ok = False
+                        self.WarningWindow("Motors should be ON for DOMEFLAT")
 
                 else: self.msg(f"not implemented yet","yellow")
 
-            self.planrunner.load_nightplan_string('manual', string=txt, overwrite=True)
-            await self.planrunner.arun_nightplan('manual', step_id="00")
-            self.program_name = "manual"
-            self.fits_exec = True
+            if ok:
+                self.planrunner.load_nightplan_string('manual', string=txt, overwrite=True)
+                await self.planrunner.arun_nightplan('manual', step_id="00")
+                self.program_name = "manual"
+                self.fits_exec = True
 
         else:
             txt="U don't have controll"

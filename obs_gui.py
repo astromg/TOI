@@ -180,11 +180,8 @@ class MainForm(QWidget):
 
         grid = QGridLayout()
         w = 0
-        self.tic_l = QLabel("TIC")
-        self.tic_l.setStyleSheet("color: rgb(150,0,0);")
-        self.ticStatus2_l = QLabel("\U0001F534")
+        self.ticStatus2_l = QLabel("\u262F  TIC")
 
-        # self.control_l=QLabel("Controler:")
         self.control_e = QLineEdit("--")
         self.control_e.setReadOnly(True)
         self.control_e.setStyleSheet("background-color: rgb(233, 233, 233);")
@@ -192,8 +189,7 @@ class MainForm(QWidget):
         self.takeControl_p.clicked.connect(self.parent.takeControl)
 
         grid.addWidget(self.ticStatus2_l, w, 0)
-        grid.addWidget(self.tic_l, w, 1)
-        # grid.addWidget(self.control_l, w,3)
+        #grid.addWidget(self.tic_l, w, 1)
         grid.addWidget(self.control_e, w, 2, 1, 4)
         grid.addWidget(self.takeControl_p, w, 6)
         w = w + 1

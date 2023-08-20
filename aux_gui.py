@@ -88,30 +88,26 @@ class WelcomeGui(QWidget):
     def mkUI(self):
 
         txt=""
+        plik_teleskopu = None
         if self.parent.active_tel == "wk06":
             png_file = './Icons/wk06.png'
-            txt = "Welcome to Wojciech Krzeminski WK06 Telescope"
+            plik_teleskopu = "./Misc/wk06.txt"
+
         elif self.parent.active_tel == "zb08":
             png_file = './Icons/zb08.png'
-            txt = "<h4>Welcome to Zbigniew Kolaczkowski <u>ZB08</u> Telescope</h4>"
-            txt = txt + "------------------------------------------------"
-            txt = txt + "<table>"
-            txt = txt + "<tr><td>Ritchey–Chrétien <b>f6.85</b>  </td><td>|    focal length = <b>5480</b>mm </td></tr>"
-            txt = txt + "<tr><td>filters: </td><td>|    Sloan (<b>ugriz</b>), JC (<b>BVI</b>) + diff </td></tr>"
-            txt = txt + "<tr><td>Instrument: </td><td>|    Andor iKon-L <b>2048x2048</b> </td></tr>"
-            txt = txt + "<tr><td>Pixscale = <b>0.504</b>'/pix </td><td>|    FOV = <b>17.2</b> arcmin   </td> </tr>"
-            txt = txt + "</table>"
-            txt = txt + "------------------------------------------------"
+            plik_teleskopu = "./Misc/zb08.txt"
+
         elif self.parent.active_tel == "jk15":
             png_file = './Icons/jk15.png'
-            txt = "Welcome to Janusz Kaluzny JK08 Telescope\n"
-        elif self.parent.active_tel == "wg25":
-            png_file = './Icons/wg25.png'
+            plik_teleskopu = "./Misc/jk15.txt"
+
         else: png_file = './Icons/oca.png'
 
-        txt = txt + "<h4>Whats New?</h4>"
-        txt = txt + "--- 04.08.23 --- <br> <br> <br>"
-        txt = txt + "--- 09.06.23 --- <br> Major plan execution BUG in TOI was fixed. <br>DOMEFLAT and SKYFLAT for Plan and Manual is working now<br>"
+        if plik_teleskopu:
+            with open(plik_teleskopu, "r") as plik:
+                txt = txt + plik.read()
+        with open("./Misc/changelog.txt", "r") as plik:
+            txt = txt + plik.read()
 
         grid = QGridLayout()
         w = 0
@@ -122,21 +118,33 @@ class WelcomeGui(QWidget):
 
         self.wind_l = QLabel("Wind:")
         self.wind_e = QLineEdit()
+        self.wind_e.setReadOnly(True)
+        self.wind_e.setStyleSheet("background-color: rgb(235,235,235);")
         self.temp_l = QLabel("Temp:")
         self.temp_e = QLineEdit()
+        self.temp_e.setReadOnly(True)
+        self.temp_e.setStyleSheet("background-color: rgb(235,235,235);")
         grid.addWidget(self.temp_l, w, 1)
         grid.addWidget(self.temp_e, w, 2)
         w = w + 1
         grid.addWidget(self.wind_l, w, 1)
         grid.addWidget(self.wind_e, w, 2)
 
+        w = w + 1
+        self.observer_l = QLabel("Welcome observer, please provide Your name:")
+        self.observer_e = QLineEdit()
+
+        grid.addWidget(self.observer_l, w, 0,1,4)
+        w = w + 1
+        grid.addWidget(self.observer_e, w, 0,1,4)
+
+        w = w + 1
         self.info_e=QTextEdit()
         self.info_e.setReadOnly(True)
         self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
         self.info_e.setHtml(txt)
         font=QtGui.QFont("Courier New",10)
         self.info_e.setFont(font)
-        w=w+2
         grid.addWidget(self.info_e, w,0,1,3)
 
         self.setLayout(grid)

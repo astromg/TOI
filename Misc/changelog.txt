@@ -1,0 +1,3 @@
+<h4>Whats New?</h4>
+--- 04.08.23 --- <br> <br> <br>
+ --- 09.06.23 --- <br> Major plan execution BUG in TOI was fixed. <br>DOMEFLAT and SKYFLAT for Plan and Manual is working now<br>

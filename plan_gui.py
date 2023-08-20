@@ -557,7 +557,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.grid.addWidget(self.plan_t, w,0,8,5)
           
           w=w+8
-          self.import_p = QPushButton('Import to MANUAL')
+          self.import_p = QPushButton('\u2B05 Import to MANUAL')
           self.grid.addWidget(self.import_p, w, 0,1,3)
 
           w=w+1
