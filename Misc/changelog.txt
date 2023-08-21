@@ -1,3 +1,10 @@
 <h4>Whats New?</h4>
---- 04.08.23 --- <br> <br> <br>
+--- 21.08.23 --- <br> Main problem persists with telemetry updating - but there is an Update pushbutton to force update.<br>
+ <br> Telemetry of other telescopes are stoped for now.
+ <br>
+ In Plan GUI more info are avialable - planned UT of observations with
+ predicted Alt, comments and full OB. ''Import to MANUAL'' is separete now from Next Marker.
+ <br>
+Radar colors and Icons are changed, and any more small changes.
+<br><br>
  --- 09.06.23 --- <br> Major plan execution BUG in TOI was fixed. <br>DOMEFLAT and SKYFLAT for Plan and Manual is working now<br>
