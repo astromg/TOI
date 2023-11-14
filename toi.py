@@ -52,11 +52,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         host = socket.gethostname()
         user = pwd.getpwuid(os.getuid())[0]
         self.myself=f'{user}@{host}'
-
         self.observatory = ["-24:35:24","-70:11:47","2800"]
 
         self.observatory_model = Observatory()
         self.observatory_model.connect(client_api)
+
+        self.msg_log_file = "./Logs/msg_log.txt"
+        self.msg_log_lines = 1000
 
         # geometry settings
 
@@ -81,6 +83,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cfg_wind_limits = 36
 
         self.nextOB_ok = None
+        self.flag_newimage = None
+        self.image = []
+        self.prev_image = []
 
         # observer
         self.observer = ""
@@ -107,6 +112,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # active telescope & universal
         self.ut=str(ephem.now())
+        self.ephem_utc = 0
+        self.ephem_prev_utc = 0
         self.active_tel_i=None
         self.active_tel=None
 
@@ -172,21 +179,24 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.msg=self.obsGui.main_form.msg
         self.oca_tel_stat()
 
-        # self.dome = self.parent.observatory_model.get_telescope(tel).get_dome()
-        # self.mount = self.parent.observatory_model.get_telescope(tel).get_mount()
-        # self.ccd = self.parent.observatory_model.get_telescope(tel).get_camera()
-        # self.fw = self.parent.observatory_model.get_telescope(tel).get_filterwheel()
+        #self.observatory_model = Observatory()
+        #self.observatory_model.connect(client_api)
+
+        #self.dome = self.observatory_model.get_telescope(tel).get_dome()
+        #self.mount = self.observatory_model.get_telescope(tel).get_mount()
+        #self.ccd = self.observatory_model.get_telescope(tel).get_camera()
+        #self.fw = self.observatory_model.get_telescope(tel).get_filterwheel()
         #
-        # self.add_background_task(self.dome.asubscribe_shutterstatus(self.obsGui.dome_update))
-        # self.add_background_task(self.dome.asubscribe_slewing(self.obsGui.dome_update))
+        #self.add_background_task(self.dome.asubscribe_shutterstatus(self.obsGui.dome_update))
+        #self.add_background_task(self.dome.asubscribe_slewing(self.obsGui.dome_update))
         #
-        # self.add_background_task(self.mount.asubscribe_tracking(self.obsGui.mount_update))
-        # self.add_background_task(self.mount.asubscribe_slewing(self.obsGui.mount_update))
-        # self.add_background_task(self.mount.asubscribe_motorstatus(self.obsGui.mount_update))
+        #self.add_background_task(self.mount.asubscribe_tracking(self.obsGui.mount_update))
+        #self.add_background_task(self.mount.asubscribe_slewing(self.obsGui.mount_update))
+        #self.add_background_task(self.mount.asubscribe_motorstatus(self.obsGui.mount_update))
         #
-        # self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.obsGui.instrument_update))
-        # self.add_background_task(self.ccd.asubscribe_camerastate(self.obsGui.instrument_update))
-        # self.add_background_task(self.fw.asubscribe_position(self.obsGui.instrument_update))
+        #self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.obsGui.instrument_update))
+        #self.add_background_task(self.ccd.asubscribe_camerastate(self.obsGui.instrument_update))
+        #self.add_background_task(self.fw.asubscribe_position(self.obsGui.instrument_update))
 
         self.add_background_task(self.TOItimer())
 
@@ -202,7 +212,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mqtt_client.on_connect = self.on_mqtt_connect
             self.mqtt_client.loop_start()
         except: pass
-
 
     def on_weather_message(self, client, userdata, message):
         weather = message.payload.decode('utf-8')
@@ -256,8 +265,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.dome_con=False
         self.dome_az="--"
 
-        txt=f"{tel} selected"
-        self.msg(txt,"yellow")
+        txt=f"REQUEST: Telescope {tel} selected"
+        self.msg(txt,"green")
 
         self.telescope = self.observatory_model.get_telescope(tel)
         #await self.stop_background_tasks()
@@ -282,7 +291,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         self.ephemeris = self.observatory_model.get_ephemeris()
-        #self.add_background_task(self.ephemeris.asubscribe_utc(self.test1))
+        self.add_background_task(self.ephemeris.asubscribe_utc(self.ephem_update))
 
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
 
@@ -330,8 +339,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.TOItimer0())
 
-
-
         await self.stop_background_tasks()
         await self.run_background_tasks()
 
@@ -360,22 +367,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     # ################### METODY POD SUBSKRYPCJE ##################
 
-    def test1(self,tmp):
 
-        if (float(self.ephemeris.utc) - self.tmp) > 1.5:
-            #print(self.ephemeris.utc-self.tmp)
-            print(f"================== LOST {self.ephemeris.utc} {self.tmp} ")
-        self.tmp = float(self.ephemeris.utc)
-    def test3(self,tmp):
-        print("========== TMP TEST 3 ==========================")
-
-    def test4(self,tmp):
-        print("========== TMP TEST 4 ==========================")
 
     @qs.asyncSlot()
     async def force_update(self):
-        print("====== UPDATE START ======")
-        #self.msg(" UPDATE START ","red")
+        #print("====== UPDATE START ======")
+        self.msg("REQUEST: UPDATE START","yellow")
         #mount_conn = await self.telescope.is_telescope_alpaca_server_available()
         #self.msg(str(mount_conn),"red")
         #self.msg(self.mount.connected,"red")
@@ -396,12 +393,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.ccd_gain_update(None)
         await self.ccd_temp_update(None)
         await self.ccd_cooler_update(None)
-        print("====== UPDATE DONE ======")
-        #self.msg(" UPDATE DONE ", "red")
+        self.msg("REQUEST: UPDATE DONE", "yellow")
 
     async def TOItimer0(self):
         while True:
-
             self.tic_conn = await self.observatory_model.is_tic_server_available()
 
             if self.tic_conn:
@@ -418,14 +413,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.focus_conn = True
                 self.inst_conn = True
 
-                #try:
-                #    await self.force_update()
-                #except: print("UPDATE MISSED")
-
             await asyncio.sleep(5)
 
     async def TOItimer(self):
         while True:
+            print("* PING")
+            # sprawdzenie gubienia subskrypcji
+            if (float(self.ephem_utc) - self.ephem_prev_utc) > 1.5:
+                    self.msg("WARNING: tic UTC callback missed", "red")
+                    self.force_update()
+                    print(f"================== LOST {self.ephem_utc-self.ephem_prev_utc} ")
+            self.ephem_prev_utc = self.ephem_utc
+
+            # sprawdzenie czy jest nowy fits do wyswietlenia
+            if self.flag_newimage:    # sprawdza tylko jak jest imageready
+                self.image = self.ccd.imagearray
+                if self.image != self.prev_image:
+                    self.prev_image = self.image
+                    self.flag_newimage = False
+                    self.new_fits()
+
             self.time=time.perf_counter()
 
             if self.ob["run"] and "name" in self.ob.keys():
@@ -460,13 +467,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if "name" in self.ob.keys():
                       self.instGui.ccd_tab.inst_object_e.setText(self.ob["name"])
 
-
-
             else: self.planGui.ob_e.setText("")
 
             if self.ob["done"] and self.planGui.next_i==-1:
                 self.ob["run"]=False
-
 
             if self.ob["run"] and self.ob["done"]:
                 if self.planGui.next_i > 0 and self.planGui.next_i < len(self.planGui.plan):
@@ -479,7 +483,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if float(dt) > float(self.ob["wait"]):
                         self.ob["done"]=True
                         self.planGui.done.append(self.ob["uid"])
-                        self.msg(f"{self.ob['name']} {self.ob['wait']} s DONE","green")
+                        self.msg(f"PLAN: {self.ob['name']} {self.ob['wait']} s DONE","green")
                         self.planGui.current_i=-1
 
                 if "wait_ut" in self.ob.keys():
@@ -491,32 +495,24 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if req_ut < ut :
                         self.ob["done"]=True
                         self.planGui.done.append(self.ob["uid"])
-                        self.msg(f"{self.ob['name']} UT {self.ob['wait_ut']} DONE","green")
+                        self.msg(f"PLAN: {self.ob['name']} UT {self.ob['wait_ut']} DONE","green")
                         self.planGui.current_i=-1
-
 
                 if "wait_sunrise" in self.ob.keys():
                     if float(self.almanac["sun_alt"]) > float(self.ob["wait_sunrise"]):
                         self.ob["done"]=True
                         self.planGui.done.append(self.ob["uid"])
-                        self.msg(f"{self.ob['name']} sunrise {self.ob['wait_sunrise']} DONE","green")
+                        self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} DONE","green")
                         self.planGui.current_i=-1
 
                 if "wait_sunset" in self.ob.keys():
                     if float(self.almanac["sun_alt"]) < float(self.ob["wait_sunset"]):
                         self.ob["done"]=True
                         self.planGui.done.append(self.ob["uid"])
-                        self.msg(f"{self.ob['name']} sunset {self.ob['wait_sunset']} DONE","green")
+                        self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} DONE","green")
                         self.planGui.current_i=-1
 
             if self.dit_start>0:
-
-                # txt=""
-                # if self.plan_runner_status=="exposing":
-                #     txt=txt+"exposing: "
-                # elif self.plan_runner_status=="exp done":
-                #     txt=txt+"DONE "
-
 
                 dt=self.time-self.dit_start
                 if dt>self.dit_exp:
@@ -557,9 +553,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             #self.obsGui.main_form.skyView.updateRadar()
             self.planGui.update_table()
 
-
             # Connection status update
-
 
             if self.tic_conn == True:
                 self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
@@ -603,7 +597,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.mntGui.focusConn_l.setText("\U0001F534")
                 self.mntGui.telFocus_l.setStyleSheet("color: rgb(150,0,0);")
 
-
             if self.inst_conn == True:
                 self.instGui.tab.setTabText(0,"\U0001F7E2 CCD")
             else:
@@ -611,9 +604,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             await asyncio.sleep(1)
 
-
     # ############ PLAN RUNNER CALLBACK ##########################
-
 
     @qs.asyncSlot()
     async def PlanRun1(self,info):
@@ -622,7 +613,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if "id" in info.keys():
                 if info["id"]=="auto_focus" and info["started"]==True and info["done"]==True:
                     self.autofocus_started=False
-                    self.msg("Auto-focus sequence finished","black")
+                    self.msg("PLAN: Auto-focus sequence finished","black")
                     max_sharpness_focus, calc_metadata = calFoc.calculate(self.cfg_focus_directory,method=self.focus_method)
                     coef = calc_metadata["poly_coef"]
                     focus_list_ret = calc_metadata["focus_values"]
@@ -643,6 +634,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.auxGui.focus_tab.result_e.setText(f"{int(max_sharpness_focus)}")
                         self.auxGui.focus_tab.max_sharp=max_sharpness_focus
                         await self.focus.aput_move(int(max_sharpness_focus))
+                        self.msg(f"PLAN: focus set to {int(max_sharpness_focus)}","black")
                         if self.filter != None and self.telemetry_temp != None:
                             txt = f"{self.ut} {self.telemetry_temp} {self.filter} {int(max_sharpness_focus)} \n"
                             with open(self.cfg_focus_record_file,"a+") as plik:
@@ -655,7 +647,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.auxGui.tabWidget.setCurrentIndex(1)
 
 
-        # OTHER
+        # NORMAL PLAN
         if "id" in info.keys():
             self.program_id = info["id"]
             ut=str(self.almanac["ut"]).split()[1].split(":")[0]+":"+str(self.almanac["ut"]).split()[1].split(":")[1]
@@ -669,7 +661,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         if "name" in info.keys() and "started" in info.keys() and "done" in info.keys():
             if info["name"] == "Night plan" and info["started"] and not info["done"]:
-                self.msg(f"Sequence started","black")
+                self.msg("PLAN: Sequence started","black")
 
             elif info["name"] == "Night plan" and info["done"]:
                 self.ob["done"] = True
@@ -678,13 +670,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.planGui.current_i = -1
                 self.dit_start = 0
                 self.instGui.ccd_tab.inst_DitProg_n.setFormat("IDLE")
-                self.msg("Plan finished", "black")
+                self.msg("PLAN: Plan finished", "black")
 
             elif info["name"] == "SKYFLAT" and info["started"] and not info["done"]:  # SKYFLAT
-                self.msg(f"AUTO FLAT program started", "black")                       # SKYFLAT
+                self.msg(f"PLAN: AUTO FLAT program started", "black")                       # SKYFLAT
 
             elif info["name"] == "SKYFLAT" and info["done"]:
-                self.msg(f"AUTO FLAT program finished", "black")
+                self.msg(f"PLAN: AUTO FLAT program finished", "black")
 
 
         if "exp_started" in info.keys() and "exp_done" in info.keys():
@@ -694,7 +686,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.dit_exp=float(info["exp_time"])
                 self.dit_start=self.time
                 self.plan_runner_status="exposing"
-                self.msg(f"{self.dit_exp} [s] exposure started","black")
+                self.msg(f"PLAN: {self.dit_exp} [s] exposure started","black")
 
             elif info["exp_done"] and info["exp_saved"]:
                 self.ndit=float(info["n_exp"])
@@ -708,14 +700,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.dit_exp=float(info["auto_exp_time"])
                 self.dit_start=self.time
                 self.plan_runner_status="exposing"
-                self.msg(f"{self.dit_exp} [s] test exposure started","black")
+                self.msg(f"PLAN: {self.dit_exp} [s] test exposure started","black")
 
-            elif info["auto_exp_finnished"]:
-                self.msg(f"test exposure done", "black")
+            elif info["auto_exp_finished"]:
+                self.msg(f"PLAN: test exposure done", "black")
 
         if "test_exp_mean" in info.keys():                                                        # SKYFLAT
-            self.msg(f"mean {int(info['test_exp_mean'])} ADU measured", "black")
-
+            self.msg(f"PLAN: mean {int(info['test_exp_mean'])} ADU measured", "black")
 
 
     # ############ AUTO FOCUS ##########################
@@ -733,32 +724,29 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.focus_method = "rms"
             if number > 2:
                 ok = True
-            else: self.WarningWindow("Not enough STEPS number")
+            else: self.WarningWindow("WARNING: Not enough STEPS number")
         elif method == "RMS_QUAD":
             self.focus_method = "rms_quad"
             if number > 4:
                 ok = True
-            else: self.WarningWindow("Not enough STEPS number")
+            else: self.WarningWindow("WARNING: Not enough STEPS number")
 
         if ok:
             exp=self.instGui.ccd_tab.inst_Dit_e.text()
             if len(exp)==0:
                 exp = 5
-                self.msg("no exp specified. exp=5","red")
+                self.msg("WARNING: no exp specified. exp=5","red")
 
             seq = f"{int(number)}/"+str(self.curent_filter)+"/"+str(exp)
             pos = f"{int(v0)}/{int(step)}"
             program = f"FOCUS seq={seq} pos={pos}"
 
-            #print(program)
             self.planrunner.load_nightplan_string('auto_focus', string=program, overwrite=True)
             await self.planrunner.arun_nightplan('auto_focus',step_id="00")
             self.fits_exec=True
             self.plan_runner_origin="auto_focus"
             self.program_name="auto_focus"
             self.autofocus_started=True
-
-
 
     # ############ PLAN RUNNER ##########################
 
@@ -789,19 +777,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob["ob_start_time"] = self.time
                                 self.ob["done"]=False
                                 self.ob["run"]=True
-                                self.msg(f"{self.ob['name']} {self.ob['wait']} s. start","black")
+                                self.msg(f"PLAN: {self.ob['name']} {self.ob['wait']} s. start","black")
                             if "wait_ut" in self.ob.keys():
                                 self.ob["done"]=False
                                 self.ob["run"]=True
-                                self.msg(f"{self.ob['name']} UT {self.ob['wait_ut']} start","black")
+                                self.msg(f"PLAN: {self.ob['name']} UT {self.ob['wait_ut']} start","black")
                             if "wait_sunset" in self.ob.keys():
                                 self.ob["done"]=False
                                 self.ob["run"]=True
-                                self.msg(f"{self.ob['name']} sunset {self.ob['wait_sunset']} start","black")
+                                self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} start","black")
                             if "wait_sunrise" in self.ob.keys():
                                 self.ob["done"]=False
                                 self.ob["run"]=True
-                                self.msg(f"{self.ob['name']} sunrise {self.ob['wait_sunrise']} start","black")
+                                self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} start","black")
 
 
                         if self.ob["type"] == "ZERO" and "block" in self.ob.keys():
@@ -870,7 +858,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def stop_program(self):
         await self.takeControl()
-        self.msg("STOP requested","yellow")
+        self.msg("REQUEST: program STOP ","yellow")
         self.ob["run"]=False
         await self.planrunner.astop_nightplan()
         self.planGui.current_i = -1
@@ -878,15 +866,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     # ############ CCD ##################################
 
+
     async def ccd_imageready(self,event):
         if self.ccd.imageready:
+            self.flag_newimage = True
 
-            res = await self.ccd.aget_imagearray()
-            image = self.ccd.imagearray
-            image =  numpy.asarray(image)
+    def new_fits(self):
+        if self.image:
+            image = self.image
+            #image = self.ccd.imagearray
+            #image = await self.ccd.aget_imagearray()
+
+            image = numpy.asarray(image)
             image = image.astype(numpy.uint16)
 
             stats = FFS(image)
+
             coo=[]
             adu=[]
             fwhm_x,fwhm_y=0,0
@@ -934,6 +929,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if self.fits_exec:
                 self.auxGui.tabWidget.setCurrentIndex(2)
+            self.msg("INFO: new IMAGE retrived","black")
 
     @qs.asyncSlot()
     async def ccd_Snap(self):
@@ -950,7 +946,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.instGui.ccd_tab.inst_object_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
             else:
                 ok_name=False
-                self.msg("OBJECT NAME required","red")
+                self.msg("WARNING: OBJECT NAME required","red")
                 self.instGui.ccd_tab.inst_object_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
 
@@ -964,7 +960,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
             except:
                 ok_exp=False
-                self.msg("Wrong EXP TIME format","red")
+                self.msg("WARNING: wrong EXP TIME format","red")
                 self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
             try:
                 if len(ndit)==0:
@@ -976,7 +972,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
             except:
                 ok_exp=False
-                self.msg("Wrong N format","red")
+                self.msg("WARNING: wrong N format","red")
                 self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
             if ok_exp and ok_ndit:
                 seq = "1/"+str(self.curent_filter)+"/"+str(exp)
@@ -993,7 +989,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
             await self.ccd_update(True)
 
@@ -1014,7 +1010,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.instGui.ccd_tab.inst_object_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
             else:
                 ok_name=False
-                self.msg("OBJECT NAME required","red")
+                self.msg("WARNING: OBJECT NAME required","red")
                 self.instGui.ccd_tab.inst_object_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
             if self.instGui.ccd_tab.Select1_r.isChecked():
@@ -1029,7 +1025,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
                 except:
                     ok_exp=False
-                    self.msg("Wrong EXP TIME format","red")
+                    self.msg("WARNING: wrong EXP TIME format","red")
                     self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
                 try:
@@ -1042,7 +1038,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
                 except:
                     ok_exp=False
-                    self.msg("Wrong N format","red")
+                    self.msg("WARNING: wrong N format","red")
                     self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
                 if ok_exp and ok_ndit:
@@ -1057,7 +1053,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.instGui.ccd_tab.inst_Seq_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
                 else:
                     ok_seq=False
-                    self.msg("SEQUENCE required","red")
+                    self.msg("WARNING: SEQUENCE required","red")
                     self.instGui.ccd_tab.inst_Seq_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
             if ok_name and ok_seq:
@@ -1077,16 +1073,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if self.mount_motortatus: pass
                     else:
                         ok = False
-                        self.WarningWindow("Motors should be ON for SKYFLAT")
+                        self.WarningWindow("WARNING: Motors should be ON for SKYFLAT")
 
                 elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==4:
                     txt=f"DOMEFLAT {name} seq={seq}   \n"
                     if self.mount_motortatus: pass
                     else:
                         ok = False
-                        self.WarningWindow("Motors should be ON for DOMEFLAT")
+                        self.WarningWindow("WARNING: Motors should be ON for DOMEFLAT")
 
-                else: self.msg(f"not implemented yet","yellow")
+                else: self.msg(f"WARNING: not implemented yet","yellow")
 
             if ok:
                 self.planrunner.load_nightplan_string('manual', string=txt, overwrite=True)
@@ -1095,7 +1091,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.fits_exec = True
 
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
             await self.ccd_update(True)
 
@@ -1109,7 +1105,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.ob["run"]=False
             await self.planrunner.astop_nightplan()
             await self.ccd.aput_stopexposure()
-            self.msg(f"exposure STOP requested","red")
+            self.msg(f"REQUEST: exposure STOP","yellow")
 
 
     @qs.asyncSlot()
@@ -1123,13 +1119,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.msg(f"not a valid option","red")
                 return
 
-            txt=f"CCD binx biny changed to: {x}x{y} requested"
+            txt=f"REQUEST: CCD bin_x bin_y {x}x{y}"
             self.msg(txt,"yellow")
             self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
             await self.ccd.aput_binx(int(x))
             await self.ccd.aput_biny(int(y))
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
     @qs.asyncSlot()
@@ -1142,12 +1138,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.msg(f"not a valid option","red")
                 return
 
-            txt=f"CCD GAIN changed to: {self.instGui.ccd_tab.inst_setGain_e.currentText()} requested"
+            txt=f"REQUEST: CCD gain {self.instGui.ccd_tab.inst_setGain_e.currentText()}"
             self.msg(txt,"yellow")
             self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
             await self.ccd.aput_gain(int(g))
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
     @qs.asyncSlot()
@@ -1157,15 +1153,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            m=["5MHz","3MHz","1MHz","0.05MHz"]
            if i<4:
                m=m[i]
-               txt=f"Readout Mode {m} requested"
-               self.msg(txt,"yellow")
+               txt=f"REQUEST: CCD readout mode {m}"
+               self.msg(txt,"green")
                await self.ccd.aput_readoutmode(i)
                self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
            else:
                 self.msg(f"not a valid option","red")
                 return
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
 
@@ -1174,14 +1170,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if await self.user.aget_is_access():
             temp=float(self.instGui.ccd_tab.inst_setTemp_e.text())
             if temp>-81 and temp<20:
-                txt=f"CCD temp set to {temp} deg."
+                txt=f"REQUEST: CCD temp. set to {temp} deg."
                 await self.ccd.aput_setccdtemperature(temp)
                 self.msg(txt,"yellow")
             else:
                 txt="Value of CCD temp. not allowed"
                 self.msg(txt,"red")
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
             await self.ccd_update(True)
 
@@ -1190,15 +1186,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def ccd_coolerOnOf(self):
         if await self.user.aget_is_access():
             if self.ccd.cooleron:
-              txt="CCD cooler OFF"
+              txt="REQUEST: CCD cooler OFF"
               await self.ccd.aput_cooleron(False)
-              self.msg(txt,"yellow")
+              self.msg(txt,"green")
             else:
-              txt="CCD cooler ON"
+              txt="REQUEST: CCD cooler ON"
               await self.ccd.aput_cooleron(True)
-              self.msg(txt,"yellow")
+              self.msg(txt,"green")
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
             await self.ccd_update(True)
 
@@ -1273,18 +1269,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            else:
                self.mount_motortatus = False
            if self.mount_motortatus:
-              txt="MOTOR OFF requested"
-              self.msg(txt,"yellow")
+              txt="REQUEST: motors OFF"
+              self.msg(txt,"green")
               await self.mount.aput_motoroff()
            else:
-               txt="MOTOR ON requested"
-               self.msg(txt,"yellow")
+               txt="REQUEST: motors ON"
+               self.msg(txt,"green")
                await self.mount.aput_motoron()
            #self.mntGui.mntStat_e.setText(txt)
            #self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
         else:
             await self.mountMotors_update(None)
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
     async def mountMotors_update(self,event):
@@ -1296,11 +1292,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
            if self.mount_motortatus:
                self.mntGui.mntMotors_c.setChecked(True)
-               txt="MOTORS ON"
-               self.msg(txt,"green")
+               txt="TELEMETRY: motors ON"
+               self.msg(txt,"black")
            else:
                self.mntGui.mntMotors_c.setChecked(False)
-               txt="MOTORS OFF"
+               txt="TELEMETRY: motors OFF"
                self.msg(txt,"black")
 
            self.mntGui.mntStat_e.setText(txt)
@@ -1311,18 +1307,20 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if await self.user.aget_is_access():
            self.cover_status = self.cover.coverstate
            if self.cover_status==1:
-              txt="mirror OPEN requested"
-              self.msg(txt,"yellow")
-              await self.mount.aput_opencover()
+              txt="REQUEST: mirror OPEN"
+              self.msg(txt,"green")
+              #await self.mount.aput_opencover()
+              await self.cover.aput_opencover()
            else:
-               txt="mirror CLOSE requested"
-               self.msg(txt,"yellow")
-               await self.mount.aput_closecover()
+               txt="REQUEST: mirror CLOSE"
+               self.msg(txt,"green")
+               #await self.mount.aput_closecover()
+               await self.cover.aput_closecover()
            self.mntGui.telCovers_e.setText(txt)
            self.mntGui.telCovers_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
         else:
             await self.covers_update(None)
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
     async def covers_update(self,event):
@@ -1331,20 +1329,20 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            if self.cover_status==3:
                self.mntGui.telCovers_c.setChecked(True)
                txt="OPEN"
-               self.msg(f"covers {txt}","green")
+               self.msg(f"TELEMETRY: covers {txt}","green")
                self.mntGui.telCovers_e.setStyleSheet("color: rgb(0,150,0); background-color: rgb(233, 233, 233);")
            elif self.cover_status==1:
                self.mntGui.telCovers_c.setChecked(False)
                txt="CLOSED"
-               self.msg(f"covers {txt}","black")
+               self.msg(f"TELEMETRY: covers {txt}","black")
                self.mntGui.telCovers_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
            elif self.cover_status==2:
                txt="MOVING"
-               self.msg(f"covers {txt}","yellow")
+               self.msg(f"TELEMETRY: covers {txt}","yellow")
                self.mntGui.telCovers_e.setStyleSheet("color: rgb(255, 165, 0); background-color: rgb(233, 233, 233);")
            else:
                txt="UNKNOWN"
-               self.msg(f"covers {txt}","red")
+               self.msg(f"TELEMETRY: covers {txt}","red")
                self.mntGui.telCovers_e.setStyleSheet("color: rgb(233, 0, 0); background-color: rgb(233, 233, 233);")
 
            self.mntGui.telCovers_e.setText(txt)
@@ -1359,18 +1357,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 await self.mount.aput_park()
                 await self.dome.aput_park()
             else:
-                txt = "Motors are OFF"
+                txt = "WARNING: Motors are OFF"
                 self.WarningWindow(txt)
 
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
     @qs.asyncSlot()
     async def abort_slew(self):
         if True:
             await self.takeControl()
-            txt="STOP requested"
+            txt="REQUEST: slew STOP"
             self.mntGui.mntStat_e.setText(txt)
             self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,0,0); background-color: rgb(233, 233, 233);")
             await self.mount.aput_abortslew()
@@ -1394,7 +1392,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                        az=float(self.mntGui.nextAz_e.text())
                        alt=float(self.mntGui.nextAlt_e.text())
                        await self.mount.aput_slewtoaltaz_async(az,alt)
-                       txt=f"slew to Az: {az} Alt: {alt}"
+                       txt=f"REQUEST: slew to Az: {az} Alt: {alt}"
                        self.msg(txt,"black")
 
                     elif self.mntGui.setEq_r.isChecked():
@@ -1408,21 +1406,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                        ra=hmsRa2float(ra)
                        dec=arcDeg2float(dec)
                        await self.mount.aput_slewtocoo_async(ra, dec)
-                       txt=f"slew to Ra: {ra} Dec: {dec}"
+                       txt=f"REQUEST: slew to Ra: {ra} Dec: {dec}"
                        self.msg(txt,"black")
 
                     az=float(self.mntGui.nextAz_e.text())
                     if self.mntGui.domeAuto_c.isChecked():
                         await self.dome.aput_slewtoazimuth(az)
                 else:
-                    txt = "Slew NOT allowed"
+                    txt = "WARNING: Slew NOT allowed"
                     self.msg(txt,"red")
                     self.WarningWindow(txt)
             else:
-                txt = "Motors are OFF"
+                txt = "WARNING: Motors are OFF"
                 self.WarningWindow(txt)
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
     @qs.asyncSlot()
@@ -1433,22 +1431,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 if self.mount_tracking:
                    await self.mount.aput_tracking(False)
-                   txt="STOP tracking requested"
+                   txt="REQUEST: tracking STOP"
                 else:
                    await self.mount.aput_tracking(True)
-                   txt="START tracking requested"
+                   txt="REQUEST: tracking START"
 
                 self.mntGui.mntStat_e.setText(txt)
                 self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
                 self.msg(txt,"yellow")
             else:
                 await self.mount_update(False)
-                txt = "Motors are OFF"
+                txt = "WARNING: Motors are OFF"
                 self.WarningWindow(txt)
 
         else:
             await self.mount_update(False)
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
     async def mountCon_update(self, event):
@@ -1489,7 +1487,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.tracking_c.setChecked(False)
         self.mntGui.mntStat_e.setText(txt)
         self.obsGui.main_form.skyView.updateRadar()
-        self.msg(f"Mount {txt}","black")
+        self.msg(f"TELEMETRY: mount {txt}","black")
 
         if self.mount_slewing:
             self.mntGui.mntAz_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
@@ -1550,22 +1548,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            if self.cover.coverstate == 1:
                if self.dome_shutterstatus==0:
                   await self.dome.aput_closeshutter()
-                  txt="CLOSE requested"
+                  txt="REQUEST: dome CLOSE"
                elif self.dome_shutterstatus==1:
                   await self.dome.aput_openshutter()
-                  txt="OPEN requested"
+                  txt="REQUEST: dome OPEN"
                else: pass
                self.mntGui.domeShutter_e.setText(txt)
                self.mntGui.domeShutter_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
-               self.msg(txt,"yellow")
+               self.msg(txt,"green")
            else:
                await self.domeShutterStatus_update(False)
-               txt = "Mirror covers are open. Close MIRROR for dome shutter operations"
+               txt = "WARNING: Mirror covers are open. Close MIRROR for dome shutter operations"
                self.WarningWindow(txt)
 
         else:
             await self.domeShutterStatus_update(None)
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
     @qs.asyncSlot()
@@ -1577,7 +1575,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         else:
             await self.domeShutterStatus_update(False)
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
     @qs.asyncSlot()
@@ -1585,7 +1583,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if True: #self.user.current_user["name"]==self.myself:
            await self.takeControl()
            await self.dome.aput_abortslew()
-           self.msg("DOME STOP requested","yellow")
+           self.msg("REQUEST: dome STOP","yellow")
 
 
     @qs.asyncSlot()
@@ -1599,7 +1597,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if self.mntGui.domeAuto_c.isChecked() and abs(az - dome_az)>5.:  # Do wywalenia po implementacji w TIC
                     await self.dome.aput_slewtoazimuth(az)
         else:
-            txt="You don't have controll"
+            txt="WARNING: You don't have controll"
             self.WarningWindow(txt)
             if self.mntGui.domeAuto_c.isChecked(): self.mntGui.domeAuto_c.setChecked(False)
             else: self.mntGui.domeAuto_c.setChecked(True)
@@ -1634,7 +1632,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.mntGui.domeShutter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
                 #self.obsGui.main_form.skyView.updateDome()
            self.mntGui.domeShutter_e.setText(txt)
-           self.msg(f"Shutter {txt}","yellow")
+           self.msg(f"TELEMETRY: shutter {txt}","black")
 
     async def domeStatus_update(self, event):
            self.dome_status=await self.dome.aget_slewing()
@@ -1649,7 +1647,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
            else: txt="UNKNOWN"
            self.mntGui.domeStat_e.setText(txt)
-           self.msg(f"Dome {txt}","yellow")
+           self.msg(f"TELEMETRY: dome {txt}","black")
 
     async def domeAZ_update(self, event):
         self.dome_az = await self.dome.aget_az()
@@ -1675,18 +1673,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            if r == "True": self.dome_fanStatus=True
            else: self.dome_fanStatus=False
            if self.dome_fanStatus:
-              txt="FANS OFF requested"
-              self.msg(txt,"yellow")
+              txt="REQUEST: fans OFF"
+              self.msg(txt,"green")
               await self.focus.aput_fansturnoff()
            else:
-               txt="FANS ON requested"
-               self.msg(txt,"yellow")
+               txt="REQUEST: fans ON"
+               self.msg(txt,"green")
                await self.focus.aput_fansturnon()
            self.mntGui.fans_e.setText(txt)
            self.mntGui.fans_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
         else:
             await self.domeFans_update(False)
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
     async def domeFans_update(self,event):
@@ -1710,18 +1708,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
            if self.mntGui.flatLights_c.isChecked():
                await self.mount.aput_domelamp_on()
-               txt = "Flat lamp ON - no feedback"
+               txt = "REQUEST: flat lamp ON - no feedback"
                self.mntGui.flatLights_e.setText("no feedback")
                self.mntGui.flatLights_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
            else:
                await self.mount.aput_domelamp_off()
-               txt = "Flat lamp OFF - no feedback"
+               txt = "REQUEST: flat lamp OFF - no feedback"
                self.mntGui.flatLights_e.setText("")
                self.mntGui.flatLights_e.setStyleSheet("color: rgb(0,0,0); background-color: rgb(233, 233, 233);")
 
            self.msg(txt,"yellow")
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
             if self.mntGui.flatLights_c.isChecked(): self.mntGui.flatLights_c.setChecked(False)
             else: self.mntGui.flatLights_c.setChecked(True)
@@ -1732,16 +1730,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            if self.mntGui.domeLights_c.isChecked():
                await self.cctv.aput_ir(True)
                self.mntGui.domeLights_e.setText("no feedback")
-               txt = "Flat lamp ON - no feedback"
+               txt = "REQUEST: dome lamp ON - no feedback"
                self.mntGui.domeLights_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
            else:
                await self.cctv.aput_ir(False)
                self.mntGui.domeLights_e.setText("")
-               txt = "Flat lamp OFF - no feedback"
+               txt = "REQUEST: dome lamp OFF - no feedback"
                self.mntGui.domeLights_e.setStyleSheet("color: rgb(0,0,0); background-color: rgb(233, 233, 233);")
-           self.msg(txt,"yellow")
+           self.msg(txt,"green")
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
             if self.mntGui.domeLights_c.isChecked(): self.mntGui.domeLights_c.setChecked(False)
             else: self.mntGui.domeLights_c.setChecked(True)
@@ -1757,10 +1755,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            self.mntGui.setFocus_s.setStyleSheet("background-color: rgb(255, 255, 255);")
            val=self.mntGui.setFocus_s.value()
            await self.focus.aput_move(val)
-           txt=f"focus {val} requested"
-           self.msg(txt,"yellow")
+           txt=f"REQUEST: focus {val}"
+           self.msg(txt,"green")
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
     def focusClicked(self, event):
@@ -1781,18 +1779,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else:
             self.mntGui.telFocus_e.setText(f"ERROR")
             self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
-            self.msg("Focus position Error","red")
+            self.msg("TELEMETRY: focus position ERROR","red")
 
         if not self.focus_editing:
            self.mntGui.setFocus_s.valueChanged.disconnect(self.focusClicked)
            self.mntGui.setFocus_s.setValue(int(self.focus_value))
            self.mntGui.setFocus_s.valueChanged.connect(self.focusClicked)
 
-
-
-
     # ############### FILTERS #####################
-
 
     async def filterCon_update(self, event):
         pass
@@ -1809,11 +1803,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            ind=int(self.mntGui.telFilter_s.currentIndex())
            if ind == -1: filtr="--"
            else: filtr=self.filter_list[ind]
-           txt=f"filter {filtr} requested"
-           self.msg(txt,"yellow")
+           txt=f"REQUEST: filter {filtr}"
+           self.msg(txt,"green")
            await self.fw.aput_position(ind)
         else:
-            txt="U don't have controll"
+            txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
     async def filter_update(self, event):
@@ -1823,18 +1817,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else: filtr = self.filter_list[pos]
         self.mntGui.telFilter_e.setText(filtr)
         self.filter = filtr
+        self.msg(f"TELEMETRY: filter {filtr}", "black")
 
         if int(self.fw.position) == -1:
             self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
         else: self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-
 
     async def filterList_update(self, event):
         filter_list = await self.fw.aget_names()  # To jest dziwny slownik
         self.filter_list = [key for key, value in sorted(filter_list.items(), key=lambda item: item[1])]
 
     # ############### ROTATOR #####################
-
 
     async def rotatorCon_update(self, event):
         pass
@@ -1845,14 +1838,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #else:
            #self.domeGUI.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
 
-
     async def rotator_update(self, event):
-
         self.rotator_pos = self.rotator.position
         self.rotator_moving = self.rotator.ismoving
         if self.rotator_pos != None:
             self.mntGui.telRotator1_e.setText(f"{self.rotator_pos:.2f}")
-
             if self.rotator_moving != None:
                 if self.rotator_moving:
                     self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(234, 245, 249); color: black;")
@@ -1861,61 +1851,57 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         if diff > 1:
                             self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
                     except AttributeError: pass
-
                 else:
                     self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         else:
             self.mntGui.telRotator1_e.setText(f"ERROR")
             self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
-            self.msg("Rotator position Error","red")
-
+            self.msg("TELEMETRY: rotator position ERROR","red")
         self.rotator_pos_prev = self.rotator_pos
 
         # ############ TELESCOPE #########################
 
     @qs.asyncSlot()
     async def EmStop(self):
-        txt = f"EMERGENCY STOP ACTIVATED"
+        txt = f"REQUEST: EMERGENCY STOP"
         self.msg(txt, "red")
         await self.user.aget_is_access()
         await self.telescope.emergency_stop()
         self.mntGui.domeAuto_c.setChecked(False)
         await self.domeFollow()
 
-
-
     @qs.asyncSlot()
     async def shutdown(self):
         if await self.user.aget_is_access():
-            txt = f"shutdown activated"
-            self.msg(txt, "black")
+            txt = f"REQUEST: telescope shutdown"
+            self.msg(txt, "green")
             await self.telescope.shutdown()
         else:
-           txt = "U don't have controll"
+           txt = "WARNING: U don't have controll"
            self.WarningWindow(txt)
 
     @qs.asyncSlot()
     async def weatherStop(self):
         if await self.user.aget_is_access():
-            txt = f"Weather stop activated"
+            txt = f"REQUEST: weather stop"
             self.msg(txt, "yellow")
             await self.telescope.weather_stop()
         else:
-           txt = "U don't have controll"
+           txt = "WARNING: U don't have controll"
            self.WarningWindow(txt)
 
     # #### USER #########
 
     @qs.asyncSlot()
     async def takeControl(self):
-        txt="Control requested"
+        txt="REQUEST: Control"
         self.obsGui.main_form.control_e.setText(txt)
         self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         try: await self.user.aput_break_control()
         except: pass
         try: await self.user.aput_take_control(12*3600)
         except: pass
-        self.msg(txt,"yellow")
+        self.msg(txt,"green")
 
     async def user_update(self, event):
         self.TICuser=self.user.current_user
@@ -1924,16 +1910,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.control_e.setText(txt)
         if self.acces:
             self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(0,150,0);")
-            #self.msg(f"{txt} have controll","green")
+            self.msg(f"INFO: user {txt} have controll","green")
         elif  self.user.current_user["name"]==self.myself:
             self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150,0,0);")
-            #self.msg(f"{txt} DON'T have controll","red")
+            self.msg(f"INFO: user {txt} DON'T have controll","yellow")
         else:
             self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-            #self.msg(f"{txt} have controll","yellow")
+            self.msg(f"INFO: user {txt} have controll","black")
 
 # ############ INNE ##############################3
-
+    def ephem_update(self,tmp):
+        self.ephem_utc = float(self.ephemeris.utc)
     def WarningWindow(self,txt):
         self.msg(txt, "red")
         self.tmp_box=QtWidgets.QMessageBox()
@@ -1947,7 +1934,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.obsGui.on_start_app()
         await self.instGui.on_start_app()
         await self.instGui.ccd_tab.on_start_app()
-        self.msg(f"Welcome in TOI","green")
+        self.msg(f"*** TELESCOPE OPERATOR INTERFACE ***","green")
 
     @qs.asyncClose
     async def closeEvent(self, event):
