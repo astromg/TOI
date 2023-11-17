@@ -5,6 +5,7 @@
 # Marek Gorski
 # ----------------
 
+from PyQt5.QtCore import Qt
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QTabWidget, QApplication, QWidget, QLabel, QCheckBox, QTextEdit, QLineEdit, QDialog, \
     QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget, QTableWidgetItem, \
@@ -13,6 +14,7 @@ from PyQt5.QtWidgets import QTabWidget, QApplication, QWidget, QLabel, QCheckBox
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+import matplotlib
 
 import numpy
 import paho.mqtt.client as mqtt
@@ -62,8 +64,8 @@ class AuxGui(QWidget):
         # We took over your develomnet branch, but we can switch to mster
         # when you synchronize.... (mikolaj)
 
-        # self.guider_tab = GuiderGui(self.parent)
-        # self.tabWidget.addTab(self.guider_tab, "Guider")
+        self.guider_tab = GuiderGui(self.parent)
+        self.tabWidget.addTab(self.guider_tab, "Guider")
 
         # self.flat_tab = FlatGui(self.parent)
         # self.tabWidget.addTab(self.flat_tab, "Flats")
@@ -188,7 +190,6 @@ class FocusGui(QWidget):
         grid.addWidget(self.canvas, w, 0, 1, 4)
 
         w = w + 1
-
         self.last_l = QLabel("Last Value:")
         self.last_e = QLineEdit()
         self.last_e.setText("15350")
@@ -203,7 +204,6 @@ class FocusGui(QWidget):
         grid.addWidget(self.range_e, w, 3)
 
         w = w + 1
-
         self.steps_l = QLabel("Step:")
         self.steps_e = QLineEdit()
         self.steps_e.setText("50")
@@ -230,20 +230,105 @@ class FocusGui(QWidget):
 
         self.setLayout(grid)
 
-
+# ############### GUIDER ###################
 class GuiderGui(QWidget):
     def __init__(self, parent):
         super(GuiderGui, self).__init__()
         self.parent = parent
         self.mkUI()
+        self.show()
+
+    def update(self, image,coo):
+        self.image = image
+        self.axes.clear()
+        self.axes.axis("off")
+        if len(self.image)>0:
+            vmin = numpy.mean(self.image) - 1 * numpy.std(self.image)
+            vmax = numpy.mean(self.image) + 1 * numpy.std(self.image)
+            im = self.axes.imshow(self.image, vmin=vmin, vmax=vmax, cmap=matplotlib.colormaps["ocean"])
+            if len(coo)>0:
+                x,y = zip(*coo)
+                self.axes.plot(x, y, color="white", marker="o", markersize="5", markerfacecolor="none",linestyle="")
+
+
+
+
+            self.canvas.draw()
+            self.show()
 
     def mkUI(self):
-        grid = QGridLayout()
-        w = 0
-        self.autoFocus_p = QPushButton('Guide')
-        grid.addWidget(self.autoFocus_p, w, 0)
+        if True:
+            self.fig = Figure((1.0, 0.5), linewidth=-1, dpi=100)
+            self.canvas = FigureCanvas(self.fig)
+            self.axes = self.fig.add_axes([0, 0, 1, 1])
+            self.axes.axis("off")
 
-        self.setLayout(grid)
+            grid = QGridLayout()
+
+            #self.steps_l = QLabel("Step:")
+            #self.steps_e = QLineEdit()
+            #self.steps_e.setText("50")
+
+            #self.method_s = QComboBox()
+            #self.method_s.addItems(["RMS_QUAD", "RMS"])
+
+            #self.autoFocus_p = QPushButton('FIND FOCUS')
+            #self.autoFocus_p.clicked.connect(self.parent.auto_focus)
+
+            w = 0
+            grid.addWidget(self.canvas, w, 0,5,2)
+
+            w = 0
+            self.guiderCameraOn_l = QLabel("Camera On: ")
+            self.guiderCameraOn_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+            self.guiderCameraOn_c = QCheckBox()
+            self.guiderCameraOn_c.setChecked(False)
+            self.guiderCameraOn_c.setLayoutDirection(Qt.RightToLeft)
+            self.guiderCameraOn_c.setStyleSheet(
+                "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+            #self.guiderCameraOn_c.clicked.connect(self.parent.mount_motorsOnOff)
+            grid.addWidget(self.guiderCameraOn_l, w, 2)
+            grid.addWidget(self.guiderCameraOn_c, w, 4)
+
+            w = w + 1
+            self.guiderExp_l = QLabel("EXP:")
+            self.guiderExp_e = QLineEdit()
+            self.guiderExp_e.setText("2")
+            grid.addWidget(self.guiderExp_l, w, 2)
+            grid.addWidget(self.guiderExp_e, w, 4)
+
+            w = w + 5
+            self.autoGuide_p = QPushButton('Auto Guide')
+            #self.autoGuide_p.clicked.connect(self.parent.auto_focus)
+            grid.addWidget(self.autoGuide_p, w, 0)
+
+            w = 1
+            w = w + 1
+            self.up_p = QPushButton('\u2191')
+            grid.addWidget(self.up_p, w, 3)
+
+            w = w + 1
+            self.left_p = QPushButton('\u2190')
+            self.right_p = QPushButton('\u2192')
+            grid.addWidget(self.left_p, w, 2)
+            grid.addWidget(self.right_p, w, 4)
+
+            w = w + 1
+            self.down_p = QPushButton('\u2193')
+            grid.addWidget(self.down_p, w, 3)
+
+            grid.setColumnMinimumWidth(0, 100)
+            grid.setColumnMinimumWidth(1, 100)
+            #grid.setColumnMinimumWidth(2, 30)
+            #grid.setColumnMinimumWidth(3, 30)
+            #grid.setColumnMinimumWidth(4, 30)
+            #grid.setRowStretch(0, 0)
+            #grid.setRowStretch(1, 1)
+            #grid.setRowStretch(2, 0)
+            self.setLayout(grid)
+
+            self.axes.clear()
+            self.canvas.draw()
 
 
 class FlatGui(QWidget):

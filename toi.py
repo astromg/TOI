@@ -34,6 +34,7 @@ from fits_save import *
 
 from calcFocus import calc_focus as calFoc
 from ffs_lib.ffs import FFS
+from starmatch_lib import StarMatch
 
 logging.basicConfig(level='INFO')
 logger = logging.getLogger(__name__)
@@ -123,6 +124,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # filter wheel
         self.filter = None
 
+        # guider
+        self.prev_guider_coo = []
+        self.prev_guider_adu = []
+
         # dome
         self.dome_con=False
         self.dome_shutterstatus="--"
@@ -153,6 +158,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.req_epoch=""
         self.program_id=""
         self.program_name=""
+
+        self.tmp_i = 1
 
         # window generation
 
@@ -276,6 +283,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cover = self.telescope.get_covercalibrator()
         self.focus = self.telescope.get_focuser()
         self.ccd = self.telescope.get_camera()
+        self.guider = self.telescope.get_camera(id='guider')
         self.fw = self.telescope.get_filterwheel()
         self.rotator = self.telescope.get_rotator()
         self.cctv = self.telescope.get_cctv()
@@ -393,7 +401,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.ccd_gain_update(None)
         await self.ccd_temp_update(None)
         await self.ccd_cooler_update(None)
-        self.msg("REQUEST: UPDATE DONE", "yellow")
+        self.msg("REQUEST: UPDATE DONE", "green")
 
     async def TOItimer0(self):
         while True:
@@ -418,6 +426,74 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def TOItimer(self):
         while True:
             print("* PING")
+
+            # testowo guider
+            self.tmp_i = self.tmp_i + 1
+            if self.tmp_i == 10: self.tmp_i = 0
+            if self.tmp_i == 1:
+                exp = float(self.auxGui.guider_tab.guiderExp_e.text())
+                if self.auxGui.guider_tab.guiderCameraOn_c.checkState():
+                    try:
+                        print("cyk")
+                        await self.guider.aput_startexposure(exp,True)
+                    except: pass
+
+            if self.tmp_i == 0:
+                tmp = await self.guider.aget_imageready()
+                print(tmp)
+                #print("ok 1")
+                self.guider_image = await self.guider.aget_imagearray()
+                #self.guider_image = self.guider.imagearray
+                #print("ok 2")
+                if self.guider_image:
+                    image = self.guider_image
+                    image = numpy.asarray(image)
+                    image = image.astype(numpy.uint16)
+                    #self.auxGui.guider_tab.update(image)
+
+                    # Analiza guidera
+                    stats = FFS(image)
+                    print(stats.min, stats.max)
+                    print(stats.median, stats.rms)
+
+                    coo=[]
+                    adu=[]
+                    th = 20
+                    coo,adu = stats.find_stars(threshold=th,kernel_size=9,fwhm=4)
+                    self.auxGui.guider_tab.update(image,coo)
+
+                    if len(coo)>1 and len(self.prev_guider_coo)>1:
+                        coo = numpy.array(coo)
+                        adu = numpy.array(adu)
+                        x_coo, y_coo = zip(*coo)
+                        mag = -2.5 * numpy.log10(adu)
+                        x_ref, y_ref = zip(*self.prev_guider_coo)
+                        mag_ref = -2.5 * numpy.log10(self.prev_guider_adu)
+
+                        #print(mag_ref)
+                        #print(mag)
+                        sm = StarMatch()
+                        sm.loud = True
+                        #sm.nbPCent_match = 1  # percentage of stars for which feature will be calulated
+                        #sm.nbStarsRadius = 5
+                        sm.ref_xr = x_ref
+                        sm.ref_yr = y_ref
+                        sm.ref_mr = mag_ref
+                        sm.field_xr = x_coo
+                        sm.field_yr = y_coo
+                        sm.field_mr = mag
+                        sm.go()
+                        print(sm.mssg)
+                        print(sm.p_fr_x)      # field to reference
+                        print(sm.p_fr_y)
+
+
+                    self.prev_guider_coo = coo
+                    self.prev_guider_adu = adu
+
+
+
+
             # sprawdzenie gubienia subskrypcji
             if (float(self.ephem_utc) - self.ephem_prev_utc) > 1.5:
                     self.msg("WARNING: tic UTC callback missed", "red")
@@ -928,7 +1004,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.auxGui.fits_tab.fitsView.update(image,sat_coo,ok_coo)
 
             if self.fits_exec:
-                self.auxGui.tabWidget.setCurrentIndex(2)
+                self.auxGui.tabWidget.setCurrentIndex(self.auxGui.tabWidget.count()-1)
             self.msg("INFO: new IMAGE retrived","black")
 
     @qs.asyncSlot()
@@ -1120,7 +1196,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 return
 
             txt=f"REQUEST: CCD bin_x bin_y {x}x{y}"
-            self.msg(txt,"yellow")
+            self.msg(txt,"green")
             self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
             await self.ccd.aput_binx(int(x))
             await self.ccd.aput_biny(int(y))
@@ -1139,7 +1215,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 return
 
             txt=f"REQUEST: CCD gain {self.instGui.ccd_tab.inst_setGain_e.currentText()}"
-            self.msg(txt,"yellow")
+            self.msg(txt,"green")
             self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
             await self.ccd.aput_gain(int(g))
         else:
@@ -1172,7 +1248,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if temp>-81 and temp<20:
                 txt=f"REQUEST: CCD temp. set to {temp} deg."
                 await self.ccd.aput_setccdtemperature(temp)
-                self.msg(txt,"yellow")
+                self.msg(txt,"green")
             else:
                 txt="Value of CCD temp. not allowed"
                 self.msg(txt,"red")
@@ -1270,7 +1346,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                self.mount_motortatus = False
            if self.mount_motortatus:
               txt="REQUEST: motors OFF"
-              self.msg(txt,"green")
+              self.msg(txt,"black")
               await self.mount.aput_motoroff()
            else:
                txt="REQUEST: motors ON"
@@ -1313,7 +1389,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
               await self.cover.aput_opencover()
            else:
                txt="REQUEST: mirror CLOSE"
-               self.msg(txt,"green")
+               self.msg(txt,"black")
                #await self.mount.aput_closecover()
                await self.cover.aput_closecover()
            self.mntGui.telCovers_e.setText(txt)
@@ -1354,6 +1430,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 txt="PARK requested"
                 self.mntGui.mntStat_e.setText(txt)
                 self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,0,0); background-color: rgb(233, 233, 233);")
+                self.msg(txt, "green")
                 await self.mount.aput_park()
                 await self.dome.aput_park()
             else:
@@ -1375,7 +1452,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             #await self.dome.aput_abortslew()
             #await self.dome.aput_slewtoazimuth(float(self.dome.azimuth))
             await self.mount.aput_tracking(False)
-            self.msg(txt,"yellow")
+            self.msg(txt,"red")
 
 
     @qs.asyncSlot()
@@ -1438,7 +1515,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 self.mntGui.mntStat_e.setText(txt)
                 self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
-                self.msg(txt,"yellow")
+                self.msg(txt,"green")
             else:
                 await self.mount_update(False)
                 txt = "WARNING: Motors are OFF"

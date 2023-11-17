@@ -175,7 +175,8 @@ class MainForm(QWidget):
         self.msg_e.setTextColor(c)
         ut = str(self.parent.ut).split()[1].split(":")[0] + ":" + str(self.parent.ut).split()[1].split(":")[1]
         txt = ut + " " + txt
-        self.msg_e.append(txt)
+        if txt.split()[1] != "TELEMETRY:":
+            self.msg_e.append(txt)
 
         # LOG dzialan
         if os.path.exists(self.parent.msg_log_file):
