@@ -1,0 +1,81 @@
+ZERO seq=2/i/0
+WAIT wait=60
+DARK seq=2/u/5
+STOP
+OBJECT SA113 21:41:00 +00:27:21 seq=1/B/1360,1/V/330,1/Ic/330 comment="bunch of standards centered on star SA113 342, mV between 10 and 14"
+OBJECT SA92 00:56:08 +01:04:29 seq=1/B/2360,1/V/330,1/Ic/330 comment="bunch of standards with mV between 11 and 15"
+OBJECT TPHE 00:30:16 -46:27:55 seq=1/B/3560,1/V/530,1/Ic/530 comment="7 standards, centered on TPHE B, mV between 11 and 14.5"
+STOP
+WAIT wait=3600
+OBJECT SA113 21:41:00 +00:27:21 seq=1/B/60,1/V/30,1/Ic/30 comment="bunch of standards centered on star SA113 342, mV between 10 and 14"
+OBJECT SA92 00:56:08 +01:04:29 seq=1/B/60,1/V/30,1/Ic/30 comment="bunch of standards with mV between 11 and 15"
+OBJECT TPHE 00:30:16 -46:27:55 seq=1/B/60,1/V/30,1/Ic/30 comment="7 standards, centered on TPHE B, mV between 11 and 14.5"
+OBJECT V_Ind 21:11:29.90 -45:04:28.39 seq=2/Ic/4,2/V/2.8,2/g/2.7,2/r/2.1,2/i/3.1,2/z/11
+STOP
+OBJECT RY_Psc 00:11:41.10 -1:44:55.33 seq=2/Ic/14,2/V/9,2/g/9,2/r/6,2/i/9,2/z/29
+OBJECT AA_Gru 22:49:55.72 -46:21:28.73 seq=2/Ic/59,2/V/47,2/g/48,2/r/25,2/i/39,2/z/104
+OBJECT VW_Scl 01:18:14.97 -39:12:44.84 seq=2/Ic/10,2/V/6,2/g/6,2/r/4,2/i/7,2/z/23
+OBJECT FR_Psc 00:47:57.06 11:42:23.69 seq=2/Ic/10,2/V/6,2/g/6,2/r/4,2/i/6,2/z/22
+OBJECT ASAS_J002443-6949.7 00:24:42.20 -69:49:43.96 seq=2/Ic/12,2/V/8,2/g/8,2/r/5,2/i/8,2/z/26
+OBJECT RU_Cet 01:00:40.30 -15:57:27.61 seq=2/Ic/20,2/V/13,2/g/13,2/r/8,2/i/13,2/z/40
+OBJECT RU_Psc 01:14:26.03 +24:24:56.36 seq=2/Ic/4,2/V/2.8,2/g/2.7,2/r/2.2,2/i/3.2,2/z/11 comment="RRc"
+OBJECT RU_Psc 01:14:26.04 24:24:56.37 seq=2/Ic/4,2/V/2.6,2/g/2.6,2/r/2.0,2/i/3.0,2/z/11
+OBJECT RU_Scl 00:02:48.10 -24:56:43.07 seq=2/Ic/5,2/V/3.3,2/g/3.2,2/r/2.5,2/i/3.7,2/z/13
+OBJECT SA95 03:53:04 +00:03:12 seq=1/B/60,1/V/30,1/Ic/30 comment="bunch of standards centered on star SA95 101, mV between 11 and 15"
+OBJECT ASAS_J025822+1540.3 02:58:21.96 15:40:18.66 seq=2/Ic/15,2/V/10,2/g/10,2/r/6,2/i/9,2/z/31
+OBJECT RX_Cet 00:33:38.28 -15:29:14.80 seq=2/Ic/14,2/V/9,2/g/9,2/r/6,2/i/9,2/z/29 comment="exp not verified"
+OBJECT X_Ret 03:25:20.09 -65:03:18.61 seq=2/Ic/19,2/V/13,2/g/13,2/r/8,2/i/12,2/z/39
+OBJECT RX_Eri 04:49:44.29 -15:44:28.24 seq=2/Ic/4.0,2/V/2.2,2/g/2.1,2/r/1.7,2/i/2.5,2/z/9
+OBJECT RZ_Cet 02:28:32.44 -8:21:30.11 seq=2/Ic/14,2/V/9,2/g/9,2/r/6,2/i/9,2/z/30
+OBJECT RR_Cet 01:32:08.17 +01:20:30.23 seq=2/Ic/3.9,2/V/2.2,2/g/2.1,2/r/1.7,2/i/2.5,2/z/9
+OBJECT BR_Aqr 23:38:32.89 -09:19:07.46 seq=2/Ic/13,2/V/8,2/g/8,2/r/5,2/i/8,2/z/27
+OBJECT EV_Psc 23:54:08.12 +00:57:49.08 seq=2/Ic/7,2/V/4,2/g/4,2/r/3.1,2/i/4,2/z/15 comment="RRc"
+OBJECT BB_Eri 04:53:37.51 -19:26:01.06 seq=2/Ic/14,2/V/9,2/g/9,2/r/6,2/i/9,2/z/30
+OBJECT ASAS_J004107+2040.4 00:41:07.05 20:40:26.92 seq=2/Ic/17,2/V/11,2/g/11,2/r/7,2/i/11,2/z/35
+OBJECT SS_Pic 05:47:28.92 -45:14:45.43 seq=2/Ic/4,2/V/2.8,2/g/2.7,2/r/2.1,2/i/3.1,2/z/11
+OBJECT AO_Lep 05:24:14.64 -14:06:03.13 seq=2/Ic/16,2/V/11,2/g/11,2/r/7,2/i/11,2/z/34
+OBJECT CPD-66_237 03:58:12.55 -66:29:40.57 seq=2/Ic/17,2/V/11,2/g/11,2/r/7,2/i/11,2/z/35
+OBJECT XZ_Gru 22:47:34.68 -39:03:33.00 seq=2/Ic/7,2/V/4,2/g/4,2/r/3.5,2/i/5,2/z/17
+OBJECT AO_Tuc 00:04:06.34 -59:29:06.15 seq=2/Ic/10,2/V/6,2/g/6,2/r/4,2/i/6,2/z/22
+OBJECT UU_Cet 00:04:05.12 -16:59:51.54 seq=2/Ic/20,2/V/14,2/g/14,2/r/8,2/i/13,2/z/41
+OBJECT DN_Aqr 23:19:17.20 -24:12:58.82 seq=2/Ic/11,2/V/7,2/g/7,2/r/4,2/i/7,2/z/24
+OBJECT ST_Pic 06:14:01.16 -61:28:23.52 seq=2/Ic/3.2,2/V/1.7,2/g/1.7,2/r/1.4,2/i/2.0,2/z/7 comment="exp not verified"
+OBJECT HD_290025 05:11:18.08 -1:31:32.45 seq=2/Ic/19,2/V/13,2/g/13,2/r/8,2/i/13,2/z/39
+OBJECT ST_Pup 06:48:56.41 -37:16:33.33 seq=2/Ic/5,2/V/3.1,2/g/3.1,2/r/2.4,2/i/3.5,2/z/12 comment="exp not verified"
+OBJECT HD_270239 05:51:21.74 -68:12:44.05 seq=2/Ic/19,2/V/13,2/g/13,2/r/8,2/i/12,2/z/39
+OBJECT U_Lep 04:56:17.98 -21:13:02.02 seq=2/Ic/6,2/V/4,2/g/4,2/r/3.0,2/i/4,2/z/15
+OBJECT RY_Col 05:15:07.78 -41:37:41.67 seq=2/Ic/6,2/V/3.5,2/g/3.4,2/r/2.6,2/i/3.9,2/z/13
+OBJECT W_Tuc 00:58:09.70 -63:23:44.36 seq=2/Ic/11,2/V/7,2/g/7,2/r/4,2/i/7,2/z/24 comment="exp not verified"
+OBJECT HH_Pup 07:20:35.55 -46:42:30.09 seq=2/Ic/13,2/V/8,2/g/8,2/r/5,2/i/8,2/z/28 comment="exp not verified"
+OBJECT V606_Pup 07:28:44.79 -44:28:16.74 seq=2/Ic/11,2/V/7,2/g/7,2/r/5,2/i/7,2/z/24 comment="exp not verified"
+OBJECT VZ_Tau 05:05:14.25 +21:45:48.91 seq=2/Ic/41,2/V/31,2/g/32,2/r/17,2/i/27,2/z/77 comment="exp not verified"
+OBJECT RX_For 03:11:13.22 -26:28:58.69 seq=2/Ic/20,2/V/14,2/g/14,2/r/8,2/i/13,2/z/41
+OBJECT V913_Mon 06:45:33.73 07:48:58.64 seq=2/Ic/66,2/V/53,2/g/55,2/r/27,2/i/44,2/z/115
+OBJECT KZ_Pup 07:52:36.51 -17:23:00.72 seq=2/Ic/23,2/V/16,2/g/16,2/r/10,2/i/15,2/z/46
+OBJECT BD+15_477 03:23:37.20 15:40:04.42 seq=2/Ic/3.4,2/V/1.8,2/g/1.7,2/r/1.5,2/i/2.1,2/z/8
+OBJECT CO_Pup 08:26:11.95 -30:17:08.33 seq=2/Ic/8,2/V/4,2/g/4,2/r/3.5,2/i/5,2/z/18 comment="exp not verified"
+OBJECT V594_Pup 08:26:04.23 -30:06:41.05 seq=2/Ic/11,2/V/7,2/g/7,2/r/4,2/i/7,2/z/24
+OBJECT U_Pic 04:50:06.62 -50:39:25.23 seq=2/Ic/11,2/V/7,2/g/7,2/r/5,2/i/7,2/z/25
+OBJECT XZ_Cet 02:00:16.6337784768 -16:20:46.035996360 seq=2/Ic/2.7,2/V/1.4,2/g/1.4,2/r/1.2,2/i/1.7,2/z/6 comment="first overtone"
+OBJECT SV_Scl 01:44:59.66 -30:03:33.39 seq=2/Ic/15,2/V/10,2/g/10,2/r/6,2/i/10,2/z/32
+OBJECT RS_Pic 04:42:03.27 -51:33:35.33 seq=2/Ic/20,2/V/13,2/g/14,2/r/8,2/i/13,2/z/40
+OBJECT SX_For 03:30:22.34 -36:03:13.50 seq=2/Ic/9,2/V/5,2/g/5,2/r/4,2/i/5,2/z/20
+OBJECT DD_Vel 09:12:09.63 -50:22:33.61 seq=2/Ic/35,2/V/26,2/g/26,2/r/15,2/i/23,2/z/66 comment="exp not verified"
+OBJECT DH_Hya 09:00:14.82 -09:46:44.29 seq=2/Ic/20,2/V/13,2/g/13,2/r/8,2/i/13,2/z/40 comment="exp not verified"
+OBJECT CY_Vel 09:08:24.14 -53:29:40.53 seq=2/Ic/36,2/V/26,2/g/27,2/r/15,2/i/23,2/z/67
+OBJECT CD_Vel 09:44:38.24 -45:52:37.11 seq=2/Ic/22,2/V/15,2/g/15,2/r/9,2/i/14,2/z/43 comment="exp not verified"
+OBJECT SW_Tau 04:24:32.97 +04:07:24.08 seq=2/Ic/3.4,2/V/1.8,2/g/1.7,2/r/1.5,2/i/2.1,2/z/8
+OBJECT CS_Eri 02:37:05.75 -42:57:48.03 seq=2/Ic/2.7,2/V/1.4,2/g/1.3,2/r/1.2,2/i/1.7,2/z/6 comment="RRc"
+OBJECT SZ_Gem 07:53:43.45 +19:16:23.92 seq=2/Ic/23,2/V/16,2/g/16,2/r/9,2/i/15,2/z/45 comment="exp not verified"
+OBJECT U_Pic 04:50:06.63 -50:39:25.24 seq=2/Ic/10,2/V/6,2/g/6,2/r/4,2/i/7,2/z/23
+OBJECT RU_Sex 09:45:40.74 -06:43:59.84 seq=2/Ic/7,2/V/4,2/g/4,2/r/3.5,2/i/5,2/z/17 comment="RRc, exp not verified"
+OBJECT WY_Ant 10:16:04.94 -29:43:42.41 seq=2/Ic/8,2/V/5,2/g/5,2/r/3.7,2/i/5,2/z/18 comment="exp not verified"
+OBJECT ASAS_J031408-3446.4 03:14:08.31 -34:46:22.44 seq=2/Ic/19,2/V/13,2/g/13,2/r/8,2/i/12,2/z/39
+OBJECT BB_Lep 05:42:30.17 -16:22:54.57 seq=2/Ic/18,2/V/12,2/g/12,2/r/7,2/i/11,2/z/36
+OBJECT T_Sex 09:53:28.39 +02:03:26.34 seq=2/Ic/5,2/V/2.9,2/g/2.9,2/r/2.2,2/i/3.3,2/z/12 comment="RRc, exp not verified"
+OBJECT HQ_Car 10:20:31.98 -61:14:57.41 seq=2/Ic/30,2/V/22,2/g/22,2/r/12,2/i/19,2/z/57 comment="exp not verified"
+OBJECT V338_Pup 06:34:55.4671595208 -45:18:30.177902916 seq=2/Ic/2.7,2/V/1.4,2/g/1.4,2/r/1.2,2/i/1.7,2/z/6 comment="acep or rrlyr, binary"
+OBJECT VY_Pyx 08:54:29.63 -23:31:18.57 seq=1/Ic/1,1/V/1,1/g/1,1/r/1,1/i/1,1/z/2 comment="exp not verified"
+STOP
+STOP
+STOP

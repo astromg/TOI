@@ -1987,13 +1987,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.control_e.setText(txt)
         if self.acces:
             self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(0,150,0);")
-            self.msg(f"INFO: user {txt} have controll","green")
+            self.msg(f"TELEMETRY: user {txt} have controll","green")
         elif  self.user.current_user["name"]==self.myself:
             self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150,0,0);")
-            self.msg(f"INFO: user {txt} DON'T have controll","yellow")
+            self.msg(f"TELEMETRY: user {txt} DON'T have controll","yellow")
         else:
             self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-            self.msg(f"INFO: user {txt} have controll","black")
+            self.msg(f"TELEMETRY: user {txt} have controll","black")
 
 # ############ INNE ##############################3
     def ephem_update(self,tmp):
