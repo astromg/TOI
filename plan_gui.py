@@ -113,7 +113,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                           seq = self.plan[i]["seq"]
                           for x_seq in seq.split(","):
                               if "a" not in x_seq:
-                                  slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(self.parent.overhed)))
+                                #   slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(self.parent.overhed)))
+                                  slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) ))
                           ob_time = ob_time + ephem.second * slotTime
 
 
