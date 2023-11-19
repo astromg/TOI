@@ -44,3 +44,4 @@
   M75       20:06:04.7  -21:55:16.2     # globular cluster
   M72       20:53:27.8  -12:32:13.7     # Focus field, globular cluster
   M30       21:40:22.1  -23:10:47.5     # Focus field poor, globular cluster
+  NGC288    00:52:45.2  -26:34:57.4	    # Focus field
