@@ -2,6 +2,22 @@
 
 import ephem
 import numpy
+import time
+
+from PyQt5.QtCore import QThread,pyqtSignal
+class Worker(QThread):
+    finished = pyqtSignal()
+    def __init__(self,ccd):
+        super().__init__()
+        self.ccd = ccd
+    def run(self):
+        print("IDE CZY NIE IDE!!!!!!!!!!!!!")
+        self.image = self.ccd.imagearray
+        if self.image:
+            self.image = numpy.asarray(self.image)
+            self.image = self.image.astype(numpy.uint16)
+            print("DUPA!!! ", numpy.mean(self.image))
+            self.finished.emit()
 
 def readCatalog(plik):
     l = []

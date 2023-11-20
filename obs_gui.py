@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import math
+import os.path
+
 import numpy
 
 import qasync as qs
@@ -173,7 +175,23 @@ class MainForm(QWidget):
         self.msg_e.setTextColor(c)
         ut = str(self.parent.ut).split()[1].split(":")[0] + ":" + str(self.parent.ut).split()[1].split(":")[1]
         txt = ut + " " + txt
-        self.msg_e.append(txt)
+        if txt.split()[1] != "TELEMETRY:":
+            self.msg_e.append(txt)
+
+        # LOG dzialan
+        if os.path.exists(self.parent.msg_log_file):
+            pass
+        else:
+            with open(self.parent.msg_log_file,"w") as log_file:
+                log_file.write("")
+        with open(self.parent.msg_log_file,"r") as log_file:
+            tmp = log_file.read().splitlines()
+            log = "\n".join(tmp[-1*int(self.parent.msg_log_lines):])
+
+        with open(self.parent.msg_log_file,"w") as log_file:
+            log = log + "\n" + txt + "\n"
+            log_file.write(log)
+
 
     # =================== OKNO GLOWNE ====================================
     def mkUI(self):
