@@ -56,14 +56,18 @@ import requests
 #quest="http://192.168.7.110:11111/api/v1/camera/1/exposuremax"
 #quest="http://192.168.7.110:11111/api/v1/camera/1/fullwellcapacity"
 #quest="http://192.168.7.110:11111/api/v1/camera/1/pixelsizey"
-quest="http://192.168.7.110:11111/api/v1/camera/1/readoutmodes"
+#quest="http://192.168.7.110:11111/api/v1/camera/1/readoutmodes"
 
-r=requests.get(quest)
+quest="http://192.168.7.110:11111/api/v1/telescope/0/pulseguide"
+data={"Direction":"0","Duration":"1000"}
+
+
+#r=requests.get(quest)
 
 # data={"Command":"MotStat","Raw":"True"}
 # quest="http://192.168.7.110:11111/api/v1/telescope/0/commandstring"
 
-# r=requests.put(quest,data=data)
+r=requests.put(quest,data=data)
 
 r=r.json()
 print(f"ALPACA: {quest}\n {r}\n")

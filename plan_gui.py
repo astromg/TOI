@@ -578,6 +578,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=w+8
           self.import_p = QPushButton('\u2B05 Import to MANUAL')
           self.plotPlan_p = QPushButton('Plot Plan')
+          self.plotPlan_p.setStyleSheet("color: gray;")
           self.grid.addWidget(self.import_p, w, 0,1,3)
           self.grid.addWidget(self.plotPlan_p, w, 4, 1, 1)
 
