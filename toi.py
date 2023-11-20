@@ -14,6 +14,8 @@ import time
 import pwd
 import os
 
+import pyaraucaria
+
 from PyQt5 import QtWidgets, QtCore
 import sys
 import qasync as qs
@@ -21,6 +23,7 @@ import qasync as qs
 import paho.mqtt.client as mqtt
 
 from ocaboxapi import ClientAPI, Observatory
+from ob.planrunner.cycle_time_calc.cycle_time_calc import CycleTimeCalc
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 
 from obs_gui import ObsGui
@@ -288,7 +291,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.rotator = self.telescope.get_rotator()
         self.cctv = self.telescope.get_cctv()
         self.planrunner = self.telescope.get_observation_plan()
-
 
         self.planrunner.add_info_callback('exec_json', self.PlanRun1)
         #self.planrunner.add_info_callback('c_sequences', self.TestCall)
@@ -1307,7 +1309,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             except: pass
 
     async def ccd_rm_update(self, event):
-        self.ccd_readoutmode = await  self.ccd.aget_readoutmode()
+        self.ccd_readoutmode = await self.ccd.aget_readoutmode()
         # READ MODES
 
         if self.ccd_readoutmode != None:
