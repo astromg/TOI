@@ -282,7 +282,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         self.ephemeris = self.observatory_model.get_ephemeris()
-        #self.add_background_task(self.ephemeris.asubscribe_utc(self.test1))
+        self.add_background_task(self.ephemeris.asubscribe_utc(self.test1))
 
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
 
