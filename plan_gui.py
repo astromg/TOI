@@ -6,10 +6,17 @@
 #----------------
 
 import uuid
+
+import ephem
 import qasync as qs
 from qasync import QEventLoop
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar)
+
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+import matplotlib
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 
@@ -41,6 +48,14 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.updateUI()
           self.update_table()
+
+      def plot_plan(self):
+         if len(self.plan)>self.i:
+            self.plot_window=PlotWindow(self)
+            self.plot_window.show()
+            self.plot_window.raise_()
+         else: print("no plan loaded") # ERROR MSG
+
 
       def pocisniecie_edit(self):
          if len(self.plan)>self.i:
@@ -113,7 +128,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                           seq = self.plan[i]["seq"]
                           for x_seq in seq.split(","):
                               if "a" not in x_seq:
-                                  slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(self.parent.overhed)))
+                                #   slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(self.parent.overhed)))
+                                  slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) ))
                           ob_time = ob_time + ephem.second * slotTime
 
 
@@ -257,6 +273,13 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
       def import_to_manuall(self):                  # uzupelnia nazwe i wspolrzedne w oknie manual
+
+          if self.plan[self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
+          elif self.plan[self.i]["type"] == "ZERO": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
+          elif self.plan[self.i]["type"] == "DARK": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(2)
+          elif self.plan[self.i]["type"] == "SKYFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(3)
+          elif self.plan[self.i]["type"] == "DOMEFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(4)
+
           if "type" in self.plan[self.i].keys():
               if self.plan[self.i]["type"] in ["OBJECT","DARK","ZERO","SKYFLAT","DOMEFLAT"]:
                   if "ra" in self.plan[self.i].keys() and "dec" in self.plan[self.i].keys():
@@ -274,11 +297,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       self.parent.instGui.ccd_tab.inst_Seq_e.setText(self.plan[self.i]["seq"])
                   if self.plan[self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
 
-          if self.plan[self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
-          elif self.plan[self.i]["type"] == "ZERO": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
-          elif self.plan[self.i]["type"] == "DARK": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(2)
-          elif self.plan[self.i]["type"] == "SKYFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(3)
-          elif self.plan[self.i]["type"] == "DOMEFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(4)
 
 
       def setStop(self):
@@ -415,7 +433,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           # ob["wait","wait_ut","wait_sunset","wait_sunrise"]
           # [meta_alt,meta_az,meta_plan_ut,meta_plan_alt,meta_plan_az,skip]
 
-
+          if self.parent.active_tel == None:
+              self.parent.WarningWindow("WARNING: Ok, but first select the telescope!")
+              return
           self.File_dialog = QFileDialog()
           self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
 
@@ -558,7 +578,10 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           
           w=w+8
           self.import_p = QPushButton('\u2B05 Import to MANUAL')
+          self.plotPlan_p = QPushButton('Plot Plan')
+          self.plotPlan_p.setStyleSheet("color: gray;")
           self.grid.addWidget(self.import_p, w, 0,1,3)
+          self.grid.addWidget(self.plotPlan_p, w, 4, 1, 1)
 
           w=w+1
           self.line_l=QFrame()
@@ -644,6 +667,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.plan_t.horizontalHeader().sectionClicked.connect(self.pocisniecie_headera)
 
           self.import_p.clicked.connect(self.import_to_manuall)
+          self.plotPlan_p.clicked.connect(self.plot_plan)
           self.next_p.clicked.connect(self.setNext)
           self.stopHere_p.clicked.connect(self.setStop)
           self.skip_p.clicked.connect(self.setSkip)
@@ -667,6 +691,138 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
       async def closeEvent(self, event):
           await self.stop_background_tasks()
           super().closeEvent(event)
+
+
+# #############################################
+# ######### OKNO WYKRESU (PLOT PLAN) ##########
+# #############################################
+
+class PlotWindow(QWidget):
+    def __init__(self, parent):
+        super(PlotWindow, self).__init__()
+        self.parent = parent
+        self.setStyleSheet("font-size: 11pt;")
+        self.setMinimumSize(800,500)
+        #self.setGeometry(100,100,400,100)
+        self.mkUI()
+        self.refresh()
+        self.close_p.clicked.connect(lambda: self.close())
+
+    def refresh(self):
+
+
+        self.oca = ephem.Observer()
+        self.oca.date = ephem.now()
+        self.oca.lat = self.parent.parent.observatory[0]
+        self.oca.lon = self.parent.parent.observatory[1]
+        self.oca.elevation = float(self.parent.parent.observatory[2])
+        self.t_now = ephem.now()
+
+        # liczenie wschodu slonca i zachodu
+        self.oca.horizon = "0"
+        t1 = self.oca.next_setting(ephem.Sun(),use_center=True) - ephem.now()
+        t2 = self.oca.next_rising(ephem.Sun(), use_center=True) - ephem.now()
+        if t1 < t2 :
+            self.t0 = self.oca.next_setting(ephem.Sun(),use_center=True)
+        else:
+            self.t0 = self.oca.previous_setting(ephem.Sun(),use_center=True)
+        self.oca.date = self.t0
+        self.t_end = self.oca.next_rising(ephem.Sun(),use_center=True)
+
+        # liczenie zmierzchu
+        self.oca.horizon = "-18"
+        self.t0_dusk = self.oca.next_setting(ephem.Sun(),use_center=True)
+        self.t_end_dusk = self.oca.next_rising(ephem.Sun(),use_center=True)
+
+        self.axes.fill_betweenx([0,90],self.t0,self.t0_dusk,color="yellow",alpha=0.1)
+        self.axes.fill_betweenx([0, 90], self.t_end_dusk, self.t_end, color="yellow", alpha=0.1)
+        self.axes.axvline(x=self.t_now,color="red")
+
+        if len(self.parent.plan)>0:
+            if self.t_now > self.t0:
+                self.t = self.t_now
+            else:
+                self.t = self.t0
+            for i, tmp in enumerate(self.parent.plan):
+                tmp_ok = False
+                if self.parent.current_i > -1 and i >= self.parent.current_i: tmp_ok = True
+                if i >= self.parent.next_i: tmp_ok = True
+                if tmp_ok:
+                    if "wait" in self.parent.plan[i].keys():
+                        slotTime = float(self.parent.plan[i]["wait"])
+                        self.axes.fill_betweenx([40, 80], self.t, self.t+ephem.second*slotTime, color="blue", alpha=0.1)
+                        self.t = self.t + ephem.second * slotTime
+
+
+                    if "seq" in self.parent.plan[i].keys():
+                        slotTime = 0
+                        seq = self.parent.plan[i]["seq"]
+                        for x_seq in seq.split(","):
+                            if "a" not in x_seq:
+                                slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(self.parent.parent.overhed)))
+                        if "ra" in self.parent.plan[i].keys():
+                            ra = self.parent.plan[i]["ra"]
+                            dec = self.parent.plan[i]["dec"]
+                            t_tab = []
+                            alt_tab = []
+                            t = self.t
+                            while t <= self.t + ephem.second * slotTime:
+                                az, alt = RaDec2AltAz(self.parent.parent.observatory, t, ra, dec)
+                                t_tab.append(t)
+                                alt_tab.append(arcDeg2float(str(alt)))
+                                t = t + 10*ephem.second
+                            print(alt_tab,t_tab)
+                            self.axes.plot(t_tab,alt_tab)
+                        self.t = self.t + ephem.second * slotTime
+
+            self.axes.set_ylim(0, 90)
+            self.axes.set_xlim(self.t0-ephem.hour,self.t_end+ephem.hour)
+            self.axes.fill_betweenx([0, 40], self.t0_dusk, self.t_end_dusk, color="grey", alpha=0.1)
+            self.axes.fill_betweenx([80, 90], self.t0_dusk, self.t_end_dusk, color="grey", alpha=0.1)
+
+
+
+            #    if "wait_ut" in self.parent.plan[i].keys():
+            #        pass
+            #         if ob_time < ephem.Date(ob_date + " " + self.plan[i]["wait_ut"]):
+            #             ob_time = ephem.Date(ob_date + " " + self.plan[i]["wait_ut"])
+            #     self.plan[i]["meta_plan_ut"] = str(ephem.Date(ob_time))
+
+            #     if self.plan[i]["uid"] in self.done:
+            #         ob_time = ob_time
+            #    else:
+
+
+
+
+            print(self.t_now)
+            print(self.t0)
+            print(self.t0_dusk)
+            print(self.t_end_dusk)
+            print(self.t_end)
+
+    def mkUI(self):
+        grid = QGridLayout()
+        self.fig = Figure((1.0, 1.0), linewidth=-1, dpi=100)
+        self.canvas = FigureCanvas(self.fig)
+        self.axes = self.fig.add_axes([0, 0, 1, 1])
+        #self.axes.axis("off")
+        grid.addWidget(self.canvas,0,0,1,2)
+
+        self.toolbar = NavigationToolbar(self.canvas,self)
+        grid.addWidget(self.toolbar, 1, 0, 1, 2)
+
+        self.close_p = QPushButton('Close')
+        grid.addWidget(self.close_p, 2, 1)
+
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 0)
+        grid.setRowStretch(0, 1)
+        grid.setRowStretch(1, 0)
+        grid.setRowStretch(2, 0)
+
+        self.setLayout(grid)
+
 
 
 # #############################################
