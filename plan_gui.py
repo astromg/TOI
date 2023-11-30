@@ -18,6 +18,10 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib
 
+from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
+
+from ob.planrunner.cycle_time_calc.cycle_time_calc import CycleTimeCalc
+
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 
 from toi_lib import *
@@ -82,9 +86,30 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
       def update_plan(self):                                     # przelicza czasu planow, etc.
+
+          self.ctc = CycleTimeCalc(self.parent.telescope.id)   # telescope time calculator
+          self.ctc.set_start_rmode(self.parent.ccd_readoutmode)
+          #self.ctc.set_telescope_start_az_alt()
+          #self.ctc.set_start_time()
+          #self.ctc.set_alt_limit(15)
+          #self.ctc.set_skipping(True)
+          #print(self.parent.telescope.id,self.parent.ccd_readoutmode)
+
+
+          #print(self.ctc.calc_time({'command_name': 'OBJECT', 'args': ['FF_Aql'], 'kwargs': {'seq': '2/Ic/60,2/V/70'}}))
+          #print(self.ctc.calc_time({'command_name': 'OBJECT', 'args': ['FF_Aql'], 'kwargs': {'seq': '2/Ic/60,2/V/70'}}))
+          #print("CTC: ", self.ctc.time_lenght_sec)
+          #print("CTC: ", self.ctc.finnish_time_utc)
+
           self.check_next_i()
           ob_date = str(ephem.Date(ephem.now())).split()[0]
           for i, tmp in enumerate(self.plan):
+              ob = ObsPlanParser.convert_from_string(self.plan[i]["block"])
+              print(self.ctc.calc_time(ob["subcommands"][0]))
+              print(self.ctc.time_list)
+              #print("CTC: ", self.ctc.time_lenght_sec)
+              #print("CTC: ", self.ctc.finnish_time_utc)
+
 
               if i == self.next_i or i == self.current_i:
                   ob_time = ephem.now()
