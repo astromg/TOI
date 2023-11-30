@@ -105,8 +105,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           ob_date = str(ephem.Date(ephem.now())).split()[0]
           for i, tmp in enumerate(self.plan):
               ob = ObsPlanParser.convert_from_string(self.plan[i]["block"])
-              print(self.ctc.calc_time(ob["subcommands"][0]))
-              print(self.ctc.time_list)
+              #print(self.ctc.calc_time(ob["subcommands"][0]))
+              #print(self.ctc.time_list)
               #print("CTC: ", self.ctc.time_lenght_sec)
               #print("CTC: ", self.ctc.finnish_time_utc)
 
@@ -796,7 +796,7 @@ class PlotWindow(QWidget):
                                 t_tab.append(t)
                                 alt_tab.append(arcDeg2float(str(alt)))
                                 t = t + 10*ephem.second
-                            print(alt_tab,t_tab)
+                            #print(alt_tab,t_tab)
                             self.axes.plot(t_tab,alt_tab)
                         self.t = self.t + ephem.second * slotTime
 

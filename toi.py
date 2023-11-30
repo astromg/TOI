@@ -55,13 +55,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         host = socket.gethostname()
         user = pwd.getpwuid(os.getuid())[0]
+
+
         self.myself=f'{user}@{host}'
         self.observatory = ["-24:35:24","-70:11:47","2800"]
 
         self.observatory_model = Observatory()
         self.observatory_model.connect(client_api)
 
-        self.msg_log_file = "./Logs/msg_log.txt"
+        self.cwd = os.getcwd()
+        self.msg_log_file = self.cwd+"/Logs/msg_log.txt"
         self.msg_log_lines = 1000
 
         # geometry settings
@@ -260,10 +263,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.tmp = 0
         tel=self.obs_tel_tic_names[self.active_tel_i]
         self.active_tel = tel
-        if tel == "zb08": self.cfg_focus_directory = "../../Desktop/fits_zb08/focus/actual"
-        elif tel == "jk15": self.cfg_focus_directory = "../../Desktop/fits_jk15/focus/actual"
-        self.cfg_focus_record_file = "./focus_data.txt"
-        self.catalog_file="./object_catalog.txt"
+        if tel == "zb08": self.cfg_focus_directory = self.cwd+"/../../Desktop/fits_zb08/focus/actual"
+        elif tel == "jk15": self.cfg_focus_directory = self.cwd+"/../../Desktop/fits_jk15/focus/actual"
+        self.cfg_focus_record_file = self.cwd+"/focus_data.txt"
+        self.catalog_file=self.cwd+"/object_catalog.txt"
         self.overhed = 20
 
         #self.dome = self.tel[self.active_tel].dome
@@ -428,6 +431,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def TOItimer(self):
         while True:
             print("* PING")
+
 
             # # testowo guider
             # self.tmp_i = self.tmp_i + 1
