@@ -6,6 +6,7 @@
 #----------------
 
 import uuid
+import time
 
 import ephem
 import qasync as qs
@@ -159,8 +160,16 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
       def update_table(self):
+          t0 = time.time()
+          t1=0
           if len(self.plan)>0:
+
+
+
              self.update_plan()
+
+             t1 = time.time() - t0
+
              self.plan_t.clearContents()
              for i,tmp in enumerate(self.plan):
                  if self.plan_t.rowCount() <= i: self.plan_t.insertRow(i)
@@ -297,9 +306,12 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
           #self.plan_t.setColumnWidth(0,30)
+          t2 = time.time() - t0
           self.plan_t.resizeColumnsToContents()
           self.plan_t.horizontalHeader().setStretchLastSection(True)
           self.parent.obsGui.main_form.skyView.updateRadar()
+          t3 = time.time() - t0
+          print("time: ",t1,t2,t3)
 
 
       def setNext(self):
