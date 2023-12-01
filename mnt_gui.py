@@ -362,18 +362,9 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeConn2_l.setText("\U0001F534")
         self.domeConn1_l.setStyleSheet("color: rgb(150,0,0);")
 
-        self.domeStat_l = QLabel("DOME STATUS: ")
         self.domeStat_e = QLineEdit()
         self.domeStat_e.setReadOnly(True)
         self.domeStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-
-        w = w + 1
-        self.grid.addWidget(self.domeConn2_l,w, 0)
-        self.grid.addWidget(self.domeConn1_l,w, 1)
-        self.grid.addWidget(self.domeStat_l, w, 4)
-        self.grid.addWidget(self.domeStat_e, w, 5, 1, 2)
-
-        ##########################################
 
         self.domeAuto_l  = QLabel("FOLLOW:")
         self.domeAuto_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
@@ -382,6 +373,17 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeAuto_c.setLayoutDirection(Qt.RightToLeft)
         self.domeAuto_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
         self.domeAuto_c.clicked.connect(self.parent.domeFollow)
+
+        w = w + 1
+        self.grid.addWidget(self.domeConn2_l,w, 0)
+        self.grid.addWidget(self.domeConn1_l,w, 1)
+        self.grid.addWidget(self.domeStat_e, w, 2, 1, 2)
+        self.grid.addWidget(self.domeAuto_l, w, 6)
+        self.grid.addWidget(self.domeAuto_c, w, 7)
+
+        ##########################################
+
+
 
         self.domeAz_l = QLabel("DOME AZ: ")
         self.domeAz_e = QLineEdit()
@@ -403,8 +405,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.domeNextAz_e, w, 3)
         self.grid.addWidget(self.domeStop_p, w, 4)
         self.grid.addWidget(self.domeSet_p, w, 5)
-        self.grid.addWidget(self.domeAuto_l, w, 6)
-        self.grid.addWidget(self.domeAuto_c, w, 7)
+
 
         #############################
 

@@ -13,10 +13,12 @@ import json
 import time
 import pwd
 import os
+import subprocess
 
 import pyaraucaria
 
 from PyQt5 import QtWidgets, QtCore
+
 import sys
 import qasync as qs
 
@@ -64,7 +66,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.observatory_model.connect(client_api)
 
         self.cwd = os.getcwd()
-        self.msg_log_file = self.cwd+"/Logs/msg_log.txt"
+        self.script_location = os.path.dirname(os.path.abspath(__file__))
+        self.msg_log_file = self.script_location+"/Logs/msg_log.txt"
         self.msg_log_lines = 1000
 
         # geometry settings
@@ -260,13 +263,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def teleskop_switched(self):
+        #print("go")
+        #subprocess.run(["aplay", self.script_location+"/sounds/spceflow.wav"])
+        #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
+        #print("done")
         self.tmp = 0
         tel=self.obs_tel_tic_names[self.active_tel_i]
         self.active_tel = tel
-        if tel == "zb08": self.cfg_focus_directory = self.cwd+"/../../Desktop/fits_zb08/focus/actual"
-        elif tel == "jk15": self.cfg_focus_directory = self.cwd+"/../../Desktop/fits_jk15/focus/actual"
-        self.cfg_focus_record_file = self.cwd+"/focus_data.txt"
-        self.catalog_file=self.cwd+"/object_catalog.txt"
+        if tel == "zb08": self.cfg_focus_directory = self.script_location+"/../../Desktop/fits_zb08/focus/actual"
+        elif tel == "jk15": self.cfg_focus_directory = self.script_location+"/../../Desktop/fits_jk15/focus/actual"
+        self.cfg_focus_record_file = self.script_location+"/focus_data.txt"
+        self.catalog_file=self.script_location+"/object_catalog.txt"
         self.overhed = 20
 
         #self.dome = self.tel[self.active_tel].dome
@@ -384,6 +391,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def force_update(self):
+        #print('\a')
         #print("====== UPDATE START ======")
         self.msg("REQUEST: UPDATE START","yellow")
         #mount_conn = await self.telescope.is_telescope_alpaca_server_available()
@@ -430,6 +438,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def TOItimer(self):
         while True:
+            await asyncio.sleep(1)
             print("* PING")
 
 
@@ -506,6 +515,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.force_update()
                     print(f"================== LOST {self.ephem_utc-self.ephem_prev_utc} ")
             self.ephem_prev_utc = self.ephem_utc
+
+            #continue
 
             # sprawdzenie czy jest nowy fits do wyswietlenia
             if self.flag_newimage:    # sprawdza tylko jak jest imageready
@@ -684,7 +695,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             else:
                 self.instGui.tab.setTabText(0,"\U0001F534 CCD")
 
-            await asyncio.sleep(1)
+
 
     # ############ PLAN RUNNER CALLBACK ##########################
 
@@ -851,6 +862,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         if self.ob["type"] == "STOP":
                             self.ob["done"]=False
                             self.ob["run"]=False
+                            self.planGui.current_i = -1
+
+                        if self.ob["type"] == "BELL":
+                            subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
+                            self.ob["done"]=True
+                            self.ob["run"]=True
                             self.planGui.current_i = -1
 
 

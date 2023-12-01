@@ -1,5 +1,7 @@
 
 WAIT wait=5
+BELL
+STOP
 ZERO seq=15/Ic/0
 DARK seq=5/Ic/600
 

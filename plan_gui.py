@@ -87,8 +87,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
       def update_plan(self):                                     # przelicza czasu planow, etc.
 
-          self.ctc = CycleTimeCalc(self.parent.telescope.id)   # telescope time calculator
-          self.ctc.set_start_rmode(self.parent.ccd_readoutmode)
+          #self.ctc = CycleTimeCalc(self.parent.telescope.id)   # telescope time calculator
+          #self.ctc.set_start_rmode(self.parent.ccd_readoutmode)
           #self.ctc.set_telescope_start_az_alt()
           #self.ctc.set_start_time()
           #self.ctc.set_alt_limit(15)
@@ -219,6 +219,16 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        txt.setFont(font)
                        txt.setTextAlignment(QtCore.Qt.AlignCenter)
                        txt.setForeground(QtGui.QColor("red"))
+                       self.plan_t.setItem(i,0,txt)
+
+                 if "type" in self.plan[i].keys():     # stop
+                    if self.plan[i]["type"]=="BELL":
+                       font=QtGui.QFont()
+                       font.setPointSize(20)
+                       txt=QTableWidgetItem("\U0001F50A")
+                       txt.setFont(font)
+                       txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                       #txt.setForeground(QtGui.QColor("red"))
                        self.plan_t.setItem(i,0,txt)
 
                  if i==self.current_i:          # aktualnie robiony
@@ -484,6 +494,13 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                    ob["type"]="STOP"
                                    ob["block"]=line
                                    self.plan.append(ob)
+
+                               elif "BELL" in line:
+                                   ob = {"name":"BELL"}
+                                   ob["type"]="BELL"
+                                   ob["block"]=line
+                                   self.plan.append(ob)
+
 
                                elif "WAIT" in line:
                                    ll=line.split()
@@ -911,6 +928,13 @@ class EditWindow(QWidget):
                  else: txt=txt+"# "+k+"=\n"
 
           if ob["type"]=="STOP":
+             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
+             txt=""
+             for k in local_keys:
+                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
+                 else: txt=txt+"# "+k+"=\n"
+
+          if ob["type"]=="BELL":
              local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
              txt=""
              for k in local_keys:

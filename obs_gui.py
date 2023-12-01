@@ -554,23 +554,10 @@ class SkyView(QWidget):
         # self.axes.set_theta_zero_location('N')
 
         hbox1 = QHBoxLayout()
-        hbox2 = QHBoxLayout()
-
-        self.snap_c = QCheckBox("Snap to objects")
-        self.snap_c.setChecked(True)
-
-        self.setNext_p = QPushButton('Set Next')
-        self.setNext_p.clicked.connect(self.SetNext)
-
-        hbox1.addWidget(self.snap_c)
-        hbox1.addWidget(self.setNext_p)
-
-        hbox2.addWidget(self.canvas)
+        hbox1.addWidget(self.canvas)
 
         self.vbox = QVBoxLayout()
         self.vbox.addLayout(hbox1)
-        self.vbox.addLayout(hbox2)
-        self.vbox.setSpacing(10)
         self.setLayout(self.vbox)
 
         # self.canvas.mpl_connect('button_press_event', self.zaznaczenie)
@@ -586,20 +573,13 @@ class SkyView(QWidget):
 
     #  ============ Klikanie w punkciki ==========================
 
-    def SetNext(self):
-        if self.canSetNext == True:
-            self.canSetNext = False
-            self.setNext_p.setStyleSheet("color: black;")
-        else:
-            self.canSetNext = True
-            self.setNext_p.setStyleSheet("color: blue;")
-
     def zaznaczenie(self, event):
         if event.xdata != None:
             az = 360. * (float(event.xdata) / (2 * 3.14))
             if az < 0: az = az + 360.
             alt = 90 - float(event.ydata)
-            if self.snap_c.isChecked():
+
+            if event.button == 1:
                 ii = 0
                 if len(self.plan) > 0:
                     przetrzymywacz = 1000.
@@ -614,19 +594,13 @@ class SkyView(QWidget):
                                 ii = i
                                 przetrzymywacz = delta
                     self.parent.planGui.i = ii
-                    if self.canSetNext:
-                        self.parent.planGui.next_i = ii
-                        self.canSetNext = False
-                        self.setNext_p.setStyleSheet("color: black;")
                     self.parent.planGui.update_table()
 
 
-            else:
-                if self.canSetNext:
+            elif event.button == 3:
+                if True:
                     self.parent.mntGui.setAltAz_r.setChecked(True)
                     self.parent.mntGui.nextAlt_e.setText(f"{alt:.3f}")
                     self.parent.mntGui.nextAz_e.setText(f"{az:.3f}")
-                    self.canSetNext = False
-                    self.setNext_p.setStyleSheet("color: black;")
 
             self.updateRadar()
