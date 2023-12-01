@@ -2,8 +2,10 @@
 
 import math
 import os.path
+import time
 
 import numpy
+
 
 import qasync as qs
 from qasync import QEventLoop
@@ -426,27 +428,27 @@ class SkyView(QWidget):
         self.show()
 
     def updateRadar(self):
-
         # ### MOUNT ###
         try:
-            for p in self.mount: p.remove()
-        except:
+            for p in self.mount:
+                p.remove()
+        except Exception as e:
             pass
         color = "r"
-        if self.parent.mount_tracking: color = "g"
-        if self.parent.mount_slewing: color = "orange"
+        if self.parent.mount_tracking:
+            color = "g"
+        if self.parent.mount_slewing:
+            color = "orange"
         if self.parent.mount_alt:
             alt = 90 - self.parent.mount_alt
             az = self.parent.mount_az
             az = az * 2 * 3.14 / 360.
             self.mount = self.axes.plot(az, alt, color = color, marker = "o", markersize = "10", markerfacecolor = "white", alpha = 0.9)
-            self.canvas.draw()
-            self.show()
 
         # ### STARS ###
         try:
             for p in self.stars: p[0].remove()
-        except:
+        except Exception as e:
             pass
         self.stars = []
         self.plan = []
@@ -454,46 +456,57 @@ class SkyView(QWidget):
             self.plan = self.parent.planGui.plan
             self.plan_i = int(self.parent.planGui.i)
             self.plan_next_i = int(self.parent.planGui.next_i)
-        except AttributeError: pass
+        except AttributeError:
+            pass
         if len(self.plan) > 0:
             self.plan_to_show = self.plan
-            n = 0
-            k = 0
-            for star in self.plan_to_show:
-                n = n + 1
-                if n > self.plan_next_i-1:
-                    try:
-                        if k == 0:
-                            alpha = 1
-                        elif k == 1:
-                            alpha = 0.7
-                        elif k == 2:
-                            alpha = 0.5
-                        elif k == 3:
-                            alpha = 0.3
-                        elif k == 4:
-                            alpha = 0.2
-                        else:
-                            alpha = 0.1
-                        az = float(star["meta_az"])
-                        az = az * 2 * 3.14 / 360.
-                        alt = 90 - float(star["meta_alt"])
-                        point = self.axes.plot(az, alt, color="dodgerblue", marker="*", alpha=alpha)
-                        self.stars.append(point)
-                        k = k + 1
-                    except:
-                        pass
+            i = int(self.plan_next_i)-1
+            if i < 0 : i = 0
+            plan = self.plan_to_show[i:]
+            az = [float(d["meta_az"]) for d in plan if "meta_az" in d]
+            az = numpy.array(az)
+            az = az * 2 * 3.14 / 360.
+
+            alt = [float(d["meta_alt"]) for d in plan if "meta_alt" in d]
+            alt = numpy.array(alt)
+            alt = 90 - alt
+
+            points = self.axes.plot(az, alt, color="dodgerblue", marker="*", alpha=0.1, linestyle="None")
+            self.stars.append(points)
+
+            try:
+                points = self.axes.plot(az[0], alt[0], color="dodgerblue", marker="*", alpha=1, linestyle="None")
+                self.stars.append(points)
+            except IndexError:
+                pass
+
+            try:
+                points = self.axes.plot(az[1], alt[1], color="dodgerblue", marker="*", alpha=0.7, linestyle="None")
+                self.stars.append(points)
+            except IndexError:
+                pass
+
+            try:
+                points = self.axes.plot(az[2], alt[2], color="dodgerblue", marker="*", alpha=0.4, linestyle="None")
+                self.stars.append(points)
+            except IndexError:
+                pass
+
+            try:
+                points = self.axes.plot(az[3], alt[3], color="dodgerblue", marker="*", alpha=0.2, linestyle="None")
+                self.stars.append(points)
+            except IndexError:
+                pass
+
             try:
                 star = self.plan_to_show[self.plan_i]
                 az = float(star["meta_az"])
                 az = az * 2 * 3.14 / 360.
                 alt = 90 - float(star["meta_alt"])
-                #point = self.axes.plot(az, alt, color="red", marker="o", markersize="10", markerfacecolor="white",alpha=0.5)
                 point = self.axes.plot(az, alt, color="b", marker="D", markersize = "5", markerfacecolor = "white", alpha = 0.9)
                 self.stars.append(point)
-            except:
+            except Exception as e:
                 pass
-
             self.canvas.draw()
             self.show()
 

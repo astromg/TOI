@@ -227,7 +227,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mqtt_client.message_callback_add(self.mqtt_topic_weather, self.on_weather_message)
             self.mqtt_client.on_connect = self.on_mqtt_connect
             self.mqtt_client.loop_start()
-        except: pass
+        except Exception as e: pass
 
     def on_weather_message(self, client, userdata, message):
         weather = message.payload.decode('utf-8')
@@ -1057,7 +1057,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if exp>-0.0001:
                     ok_exp=True
                     self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
-            except:
+            except Exception as e:
                 ok_exp=False
                 self.msg("WARNING: wrong EXP TIME format","red")
                 self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
@@ -1069,7 +1069,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if ndit>0:
                     ok_ndit=True
                     self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
-            except:
+            except Exception as e:
                 ok_exp=False
                 self.msg("WARNING: wrong N format","red")
                 self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
@@ -1122,7 +1122,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if exp>-0.0001:
                         ok_exp=True
                         self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
-                except:
+                except Exception as e:
                     ok_exp=False
                     self.msg("WARNING: wrong EXP TIME format","red")
                     self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
@@ -1135,7 +1135,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if ndit>0:
                         ok_ndit=True
                         self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
-                except:
+                except Exception as e:
                     ok_exp=False
                     self.msg("WARNING: wrong N format","red")
                     self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
@@ -1327,7 +1327,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if txt == "4x":
                     self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
                 else: self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
-            except: pass
+            except Exception as e: pass
 
     async def ccd_rm_update(self, event):
         self.ccd_readoutmode = await self.ccd.aget_readoutmode()
@@ -1586,7 +1586,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
             self.mntGui.tracking_c.setChecked(False)
         self.mntGui.mntStat_e.setText(txt)
-        self.obsGui.main_form.skyView.updateRadar()
+        self.obsGui.main_form.skyView.updateMount()
         self.msg(f"TELEMETRY: mount {txt}","black")
 
         if self.mount_slewing:
@@ -1611,7 +1611,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if "--" not in str(self.mount_alt) and "--" not in str(self.mount_az) and self.mount_alt != None and self.mount_az != None:
            self.mntGui.mntAlt_e.setText(f"{self.mount_alt:.3f}")
            self.mntGui.mntAz_e.setText(f"{self.mount_az:.3f}")
-           self.obsGui.main_form.skyView.updateRadar()
+           self.obsGui.main_form.skyView.updateMount()
            airmass = calc_airmass(float(self.mount_alt))
            if airmass != None:
                self.mntGui.mntAirmass_e.setText("%.1f" % airmass)
@@ -1998,9 +1998,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.control_e.setText(txt)
         self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         try: await self.user.aput_break_control()
-        except: pass
+        except Exception as e: pass
         try: await self.user.aput_take_control(12*3600)
-        except: pass
+        except Exception as e: pass
         self.msg(txt,"green")
 
     async def user_update(self, event):

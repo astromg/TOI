@@ -105,7 +105,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.check_next_i()
           ob_date = str(ephem.Date(ephem.now())).split()[0]
           for i, tmp in enumerate(self.plan):
-              ob = ObsPlanParser.convert_from_string(self.plan[i]["block"])
+              #ob = ObsPlanParser.convert_from_string(self.plan[i]["block"])
               #print(self.ctc.calc_time(ob["subcommands"][0]))
               #print(self.ctc.time_list)
               #print("CTC: ", self.ctc.time_lenght_sec)
@@ -129,12 +129,15 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
               # liczy planowana wysokosc nad horyzontem
               tmp_ok = False
-              if self.current_i > -1 and i >= self.current_i: tmp_ok = True
-              if i >= self.next_i: tmp_ok = True
+              if self.current_i > -1 and i >= self.current_i:
+                  tmp_ok = True
+              if i >= self.next_i:
+                  tmp_ok = True
               if tmp_ok:
                   if "wait_ut" in self.plan[i].keys():
-                      if ob_time < ephem.Date(ob_date+" "+self.plan[i]["wait_ut"]):
-                          ob_time =  ephem.Date(ob_date+" "+self.plan[i]["wait_ut"])
+                      wait_ut = ephem.Date(ob_date+" "+self.plan[i]["wait_ut"])
+                      if ob_time < wait_ut:
+                          ob_time =  wait_ut
                   self.plan[i]["meta_plan_ut"] = str(ephem.Date(ob_time))
                   if "ra" in self.plan[i].keys():
                       ra = self.plan[i]["ra"]
@@ -149,13 +152,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   if self.plan[i]["uid"] in self.done:
                       ob_time = ob_time
                   else:
-                      if "seq" in self.plan[i].keys():
-                          slotTime = 0
-                          seq = self.plan[i]["seq"]
-                          for x_seq in seq.split(","):
-                              if "a" not in x_seq:
-                                #   slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(self.parent.overhed)))
-                                  slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) ))
+                      slotTime = 0
+                      if "slotTime" in self.plan[i].keys():
+                          slotTime = self.plan[i]["slotTime"]
                           ob_time = ob_time + ephem.second * slotTime
 
 
@@ -171,6 +170,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              t1 = time.time() - t0
 
              self.plan_t.clearContents()
+             self.plan_t.blockSignals(True)
              for i,tmp in enumerate(self.plan):
                  if self.plan_t.rowCount() <= i: self.plan_t.insertRow(i)
 
@@ -294,24 +294,38 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                  self.plan_t.setItem(i,3,txt)
 
-                 if i==self.prev_i:
-                    self.plan_t.item(i,1).setBackground(QtGui.QColor(230, 236, 240))
-                    self.plan_t.item(i,2).setBackground(QtGui.QColor(230, 236, 240))
-                    self.plan_t.item(i, 3).setBackground(QtGui.QColor(230, 236, 240))
-                 if i==self.i:
-                    self.plan_t.item(i,1).setBackground(QtGui.QColor(125, 195, 227))
-                    self.plan_t.item(i,2).setBackground(QtGui.QColor(125, 195, 227))
-                    self.plan_t.item(i, 3).setBackground(QtGui.QColor(125, 195, 227))
 
 
+                 #if i==self.prev_i:
+                    #self.plan_t.item(i,1).setBackground(QtGui.QColor(230, 236, 240))
+                    #self.plan_t.item(i,2).setBackground(QtGui.QColor(230, 236, 240))
+                    #self.plan_t.item(i, 3).setBackground(QtGui.QColor(230, 236, 240))
+                 #if i==self.i:
+                    #self.plan_t.item(i,1).setBackground(QtGui.QColor(125, 195, 227))
+                    #self.plan_t.item(i,2).setBackground(QtGui.QColor(125, 195, 227))
+                    #self.plan_t.item(i, 3).setBackground(QtGui.QColor(125, 195, 227))
+
+
+
+             if self.prev_i > 0:
+                 self.plan_t.item(self.prev_i,1).setBackground(QtGui.QColor(230, 236, 240))
+                 self.plan_t.item(self.prev_i,2).setBackground(QtGui.QColor(230, 236, 240))
+                 self.plan_t.item(self.prev_i, 3).setBackground(QtGui.QColor(230, 236, 240))
+
+             if self.i > 0:
+                 self.plan_t.item(self.i,1).setBackground(QtGui.QColor(125, 195, 227))
+                 self.plan_t.item(self.i,2).setBackground(QtGui.QColor(125, 195, 227))
+                 self.plan_t.item(self.i, 3).setBackground(QtGui.QColor(125, 195, 227))
 
           #self.plan_t.setColumnWidth(0,30)
-          t2 = time.time() - t0
+
           self.plan_t.resizeColumnsToContents()
           self.plan_t.horizontalHeader().setStretchLastSection(True)
+          t2 = time.time() - t0
           self.parent.obsGui.main_form.skyView.updateRadar()
           t3 = time.time() - t0
           print("time: ",t1,t2,t3)
+          self.plan_t.blockSignals(False)
 
 
       def setNext(self):
@@ -413,7 +427,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   self.current_i = self.current_i + 1
                   self.next_i = self.next_i + 1
                   self.check_next_i()
-              self.i=0
+              self.i=self.i+1
+              if self.i+1>len(self.plan): self.i=self.i-1
               self.update_table()
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               self.repaint()
@@ -426,7 +441,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   self.current_i = self.current_i - 1
                   self.next_i = self.next_i - 1
                   self.check_next_i()
-              self.i=len(self.plan)-1
               self.update_table()
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               self.repaint()
@@ -473,6 +487,15 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.i,self.prev_i=self.prev_i,self.i
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               self.repaint()
+
+      def calc_slot_time(self,seq,overhed):
+          slotTime = 0
+          for x_seq in seq.split(","):
+              if "a" not in x_seq:
+                  slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(overhed)))
+          return slotTime
+
+
 
       def loadPlan(self):
 
@@ -538,6 +561,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   ob["block"]=block
                                   ob["type"]=ob_type
                                   ob["seq"]=seq
+                                  ob["slotTime"] = self.calc_slot_time(seq,self.parent.overhed)
                                   self.plan.append(ob)
 
                                elif "SKYFLAT" in line:
@@ -552,6 +576,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   ob["block"]=block
                                   ob["type"]=ob_type
                                   ob["seq"]=seq
+                                  ob["slotTime"] = self.calc_slot_time(seq,self.parent.overhed)
                                   self.plan.append(ob)
 
                                elif "ZERO" in line:
@@ -566,6 +591,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   ob["block"]=block
                                   ob["type"]=ob_type
                                   ob["seq"]=seq
+                                  ob["slotTime"] = self.calc_slot_time(seq,self.parent.overhed)
                                   self.plan.append(ob)
 
                                elif "DARK" in line:
@@ -580,6 +606,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   ob["block"]=block
                                   ob["type"]=ob_type
                                   ob["seq"]=seq
+                                  ob["slotTime"] = self.calc_slot_time(seq,self.parent.overhed)
                                   self.plan.append(ob)
 
                                elif "OBJECT" in line:
@@ -599,6 +626,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   if "seq=" in line:
                                       seq=line.split("seq=")[1].split()[0]
                                       ob["seq"] = seq
+                                      ob["slotTime"] = self.calc_slot_time(seq,self.parent.overhed)
 
                                   if "comment=" in line:
                                       ob["comment"] = line.split("comment=")[1].split("\"")[1]
