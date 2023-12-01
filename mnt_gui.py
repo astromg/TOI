@@ -159,6 +159,12 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.nextDec_e.setStyleSheet("background-color: rgb(233, 233, 233);")
         self.updateNextRaDec()
 
+    def pulse(self):
+        try:
+            self.pulse_window.raise_()
+        except AttributeError:
+            self.pulse_window = PulseWindow(self.parent)
+
     # =================== OKNO GLOWNE ====================================
     def updateUI(self):
 
@@ -337,6 +343,9 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telPark_p = QPushButton('PARK')
         self.telPark_p.clicked.connect(self.parent.park_mount)
 
+        self.telPulse_p = QPushButton('PULSE')
+        self.telPulse_p.clicked.connect(self.pulse)
+
         self.mntStop_p = QPushButton('STOP')
         self.mntStop_p.clicked.connect(self.parent.abort_slew)
 
@@ -345,7 +354,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         w = w + 1
         self.grid.addWidget(self.telPark_p, w, 0,1,2)
-        self.grid.addWidget(self.mntStop_p, w, 3)
+        self.grid.addWidget(self.telPulse_p, w, 2)
+        self.grid.addWidget(self.mntStop_p, w, 4)
         self.grid.addWidget(self.Slew_p, w, 5, 1, 2)
         #################################################
 
@@ -381,30 +391,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.domeAuto_l, w, 6)
         self.grid.addWidget(self.domeAuto_c, w, 7)
 
-        ##########################################
 
-
-
-        self.domeAz_l = QLabel("DOME AZ: ")
-        self.domeAz_e = QLineEdit()
-        self.domeAz_e.setReadOnly(True)
-        self.domeAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-
-        self.domeNextAz_e = QLineEdit()
-        self.domeNextAz_e.textChanged.connect(self.parent.domeAZ_check)
-
-        self.domeStop_p = QPushButton('STOP')
-        self.domeStop_p.clicked.connect(self.parent.dome_stop)
-
-        self.domeSet_p = QPushButton('MOVE')
-        self.domeSet_p.clicked.connect(self.parent.dome_move2Az)
-
-        w = w + 1
-        self.grid.addWidget(self.domeAz_l, w, 0,1,2)
-        self.grid.addWidget(self.domeAz_e, w, 2)
-        self.grid.addWidget(self.domeNextAz_e, w, 3)
-        self.grid.addWidget(self.domeStop_p, w, 4)
-        self.grid.addWidget(self.domeSet_p, w, 5)
 
 
         #############################
@@ -445,7 +432,34 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.domeShutter_e, w, 5,1,2)
         self.grid.addWidget(self.domeShutter_c, w, 7)
 
+        ##########################################
+
+
+
+        self.domeAz_l = QLabel("DOME AZ: ")
+        self.domeAz_e = QLineEdit()
+        self.domeAz_e.setReadOnly(True)
+        self.domeAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
+        self.domeNextAz_e = QLineEdit()
+        self.domeNextAz_e.textChanged.connect(self.parent.domeAZ_check)
+
+        self.domeStop_p = QPushButton('STOP')
+        self.domeStop_p.clicked.connect(self.parent.dome_stop)
+
+        self.domeSet_p = QPushButton('MOVE')
+        self.domeSet_p.clicked.connect(self.parent.dome_move2Az)
+
+        w = w + 1
+        self.grid.addWidget(self.domeAz_l, w, 0,1,2)
+        self.grid.addWidget(self.domeAz_e, w, 2)
+        self.grid.addWidget(self.domeNextAz_e, w, 3)
+        self.grid.addWidget(self.domeStop_p, w, 4)
+        self.grid.addWidget(self.domeSet_p, w, 5,1,2)
+
         ############################################
+
+
 
         self.domeLights_l = QLabel("DOME LIGHTS: ")
         self.domeLights_c = QCheckBox("")
@@ -459,11 +473,25 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeLights_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         self.domeLights_e.setText("--")
 
+        self.flatLights_l = QLabel("FLAT LIGHTS: ")
+        self.flatLights_c = QCheckBox("")
+        self.flatLights_e = QLineEdit()
+        self.flatLights_e.setReadOnly(True)
+        self.flatLights_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.flatLights_e.setText("--")
+        self.flatLights_c.setChecked(False)
+        self.flatLights_c.setLayoutDirection(Qt.LeftToRight)
+        self.flatLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
+        self.flatLights_c.clicked.connect(self.parent.FlatLampOnOff)
+
         w = w + 1
         self.grid.addWidget(self.domeLights_l, w, 0,1,2)
-        self.grid.addWidget(self.domeLights_e, w, 2)
-        self.grid.addWidget(self.domeLights_c, w, 3)
+        #self.grid.addWidget(self.domeLights_e, w, 2)
+        self.grid.addWidget(self.domeLights_c, w, 2)
 
+        self.grid.addWidget(self.flatLights_l, w, 3)
+        #self.grid.addWidget(self.flatLights_e, w, 5)
+        self.grid.addWidget(self.flatLights_c, w, 4)
 
 
         ############################################
@@ -476,16 +504,16 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         ###################### PERYPHERIES ################
 
-        self.flatLights_l = QLabel("FLAT LIGHTS: ")
-        self.flatLights_c = QCheckBox("")
-        self.flatLights_e = QLineEdit()
-        self.flatLights_e.setReadOnly(True)
-        self.flatLights_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.flatLights_e.setText("--")
-        self.flatLights_c.setChecked(False)
-        self.flatLights_c.setLayoutDirection(Qt.LeftToRight)
-        self.flatLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
-        self.flatLights_c.clicked.connect(self.parent.FlatLampOnOff)
+        self.mirrorFans_l = QLabel("MIRROR FANS: ")
+        self.mirrorFans_c = QCheckBox("")
+        self.mirrorFans_e = QLineEdit()
+        self.mirrorFans_e.setReadOnly(True)
+        self.mirrorFans_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.mirrorFans_e.setText("--")
+        self.mirrorFans_c.setChecked(False)
+        self.mirrorFans_c.setLayoutDirection(Qt.LeftToRight)
+        self.mirrorFans_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+
 
         self.telCovers_l = QLabel("MIRROR COVERS: ")
         self.telCovers_e = QLineEdit()
@@ -496,15 +524,11 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telCovers_c.setLayoutDirection(Qt.RightToLeft)
         self.telCovers_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
         self.telCovers_c.clicked.connect(self.parent.covers_openOrClose)
-        #self.openCovers_p=QPushButton("Open")
-        #self.openCovers_p.clicked.connect(self.parent.covers_open)
-        #self.closeCovers_p=QPushButton("Close")
-        #self.closeCovers_p.clicked.connect(self.parent.covers_close)
 
         w=w+1
-        self.grid.addWidget(self.flatLights_l, w, 0,1,2)
-        self.grid.addWidget(self.flatLights_e, w, 2)
-        self.grid.addWidget(self.flatLights_c, w, 3)
+        self.grid.addWidget(self.mirrorFans_l, w, 0,1,2)
+        self.grid.addWidget(self.mirrorFans_e, w, 2)
+        self.grid.addWidget(self.mirrorFans_c, w, 3)
 
         self.grid.addWidget(self.telCovers_l, w, 4)
         self.grid.addWidget(self.telCovers_e, w, 5,1,2)
@@ -573,6 +597,14 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telFilter_p = QPushButton('SET')
         self.telFilter_p.clicked.connect(self.parent.set_filter)
 
+        self.FilterAutoOffset_l = QLabel("AUTO OFFSET:")
+        self.FilterAutoOffset_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        self.FilterAutoOffset_c = QCheckBox()
+        self.FilterAutoOffset_c.setChecked(True)
+        self.FilterAutoOffset_c.setLayoutDirection(Qt.RightToLeft)
+        self.FilterAutoOffset_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+
+
         w=w+1
 
         self.grid.addWidget(self.comFilter_l, w, 0)
@@ -580,6 +612,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.telFilter_e, w, 2)
         self.grid.addWidget(self.telFilter_s, w, 3)
         self.grid.addWidget(self.telFilter_p, w, 4)
+        self.grid.addWidget(self.FilterAutoOffset_l, w,5,1,2)
+        self.grid.addWidget(self.FilterAutoOffset_c, w,7)
 
         ######################################################
 
@@ -602,7 +636,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.setFocus_s.valueChanged.connect(self.parent.focusClicked)
         self.setFocus_p = QPushButton('SET')
         self.setFocus_p.clicked.connect(self.parent.set_focus)
-        self.telAutoFocus_l = QLabel("AUTO OFFSET:")
+        self.telAutoFocus_l = QLabel("AUTO ADJUST:")
         self.telAutoFocus_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         self.telAutoFocus_c = QCheckBox()
         self.telAutoFocus_c.setChecked(True)
@@ -649,6 +683,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         del tmp
 
 
+
+
     async def on_start_app(self):
         await self.run_background_tasks()
 
@@ -657,3 +693,84 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         await self.stop_background_tasks()
         super().closeEvent(event)
 
+class PulseWindow(QWidget):
+    def __init__(self, parent):
+        super(PulseWindow, self).__init__()
+        self.parent = parent
+        #self.setGeometry(self.parent.aux_geometry[0], self.parent.aux_geometry[1], self.parent.aux_geometry[2],self.parent.aux_geometry[3])
+        self.mkUI()
+    def mkUI(self):
+        if True:
+            self.setWindowTitle("Pulse movements")
+
+            grid = QGridLayout()
+
+
+            w = 1
+            w = w + 1
+            self.up_p = QPushButton('\u2191')
+            grid.addWidget(self.up_p, w, 2,)
+
+            w = w + 1
+            self.left_p = QPushButton('\u2190')
+            self.right_p = QPushButton('\u2192')
+            grid.addWidget(self.left_p, w, 1)
+            grid.addWidget(self.right_p, w, 3)
+
+            w = w + 1
+            self.down_p = QPushButton('\u2193')
+            grid.addWidget(self.down_p, w, 2)
+
+            self.line2_l = QFrame()
+            self.line2_l.setFrameShape(QFrame.HLine)
+            self.line2_l.setFrameShadow(QFrame.Raised)
+            w = w + 1
+            grid.addWidget(self.line2_l,w,0,1,5)
+
+            self.pulseRa_l = QLabel("Ra PULSE:")
+            self.pulseRa_e = QLineEdit()
+            self.pulseRa_e.setMaximumWidth(50)
+            self.sumRa_l = QLabel("Ra SUM:")
+            self.sumRa_e = QLineEdit()
+            self.sumRa_e.setReadOnly(True)
+            self.sumRa_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            self.sumRa_e.setMaximumWidth(50)
+            self.unitsRa_l = QLabel("[arc sec]")
+
+            w = w + 1
+            grid.addWidget(self.pulseRa_l, w, 0)
+            grid.addWidget(self.pulseRa_e, w, 1)
+            grid.addWidget(self.sumRa_l, w, 2)
+            grid.addWidget(self.sumRa_e, w, 3)
+            grid.addWidget(self.unitsRa_l, w, 4)
+
+
+            self.pulseDec_l = QLabel("Dec PULSE:")
+            self.pulseDec_e = QLineEdit()
+            self.pulseDec_e.setMaximumWidth(50)
+            self.sumDec_l = QLabel("Dec SUM:")
+            self.sumDec_e = QLineEdit()
+            self.sumDec_e.setReadOnly(True)
+            self.sumDec_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            self.sumDec_e.setMaximumWidth(50)
+            self.unitsDec_l = QLabel("[arc sec]")
+
+            w = w + 1
+            grid.addWidget(self.pulseDec_l, w, 0)
+            grid.addWidget(self.pulseDec_e, w, 1)
+            grid.addWidget(self.sumDec_l, w, 2)
+            grid.addWidget(self.sumDec_e, w, 3)
+            grid.addWidget(self.unitsDec_l, w, 4)
+
+
+            #grid.setColumnMinimumWidth(0, 100)
+            #grid.setColumnMinimumWidth(1, 100)
+            #grid.setColumnMinimumWidth(2, 30)
+            #grid.setColumnMinimumWidth(3, 30)
+            #grid.setColumnMinimumWidth(4, 30)
+            #grid.setRowStretch(0, 0)
+            #grid.setRowStretch(1, 1)
+            #grid.setRowStretch(2, 0)
+            self.setLayout(grid)
+            self.show()
+            self.raise_()

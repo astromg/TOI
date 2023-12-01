@@ -66,6 +66,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.observatory_model.connect(client_api)
 
         self.cwd = os.getcwd()
+        self.comProblem = False
         self.script_location = os.path.dirname(os.path.abspath(__file__))
         self.msg_log_file = self.script_location+"/Logs/msg_log.txt"
         self.msg_log_lines = 1000
@@ -153,6 +154,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mount_parked="--"
         self.mount_slewing="--"
         self.mount_tracking="--"
+        self.pulseRa = 0
+        self.pulseDec = 0
+
 
         # focus
         self.focus_editing=False
@@ -268,6 +272,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
         #print("done")
         self.tmp = 0
+
+        self.pulseRa = 0
+        self.pulseDec = 0
+
+
         tel=self.obs_tel_tic_names[self.active_tel_i]
         self.active_tel = tel
         if tel == "zb08": self.cfg_focus_directory = self.script_location+"/../../Desktop/fits_zb08/focus/actual"
@@ -393,7 +402,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def force_update(self):
         #print('\a')
         #print("====== UPDATE START ======")
-        self.msg("REQUEST: UPDATE START","yellow")
+        #self.msg("REQUEST: UPDATE START","yellow")
         #mount_conn = await self.telescope.is_telescope_alpaca_server_available()
         #self.msg(str(mount_conn),"red")
         #self.msg(self.mount.connected,"red")
@@ -414,7 +423,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.ccd_gain_update(None)
         await self.ccd_temp_update(None)
         await self.ccd_cooler_update(None)
-        self.msg("REQUEST: UPDATE DONE", "green")
+        #self.msg("REQUEST: UPDATE DONE", "green")
 
     async def TOItimer0(self):
         while True:
@@ -511,10 +520,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             # sprawdzenie gubienia subskrypcji
             if (float(self.ephem_utc) - self.ephem_prev_utc) > 1.5:
-                    self.msg("WARNING: tic UTC callback missed", "red")
+                    #self.msg("WARNING: tic UTC callback missed", "red")
+                    self.comProblem = True
+                    self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: orange;")
                     self.force_update()
                     print(f"================== LOST {self.ephem_utc-self.ephem_prev_utc} ")
+            else: self.comProblem = False
             self.ephem_prev_utc = self.ephem_utc
+
 
             #continue
 
@@ -648,10 +661,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             # Connection status update
 
-            if self.tic_conn == True:
+            if self.tic_conn == True and self.comProblem == False:
                 self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
                 self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: green;")
-            else:
+            elif self.tic_conn == False and self.comProblem == False:
                 self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
                 self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
 

@@ -13,10 +13,22 @@ import requests
 # r = requests.put(quest ,data=data).json() r= r['Value']
 # txt = txt + f"ERROR:  {r}"
 #
-# data = {"Action": "telescope:clearerror", "Parameters": ""}
-# quest = "http://192.168.7.110:11111/api/v1/telescope/0/action"
-# r = requests.put(quest, data=data).json()
-# r = r['Value']
+#data = {"Action": "DomeFansTurnOn", "Parameters": ""}
+#quest = "http://192.168.7.110:11111/api/v1/dome/0/action"
+#r = requests.put(quest, data=data).json()
+#r = r['Value']
+#print(r)
+
+data = {"Command": "DomeFansRunning", "Raw": "false"}
+quest = "http://192.168.7.110:11111/api/v1/dome/0/commandbool"
+r = requests.put(quest, data=data).json()
+r = r['Value']
+print(r)
+
+data = {"Command": "DomeFansTurnOff", "Raw": "false"}
+quest = "http://192.168.7.110:11111/api/v1/dome/0/commandblind"
+r = requests.put(quest, data=data)
+
 
 # print(txt)
 
@@ -58,8 +70,8 @@ import requests
 #quest="http://192.168.7.110:11111/api/v1/camera/1/pixelsizey"
 #quest="http://192.168.7.110:11111/api/v1/camera/1/readoutmodes"
 
-quest="http://192.168.7.110:11111/api/v1/telescope/0/pulseguide"
-data={"Direction":"0","Duration":"1000"}
+#quest="http://192.168.7.110:11111/api/v1/telescope/0/pulseguide"
+#data={"Direction":"0","Duration":"1000"}
 
 
 #r=requests.get(quest)
@@ -67,7 +79,7 @@ data={"Direction":"0","Duration":"1000"}
 # data={"Command":"MotStat","Raw":"True"}
 # quest="http://192.168.7.110:11111/api/v1/telescope/0/commandstring"
 
-r=requests.put(quest,data=data)
+#r=requests.put(quest,data=data)
 
-r=r.json()
-print(f"ALPACA: {quest}\n {r}\n")
+#r=r.json()
+#print(f"ALPACA: {quest}\n {r}\n")
