@@ -1,6 +1,6 @@
 <h4>Whats New?</h4>
 
---- 01.12.23 --- <br> Pulse movement window is operational.
+--- 01.12.23 --- <br> Pulse movement window is operational. Flat tab added to aux window.
 <br><br>
 --- 14.11.23 --- <br> Telemetry updating is automatised and problem-triggered. JK15 covers work from TOI now.
 <br><br>
@@ -14,51 +14,3 @@ Radar colors and Icons are changed, and any more small changes.
 <br><br>
  --- 09.06.23 --- <br> Major plan execution BUG in TOI was fixed. <br>DOMEFLAT and SKYFLAT for Plan and Manual is working now<br>
 
-
---------  20:19  --------  manual  --------
- {'id': 'manual', 'name': 'Night plan', 'started': True, 'done': False, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:38.247126', 'c_type': 'night_plan'}
-
---------  20:19  --------  00  --------
- {'id': '00', 'name': 'Sequence', 'started': True, 'done': False, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:38.247640', 'c_type': 'sequence'}
-
---------  20:19  --------  00_00  --------
- {'seq': '1/z/1.0', 'id': '00_00', 'name': 'DOMEFLAT', 'started': True, 'done': False, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:38.511000', 'c_type': 'command'}
-
---------  20:19  --------  00_00_00  --------
- {'az': 0.0, 'uobi': 0, 'id': '00_00_00', 'name': 'dome-slew', 'started': True, 'done': False, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:38.511874', 'c_type': 'subcommand'}
-
---------  20:19  --------  00_00_00  --------
- {'az': 0.0, 'uobi': 0, 'id': '00_00_00', 'name': 'dome-slew', 'started': True, 'done': True, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:39.021936', 'c_type': 'subcommand'}
-
---------  20:19  --------  00_00_01  --------
- {'obj_name': 'domeflat', 'alt': 15.0, 'az': 180.0, 'tracking': False, 'epoch': '2000', 'uobi': 0, 'id': '00_00_01', 'name': 'mount-slew', 'started': True, 'done': False, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:39.022133', 'c_type': 'subcommand'}
-
---------  20:19  --------  00_00_01  --------
- {'obj_name': 'domeflat', 'alt': 15.0, 'az': 180.0, 'tracking': False, 'epoch': '2000', 'uobi': 0, 'id': '00_00_01', 'name': 'mount-slew', 'started': True, 'done': True, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:46.469406', 'c_type': 'subcommand'}
-
---------  20:19  --------  00_00_02  --------
- {'filter': 'z', 'uobi': 0, 'id': '00_00_02', 'name': 'change-filter', 'started': True, 'done': False, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:46.469492', 'c_type': 'subcommand'}
-
---------  20:19  --------  00_00_02  --------
- {'filter': 'z', 'uobi': 0, 'id': '00_00_02', 'name': 'change-filter', 'started': True, 'done': False, 'skipped': True, 'timestamp_utc': '2023-12-02 20:19:46.587541', 'c_type': 'subcommand'}
-
---------  20:19  --------  00_00_03  --------
- {'exp_started': True, 'exp_done': False, 'exp_saved': False, 'n_exp': 1, 'exp_time': 1.0, 'sub_exp': 1, 'exp_no': 1, 'type': 'flat', 'light': True, 'obj_name': 'domeflat', 'req_ra': '', 'req_dec': '', 'epoch': '2000', 'filter': 'z', 'auto_exposure': False, 'observer': '', 'uobi': 0, 'id': '00_00_03', 'name': 'camera-exposure', 'started': True, 'done': False, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:46.588929', 'c_type': 'subcommand'}
-
---------  20:19  --------  00_00_03  --------
- {'exp_started': True, 'exp_done': True, 'exp_saved': False, 'readout_time': 5.336594104766846, 'n_exp': 1, 'exp_time': 1.0, 'sub_exp': 1, 'exp_no': 1, 'type': 'flat', 'light': True, 'obj_name': 'domeflat', 'req_ra': '', 'req_dec': '', 'epoch': '2000', 'filter': 'z', 'auto_exposure': False, 'observer': '', 'uobi': 0, 'id': '00_00_03', 'name': 'camera-exposure', 'started': True, 'done': False, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:52.925626', 'c_type': 'subcommand'}
-
---------  20:19  --------  00_00_03  --------
- {'exp_started': True, 'exp_done': True, 'exp_saved': True, 'n_exp': 1, 'mean': 301, 'exp_time': 1.0, 'sub_exp': 1, 'exp_no': 1, 'type': 'flat', 'light': True, 'obj_name': 'domeflat', 'req_ra': '', 'req_dec': '', 'epoch': '2000', 'filter': 'z', 'auto_exposure': False, 'observer': '', 'uobi': 0, 'id': '00_00_03', 'name': 'camera-exposure', 'started': True, 'done': False, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:58.683509', 'c_type': 'subcommand'}
-
---------  20:19  --------  00_00_03  --------
- {'exp_time': 1.0, 'sub_exp': 1, 'exp_no': 1, 'type': 'flat', 'light': True, 'obj_name': 'domeflat', 'req_ra': '', 'req_dec': '', 'epoch': '2000', 'filter': 'z', 'auto_exposure': False, 'observer': '', 'uobi': 0, 'id': '00_00_03', 'name': 'camera-exposure', 'started': True, 'done': True, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:58.683643', 'c_type': 'subcommand'}
-
---------  20:19  --------  00_00  --------
- {'seq': '1/z/1.0', 'id': '00_00', 'name': 'DOMEFLAT', 'started': True, 'done': True, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:58.900510', 'c_type': 'command'}
-
---------  20:19  --------  00  --------
- {'id': '00', 'name': 'Sequence', 'started': True, 'done': True, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:58.985122', 'c_type': 'sequence'}
-
---------  20:19  --------  manual  --------
- {'id': 'manual', 'name': 'Night plan', 'started': True, 'done': True, 'skipped': False, 'timestamp_utc': '2023-12-02 20:19:58.985717', 'c_type': 'night_plan'}
