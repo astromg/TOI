@@ -92,6 +92,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.covercalibrator_conn="unknown"
 
         self.cfg_wind_limits = 36
+        self.overhed = 20
 
         self.nextOB_ok = None
         self.flag_newimage = None
@@ -291,6 +292,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #self.fw =  self.tel[self.active_tel].fw
 
 
+
         self.dome_con=False
         self.dome_az="--"
 
@@ -327,7 +329,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update))
         self.add_background_task(self.dome.asubscribe_az(self.domeAZ_update))
         self.add_background_task(self.dome.asubscribe_slewing(self.domeStatus_update))
-        self.add_background_task(self.focus.asubscribe_fansstatus(self.domeFans_update))
+        self.add_background_task(self.focus.asubscribe_fansstatus(self.mirrorFans_update))
 
         #self.add_background_task(self.mount.asubscribe_connected(self.mountCon_update))
         self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
@@ -416,7 +418,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.radec_update(None)
         await self.mount_update(None)
         await self.covers_update(None)
-        await self.domeFans_update(None)
+        await self.mirrorFans_update(None)
         await self.ccd_update(None)
         await self.ccd_bin_update(None)
         await self.ccd_rm_update(None)
@@ -1652,6 +1654,45 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except IndexError: pass
         self.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
 
+    @qs.asyncSlot()
+    async def pulse_up(self):
+        arcsec = self.mntGui.pulse_window.pulseDec_e.text()
+        sec = 1000 * (float(arcsec)/6 )
+        sec = int(sec)
+        await self.mount.aput_pulseguide(0,sec)
+        self.pulseDec = self.pulseDec + float(arcsec)
+        self.mntGui.pulse_window.sumDec_e.setText(str(self.pulseDec))
+        self.msg(f"REQUEST: pulse DEC + {arcsec}", "black")
+
+    @qs.asyncSlot()
+    async def pulse_down(self):
+        arcsec = self.mntGui.pulse_window.pulseDec_e.text()
+        sec = 1000 * (float(arcsec)/6 )
+        sec = int(sec)
+        await self.mount.aput_pulseguide(1,sec)
+        self.pulseDec = self.pulseDec - float(arcsec)
+        self.mntGui.pulse_window.sumDec_e.setText(str(self.pulseDec))
+        self.msg(f"REQUEST: pulse DEC - {arcsec}", "black")
+
+    @qs.asyncSlot()
+    async def pulse_left(self):
+        arcsec = self.mntGui.pulse_window.pulseRa_e.text()
+        sec = 1000 * (float(arcsec)/6  )
+        sec = int(sec)
+        await self.mount.aput_pulseguide(2,sec)
+        self.pulseRa = self.pulseRa + float(arcsec)
+        self.mntGui.pulse_window.sumRa_e.setText(str(self.pulseRa))
+        self.msg(f"REQUEST: pulse Ra + {arcsec}", "black")
+
+    @qs.asyncSlot()
+    async def pulse_right(self):
+        arcsec = self.mntGui.pulse_window.pulseRa_e.text()
+        sec = 1000 * (float(arcsec)/6 )
+        sec = int(sec)
+        await self.mount.aput_pulseguide(3,sec)
+        self.pulseRa = self.pulseRa - float(arcsec)
+        self.mntGui.pulse_window.sumRa_e.setText(str(self.pulseRa))
+        self.msg(f"REQUEST: pulse Ra - {arcsec}", "black")
 
 
     # ################# DOME ########################
@@ -1780,27 +1821,27 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else: self.mntGui.domeNextAz_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
     @qs.asyncSlot()
-    async def domeFansOnOff(self):
+    async def mirrorFansOnOff(self):
         if await self.user.aget_is_access():
            r = await self.focus.aget_fansstatus()
            if r == "True": self.dome_fanStatus=True
            else: self.dome_fanStatus=False
            if self.dome_fanStatus:
-              txt="REQUEST: fans OFF"
+              txt="REQUEST: mirror fans OFF"
               self.msg(txt,"green")
               await self.focus.aput_fansturnoff()
            else:
-               txt="REQUEST: fans ON"
+               txt="REQUEST: mirror fans ON"
                self.msg(txt,"green")
                await self.focus.aput_fansturnon()
            self.mntGui.fans_e.setText(txt)
            self.mntGui.fans_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
         else:
-            await self.domeFans_update(False)
+            await self.mirrorFans_update(False)
             txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
-    async def domeFans_update(self,event):
+    async def mirrorFans_update(self,event):
            r = await self.focus.aget_fansstatus()
            if r == "True": self.dome_fanStatus=True
            else: self.dome_fanStatus=False

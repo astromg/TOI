@@ -396,18 +396,18 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         #############################
 
-        self.fans_l = QLabel("VENTILATORS: ")
+        self.ventilators_l = QLabel("VENTILATORS: ")
 
-        self.fans_e = QLineEdit()
-        self.fans_e.setReadOnly(True)
-        self.fans_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.fans_e.setText("--")
+        self.ventilators_e = QLineEdit()
+        self.ventilators_e.setReadOnly(True)
+        self.ventilators_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.ventilators_e.setText("--")
 
-        self.fans_c = QCheckBox()
-        self.fans_c.setChecked(False)
-        self.fans_c.setLayoutDirection(Qt.LeftToRight)
-        self.fans_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
-        self.fans_c.clicked.connect(self.parent.domeFansOnOff)
+        self.ventilators_c = QCheckBox()
+        self.ventilators_c.setChecked(False)
+        self.ventilators_c.setLayoutDirection(Qt.LeftToRight)
+        self.ventilators_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+
 
         self.domeShutter_l = QLabel("SHUTTER: ")
         self.domeShutter_c = QCheckBox("")
@@ -424,9 +424,9 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeShutter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
         w = w + 1
-        self.grid.addWidget(self.fans_l, w, 0,1,2)
-        self.grid.addWidget(self.fans_e, w, 2)
-        self.grid.addWidget(self.fans_c, w, 3)
+        self.grid.addWidget(self.ventilators_l, w, 0,1,2)
+        self.grid.addWidget(self.ventilators_e, w, 2)
+        self.grid.addWidget(self.ventilators_c, w, 3)
 
         self.grid.addWidget(self.domeShutter_l, w, 4)
         self.grid.addWidget(self.domeShutter_e, w, 5,1,2)
@@ -511,9 +511,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mirrorFans_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         self.mirrorFans_e.setText("--")
         self.mirrorFans_c.setChecked(False)
-        self.mirrorFans_c.setLayoutDirection(Qt.LeftToRight)
-        self.mirrorFans_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
-
+        self.mirrorFans_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
+        self.mirrorFans_c.clicked.connect(self.parent.mirrorFansOnOff)
 
         self.telCovers_l = QLabel("MIRROR COVERS: ")
         self.telCovers_e = QLineEdit()
@@ -699,6 +698,8 @@ class PulseWindow(QWidget):
         self.parent = parent
         #self.setGeometry(self.parent.aux_geometry[0], self.parent.aux_geometry[1], self.parent.aux_geometry[2],self.parent.aux_geometry[3])
         self.mkUI()
+        self.sumDec_e.setText(str(self.parent.pulseDec))
+        self.sumRa_e.setText(str(self.parent.pulseRa))
     def mkUI(self):
         if True:
             self.setWindowTitle("Pulse movements")
@@ -709,16 +710,20 @@ class PulseWindow(QWidget):
             w = 1
             w = w + 1
             self.up_p = QPushButton('\u2191')
+            self.up_p.clicked.connect(self.parent.pulse_up)
             grid.addWidget(self.up_p, w, 2,)
 
             w = w + 1
             self.left_p = QPushButton('\u2190')
+            self.left_p.clicked.connect(self.parent.pulse_left)
             self.right_p = QPushButton('\u2192')
+            self.right_p.clicked.connect(self.parent.pulse_right)
             grid.addWidget(self.left_p, w, 1)
             grid.addWidget(self.right_p, w, 3)
 
             w = w + 1
             self.down_p = QPushButton('\u2193')
+            self.down_p.clicked.connect(self.parent.pulse_down)
             grid.addWidget(self.down_p, w, 2)
 
             self.line2_l = QFrame()
@@ -729,6 +734,7 @@ class PulseWindow(QWidget):
 
             self.pulseRa_l = QLabel("Ra PULSE:")
             self.pulseRa_e = QLineEdit()
+            self.pulseRa_e.setText("5")
             self.pulseRa_e.setMaximumWidth(50)
             self.sumRa_l = QLabel("Ra SUM:")
             self.sumRa_e = QLineEdit()
@@ -747,6 +753,7 @@ class PulseWindow(QWidget):
 
             self.pulseDec_l = QLabel("Dec PULSE:")
             self.pulseDec_e = QLineEdit()
+            self.pulseDec_e.setText("5")
             self.pulseDec_e.setMaximumWidth(50)
             self.sumDec_l = QLabel("Dec SUM:")
             self.sumDec_e = QLineEdit()
