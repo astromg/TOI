@@ -56,6 +56,9 @@ class AuxGui(QWidget):
         self.welcome_tab = WelcomeGui(self.parent)
         self.tabWidget.addTab(self.welcome_tab, "Welcome")
 
+        self.flat_tab = FlatGui(self.parent)
+        self.tabWidget.addTab(self.flat_tab, "Flat")
+
         self.focus_tab = FocusGui(self.parent)
         self.tabWidget.addTab(self.focus_tab, "Focus")
 
@@ -66,9 +69,6 @@ class AuxGui(QWidget):
 
         self.guider_tab = GuiderGui(self.parent)
         self.tabWidget.addTab(self.guider_tab, "Guider")
-
-        # self.flat_tab = FlatGui(self.parent)
-        # self.tabWidget.addTab(self.flat_tab, "Flats")
 
         #
         # self.cctv_tab = CctvGui(self.parent)
@@ -150,6 +150,31 @@ class WelcomeGui(QWidget):
         grid.addWidget(self.info_e, w,0,1,3)
 
         self.setLayout(grid)
+
+# ############### FLAT ############################
+class FlatGui(QWidget):
+    def __init__(self, parent):
+        super(FlatGui, self).__init__()
+        self.parent = parent
+        self.mkUI()
+        #self.show()
+
+    def mkUI(self):
+
+        grid = QGridLayout()
+        self.dupa_l = QLabel("SKYFLATS:")
+        grid.addWidget(self.dupa_l, 0, 0)
+
+        self.info_e=QTextEdit()
+        self.info_e.setReadOnly(True)
+        #self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
+        font=QtGui.QFont("Courier New",10)
+        self.info_e.setFont(font)
+        self.info_e.append("DATE UT | filter | exp | h_sun | ADU")
+        grid.addWidget(self.info_e, 1,0,1,3)
+
+        self.setLayout(grid)
+
 
 
 # ############### FOCUS ##########################
@@ -330,17 +355,6 @@ class GuiderGui(QWidget):
             self.axes.clear()
             self.canvas.draw()
 
-
-class FlatGui(QWidget):
-    def __init__(self, parent):
-        super(FlatGui, self).__init__()
-        self.parent = parent
-        self.mkUI()
-
-    def mkUI(self):
-        grid = QGridLayout()
-        w = 0
-        self.setLayout(grid)
 
 
 class CctvGui(QWidget):

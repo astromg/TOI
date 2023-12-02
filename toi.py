@@ -62,6 +62,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.myself=f'{user}@{host}'
         self.observatory = ["-24:35:24","-70:11:47","2800"]
 
+        self.flat_log_files={"zb08":"/Logs/zb08_flats_log.txt","wk06":"/Logs/wk06_flats_log.txt","jk15":"/Logs/jk15_flats_log.txt"}
+
         self.observatory_model = Observatory()
         self.observatory_model.connect(client_api)
 
@@ -277,6 +279,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.pulseRa = 0
         self.pulseDec = 0
 
+        self.flat_record={}
+        self.flat_record["go"] = False
+
 
         tel=self.obs_tel_tic_names[self.active_tel_i]
         self.active_tel = tel
@@ -354,16 +359,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.rotator.asubscribe_mechanicalposition(self.rotator_update))
         self.add_background_task(self.rotator.asubscribe_ismoving(self.rotator_update))
         #
-        # #self.add_background_task(self.ccd.asubscribe_sensorname(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update))
         self.add_background_task(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update))
         self.add_background_task(self.ccd.asubscribe_binx(self.ccd_bin_update))
         self.add_background_task(self.ccd.asubscribe_biny(self.ccd_bin_update))
         self.add_background_task(self.ccd.asubscribe_camerastate(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_cooleron(self.ccd_cooler_update))
-        #self.add_background_task(self.ccd.asubscribe_coolerpower(self.ccd_cooler_update))
         self.add_background_task(self.ccd.asubscribe_gain(self.ccd_gain_update))
-        #self.add_background_task(self.ccd.asubscribe_readoutmodes(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_readoutmode(self.ccd_rm_update))
         self.add_background_task(self.ccd.asubscribe_imageready(self.ccd_imageready))
 
@@ -653,9 +655,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.ojd_e.setText(f"{self.almanac['jd']:.6f}")
             self.obsGui.main_form.sid_e.setText(str(self.almanac["sid"]).split(".")[0])
             date=str(self.almanac["ut"]).split()[0]
-            date=date.split("/")[2]+"/"+date.split("/")[1]+"/"+date.split("/")[0]
+            self.date=date.split("/")[2]+"/"+date.split("/")[1]+"/"+date.split("/")[0]
             ut=str(self.almanac["ut"]).split()[1]
-            self.obsGui.main_form.date_e.setText(str(date))
+            self.obsGui.main_form.date_e.setText(str(self.date))
             self.obsGui.main_form.ut_e.setText(str(ut))
             self.obsGui.main_form.skyView.updateAlmanac()
             #self.obsGui.main_form.skyView.updateRadar()
@@ -752,7 +754,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.auxGui.focus_tab.result_e.setText(status)
                         self.auxGui.focus_tab.max_sharp=None
                     self.auxGui.focus_tab.update()
-                    self.auxGui.tabWidget.setCurrentIndex(1)
+                    self.auxGui.tabWidget.setCurrentIndex(2)
 
 
         # NORMAL PLAN
@@ -816,149 +818,173 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if "test_exp_mean" in info.keys():                                                        # SKYFLAT
             self.msg(f"PLAN: mean {int(info['test_exp_mean'])} ADU measured", "black")
 
+        # FLAT RECORDER
+        if "type" in info.keys() and "name" in info.keys() and "filter" in info.keys() and "exp_time" in info.keys() and "done" in info.keys():
+            if info["type"] == "flat":
+                self.flat_record["date"] =  str(self.date) + " " + str(self.ut).split()[1].split(":")[0] + ":" + str(self.ut).split()[1].split(":")[1]
+                self.flat_record["filter"] = info["filter"]
+                self.flat_record["exp_time"] = info["exp_time"]
+                self.flat_record["h_sun"] = f"{self.almanac['sun_alt']:.1f}"
+                self.flat_record["go"] = True
+        if "name" in info.keys():
+            if info["name"] == "DOMEFLAT":          # te wystepuja w oddzielnej iteracji, wczesniejszej
+                self.flat_record["type"] = "domeflat"
+            elif info["name"] == "SKYFLAT":
+                self.flat_record["type"] = "skyflat"
+
 
     # ############ AUTO FOCUS ##########################
 
     @qs.asyncSlot()
     async def auto_focus(self):
-        program=""
+        if await self.user.aget_is_access():
+            program=""
 
-        ok = False
-        v0 = float(self.auxGui.focus_tab.last_e.text())
-        step = float(self.auxGui.focus_tab.steps_e.text())
-        number = float(self.auxGui.focus_tab.range_e.text())
-        method = self.auxGui.focus_tab.method_s.currentText()
-        if method == "RMS":
-            self.focus_method = "rms"
-            if number > 2:
-                ok = True
-            else: self.WarningWindow("WARNING: Not enough STEPS number")
-        elif method == "RMS_QUAD":
-            self.focus_method = "rms_quad"
-            if number > 4:
-                ok = True
-            else: self.WarningWindow("WARNING: Not enough STEPS number")
+            ok = False
+            v0 = float(self.auxGui.focus_tab.last_e.text())
+            step = float(self.auxGui.focus_tab.steps_e.text())
+            number = float(self.auxGui.focus_tab.range_e.text())
+            method = self.auxGui.focus_tab.method_s.currentText()
+            if method == "RMS":
+                self.focus_method = "rms"
+                if number > 2:
+                    ok = True
+                else: self.WarningWindow("WARNING: Not enough STEPS number")
+            elif method == "RMS_QUAD":
+                self.focus_method = "rms_quad"
+                if number > 4:
+                    ok = True
+                else: self.WarningWindow("WARNING: Not enough STEPS number")
 
-        if ok:
-            exp=self.instGui.ccd_tab.inst_Dit_e.text()
-            if len(exp)==0:
-                exp = 5
-                self.msg("WARNING: no exp specified. exp=5","red")
+            if ok:
+                exp=self.instGui.ccd_tab.inst_Dit_e.text()
+                if len(exp)==0:
+                    exp = 5
+                    self.msg("WARNING: no exp specified. exp=5","red")
 
-            seq = f"{int(number)}/"+str(self.curent_filter)+"/"+str(exp)
-            pos = f"{int(v0)}/{int(step)}"
-            program = f"FOCUS seq={seq} pos={pos}"
+                seq = f"{int(number)}/"+str(self.curent_filter)+"/"+str(exp)
+                pos = f"{int(v0)}/{int(step)}"
+                program = f"FOCUS seq={seq} pos={pos}"
 
-            self.planrunner.load_nightplan_string('auto_focus', string=program, overwrite=True)
-            await self.planrunner.arun_nightplan('auto_focus',step_id="00")
-            self.fits_exec=True
-            self.plan_runner_origin="auto_focus"
-            self.program_name="auto_focus"
-            self.autofocus_started=True
+                self.planrunner.load_nightplan_string('auto_focus', string=program, overwrite=True)
+                await self.planrunner.arun_nightplan('auto_focus',step_id="00")
+                self.fits_exec=True
+                self.plan_runner_origin="auto_focus"
+                self.program_name="auto_focus"
+                self.autofocus_started=True
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
+
 
     # ############ PLAN RUNNER ##########################
 
     @qs.asyncSlot()
     async def plan_start(self):
+        if await self.user.aget_is_access():
 
-        self.observer = self.auxGui.welcome_tab.observer_e.text()
+            self.observer = self.auxGui.welcome_tab.observer_e.text()
 
-        if self.planGui.next_i > -1 and self.planGui.next_i < len(self.planGui.plan):
-            self.ob = self.planGui.plan[self.planGui.next_i]
-            self.ob["done"]=False
-            self.ob["run"]=True
-
-
-            if "uid" in self.ob.keys():
-                if self.ob["uid"] not in self.planGui.done:
-                    if "type" in self.ob.keys() and "name" in self.ob.keys():
-                        self.planGui.current_i = self.planGui.next_i
-
-                        if self.ob["type"] == "STOP":
-                            self.ob["done"]=False
-                            self.ob["run"]=False
-                            self.planGui.current_i = -1
-
-                        if self.ob["type"] == "BELL":
-                            subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
-                            self.ob["done"]=True
-                            self.ob["run"]=True
-                            self.planGui.current_i = -1
+            if self.planGui.next_i > -1 and self.planGui.next_i < len(self.planGui.plan):
+                self.ob = self.planGui.plan[self.planGui.next_i]
+                self.ob["done"]=False
+                self.ob["run"]=True
 
 
-                        if self.ob["type"] == "WAIT":
-                            if "wait" in self.ob.keys():
-                                self.ob["ob_start_time"] = self.time
+                if "uid" in self.ob.keys():
+                    if self.ob["uid"] not in self.planGui.done:
+                        if "type" in self.ob.keys() and "name" in self.ob.keys():
+                            self.planGui.current_i = self.planGui.next_i
+
+                            if self.ob["type"] == "STOP":
                                 self.ob["done"]=False
+                                self.ob["run"]=False
+                                self.planGui.current_i = -1
+
+                            if self.ob["type"] == "BELL":
+                                subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
+                                self.ob["done"]=True
                                 self.ob["run"]=True
-                                self.msg(f"PLAN: {self.ob['name']} {self.ob['wait']} s. start","black")
-                            if "wait_ut" in self.ob.keys():
-                                self.ob["done"]=False
-                                self.ob["run"]=True
-                                self.msg(f"PLAN: {self.ob['name']} UT {self.ob['wait_ut']} start","black")
-                            if "wait_sunset" in self.ob.keys():
-                                self.ob["done"]=False
-                                self.ob["run"]=True
-                                self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} start","black")
-                            if "wait_sunrise" in self.ob.keys():
-                                self.ob["done"]=False
-                                self.ob["run"]=True
-                                self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} start","black")
+                                self.planGui.current_i = -1
 
 
-                        if self.ob["type"] == "ZERO" and "block" in self.ob.keys():
-                            program = self.ob["block"]
-                            self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
-                            await self.planrunner.arun_nightplan('program', step_id="00")
-
-                            self.program_name="program"
-                            self.fits_exec=True
-                            self.plan_runner_origin="Plan Gui"
-
-                        if self.ob["type"] == "DARK" and "block" in self.ob.keys():
-                            program = self.ob["block"]
-                            self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
-                            await self.planrunner.arun_nightplan('program', step_id="00")
-
-                            self.program_name="program"
-                            self.fits_exec=True
-                            self.plan_runner_origin="Plan Gui"
-
-                        if self.ob["type"] == "DOMEFLAT" and "block" in self.ob.keys():
-                            program = self.ob["block"]
-                            self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
-                            await self.planrunner.arun_nightplan('program', step_id="00")
-
-                            self.program_name="program"
-                            self.fits_exec=True
-                            self.plan_runner_origin="Plan Gui"
+                            if self.ob["type"] == "WAIT":
+                                if "wait" in self.ob.keys():
+                                    self.ob["ob_start_time"] = self.time
+                                    self.ob["done"]=False
+                                    self.ob["run"]=True
+                                    self.msg(f"PLAN: {self.ob['name']} {self.ob['wait']} s. start","black")
+                                if "wait_ut" in self.ob.keys():
+                                    self.ob["done"]=False
+                                    self.ob["run"]=True
+                                    self.msg(f"PLAN: {self.ob['name']} UT {self.ob['wait_ut']} start","black")
+                                if "wait_sunset" in self.ob.keys():
+                                    self.ob["done"]=False
+                                    self.ob["run"]=True
+                                    self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} start","black")
+                                if "wait_sunrise" in self.ob.keys():
+                                    self.ob["done"]=False
+                                    self.ob["run"]=True
+                                    self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} start","black")
 
 
-                        if self.ob["type"] == "SKYFLAT" and "block" in self.ob.keys():
-                            program = self.ob["block"]
-                            self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
-                            await self.planrunner.arun_nightplan('program', step_id="00")
+                            if self.ob["type"] == "ZERO" and "block" in self.ob.keys():
+                                program = self.ob["block"]
+                                self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
+                                await self.planrunner.arun_nightplan('program', step_id="00")
 
-                            self.program_name="program"
-                            self.fits_exec=True
-                            self.plan_runner_origin="Plan Gui"
+                                self.program_name="program"
+                                self.fits_exec=True
+                                self.plan_runner_origin="Plan Gui"
+
+                            if self.ob["type"] == "DARK" and "block" in self.ob.keys():
+                                program = self.ob["block"]
+                                self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
+                                await self.planrunner.arun_nightplan('program', step_id="00")
+
+                                self.program_name="program"
+                                self.fits_exec=True
+                                self.plan_runner_origin="Plan Gui"
+
+                            if self.ob["type"] == "DOMEFLAT" and "block" in self.ob.keys():
+                                program = self.ob["block"]
+                                self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
+                                await self.planrunner.arun_nightplan('program', step_id="00")
+
+                                self.program_name="program"
+                                self.fits_exec=True
+                                self.plan_runner_origin="Plan Gui"
 
 
-                        if self.ob["type"] == "OBJECT" and "block" in self.ob.keys():
-                            program = self.ob["block"]
-                            if "comment" in program:
-                                program = program.split("comment")[0]
-                            self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
-                            await self.planrunner.arun_nightplan('program', step_id="00")
+                            if self.ob["type"] == "SKYFLAT" and "block" in self.ob.keys():
+                                program = self.ob["block"]
+                                self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
+                                await self.planrunner.arun_nightplan('program', step_id="00")
 
-                            self.program_name="program"
-                            self.fits_exec=True
-                            self.plan_runner_origin="Plan Gui"
+                                self.program_name="program"
+                                self.fits_exec=True
+                                self.plan_runner_origin="Plan Gui"
 
+
+                            if self.ob["type"] == "OBJECT" and "block" in self.ob.keys():
+                                program = self.ob["block"]
+                                if "comment" in program:
+                                    program = program.split("comment")[0]
+                                self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
+                                await self.planrunner.arun_nightplan('program', step_id="00")
+
+                                self.program_name="program"
+                                self.fits_exec=True
+                                self.plan_runner_origin="Plan Gui"
+
+                            self.next_ob()
+
+                    else:
                         self.next_ob()
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
 
-                else:
-                    self.next_ob()
 
     def next_ob(self):
         self.planGui.next_i = self.planGui.next_i + 1
@@ -1044,6 +1070,27 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if self.fits_exec:
                 self.auxGui.tabWidget.setCurrentIndex(self.auxGui.tabWidget.count()-1)
             self.msg("INFO: new IMAGE retrived","black")
+
+            if self.flat_record["go"]:
+                self.flat_record["ADU"] = stats.median
+                txt = f'{self.flat_record["date"]} | {self.flat_record["type"]} | {self.flat_record["filter"]} | {self.flat_record["exp_time"]} | {self.flat_record["h_sun"]} | {self.flat_record["ADU"]}'
+                self.auxGui.flat_tab.info_e.append(txt)
+                self.auxGui.tabWidget.setCurrentIndex(1)
+                self.flat_record["go"] = False
+
+                active_tel = self.active_tel
+                f_name = self.flat_log_files[active_tel]
+                flat_log_file = self.script_location+f_name #"/Logs/zb08_flats_log.txt"
+                if os.path.exists(flat_log_file):
+                    pass
+                else:
+                    with open(flat_log_file,"w") as log_file:
+                        log_file.write("DATE UT | type | filter | exp | h_sun | ADU\n")
+                with open(flat_log_file,"a") as log_file:
+                    log_file.write(txt+"\n")
+
+
+
 
     @qs.asyncSlot()
     async def ccd_Snap(self):
@@ -1656,44 +1703,59 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def pulse_up(self):
-        arcsec = self.mntGui.pulse_window.pulseDec_e.text()
-        sec = 1000 * (float(arcsec)/6 )
-        sec = int(sec)
-        await self.mount.aput_pulseguide(0,sec)
-        self.pulseDec = self.pulseDec + float(arcsec)
-        self.mntGui.pulse_window.sumDec_e.setText(str(self.pulseDec))
-        self.msg(f"REQUEST: pulse DEC + {arcsec}", "black")
+        if await self.user.aget_is_access():
+            arcsec = self.mntGui.pulse_window.pulseDec_e.text()
+            sec = 1000 * (float(arcsec)/6 )
+            sec = int(sec)
+            await self.mount.aput_pulseguide(0,sec)
+            self.pulseDec = self.pulseDec + float(arcsec)
+            self.mntGui.pulse_window.sumDec_e.setText(str(self.pulseDec))
+            self.msg(f"REQUEST: pulse DEC + {arcsec}", "black")
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
 
     @qs.asyncSlot()
     async def pulse_down(self):
-        arcsec = self.mntGui.pulse_window.pulseDec_e.text()
-        sec = 1000 * (float(arcsec)/6 )
-        sec = int(sec)
-        await self.mount.aput_pulseguide(1,sec)
-        self.pulseDec = self.pulseDec - float(arcsec)
-        self.mntGui.pulse_window.sumDec_e.setText(str(self.pulseDec))
-        self.msg(f"REQUEST: pulse DEC - {arcsec}", "black")
+        if await self.user.aget_is_access():
+            arcsec = self.mntGui.pulse_window.pulseDec_e.text()
+            sec = 1000 * (float(arcsec)/6 )
+            sec = int(sec)
+            await self.mount.aput_pulseguide(1,sec)
+            self.pulseDec = self.pulseDec - float(arcsec)
+            self.mntGui.pulse_window.sumDec_e.setText(str(self.pulseDec))
+            self.msg(f"REQUEST: pulse DEC - {arcsec}", "black")
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
 
     @qs.asyncSlot()
     async def pulse_left(self):
-        arcsec = self.mntGui.pulse_window.pulseRa_e.text()
-        sec = 1000 * (float(arcsec)/6  )
-        sec = int(sec)
-        await self.mount.aput_pulseguide(2,sec)
-        self.pulseRa = self.pulseRa + float(arcsec)
-        self.mntGui.pulse_window.sumRa_e.setText(str(self.pulseRa))
-        self.msg(f"REQUEST: pulse Ra + {arcsec}", "black")
+        if await self.user.aget_is_access():
+            arcsec = self.mntGui.pulse_window.pulseRa_e.text()
+            sec = 1000 * (float(arcsec)/6  )
+            sec = int(sec)
+            await self.mount.aput_pulseguide(2,sec)
+            self.pulseRa = self.pulseRa + float(arcsec)
+            self.mntGui.pulse_window.sumRa_e.setText(str(self.pulseRa))
+            self.msg(f"REQUEST: pulse Ra + {arcsec}", "black")
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
 
     @qs.asyncSlot()
     async def pulse_right(self):
-        arcsec = self.mntGui.pulse_window.pulseRa_e.text()
-        sec = 1000 * (float(arcsec)/6 )
-        sec = int(sec)
-        await self.mount.aput_pulseguide(3,sec)
-        self.pulseRa = self.pulseRa - float(arcsec)
-        self.mntGui.pulse_window.sumRa_e.setText(str(self.pulseRa))
-        self.msg(f"REQUEST: pulse Ra - {arcsec}", "black")
-
+        if await self.user.aget_is_access():
+            arcsec = self.mntGui.pulse_window.pulseRa_e.text()
+            sec = 1000 * (float(arcsec)/6 )
+            sec = int(sec)
+            await self.mount.aput_pulseguide(3,sec)
+            self.pulseRa = self.pulseRa - float(arcsec)
+            self.mntGui.pulse_window.sumRa_e.setText(str(self.pulseRa))
+            self.msg(f"REQUEST: pulse Ra - {arcsec}", "black")
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
 
     # ################# DOME ########################
     @qs.asyncSlot()
