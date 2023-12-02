@@ -1847,13 +1847,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            else: self.dome_fanStatus=False
 
            if self.dome_fanStatus:
-               self.mntGui.fans_c.setChecked(True)
+               self.mntGui.mirrorFans_c.setChecked(True)
                txt="FANS ON"
            else:
-               self.mntGui.fans_c.setChecked(False)
+               self.mntGui.mirrorFans_c.setChecked(False)
                txt="FANS OFF"
-           self.mntGui.fans_e.setText(txt)
-           self.mntGui.fans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+           self.mntGui.mirrorFans_e.setText(txt)
+           self.mntGui.mirrorFans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
 
 
     @qs.asyncSlot()
