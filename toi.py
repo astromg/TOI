@@ -65,6 +65,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.observatory = ["-24:35:24","-70:11:47","2800"]
 
         self.observatory_model = observatory_model
+        self.flat_log_files={"zb08":"/Logs/zb08_flats_log.txt","wk06":"/Logs/wk06_flats_log.txt","jk15":"/Logs/jk15_flats_log.txt"}
 
         self.cwd = os.getcwd()
         self.comProblem = False
@@ -94,6 +95,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # self.cfg_wind_limits = 36 # km/h
         self.cfg_wind_limits = 11   # m/s
+
+        self.overhed = 20
 
         self.nextOB_ok = None
         self.flag_newimage = None
@@ -2243,7 +2246,7 @@ async def run_qt_app():
     nats_host = observatory_model.get_app_cfg('nats_host')
     nats_port = observatory_model.get_app_cfg('nats_port')
     msg = Messenger()
-    nats_opener = await msg.schedule_open(host=nats_host, port=nats_port)
+    nats_opener = await msg.open(host=nats_host, port=nats_port, wait=3)
     observatory_config = {}
     await nats_opener
     try:

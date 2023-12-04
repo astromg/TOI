@@ -232,7 +232,7 @@ class StarMatch():
        self.field_star_x=self.field_x[:int(len(self.field_m)*self.nbPCent_match)]
        self.field_star_y=self.field_y[:int(len(self.field_m)*self.nbPCent_match)]    
     else:  
-       print("\nALL IN ALL") 
+       #print("\nALL IN ALL")
        self.ref_star_m=self.ref_m
        self.ref_star_x=self.ref_x
        self.ref_star_y=self.ref_y
