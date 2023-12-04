@@ -498,8 +498,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         print(f"{stats.rms:.0f}/{stats.sigma_quantile:.0f}\n")
                         status = "fits stat"
                         th = float(self.auxGui.guider_tab.guiderView.treshold_s.value())
-                        status = "th definition"
-                        coo,adu = stats.find_stars(threshold=th,kernel_size=10,fwhm=1)
+                        fwhm = float(self.auxGui.guider_tab.guiderView.fwhm_s.value())
+                        status = "th and fwhm definition"
+                        coo,adu = stats.find_stars(threshold=th,kernel_size=int(2*fwhm),fwhm=fwhm)
                         status = "finding stars"
                         self.auxGui.guider_tab.guiderView.update(image,coo)
                         status = "updating image"

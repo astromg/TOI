@@ -350,16 +350,21 @@ class GuiderView(QWidget):
             grid.addWidget(self.guiderExp_l, w, 2)
             grid.addWidget(self.guiderExp_e, w, 3,1,2)
             w = w + 1
-            self.line_l = QFrame()
-            self.line_l.setFrameShape(QFrame.HLine)
-            self.line_l.setFrameShadow(QFrame.Raised)
-            w = w + 1
             self.treshold_s = QSlider(Qt.Horizontal)
             self.treshold_s.setMinimum(1)
             self.treshold_s.setMaximum(50)
             self.treshold_s.setValue(20)
             grid.addWidget(self.treshold_s, w, 2, 1, 3)
             w = w + 1
+            self.fwhm_s = QSlider(Qt.Horizontal)
+            self.fwhm_s.setMinimum(1)
+            self.fwhm_s.setMaximum(10)
+            self.fwhm_s.setValue(3)
+            grid.addWidget(self.fwhm_s, w, 2, 1, 3)
+            w = w + 1
+            self.line_l = QFrame()
+            self.line_l.setFrameShape(QFrame.HLine)
+            self.line_l.setFrameShadow(QFrame.Raised)
             grid.addWidget(self.line_l, w, 2, 1, 3)
             w = w + 1
             grid.addWidget(self.canvas2, w, 2, 2, 3)
