@@ -283,6 +283,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.guider_passive_dy = []
 
         self.makeGuiderDark = False
+        self.saveGuiderDark = False
         self.GuiderDark = None
         self.GuiderDarkOk = False
 
@@ -483,6 +484,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         image = self.guider_image
                         image = numpy.asarray(image)
                         image = image.astype(numpy.uint16)
+                        if self.GuiderDarkOk:
+                            image = image - self.GuiderDark
                         if self.makeGuiderDark:
                             self.GuiderDark = image
                             self.makeGuiderDark = False
@@ -490,65 +493,104 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             txt = "Guider DARK saved"
                             self.auxGui.guider_tab.guiderView.result_e.setText(txt)
                         status = "reading imagearray"
-                        if self.GuiderDarkOk:
-                            image = image - self.GuiderDark
                         # Analiza guidera
                         stats = FFS(image)
                         print("********* DUPA **********")
                         print(f"{stats.rms:.0f}/{stats.sigma_quantile:.0f}\n")
+                        print(f"{stats.min:.0f}/{stats.median:.0f}/{stats.max:.0f}\n")
                         status = "fits stat"
                         th = float(self.auxGui.guider_tab.guiderView.treshold_s.value())
                         fwhm = float(self.auxGui.guider_tab.guiderView.fwhm_s.value())
                         status = "th and fwhm definition"
                         coo,adu = stats.find_stars(threshold=th,kernel_size=int(2*fwhm),fwhm=fwhm)
+                        x_coo, y_coo = zip(*coo)
+                        adu = []
+                        for x,y in zip(x_coo,y_coo):
+                            aperture = image[int(y)-int(fwhm):int(y)+int(fwhm),int(x)-int(fwhm):int(x)+int(fwhm)]
+                            adu_tmp = numpy.sum(aperture)
+                            adu_tmp = adu_tmp - aperture.size * stats.median
+                            if adu_tmp <= 0: adu_tmp = 1
+                            adu.append(adu_tmp)
+
+                        indices = numpy.argsort(adu)[::-1]
+                        adu = numpy.array(adu)[indices]
+                        coo = coo[indices]
                         status = "finding stars"
+
+                        coo = numpy.array(coo)
+                        adu = numpy.array(adu)
+                        coo = coo[:10]
+                        adu = adu[:10]
+
                         self.auxGui.guider_tab.guiderView.update(image,coo)
                         status = "updating image"
-                        if len(coo)>5 and len(self.prev_guider_coo)>5:
-                            coo = numpy.array(coo)
-                            adu = numpy.array(adu)
+                        if len(coo)>3 and len(self.prev_guider_coo)>3:
                             x_coo, y_coo = zip(*coo)
-                            mag = -2.5 * numpy.log10(adu)
                             x_ref, y_ref = zip(*self.prev_guider_coo)
-                            mag_ref = -2.5 * numpy.log10(self.prev_guider_adu)
-                            status = "preparing coo"
-                            sm = StarMatch()
-                            sm.loud = True
-                            sm.nbPCent_match = 1  # percentage of stars for which feature will be calulated
-                            sm.nbStarsRadius = 5
-                            sm.ref_xr = x_ref
-                            sm.ref_yr = y_ref
-                            sm.ref_mr = mag_ref
-                            sm.field_xr = x_coo
-                            sm.field_yr = y_coo
-                            sm.field_mr = mag
-                            sm.go()
-                            status = "starmatch"
-                            print(sm.mssg)
+                            xr = []
+                            yr = []
+                            for x,y in zip(x_coo,y_coo):
+                                x_tmp = numpy.abs(x - x_coo)
+                                y_tmp = numpy.abs(y - y_coo)
+                                r_tmp = x_tmp**2 + y_tmp**2
+                                i_tmp = numpy.argsort(r_tmp)
+                                i1 = i_tmp[1]
+                                i2 = i_tmp[2]
+                                x_range = (x - x_coo[i1]) + (x - x_coo[i2])
+                                y_range = (y - y_coo[i1]) + (y - y_coo[i2])
+                                xr.append(x_range)
+                                yr.append(y_range)
 
-                            if len(sm.trainglesMatch_ref_x)>3:
-                                status = "triangle match list"
-                                dx = sm.p_fr_x[0]
-                                dy = sm.p_fr_y[0]
-                                txt = f"{len(sm.trainglesMatch_ref_x)} stars matched \n dx = {dx:.1f} \n dy = {dy:.1f}"
-                                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+                            xr0 = []
+                            yr0 = []
+                            for x,y in zip(x_ref,y_ref):
+                                x_tmp = numpy.abs(x - x_ref)
+                                y_tmp = numpy.abs(y - y_ref)
+                                r_tmp = x_tmp**2 + y_tmp**2
+                                i_tmp = numpy.argsort(r_tmp)
+                                i1 = i_tmp[1]
+                                i2 = i_tmp[2]
+                                x_range = (x - x_ref[i1]) + (x - x_ref[i2])
+                                y_range = (y - y_ref[i1]) + (y - y_ref[i2])
+                                xr0.append(x_range)
+                                yr0.append(y_range)
 
-                                self.guider_passive_dx.append(dx)
-                                self.guider_passive_dy.append(dy)
+                            xr=numpy.array(xr)
+                            yr = numpy.array(yr)
+                            xr0 = numpy.array(xr0)
+                            yr0 = numpy.array(yr0)
+                            dr = xr + yr
+                            dr0 = xr0 + yr0
 
-                                if len(self.guider_passive_dx)>10:
-                                    self.guider_passive_dx = self.guider_passive_dx[1:]
-                                    self.guider_passive_dy = self.guider_passive_dy[1:]
+                            dx_tab = []
+                            dy_tab = []
+                            for i,d in enumerate(dr):
+                                d_tmp = numpy.abs(d - dr0)
+                                i_tmp = numpy.argmin(d_tmp)
+                                if xr[i]-xr0[i_tmp]<5 and yr[i]-yr0[i_tmp]<5:
+                                    dx = x_coo[i] - x_ref[i_tmp]
+                                    dy = y_coo[i] - y_ref[i_tmp]
+                                    dx_tab.append(dx)
+                                    dy_tab.append(dy)
+                            print(dx_tab,dy_tab)
 
-                                self.auxGui.guider_tab.guiderView.update_plot(self.guider_passive_dx,self.guider_passive_dy)
-                            else:
-                                txt = "stars don't match"
-                                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+                            dx = numpy.median(dx_tab)
+                            dy = numpy.median(dy_tab)
+
+                            self.guider_passive_dx.append(dx)
+                            self.guider_passive_dy.append(dy)
+
+                            if len(self.guider_passive_dx)>10:
+                                self.guider_passive_dx = self.guider_passive_dx[1:]
+                                self.guider_passive_dy = self.guider_passive_dy[1:]
+
+                            self.auxGui.guider_tab.guiderView.update_plot(self.guider_passive_dx,self.guider_passive_dy)
+
                         self.prev_guider_coo = coo
                         self.prev_guider_adu = adu
 
             except Exception as e:
-                txt = f"GUIDER FAILED after {status}"
+                txt = f"GUIDER FAILED after {status}, {e}"
                 self.auxGui.guider_tab.guiderView.result_e.setText(txt)
 
 
@@ -842,15 +884,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.plan_runner_status="exposing"
                 self.msg(f"PLAN: {self.dit_exp} [s] test exposure started","black")
 
-            elif info["auto_exp_finished"]:
+            elif info["auto_exp_finnished"]:
                 self.msg(f"PLAN: test exposure done", "black")
 
         if "test_exp_mean" in info.keys():                                                        # SKYFLAT
             self.msg(f"PLAN: mean {int(info['test_exp_mean'])} ADU measured", "black")
 
         # FLAT RECORDER
-        if "type" in info.keys() and "name" in info.keys() and "filter" in info.keys() and "exp_time" in info.keys() and "done" in info.keys():
-            if info["type"] == "flat":
+        if "type" in info.keys() and "name" in info.keys() and "exp_done" in info.keys() and "filter" in info.keys() and "exp_time" in info.keys() and "done" in info.keys():
+
+            if info["type"] == "flat" and info["exp_done"] == False:
                 self.flat_record["date"] =  str(self.date) + " " + str(self.ut).split()[1].split(":")[0] + ":" + str(self.ut).split()[1].split(":")[1]
                 self.flat_record["filter"] = info["filter"]
                 self.flat_record["exp_time"] = info["exp_time"]
@@ -1910,6 +1953,46 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if dome_next_az == None or dome_next_az == "": self.dome_next_az_ok = None
         if self.dome_next_az_ok or self.dome_next_az_ok == None : self.mntGui.domeNextAz_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
         else: self.mntGui.domeNextAz_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+
+
+    @qs.asyncSlot()
+    async def VentilatorsOnOff(self):
+        if await self.user.aget_is_access():
+            r = await self.dome.aget_dome_fans_running()
+            print(r)
+        #    if r == "True": self.dome_fanStatus=True
+        #    else: self.dome_fanStatus=False
+        #    if self.dome_fanStatus:
+        #       txt="REQUEST: mirror fans OFF"
+        #       self.msg(txt,"green")
+        #       await self.focus.aput_fansturnoff()
+        #    else:
+        #        txt="REQUEST: mirror fans ON"
+        #        self.msg(txt,"green")
+        #        await self.focus.aput_fansturnon()
+        #    self.mntGui.fans_e.setText(txt)
+        #    self.mntGui.fans_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+        # else:
+        #     await self.Ventilators_update(False)
+        #     txt="WARNING: U don't have controll"
+        #     self.WarningWindow(txt)
+
+    async def Ventilators_update(self,event):
+           pass
+           # r = await self.focus.aget_fansstatus()
+           # if r == "True": self.dome_fanStatus=True
+           # else: self.dome_fanStatus=False
+           #
+           # if self.dome_fanStatus:
+           #     self.mntGui.mirrorFans_c.setChecked(True)
+           #     txt="FANS ON"
+           # else:
+           #     self.mntGui.mirrorFans_c.setChecked(False)
+           #     txt="FANS OFF"
+           # self.mntGui.mirrorFans_e.setText(txt)
+           # self.mntGui.mirrorFans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+
+    # OTHER COMPONENTS
 
     @qs.asyncSlot()
     async def mirrorFansOnOff(self):

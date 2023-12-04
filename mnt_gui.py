@@ -398,15 +398,19 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.ventilators_l = QLabel("VENTILATORS: ")
 
+        self.ventilators_c = QCheckBox()
+        self.ventilators_c.setChecked(False)
+        self.ventilators_c.setLayoutDirection(Qt.LeftToRight)
+        self.ventilators_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+        self.ventilators_c.clicked.connect(self.parent.VentilatorsOnOff)
+
         self.ventilators_e = QLineEdit()
         self.ventilators_e.setReadOnly(True)
         self.ventilators_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         self.ventilators_e.setText("--")
 
-        self.ventilators_c = QCheckBox()
-        self.ventilators_c.setChecked(False)
-        self.ventilators_c.setLayoutDirection(Qt.LeftToRight)
-        self.ventilators_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+
+
 
 
         self.domeShutter_l = QLabel("SHUTTER: ")
