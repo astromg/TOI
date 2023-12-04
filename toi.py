@@ -279,6 +279,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.pulseRa = 0
         self.pulseDec = 0
 
+        self.guider_passive_dx = []
+        self.guider_passive_dy = []
+
+        self.makeGuiderDark = False
+        self.GuiderDark = None
+        self.GuiderDarkOk = False
+
         self.flat_record={}
         self.flat_record["go"] = False
 
@@ -454,72 +461,94 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await asyncio.sleep(1)
             print("* PING")
 
+            # testowo guider
+            try:
+                status = "start"
+                guider_loop = int(self.auxGui.guider_tab.guiderView.guiderLoop_e.text())
+                self.tmp_i = self.tmp_i + 1
+                if self.tmp_i > guider_loop: self.tmp_i = 0
+                status = "loop definition"
+                if self.tmp_i == 1:
+                    exp = float(self.auxGui.guider_tab.guiderView.guiderExp_e.text())
+                    if self.auxGui.guider_tab.guiderView.guiderCameraOn_c.checkState():
+                        try:
+                            await self.guider.aput_startexposure(exp,True)
+                        except Exception as e:
+                            pass
+                        status = "start exposure"
 
-            # # testowo guider
-            # self.tmp_i = self.tmp_i + 1
-            # if self.tmp_i == 10: self.tmp_i = 0
-            # if self.tmp_i == 1:
-            #     exp = float(self.auxGui.guider_tab.guiderExp_e.text())
-            #     if self.auxGui.guider_tab.guiderCameraOn_c.checkState():
-            #         try:
-            #             print("cyk")
-            #             await self.guider.aput_startexposure(exp,True)
-            #         except: pass
-            #
-            # if self.tmp_i == 0:
-            #     #tmp = await self.guider.aget_imageready()
-            #     #print(tmp)
-            #     #print("ok 1")
-            #     self.guider_image = await self.guider.aget_imagearray()
-            #     #self.guider_image = self.guider.imagearray
-            #     #print("ok 2")
-            #     if self.guider_image:
-            #         image = self.guider_image
-            #         image = numpy.asarray(image)
-            #         image = image.astype(numpy.uint16)
-            #         self.auxGui.guider_tab.update(image)
-            #
-            #         # Analiza guidera
-            #         stats = FFS(image)
-            #         print(stats.min, stats.max)
-            #         print(stats.median, stats.rms)
-            #
-            #         coo=[]
-            #         adu=[]
-            #         th = 20
-            #         coo,adu = stats.find_stars(threshold=th,kernel_size=9,fwhm=4)
-            #         self.auxGui.guider_tab.update(image,coo)
-            #
-            #         if len(coo)>1 and len(self.prev_guider_coo)>1:
-            #             coo = numpy.array(coo)
-            #             adu = numpy.array(adu)
-            #             x_coo, y_coo = zip(*coo)
-            #             mag = -2.5 * numpy.log10(adu)
-            #             x_ref, y_ref = zip(*self.prev_guider_coo)
-            #             mag_ref = -2.5 * numpy.log10(self.prev_guider_adu)
-            #
-            #             #print(mag_ref)
-            #             #print(mag)
-            #             sm = StarMatch()
-            #             sm.loud = True
-            #             #sm.nbPCent_match = 1  # percentage of stars for which feature will be calulated
-            #             #sm.nbStarsRadius = 5
-            #             sm.ref_xr = x_ref
-            #             sm.ref_yr = y_ref
-            #             sm.ref_mr = mag_ref
-            #             sm.field_xr = x_coo
-            #             sm.field_yr = y_coo
-            #             sm.field_mr = mag
-            #             sm.go()
-            #             print(sm.mssg)
-            #             print(sm.p_fr_x)      # field to reference
-            #             print(sm.p_fr_y)
-            #
-            #
-            #         self.prev_guider_coo = coo
-            #         self.prev_guider_adu = adu
+                if self.tmp_i == 0:
+                    self.guider_image = await self.guider.aget_imagearray()
+                    if self.guider_image:
+                        image = self.guider_image
+                        image = numpy.asarray(image)
+                        image = image.astype(numpy.uint16)
+                        if self.makeGuiderDark:
+                            self.GuiderDark = image
+                            self.makeGuiderDark = False
+                            self.GuiderDarkOk = True
+                            txt = "Guider DARK saved"
+                            self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+                        status = "reading imagearray"
+                        if self.GuiderDarkOk:
+                            image = image - self.GuiderDark
+                        # Analiza guidera
+                        stats = FFS(image)
+                        print("********* DUPA **********")
+                        print(f"{stats.rms:.0f}/{stats.sigma_quantile:.0f}\n")
+                        status = "fits stat"
+                        th = float(self.auxGui.guider_tab.guiderView.treshold_s.value())
+                        status = "th definition"
+                        coo,adu = stats.find_stars(threshold=th,kernel_size=10,fwhm=1)
+                        status = "finding stars"
+                        self.auxGui.guider_tab.guiderView.update(image,coo)
+                        status = "updating image"
+                        if len(coo)>5 and len(self.prev_guider_coo)>5:
+                            coo = numpy.array(coo)
+                            adu = numpy.array(adu)
+                            x_coo, y_coo = zip(*coo)
+                            mag = -2.5 * numpy.log10(adu)
+                            x_ref, y_ref = zip(*self.prev_guider_coo)
+                            mag_ref = -2.5 * numpy.log10(self.prev_guider_adu)
+                            status = "preparing coo"
+                            sm = StarMatch()
+                            sm.loud = True
+                            sm.nbPCent_match = 1  # percentage of stars for which feature will be calulated
+                            sm.nbStarsRadius = 5
+                            sm.ref_xr = x_ref
+                            sm.ref_yr = y_ref
+                            sm.ref_mr = mag_ref
+                            sm.field_xr = x_coo
+                            sm.field_yr = y_coo
+                            sm.field_mr = mag
+                            sm.go()
+                            status = "starmatch"
+                            print(sm.mssg)
 
+                            if len(sm.trainglesMatch_ref_x)>3:
+                                status = "triangle match list"
+                                dx = sm.p_fr_x[0]
+                                dy = sm.p_fr_y[0]
+                                txt = f"{len(sm.trainglesMatch_ref_x)} stars matched \n dx = {dx:.1f} \n dy = {dy:.1f}"
+                                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
 
+                                self.guider_passive_dx.append(dx)
+                                self.guider_passive_dy.append(dy)
+
+                                if len(self.guider_passive_dx)>10:
+                                    self.guider_passive_dx = self.guider_passive_dx[1:]
+                                    self.guider_passive_dy = self.guider_passive_dy[1:]
+
+                                self.auxGui.guider_tab.guiderView.update_plot(self.guider_passive_dx,self.guider_passive_dy)
+                            else:
+                                txt = "stars don't match"
+                                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+                        self.prev_guider_coo = coo
+                        self.prev_guider_adu = adu
+
+            except Exception as e:
+                txt = f"GUIDER FAILED after {status}"
+                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
 
 
             # sprawdzenie gubienia subskrypcji
@@ -1088,8 +1117,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         log_file.write("DATE UT | type | filter | exp | h_sun | ADU\n")
                 with open(flat_log_file,"a") as log_file:
                     log_file.write(txt+"\n")
-
-
+                self.flat_record["go"] = False
 
 
     @qs.asyncSlot()

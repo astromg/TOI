@@ -256,15 +256,33 @@ class FocusGui(QWidget):
         self.setLayout(grid)
 
 # ############### GUIDER ###################
+
+
 class GuiderGui(QWidget):
     def __init__(self, parent):
         super(GuiderGui, self).__init__()
         self.parent = parent
         self.mkUI()
+
+    def mkUI(self):
+        grid = QGridLayout()
+        w = 0
+        self.guiderView = GuiderView(self.parent)
+        grid.addWidget(self.guiderView, w, 0)
+        self.setLayout(grid)
+
+class GuiderView(QWidget):
+    def __init__(self, parent):
+        super(GuiderView, self).__init__()
+        self.parent = parent
+        self.mkUI()
         self.show()
+        self.canvas2.draw()
 
     def update(self, image,coo):
         self.image = image
+        self.image = numpy.asarray(self.image)
+        self.image = self.image.astype(numpy.uint16)
         self.axes.clear()
         self.axes.axis("off")
         if len(self.image)>0:
@@ -273,13 +291,22 @@ class GuiderGui(QWidget):
             im = self.axes.imshow(self.image, vmin=vmin, vmax=vmax, cmap=matplotlib.colormaps["ocean"])
             if len(coo)>0:
                 x,y = zip(*coo)
-                self.axes.plot(x, y, color="white", marker="o", markersize="5", markerfacecolor="none",linestyle="")
-
-
-
+                self.axes.plot(x, y, color="white", marker="o", markersize="10", markerfacecolor="none",linestyle="")
 
             self.canvas.draw()
             self.show()
+
+
+    def makeDark(self):
+        self.parent.makeGuiderDark = True
+    def update_plot(self,dx,dy):
+        self.axes2.clear()
+        self.axes2.set_xlim(-50, 50)
+        self.axes2.set_ylim(-50, 50)
+        self.axes2.axhline(y=0,color="k",linestyle="-",alpha=0.3)
+        self.axes2.axvline(x=0,color="k",linestyle="-",alpha=0.3)
+        self.axes2.plot(dx, dy, color="b", marker=".", linestyle="")
+        self.canvas2.draw()
 
     def mkUI(self):
         if True:
@@ -288,73 +315,87 @@ class GuiderGui(QWidget):
             self.axes = self.fig.add_axes([0, 0, 1, 1])
             self.axes.axis("off")
 
+            self.fig2 = Figure((0.5, 0.5), linewidth=-1, dpi=100)
+            self.canvas2 = FigureCanvas(self.fig2)
+            self.axes2 = self.fig2.add_axes([0, 0, 1, 1])
+            self.axes2.axis("off")
+
+
+
             grid = QGridLayout()
 
-            #self.steps_l = QLabel("Step:")
-            #self.steps_e = QLineEdit()
-            #self.steps_e.setText("50")
-
-            #self.method_s = QComboBox()
-            #self.method_s.addItems(["RMS_QUAD", "RMS"])
-
-            #self.autoFocus_p = QPushButton('FIND FOCUS')
-            #self.autoFocus_p.clicked.connect(self.parent.auto_focus)
+            w = 0
+            grid.addWidget(self.canvas, w, 0,12,2)
+            w = w + 12
+            self.makeDark_p = QPushButton('Make DARK')
+            self.makeDark_p.clicked.connect(self.makeDark)
+            grid.addWidget(self.makeDark_p, w, 0)
 
             w = 0
-            grid.addWidget(self.canvas, w, 0,5,2)
-
-            w = 0
-            self.guiderCameraOn_l = QLabel("Camera On: ")
-            self.guiderCameraOn_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+            self.guiderCameraOn_l = QLabel("LOOP [s]:")
+            self.guiderLoop_e = QLineEdit()
+            self.guiderLoop_e.setText("10")
             self.guiderCameraOn_c = QCheckBox()
             self.guiderCameraOn_c.setChecked(False)
             self.guiderCameraOn_c.setLayoutDirection(Qt.RightToLeft)
-            self.guiderCameraOn_c.setStyleSheet(
-                "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+            self.guiderCameraOn_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
             #self.guiderCameraOn_c.clicked.connect(self.parent.mount_motorsOnOff)
             grid.addWidget(self.guiderCameraOn_l, w, 2)
+            grid.addWidget(self.guiderLoop_e, w, 3)
             grid.addWidget(self.guiderCameraOn_c, w, 4)
-
             w = w + 1
             self.guiderExp_l = QLabel("EXP:")
             self.guiderExp_e = QLineEdit()
             self.guiderExp_e.setText("2")
             grid.addWidget(self.guiderExp_l, w, 2)
-            grid.addWidget(self.guiderExp_e, w, 4)
-
-            w = w + 5
-            self.autoGuide_p = QPushButton('Auto Guide')
-            #self.autoGuide_p.clicked.connect(self.parent.auto_focus)
-            grid.addWidget(self.autoGuide_p, w, 0)
-
-            w = 1
+            grid.addWidget(self.guiderExp_e, w, 3,1,2)
             w = w + 1
-            self.up_p = QPushButton('\u2191')
-            grid.addWidget(self.up_p, w, 3)
-
+            self.line_l = QFrame()
+            self.line_l.setFrameShape(QFrame.HLine)
+            self.line_l.setFrameShadow(QFrame.Raised)
             w = w + 1
-            self.left_p = QPushButton('\u2190')
-            self.right_p = QPushButton('\u2192')
-            grid.addWidget(self.left_p, w, 2)
-            grid.addWidget(self.right_p, w, 4)
-
+            self.treshold_s = QSlider(Qt.Horizontal)
+            self.treshold_s.setMinimum(1)
+            self.treshold_s.setMaximum(50)
+            self.treshold_s.setValue(20)
+            grid.addWidget(self.treshold_s, w, 2, 1, 3)
             w = w + 1
-            self.down_p = QPushButton('\u2193')
-            grid.addWidget(self.down_p, w, 3)
+            grid.addWidget(self.line_l, w, 2, 1, 3)
+            w = w + 1
+            grid.addWidget(self.canvas2, w, 2, 2, 3)
+            w = w + 3
+            self.result_e = QTextEdit()
+            self.result_e.setReadOnly(True)
+            self.result_e.setStyleSheet("background-color: rgb(245,245,245);")
+            grid.addWidget(self.result_e, w, 2,3,3)
+            w = w + 3
+            self.method_l = QLabel("Method:")
+            self.method_s = QComboBox()
+            self.method_s.addItems(["All stars", ""])
+            grid.addWidget(self.method_l, w, 2)
+            grid.addWidget(self.method_s, w, 3,1,2)
+            w = w + 1
+            self.autoGuide_l = QLabel("AUTO GUIDE:")
+            self.autoGuide_c = QCheckBox()
+            self.autoGuide_c.setChecked(False)
+            self.autoGuide_c.setLayoutDirection(Qt.RightToLeft)
+            self.autoGuide_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+            grid.addWidget(self.autoGuide_l, w, 2)
+            grid.addWidget(self.autoGuide_c, w, 3)
 
-            grid.setColumnMinimumWidth(0, 100)
-            grid.setColumnMinimumWidth(1, 100)
+            grid.setColumnMinimumWidth(0, 120)
+            grid.setColumnMinimumWidth(1, 120)
             #grid.setColumnMinimumWidth(2, 30)
             #grid.setColumnMinimumWidth(3, 30)
-            #grid.setColumnMinimumWidth(4, 30)
-            #grid.setRowStretch(0, 0)
-            #grid.setRowStretch(1, 1)
-            #grid.setRowStretch(2, 0)
+            grid.setRowMinimumHeight(5, 200)
+            grid.setRowStretch(5, 1)
             self.setLayout(grid)
 
             self.axes.clear()
             self.canvas.draw()
 
+            self.axes2.clear()
+            self.canvas2.draw()
 
 
 class CctvGui(QWidget):
