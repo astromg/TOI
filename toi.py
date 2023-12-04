@@ -26,6 +26,8 @@ import paho.mqtt.client as mqtt
 
 from ocaboxapi import ClientAPI, Observatory
 from ob.planrunner.cycle_time_calc.cycle_time_calc import CycleTimeCalc
+from serverish.messenger import Messenger, single_read, get_reader
+
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 
 from obs_gui import ObsGui
@@ -49,7 +51,7 @@ CCD_MAX_TEMP = -49.
 class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     APP_NAME = "TOI app"
 
-    def __init__(self, loop=None, client_api=None, app=None):
+    def __init__(self, loop, observatory_model: Observatory, client_api: ClientAPI,  app=None):
         self.app = app
         super().__init__(loop=loop, client_api=client_api)
         self.setWindowTitle(self.APP_NAME)
@@ -62,8 +64,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.myself=f'{user}@{host}'
         self.observatory = ["-24:35:24","-70:11:47","2800"]
 
-        self.observatory_model = Observatory()
-        self.observatory_model.connect(client_api)
+        self.observatory_model = observatory_model
 
         self.cwd = os.getcwd()
         self.comProblem = False
@@ -91,7 +92,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.focus_conn="unknown"
         self.covercalibrator_conn="unknown"
 
-        self.cfg_wind_limits = 36
+        # self.cfg_wind_limits = 36 # km/h
+        self.cfg_wind_limits = 11   # m/s
 
         self.nextOB_ok = None
         self.flag_newimage = None
@@ -222,16 +224,35 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         # MQTT
-        try:
-            self.mqtt_client = mqtt.Client()
-            self.mqtt_broker = 'docker.oca.lan'
-            self.mqtt_port = 1883
-            self.mqtt_topic_weather = 'weather'
-            self.mqtt_client.connect(self.mqtt_broker, self.mqtt_port)
-            self.mqtt_client.message_callback_add(self.mqtt_topic_weather, self.on_weather_message)
-            self.mqtt_client.on_connect = self.on_mqtt_connect
-            self.mqtt_client.loop_start()
-        except Exception as e: pass
+        # try:
+        #     self.mqtt_client = mqtt.Client()
+        #     self.mqtt_broker = 'docker.oca.lan'
+        #     self.mqtt_port = 1883
+        #     self.mqtt_topic_weather = 'weather'
+        #     self.mqtt_client.connect(self.mqtt_broker, self.mqtt_port)
+        #     self.mqtt_client.message_callback_add(self.mqtt_topic_weather, self.on_weather_message)
+        #     self.mqtt_client.on_connect = self.on_mqtt_connect
+        #     self.mqtt_client.loop_start()
+         # except Exception as e: pass
+
+        # NATS weather
+        self.add_background_task(self.nats_weather_loop())
+
+
+
+    async def nats_weather_loop(self):
+        reader = get_reader('telemetry.weather.davis', deliver_policy='last')
+        async for data, meta in reader:
+            weather = data['measurements']
+            self.telemetry_temp = weather["temperature_C"]
+            self.telemetry_wind = weather["wind_ms"]
+            self.auxGui.welcome_tab.wind_e.setText(f"{self.telemetry_wind:.1f} [m/s]")
+            if int(self.telemetry_wind)>self.cfg_wind_limits:
+                self.auxGui.tabWidget.setCurrentIndex(0)
+                self.auxGui.welcome_tab.wind_e.setStyleSheet("color: red;")
+            else:
+                self.auxGui.welcome_tab.wind_e.setStyleSheet("color: black;")
+            self.auxGui.welcome_tab.temp_e.setText(f"{self.telemetry_temp:.1f} [C]")
 
     def on_weather_message(self, client, userdata, message):
         weather = message.payload.decode('utf-8')
@@ -2215,6 +2236,20 @@ async def run_qt_app():
     user = pwd.getpwuid(os.getuid())[0]
 
     api = ClientAPI(name="TOI_Client", user_email="", user_name=f'{user}@{host}',user_description="TOI user interface client.")
+    observatory_model = Observatory(client_name="TOI_Client")
+    observatory_model.connect(api)
+
+    # Setup NATS Messenger:
+    nats_host = observatory_model.get_app_cfg('nats_host')
+    nats_port = observatory_model.get_app_cfg('nats_port')
+    msg = Messenger()
+    nats_opener = await msg.schedule_open(host=nats_host, port=nats_port)
+    observatory_config = {}
+    await nats_opener
+    try:
+        observatory_config, meta = await single_read('tic.config.observatory')
+    except Exception as e:
+        logger.warning('Getting observatory config from NATS failed')
 
     def close_future(future_, loop_):
         loop_.call_later(10, future_.cancel)
@@ -2228,11 +2263,17 @@ async def run_qt_app():
             functools.partial(close_future, future, loop)
         )
 
-    toi = TOI(loop=loop, client_api=api, app=app)
+    toi = TOI(loop=loop, observatory_model=observatory_model, client_api=api, app=app)
+
+
+
     #logger.info("App created")
     await toi.on_start_app()
     #logger.info("the asynchronous start of the application has been completed")
     await future
+
+    await msg.close()
+
     return True
 
 def main():
