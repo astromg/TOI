@@ -483,9 +483,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if self.guider_image:
                         image = self.guider_image
                         image = numpy.asarray(image)
-                        image = image.astype(numpy.uint16)
+                        #image = image.astype(numpy.uint16)
                         if self.GuiderDarkOk:
-                            image = image - self.GuiderDark
+                            image = image/self.GuiderDark
                         if self.makeGuiderDark:
                             self.GuiderDark = image
                             self.makeGuiderDark = False
@@ -503,6 +503,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         fwhm = float(self.auxGui.guider_tab.guiderView.fwhm_s.value())
                         status = "th and fwhm definition"
                         coo,adu = stats.find_stars(threshold=th,kernel_size=int(2*fwhm),fwhm=fwhm)
+                        print(len(coo))
                         x_coo, y_coo = zip(*coo)
                         adu = []
                         for x,y in zip(x_coo,y_coo):
@@ -1146,7 +1147,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if self.flat_record["go"]:
                 self.flat_record["ADU"] = stats.median
-                txt = f'{self.flat_record["date"]} | {self.flat_record["type"]} | {self.flat_record["filter"]} | {self.flat_record["exp_time"]} | {self.flat_record["h_sun"]} | {self.flat_record["ADU"]}'
+                txt = f'{self.flat_record["date"]} | {self.flat_record["type"]} | {self.flat_record["filter"]} | {float(self.flat_record["exp_time"]):.2f} | {self.flat_record["h_sun"]} | {self.flat_record["ADU"]}'
                 self.auxGui.flat_tab.info_e.append(txt)
                 self.auxGui.tabWidget.setCurrentIndex(1)
                 self.flat_record["go"] = False
