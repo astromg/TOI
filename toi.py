@@ -901,7 +901,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.flat_record["date"] =  str(self.date) + " " + str(self.ut).split()[1].split(":")[0] + ":" + str(self.ut).split()[1].split(":")[1]
                 self.flat_record["filter"] = info["filter"]
                 self.flat_record["exp_time"] = info["exp_time"]
-                self.flat_record["h_sun"] = f"{deg_to_decimal_deg(self.almanac['sun_alt']):.1f}"
+                self.flat_record["h_sun"] = f"{deg_to_decimal_deg(self.almanac['sun_alt']):.2f}"
                 self.flat_record["go"] = True
         if "name" in info.keys():
             if info["name"] == "DOMEFLAT":          # te wystepuja w oddzielnej iteracji, wczesniejszej
@@ -1150,7 +1150,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if self.flat_record["go"]:
                 self.flat_record["ADU"] = stats.median
-                txt = f'{self.flat_record["date"]}  {self.flat_record["type"]}  {self.flat_record["filter"]}  {float(self.flat_record["exp_time"]):.2f}  {self.flat_record["h_sun"]}  {self.flat_record["ADU"]}'
+                txt = (f'{self.flat_record["date"]}  {self.flat_record["type"]}  {self.flat_record["filter"]}  'f'{float(self.flat_record["exp_time"]):.2f}  {self.flat_record["h_sun"]}  {self.flat_record["ADU"]}')
                 self.auxGui.flat_tab.info_e.append(txt)
                 self.auxGui.tabWidget.setCurrentIndex(1)
                 self.flat_record["go"] = False
