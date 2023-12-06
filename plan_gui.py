@@ -24,6 +24,7 @@ from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
 from ob.planrunner.cycle_time_calc.cycle_time_calc import CycleTimeCalc
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
+from pyaraucaria.coordinates import *
 
 from toi_lib import *
 
@@ -122,8 +123,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   ra=self.plan[i]["ra"]
                   dec=self.plan[i]["dec"]
                   az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)
-                  alt=f"{float(arcDeg2float(str(alt))):.1f}"
-                  az=f"{float(arcDeg2float(str(az))):.1f}"
+                  alt=f"{deg_to_decimal_deg(str(alt)):.1f}"
+                  az=f"{deg_to_decimal_deg(str(az)):.1f}"
                   self.plan[i]["meta_alt"]=alt
                   self.plan[i]["meta_az"]=az
 
@@ -143,8 +144,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       ra = self.plan[i]["ra"]
                       dec = self.plan[i]["dec"]
                       az, alt = RaDec2AltAz(self.parent.observatory, ob_time, ra, dec)
-                      alt = f"{float(arcDeg2float(str(alt))):.1f}"
-                      az = f"{float(arcDeg2float(str(az))):.1f}"
+                      alt = f"{deg_to_decimal_deg(str(alt)):.1f}"
+                      az = f"{deg_to_decimal_deg((str(az))):.1f}"
                       self.plan[i]["meta_plan_alt"] = alt
                       self.plan[i]["meta_plan_az"] = az
                   if "wait" in self.plan[i].keys():
@@ -156,6 +157,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       if "slotTime" in self.plan[i].keys():
                           slotTime = self.plan[i]["slotTime"]
                           ob_time = ob_time + ephem.second * slotTime
+
 
 
       def update_table(self):
@@ -851,7 +853,7 @@ class PlotWindow(QWidget):
                             while t <= self.t + ephem.second * slotTime:
                                 az, alt = RaDec2AltAz(self.parent.parent.observatory, t, ra, dec)
                                 t_tab.append(t)
-                                alt_tab.append(arcDeg2float(str(alt)))
+                                alt_tab.append(deg_to_decimal_deg(str(alt)))
                                 t = t + 10*ephem.second
                             #print(alt_tab,t_tab)
                             self.axes.plot(t_tab,alt_tab)

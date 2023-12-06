@@ -13,6 +13,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QSpinBox, QGridLayout, QFrame, QComboBox, QRadioButton
 from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
+from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
@@ -48,8 +49,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             if self.parent.nextOB_ok:
                 try:
                     az, alt = RaDec2AltAz(self.parent.observatory, ephem.now(), ra, dec)
-                    az = arcDeg2float(str(az))
-                    alt = arcDeg2float(str(alt))
+                    az = deg_to_decimal_deg(str(az))
+                    alt = deg_to_decimal_deg(str(alt))
                     self.nextAlt_e.setText("%.2f" % alt)
                     self.nextAz_e.setText("%.2f" % az)
                 except:

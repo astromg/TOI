@@ -170,7 +170,7 @@ class FlatGui(QWidget):
         #self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
         font=QtGui.QFont("Courier New",10)
         self.info_e.setFont(font)
-        self.info_e.append("DATE UT | filter | exp | h_sun | ADU")
+        self.info_e.append("date UT  filter  exp  h_sun  ADU")
         grid.addWidget(self.info_e, 1,0,1,3)
 
         self.setLayout(grid)

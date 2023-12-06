@@ -24,6 +24,9 @@ import qasync as qs
 
 import paho.mqtt.client as mqtt
 
+from pyaraucaria.coordinates import *
+from pyaraucaria.airmass import airmass
+
 from ocaboxapi import ClientAPI, Observatory
 from ob.planrunner.cycle_time_calc.cycle_time_calc import CycleTimeCalc
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
@@ -682,14 +685,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.planGui.current_i=-1
 
                 if "wait_sunrise" in self.ob.keys():
-                    if float(self.almanac["sun_alt"]) > float(self.ob["wait_sunrise"]):
+                    if deg_to_decimal_deg(self.almanac["sun_alt"]) > float(self.ob["wait_sunrise"]):
                         self.ob["done"]=True
                         self.planGui.done.append(self.ob["uid"])
                         self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} DONE","green")
                         self.planGui.current_i=-1
 
                 if "wait_sunset" in self.ob.keys():
-                    if float(self.almanac["sun_alt"]) < float(self.ob["wait_sunset"]):
+                    if deg_to_decimal_deg(self.almanac["sun_alt"]) < float(self.ob["wait_sunset"]):
                         self.ob["done"]=True
                         self.planGui.done.append(self.ob["uid"])
                         self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} DONE","green")
@@ -898,7 +901,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.flat_record["date"] =  str(self.date) + " " + str(self.ut).split()[1].split(":")[0] + ":" + str(self.ut).split()[1].split(":")[1]
                 self.flat_record["filter"] = info["filter"]
                 self.flat_record["exp_time"] = info["exp_time"]
-                self.flat_record["h_sun"] = f"{self.almanac['sun_alt']:.1f}"
+                self.flat_record["h_sun"] = f"{deg_to_decimal_deg(self.almanac['sun_alt']):.1f}"
                 self.flat_record["go"] = True
         if "name" in info.keys():
             if info["name"] == "DOMEFLAT":          # te wystepuja w oddzielnej iteracji, wczesniejszej
@@ -1147,7 +1150,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if self.flat_record["go"]:
                 self.flat_record["ADU"] = stats.median
-                txt = f'{self.flat_record["date"]} | {self.flat_record["type"]} | {self.flat_record["filter"]} | {float(self.flat_record["exp_time"]):.2f} | {self.flat_record["h_sun"]} | {self.flat_record["ADU"]}'
+                txt = f'{self.flat_record["date"]}  {self.flat_record["type"]}  {self.flat_record["filter"]}  {float(self.flat_record["exp_time"]):.2f}  {self.flat_record["h_sun"]}  {self.flat_record["ADU"]}'
                 self.auxGui.flat_tab.info_e.append(txt)
                 self.auxGui.tabWidget.setCurrentIndex(1)
                 self.flat_record["go"] = False
@@ -1532,9 +1535,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                self.mntGui.mntMotors_c.setChecked(False)
                txt="TELEMETRY: motors OFF"
                self.msg(txt,"black")
+           self.mount_update(None)
 
-           self.mntGui.mntStat_e.setText(txt)
-           self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+           #self.mntGui.mntStat_e.setText(txt)
+           #self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
 
     @qs.asyncSlot()
     async def covers_openOrClose(self):
@@ -1637,9 +1641,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                        self.req_ra=ra
                        self.req_dec=dec
                        self.req_epoch=epoch
-                       ra,dec = RaDecEpoch(self.observatory,ra,dec,epoch)
-                       ra=hmsRa2float(ra)
-                       dec=arcDeg2float(dec)
+                       ra=ra_to_decimal(ra)
+                       dec=dec_to_decimal(dec)
+                       ra,dec = ra_dec_epoch(ra,dec,epoch)
+
                        await self.mount.aput_slewtocoo_async(ra, dec)
                        txt=f"REQUEST: slew to Ra: {ra} Dec: {dec}"
                        self.msg(txt,"black")
@@ -1701,7 +1706,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         #self.mount_parked=self.mount.atpark
         txt=""
-        if self.mount_slewing and self.mount_tracking:
+        if not self.mount_motortatus:
+            txt = "SLEWING, TRACKING"
+            self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+        elif self.mount_slewing and self.mount_tracking:
             txt="SLEWING, TRACKING"
             self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
             self.mntGui.tracking_c.setChecked(True)
@@ -1741,8 +1749,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mount_alt=await self.mount.aget_alt()
         self.mount_az=await self.mount.aget_az()
         if "--" not in str(self.mount_ra) and "--" not in str(self.mount_dec) and self.mount_ra != None and self.mount_dec != None:
-           self.mntGui.mntRa_e.setText(Deg2H(self.mount_ra))
-           self.mntGui.mntDec_e.setText(Deg2DMS(self.mount_dec))
+            self.mntGui.mntRa_e.setText(to_hourangle_sexagesimal(self.mount_ra))
+            self.mntGui.mntDec_e.setText(dec_to_sexagesimal(self.mount_dec))
         if "--" not in str(self.mount_alt) and "--" not in str(self.mount_az) and self.mount_alt != None and self.mount_az != None:
            self.mntGui.mntAlt_e.setText(f"{self.mount_alt:.3f}")
            self.mntGui.mntAz_e.setText(f"{self.mount_az:.3f}")

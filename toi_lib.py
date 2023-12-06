@@ -5,6 +5,9 @@ import numpy
 import time
 
 from PyQt5.QtCore import QThread,pyqtSignal
+
+
+
 class Worker(QThread):
     finished = pyqtSignal()
     def __init__(self,ccd):
@@ -43,12 +46,12 @@ def Almanac(obs):
     alm["sunset"]=site.next_setting(ephem.Sun())
     sun=ephem.Sun()
     sun.compute(site)
-    alm["sun_alt"]=float(str(sun.alt).split(":")[0])+float(str(sun.alt).split(":")[1])/60.
-    alm["sun_az"]=float(str(sun.az).split(":")[0])+float(str(sun.az).split(":")[1])/60.
+    alm["sun_alt"]=str(sun.alt)
+    alm["sun_az"]=str(sun.az)
     moon=ephem.Moon()
     moon.compute(site)
-    alm["moon_alt"]=float(str(moon.alt).split(":")[0])+float(str(moon.alt).split(":")[1])/60.
-    alm["moon_az"]=float(str(moon.az).split(":")[0])+float(str(moon.az).split(":")[1])/60.
+    alm["moon_alt"]=str(moon.alt)
+    alm["moon_az"]=str(moon.az)
     alm["moonrise"]=site.next_rising(moon)
     alm["moonset"]=site.next_setting(moon)
     alm["moon_phase"] = moon.moon_phase
