@@ -1,5 +1,7 @@
 <h4>Whats New?</h4>
 
+--- 01.12.23 --- <br> Pulse movement window is operational. Flat tab added to aux window.
+<br><br>
 --- 14.11.23 --- <br> Telemetry updating is automatised and problem-triggered. JK15 covers work from TOI now.
 <br><br>
 --- 21.08.23 --- <br> Main problem persists with telemetry updating - but there is an Update pushbutton to force update.<br>
@@ -11,3 +13,4 @@
 Radar colors and Icons are changed, and any more small changes.
 <br><br>
  --- 09.06.23 --- <br> Major plan execution BUG in TOI was fixed. <br>DOMEFLAT and SKYFLAT for Plan and Manual is working now<br>
+

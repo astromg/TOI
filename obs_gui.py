@@ -20,6 +20,9 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
+
+from pyaraucaria.coordinates import *
+
 from toi_lib import *
 
 
@@ -376,7 +379,7 @@ class SkyView(QWidget):
             for p in self.nextOb: p.remove()
         except:
             pass
-        sun_h = f"{self.parent.almanac['sun_alt']:.0f}"
+        sun_h = f"{deg_to_decimal_deg(self.parent.almanac['sun_alt']):.0f}"
         sunrise_tmp = str(self.parent.almanac["sunrise"]).split()[1]
         sunset_tmp = str(self.parent.almanac["sunset"]).split()[1]
         sunrise = sunrise_tmp.split(":")[0] + ":" + sunrise_tmp.split(":")[1]
@@ -412,8 +415,11 @@ class SkyView(QWidget):
         fi = fi * 2 * 3.14 / 360.
         self.txt6= self.axes.text(fi, r, f"Moonset: {moonset}", fontsize=9)
 
-        self.sun = self.axes.plot(self.parent.almanac["sun_az"] * 2 * 3.14 / 360., 90 - self.parent.almanac["sun_alt"], "oy", alpha=0.7)
-        self.moon = self.axes.plot(self.parent.almanac["moon_az"] * 2 * 3.14 / 360., 90 - self.parent.almanac["moon_alt"], "ok", alpha=0.7)
+        try:
+            self.sun = self.axes.plot(deg_to_decimal_deg(self.parent.almanac["sun_az"]) * 2 * 3.14 / 360., 90 - deg_to_decimal_deg(self.parent.almanac["sun_alt"]), "oy", alpha=0.7)
+            self.moon = self.axes.plot(deg_to_decimal_deg(self.parent.almanac["moon_az"]) * 2 * 3.14 / 360., 90 - deg_to_decimal_deg(self.parent.almanac["moon_alt"]), "ok", alpha=0.7)
+        except Exception as es:
+            print(es)
 
         try:
             next_az = self.parent.mntGui.nextAz_e.text()

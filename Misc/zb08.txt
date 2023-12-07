@@ -1,4 +1,4 @@
-<h4><u>ZB08</u> Telescope named after Zbigniew Kolaczkowski </h4>
+<h4>Zbigniew Kolaczkowski telescope <u>ZB08</u></h4>
 ------------------------------------------------
 <table>
 <tr><td>Ritchey–Chrétien <b>f6.85</b>  </td><td>|    focal length = <b>5480</b>mm </td></tr>

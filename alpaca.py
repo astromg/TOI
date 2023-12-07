@@ -19,15 +19,15 @@ import requests
 #r = r['Value']
 #print(r)
 
-data = {"Command": "DomeFansRunning", "Raw": "false"}
-quest = "http://192.168.7.110:11111/api/v1/dome/0/commandbool"
-r = requests.put(quest, data=data).json()
-r = r['Value']
-print(r)
-
-data = {"Command": "DomeFansTurnOff", "Raw": "false"}
-quest = "http://192.168.7.110:11111/api/v1/dome/0/commandblind"
-r = requests.put(quest, data=data)
+# data = {"Command": "DomeFansRunning", "Raw": "false"}
+# quest = "http://192.168.7.110:11111/api/v1/dome/0/commandbool"
+# r = requests.put(quest, data=data).json()
+# r = r['Value']
+# print(r)
+#
+# data = {"Command": "DomeFansTurnOff", "Raw": "false"}
+# quest = "http://192.168.7.110:11111/api/v1/dome/0/commandblind"
+# r = requests.put(quest, data=data)
 
 
 # print(txt)
@@ -63,7 +63,7 @@ r = requests.put(quest, data=data)
 # quest="http://192.168.7.110:11111/api/v1/camera/0/setccdtemperature"
 
 #quest="http://192.168.7.110:11111/api/v1/camera/1/description"
-#quest="http://192.168.7.110:11111/api/v1/camera/1/name"
+quest="http://192.168.7.110:11111/api/v1/camera/1/name"
 #quest="http://192.168.7.110:11111/api/v1/camera/1/electronsperadu"
 #quest="http://192.168.7.110:11111/api/v1/camera/1/exposuremax"
 #quest="http://192.168.7.110:11111/api/v1/camera/1/fullwellcapacity"
@@ -74,12 +74,12 @@ r = requests.put(quest, data=data)
 #data={"Direction":"0","Duration":"1000"}
 
 
-#r=requests.get(quest)
+r=requests.get(quest)
 
 # data={"Command":"MotStat","Raw":"True"}
 # quest="http://192.168.7.110:11111/api/v1/telescope/0/commandstring"
 
 #r=requests.put(quest,data=data)
 
-#r=r.json()
-#print(f"ALPACA: {quest}\n {r}\n")
+r=r.json()
+print(f"ALPACA: {quest}\n {r}\n")

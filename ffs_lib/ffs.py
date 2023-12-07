@@ -82,7 +82,7 @@ class FFS:
         kernel = numpy.fromfunction(lambda x, y: (1/(2*numpy.pi*sigma**2)) * numpy.exp(-((x-(size-1)/2)**2+(y-(size-1)/2)**2)/(2*sigma**2)),(size,size))
         return kernel / numpy.sum(kernel)
 
-    def find_stars(self,threshold=5.,method="sigma quantile",kernel_size=9,fwhm=2):
+    def find_stars(self,threshold=5.,method="sigma quantile",kernel_size=30,fwhm=10):
 
         self.coo=[]
         self.adu=[]
