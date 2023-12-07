@@ -250,6 +250,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         reader = get_reader('telemetry.weather.davis', deliver_policy='last')
         async for data, meta in reader:
             weather = data['measurements']
+            print(weather)
             self.telemetry_temp = weather["temperature_C"]
             self.telemetry_wind = weather["wind_ms"]
             self.auxGui.welcome_tab.wind_e.setText(f"{self.telemetry_wind:.1f} [m/s]")
