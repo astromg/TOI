@@ -24,6 +24,9 @@ import qasync as qs
 
 import paho.mqtt.client as mqtt
 
+from pyaraucaria.coordinates import *
+from pyaraucaria.airmass import airmass
+
 from ocaboxapi import ClientAPI, Observatory
 from ob.planrunner.cycle_time_calc.cycle_time_calc import CycleTimeCalc
 from serverish.messenger import Messenger, single_read, get_reader
@@ -64,8 +67,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.myself=f'{user}@{host}'
         self.observatory = ["-24:35:24","-70:11:47","2800"]
 
-        self.observatory_model = observatory_model
         self.flat_log_files={"zb08":"/Logs/zb08_flats_log.txt","wk06":"/Logs/wk06_flats_log.txt","jk15":"/Logs/jk15_flats_log.txt"}
+
+        self.observatory_model = observatory_model
 
         self.cwd = os.getcwd()
         self.comProblem = False
@@ -94,8 +98,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.covercalibrator_conn="unknown"
 
         # self.cfg_wind_limits = 36 # km/h
-        self.cfg_wind_limits = 11   # m/s
-
+        self.cfg_wind_limits = 11
         self.overhed = 20
 
         self.nextOB_ok = None

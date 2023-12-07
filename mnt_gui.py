@@ -13,6 +13,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QSpinBox, QGridLayout, QFrame, QComboBox, QRadioButton
 from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
+from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
@@ -48,8 +49,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             if self.parent.nextOB_ok:
                 try:
                     az, alt = RaDec2AltAz(self.parent.observatory, ephem.now(), ra, dec)
-                    az = arcDeg2float(str(az))
-                    alt = arcDeg2float(str(alt))
+                    az = deg_to_decimal_deg(str(az))
+                    alt = deg_to_decimal_deg(str(alt))
                     self.nextAlt_e.setText("%.2f" % alt)
                     self.nextAz_e.setText("%.2f" % az)
                 except:
@@ -398,15 +399,19 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.ventilators_l = QLabel("VENTILATORS: ")
 
+        self.ventilators_c = QCheckBox()
+        self.ventilators_c.setChecked(False)
+        self.ventilators_c.setLayoutDirection(Qt.LeftToRight)
+        self.ventilators_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+        self.ventilators_c.clicked.connect(self.parent.VentilatorsOnOff)
+
         self.ventilators_e = QLineEdit()
         self.ventilators_e.setReadOnly(True)
         self.ventilators_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         self.ventilators_e.setText("--")
 
-        self.ventilators_c = QCheckBox()
-        self.ventilators_c.setChecked(False)
-        self.ventilators_c.setLayoutDirection(Qt.LeftToRight)
-        self.ventilators_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+
+
 
 
         self.domeShutter_l = QLabel("SHUTTER: ")
