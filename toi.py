@@ -303,6 +303,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.pulseRa = 0
         self.pulseDec = 0
 
+        self.guider_passive_dx = []
+        self.guider_passive_dy = []
+
+        self.makeGuiderDark = False
+        self.saveGuiderDark = False
+        self.GuiderDark = None
+        self.GuiderDarkOk = False
+
+        self.flat_record={}
+        self.flat_record["go"] = False
+
 
         tel=self.obs_tel_tic_names[self.active_tel_i]
         self.active_tel = tel
@@ -316,6 +327,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #self.mount = self.tel[self.active_tel].mount
         #self.ccd =  self.tel[self.active_tel].ccd
         #self.fw =  self.tel[self.active_tel].fw
+
 
 
         self.dome_con=False
@@ -354,7 +366,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update))
         self.add_background_task(self.dome.asubscribe_az(self.domeAZ_update))
         self.add_background_task(self.dome.asubscribe_slewing(self.domeStatus_update))
-        self.add_background_task(self.focus.asubscribe_fansstatus(self.domeFans_update))
+        self.add_background_task(self.focus.asubscribe_fansstatus(self.mirrorFans_update))
 
         #self.add_background_task(self.mount.asubscribe_connected(self.mountCon_update))
         self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
@@ -379,16 +391,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.rotator.asubscribe_mechanicalposition(self.rotator_update))
         self.add_background_task(self.rotator.asubscribe_ismoving(self.rotator_update))
         #
-        # #self.add_background_task(self.ccd.asubscribe_sensorname(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update))
         self.add_background_task(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update))
         self.add_background_task(self.ccd.asubscribe_binx(self.ccd_bin_update))
         self.add_background_task(self.ccd.asubscribe_biny(self.ccd_bin_update))
         self.add_background_task(self.ccd.asubscribe_camerastate(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_cooleron(self.ccd_cooler_update))
-        #self.add_background_task(self.ccd.asubscribe_coolerpower(self.ccd_cooler_update))
         self.add_background_task(self.ccd.asubscribe_gain(self.ccd_gain_update))
-        #self.add_background_task(self.ccd.asubscribe_readoutmodes(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_readoutmode(self.ccd_rm_update))
         self.add_background_task(self.ccd.asubscribe_imageready(self.ccd_imageready))
 
@@ -443,7 +452,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.radec_update(None)
         await self.mount_update(None)
         await self.covers_update(None)
-        await self.domeFans_update(None)
+        await self.mirrorFans_update(None)
         await self.ccd_update(None)
         await self.ccd_bin_update(None)
         await self.ccd_rm_update(None)
@@ -477,72 +486,137 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await asyncio.sleep(1)
             print("* PING")
 
+            # testowo guider
+            try:
+                status = "start"
+                guider_loop = int(self.auxGui.guider_tab.guiderView.guiderLoop_e.text())
+                self.tmp_i = self.tmp_i + 1
+                if self.tmp_i > guider_loop: self.tmp_i = 0
+                status = "loop definition"
+                if self.tmp_i == 1:
+                    exp = float(self.auxGui.guider_tab.guiderView.guiderExp_e.text())
+                    if self.auxGui.guider_tab.guiderView.guiderCameraOn_c.checkState():
+                        try:
+                            await self.guider.aput_startexposure(exp,True)
+                        except Exception as e:
+                            pass
+                        status = "start exposure"
 
-            # # testowo guider
-            # self.tmp_i = self.tmp_i + 1
-            # if self.tmp_i == 10: self.tmp_i = 0
-            # if self.tmp_i == 1:
-            #     exp = float(self.auxGui.guider_tab.guiderExp_e.text())
-            #     if self.auxGui.guider_tab.guiderCameraOn_c.checkState():
-            #         try:
-            #             print("cyk")
-            #             await self.guider.aput_startexposure(exp,True)
-            #         except: pass
-            #
-            # if self.tmp_i == 0:
-            #     #tmp = await self.guider.aget_imageready()
-            #     #print(tmp)
-            #     #print("ok 1")
-            #     self.guider_image = await self.guider.aget_imagearray()
-            #     #self.guider_image = self.guider.imagearray
-            #     #print("ok 2")
-            #     if self.guider_image:
-            #         image = self.guider_image
-            #         image = numpy.asarray(image)
-            #         image = image.astype(numpy.uint16)
-            #         self.auxGui.guider_tab.update(image)
-            #
-            #         # Analiza guidera
-            #         stats = FFS(image)
-            #         print(stats.min, stats.max)
-            #         print(stats.median, stats.rms)
-            #
-            #         coo=[]
-            #         adu=[]
-            #         th = 20
-            #         coo,adu = stats.find_stars(threshold=th,kernel_size=9,fwhm=4)
-            #         self.auxGui.guider_tab.update(image,coo)
-            #
-            #         if len(coo)>1 and len(self.prev_guider_coo)>1:
-            #             coo = numpy.array(coo)
-            #             adu = numpy.array(adu)
-            #             x_coo, y_coo = zip(*coo)
-            #             mag = -2.5 * numpy.log10(adu)
-            #             x_ref, y_ref = zip(*self.prev_guider_coo)
-            #             mag_ref = -2.5 * numpy.log10(self.prev_guider_adu)
-            #
-            #             #print(mag_ref)
-            #             #print(mag)
-            #             sm = StarMatch()
-            #             sm.loud = True
-            #             #sm.nbPCent_match = 1  # percentage of stars for which feature will be calulated
-            #             #sm.nbStarsRadius = 5
-            #             sm.ref_xr = x_ref
-            #             sm.ref_yr = y_ref
-            #             sm.ref_mr = mag_ref
-            #             sm.field_xr = x_coo
-            #             sm.field_yr = y_coo
-            #             sm.field_mr = mag
-            #             sm.go()
-            #             print(sm.mssg)
-            #             print(sm.p_fr_x)      # field to reference
-            #             print(sm.p_fr_y)
-            #
-            #
-            #         self.prev_guider_coo = coo
-            #         self.prev_guider_adu = adu
+                if self.tmp_i == 0:
+                    self.guider_image = await self.guider.aget_imagearray()
+                    if self.guider_image:
+                        image = self.guider_image
+                        image = numpy.asarray(image)
+                        #image = image.astype(numpy.uint16)
+                        if self.GuiderDarkOk:
+                            image = image/self.GuiderDark
+                        if self.makeGuiderDark:
+                            self.GuiderDark = image
+                            self.makeGuiderDark = False
+                            self.GuiderDarkOk = True
+                            txt = "Guider DARK saved"
+                            self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+                        status = "reading imagearray"
+                        # Analiza guidera
+                        stats = FFS(image)
+                        print("********* DUPA **********")
+                        print(f"{stats.rms:.0f}/{stats.sigma_quantile:.0f}\n")
+                        print(f"{stats.min:.0f}/{stats.median:.0f}/{stats.max:.0f}\n")
+                        status = "fits stat"
+                        th = float(self.auxGui.guider_tab.guiderView.treshold_s.value())
+                        fwhm = float(self.auxGui.guider_tab.guiderView.fwhm_s.value())
+                        status = "th and fwhm definition"
+                        coo,adu = stats.find_stars(threshold=th,kernel_size=int(2*fwhm),fwhm=fwhm)
+                        print(len(coo))
+                        x_coo, y_coo = zip(*coo)
+                        adu = []
+                        for x,y in zip(x_coo,y_coo):
+                            aperture = image[int(y)-int(fwhm):int(y)+int(fwhm),int(x)-int(fwhm):int(x)+int(fwhm)]
+                            adu_tmp = numpy.sum(aperture)
+                            adu_tmp = adu_tmp - aperture.size * stats.median
+                            if adu_tmp <= 0: adu_tmp = 1
+                            adu.append(adu_tmp)
 
+                        indices = numpy.argsort(adu)[::-1]
+                        adu = numpy.array(adu)[indices]
+                        coo = coo[indices]
+                        status = "finding stars"
 
+                        coo = numpy.array(coo)
+                        adu = numpy.array(adu)
+                        coo = coo[:10]
+                        adu = adu[:10]
+
+                        self.auxGui.guider_tab.guiderView.update(image,coo)
+                        status = "updating image"
+                        if len(coo)>3 and len(self.prev_guider_coo)>3:
+                            x_coo, y_coo = zip(*coo)
+                            x_ref, y_ref = zip(*self.prev_guider_coo)
+                            xr = []
+                            yr = []
+                            for x,y in zip(x_coo,y_coo):
+                                x_tmp = numpy.abs(x - x_coo)
+                                y_tmp = numpy.abs(y - y_coo)
+                                r_tmp = x_tmp**2 + y_tmp**2
+                                i_tmp = numpy.argsort(r_tmp)
+                                i1 = i_tmp[1]
+                                i2 = i_tmp[2]
+                                x_range = (x - x_coo[i1]) + (x - x_coo[i2])
+                                y_range = (y - y_coo[i1]) + (y - y_coo[i2])
+                                xr.append(x_range)
+                                yr.append(y_range)
+
+                            xr0 = []
+                            yr0 = []
+                            for x,y in zip(x_ref,y_ref):
+                                x_tmp = numpy.abs(x - x_ref)
+                                y_tmp = numpy.abs(y - y_ref)
+                                r_tmp = x_tmp**2 + y_tmp**2
+                                i_tmp = numpy.argsort(r_tmp)
+                                i1 = i_tmp[1]
+                                i2 = i_tmp[2]
+                                x_range = (x - x_ref[i1]) + (x - x_ref[i2])
+                                y_range = (y - y_ref[i1]) + (y - y_ref[i2])
+                                xr0.append(x_range)
+                                yr0.append(y_range)
+
+                            xr=numpy.array(xr)
+                            yr = numpy.array(yr)
+                            xr0 = numpy.array(xr0)
+                            yr0 = numpy.array(yr0)
+                            dr = xr + yr
+                            dr0 = xr0 + yr0
+
+                            dx_tab = []
+                            dy_tab = []
+                            for i,d in enumerate(dr):
+                                d_tmp = numpy.abs(d - dr0)
+                                i_tmp = numpy.argmin(d_tmp)
+                                if xr[i]-xr0[i_tmp]<5 and yr[i]-yr0[i_tmp]<5:
+                                    dx = x_coo[i] - x_ref[i_tmp]
+                                    dy = y_coo[i] - y_ref[i_tmp]
+                                    dx_tab.append(dx)
+                                    dy_tab.append(dy)
+                            print(dx_tab,dy_tab)
+
+                            dx = numpy.median(dx_tab)
+                            dy = numpy.median(dy_tab)
+
+                            self.guider_passive_dx.append(dx)
+                            self.guider_passive_dy.append(dy)
+
+                            if len(self.guider_passive_dx)>10:
+                                self.guider_passive_dx = self.guider_passive_dx[1:]
+                                self.guider_passive_dy = self.guider_passive_dy[1:]
+
+                            self.auxGui.guider_tab.guiderView.update_plot(self.guider_passive_dx,self.guider_passive_dy)
+
+                        self.prev_guider_coo = coo
+                        self.prev_guider_adu = adu
+
+            except Exception as e:
+                txt = f"GUIDER FAILED after {status}, {e}"
+                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
 
 
             # sprawdzenie gubienia subskrypcji
@@ -632,14 +706,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.planGui.current_i=-1
 
                 if "wait_sunrise" in self.ob.keys():
-                    if float(self.almanac["sun_alt"]) > float(self.ob["wait_sunrise"]):
+                    if deg_to_decimal_deg(self.almanac["sun_alt"]) > float(self.ob["wait_sunrise"]):
                         self.ob["done"]=True
                         self.planGui.done.append(self.ob["uid"])
                         self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} DONE","green")
                         self.planGui.current_i=-1
 
                 if "wait_sunset" in self.ob.keys():
-                    if float(self.almanac["sun_alt"]) < float(self.ob["wait_sunset"]):
+                    if deg_to_decimal_deg(self.almanac["sun_alt"]) < float(self.ob["wait_sunset"]):
                         self.ob["done"]=True
                         self.planGui.done.append(self.ob["uid"])
                         self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} DONE","green")
@@ -678,9 +752,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.ojd_e.setText(f"{self.almanac['jd']:.6f}")
             self.obsGui.main_form.sid_e.setText(str(self.almanac["sid"]).split(".")[0])
             date=str(self.almanac["ut"]).split()[0]
-            date=date.split("/")[2]+"/"+date.split("/")[1]+"/"+date.split("/")[0]
+            self.date=date.split("/")[2]+"/"+date.split("/")[1]+"/"+date.split("/")[0]
             ut=str(self.almanac["ut"]).split()[1]
-            self.obsGui.main_form.date_e.setText(str(date))
+            self.obsGui.main_form.date_e.setText(str(self.date))
             self.obsGui.main_form.ut_e.setText(str(ut))
             self.obsGui.main_form.skyView.updateAlmanac()
             #self.obsGui.main_form.skyView.updateRadar()
@@ -777,7 +851,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.auxGui.focus_tab.result_e.setText(status)
                         self.auxGui.focus_tab.max_sharp=None
                     self.auxGui.focus_tab.update()
-                    self.auxGui.tabWidget.setCurrentIndex(1)
+                    self.auxGui.tabWidget.setCurrentIndex(2)
 
 
         # NORMAL PLAN
@@ -835,155 +909,180 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.plan_runner_status="exposing"
                 self.msg(f"PLAN: {self.dit_exp} [s] test exposure started","black")
 
-            elif info["auto_exp_finished"]:
+            elif info["auto_exp_finnished"]:
                 self.msg(f"PLAN: test exposure done", "black")
 
         if "test_exp_mean" in info.keys():                                                        # SKYFLAT
             self.msg(f"PLAN: mean {int(info['test_exp_mean'])} ADU measured", "black")
+
+        # FLAT RECORDER
+        if "type" in info.keys() and "name" in info.keys() and "exp_done" in info.keys() and "filter" in info.keys() and "exp_time" in info.keys() and "done" in info.keys():
+
+            if info["type"] == "flat" and info["exp_done"] == False:
+                self.flat_record["date"] =  str(self.date) + " " + str(self.ut).split()[1].split(":")[0] + ":" + str(self.ut).split()[1].split(":")[1]
+                self.flat_record["filter"] = info["filter"]
+                self.flat_record["exp_time"] = info["exp_time"]
+                self.flat_record["h_sun"] = f"{deg_to_decimal_deg(self.almanac['sun_alt']):.2f}"
+                self.flat_record["go"] = True
+        if "name" in info.keys():
+            if info["name"] == "DOMEFLAT":          # te wystepuja w oddzielnej iteracji, wczesniejszej
+                self.flat_record["type"] = "domeflat"
+            elif info["name"] == "SKYFLAT":
+                self.flat_record["type"] = "skyflat"
 
 
     # ############ AUTO FOCUS ##########################
 
     @qs.asyncSlot()
     async def auto_focus(self):
-        program=""
+        if await self.user.aget_is_access():
+            program=""
 
-        ok = False
-        v0 = float(self.auxGui.focus_tab.last_e.text())
-        step = float(self.auxGui.focus_tab.steps_e.text())
-        number = float(self.auxGui.focus_tab.range_e.text())
-        method = self.auxGui.focus_tab.method_s.currentText()
-        if method == "RMS":
-            self.focus_method = "rms"
-            if number > 2:
-                ok = True
-            else: self.WarningWindow("WARNING: Not enough STEPS number")
-        elif method == "RMS_QUAD":
-            self.focus_method = "rms_quad"
-            if number > 4:
-                ok = True
-            else: self.WarningWindow("WARNING: Not enough STEPS number")
+            ok = False
+            v0 = float(self.auxGui.focus_tab.last_e.text())
+            step = float(self.auxGui.focus_tab.steps_e.text())
+            number = float(self.auxGui.focus_tab.range_e.text())
+            method = self.auxGui.focus_tab.method_s.currentText()
+            if method == "RMS":
+                self.focus_method = "rms"
+                if number > 2:
+                    ok = True
+                else: self.WarningWindow("WARNING: Not enough STEPS number")
+            elif method == "RMS_QUAD":
+                self.focus_method = "rms_quad"
+                if number > 4:
+                    ok = True
+                else: self.WarningWindow("WARNING: Not enough STEPS number")
 
-        if ok:
-            exp=self.instGui.ccd_tab.inst_Dit_e.text()
-            if len(exp)==0:
-                exp = 5
-                self.msg("WARNING: no exp specified. exp=5","red")
+            if ok:
+                exp=self.instGui.ccd_tab.inst_Dit_e.text()
+                if len(exp)==0:
+                    exp = 5
+                    self.msg("WARNING: no exp specified. exp=5","red")
 
-            seq = f"{int(number)}/"+str(self.curent_filter)+"/"+str(exp)
-            pos = f"{int(v0)}/{int(step)}"
-            program = f"FOCUS seq={seq} pos={pos}"
+                seq = f"{int(number)}/"+str(self.curent_filter)+"/"+str(exp)
+                pos = f"{int(v0)}/{int(step)}"
+                program = f"FOCUS seq={seq} pos={pos}"
 
-            self.planrunner.load_nightplan_string('auto_focus', string=program, overwrite=True)
-            await self.planrunner.arun_nightplan('auto_focus',step_id="00")
-            self.fits_exec=True
-            self.plan_runner_origin="auto_focus"
-            self.program_name="auto_focus"
-            self.autofocus_started=True
+                self.planrunner.load_nightplan_string('auto_focus', string=program, overwrite=True)
+                await self.planrunner.arun_nightplan('auto_focus',step_id="00")
+                self.fits_exec=True
+                self.plan_runner_origin="auto_focus"
+                self.program_name="auto_focus"
+                self.autofocus_started=True
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
+
 
     # ############ PLAN RUNNER ##########################
 
     @qs.asyncSlot()
     async def plan_start(self):
+        if await self.user.aget_is_access():
 
-        self.observer = self.auxGui.welcome_tab.observer_e.text()
+            self.observer = self.auxGui.welcome_tab.observer_e.text()
 
-        if self.planGui.next_i > -1 and self.planGui.next_i < len(self.planGui.plan):
-            self.ob = self.planGui.plan[self.planGui.next_i]
-            self.ob["done"]=False
-            self.ob["run"]=True
-
-
-            if "uid" in self.ob.keys():
-                if self.ob["uid"] not in self.planGui.done:
-                    if "type" in self.ob.keys() and "name" in self.ob.keys():
-                        self.planGui.current_i = self.planGui.next_i
-
-                        if self.ob["type"] == "STOP":
-                            self.ob["done"]=False
-                            self.ob["run"]=False
-                            self.planGui.current_i = -1
-
-                        if self.ob["type"] == "BELL":
-                            subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
-                            self.ob["done"]=True
-                            self.ob["run"]=True
-                            self.planGui.current_i = -1
+            if self.planGui.next_i > -1 and self.planGui.next_i < len(self.planGui.plan):
+                self.ob = self.planGui.plan[self.planGui.next_i]
+                self.ob["done"]=False
+                self.ob["run"]=True
 
 
-                        if self.ob["type"] == "WAIT":
-                            if "wait" in self.ob.keys():
-                                self.ob["ob_start_time"] = self.time
+                if "uid" in self.ob.keys():
+                    if self.ob["uid"] not in self.planGui.done:
+                        if "type" in self.ob.keys() and "name" in self.ob.keys():
+                            self.planGui.current_i = self.planGui.next_i
+
+                            if self.ob["type"] == "STOP":
                                 self.ob["done"]=False
+                                self.ob["run"]=False
+                                self.planGui.current_i = -1
+
+                            if self.ob["type"] == "BELL":
+                                subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
+                                self.ob["done"]=True
                                 self.ob["run"]=True
-                                self.msg(f"PLAN: {self.ob['name']} {self.ob['wait']} s. start","black")
-                            if "wait_ut" in self.ob.keys():
-                                self.ob["done"]=False
-                                self.ob["run"]=True
-                                self.msg(f"PLAN: {self.ob['name']} UT {self.ob['wait_ut']} start","black")
-                            if "wait_sunset" in self.ob.keys():
-                                self.ob["done"]=False
-                                self.ob["run"]=True
-                                self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} start","black")
-                            if "wait_sunrise" in self.ob.keys():
-                                self.ob["done"]=False
-                                self.ob["run"]=True
-                                self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} start","black")
+                                self.planGui.current_i = -1
 
 
-                        if self.ob["type"] == "ZERO" and "block" in self.ob.keys():
-                            program = self.ob["block"]
-                            self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
-                            await self.planrunner.arun_nightplan('program', step_id="00")
-
-                            self.program_name="program"
-                            self.fits_exec=True
-                            self.plan_runner_origin="Plan Gui"
-
-                        if self.ob["type"] == "DARK" and "block" in self.ob.keys():
-                            program = self.ob["block"]
-                            self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
-                            await self.planrunner.arun_nightplan('program', step_id="00")
-
-                            self.program_name="program"
-                            self.fits_exec=True
-                            self.plan_runner_origin="Plan Gui"
-
-                        if self.ob["type"] == "DOMEFLAT" and "block" in self.ob.keys():
-                            program = self.ob["block"]
-                            self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
-                            await self.planrunner.arun_nightplan('program', step_id="00")
-
-                            self.program_name="program"
-                            self.fits_exec=True
-                            self.plan_runner_origin="Plan Gui"
+                            if self.ob["type"] == "WAIT":
+                                if "wait" in self.ob.keys():
+                                    self.ob["ob_start_time"] = self.time
+                                    self.ob["done"]=False
+                                    self.ob["run"]=True
+                                    self.msg(f"PLAN: {self.ob['name']} {self.ob['wait']} s. start","black")
+                                if "wait_ut" in self.ob.keys():
+                                    self.ob["done"]=False
+                                    self.ob["run"]=True
+                                    self.msg(f"PLAN: {self.ob['name']} UT {self.ob['wait_ut']} start","black")
+                                if "wait_sunset" in self.ob.keys():
+                                    self.ob["done"]=False
+                                    self.ob["run"]=True
+                                    self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} start","black")
+                                if "wait_sunrise" in self.ob.keys():
+                                    self.ob["done"]=False
+                                    self.ob["run"]=True
+                                    self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} start","black")
 
 
-                        if self.ob["type"] == "SKYFLAT" and "block" in self.ob.keys():
-                            program = self.ob["block"]
-                            self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
-                            await self.planrunner.arun_nightplan('program', step_id="00")
+                            if self.ob["type"] == "ZERO" and "block" in self.ob.keys():
+                                program = self.ob["block"]
+                                self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
+                                await self.planrunner.arun_nightplan('program', step_id="00")
 
-                            self.program_name="program"
-                            self.fits_exec=True
-                            self.plan_runner_origin="Plan Gui"
+                                self.program_name="program"
+                                self.fits_exec=True
+                                self.plan_runner_origin="Plan Gui"
+
+                            if self.ob["type"] == "DARK" and "block" in self.ob.keys():
+                                program = self.ob["block"]
+                                self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
+                                await self.planrunner.arun_nightplan('program', step_id="00")
+
+                                self.program_name="program"
+                                self.fits_exec=True
+                                self.plan_runner_origin="Plan Gui"
+
+                            if self.ob["type"] == "DOMEFLAT" and "block" in self.ob.keys():
+                                program = self.ob["block"]
+                                self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
+                                await self.planrunner.arun_nightplan('program', step_id="00")
+
+                                self.program_name="program"
+                                self.fits_exec=True
+                                self.plan_runner_origin="Plan Gui"
 
 
-                        if self.ob["type"] == "OBJECT" and "block" in self.ob.keys():
-                            program = self.ob["block"]
-                            if "comment" in program:
-                                program = program.split("comment")[0]
-                            self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
-                            await self.planrunner.arun_nightplan('program', step_id="00")
+                            if self.ob["type"] == "SKYFLAT" and "block" in self.ob.keys():
+                                program = self.ob["block"]
+                                self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
+                                await self.planrunner.arun_nightplan('program', step_id="00")
 
-                            self.program_name="program"
-                            self.fits_exec=True
-                            self.plan_runner_origin="Plan Gui"
+                                self.program_name="program"
+                                self.fits_exec=True
+                                self.plan_runner_origin="Plan Gui"
 
+
+                            if self.ob["type"] == "OBJECT" and "block" in self.ob.keys():
+                                program = self.ob["block"]
+                                if "comment" in program:
+                                    program = program.split("comment")[0]
+                                self.planrunner.load_nightplan_string('program', string=program, overwrite=True)
+                                await self.planrunner.arun_nightplan('program', step_id="00")
+
+                                self.program_name="program"
+                                self.fits_exec=True
+                                self.plan_runner_origin="Plan Gui"
+
+                            self.next_ob()
+
+                    else:
                         self.next_ob()
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
 
-                else:
-                    self.next_ob()
 
     def next_ob(self):
         self.planGui.next_i = self.planGui.next_i + 1
@@ -1069,6 +1168,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if self.fits_exec:
                 self.auxGui.tabWidget.setCurrentIndex(self.auxGui.tabWidget.count()-1)
             self.msg("INFO: new IMAGE retrived","black")
+
+            if self.flat_record["go"]:
+                self.flat_record["ADU"] = stats.median
+                txt = (f'{self.flat_record["date"]}  {self.flat_record["type"]}  {self.flat_record["filter"]}  'f'{float(self.flat_record["exp_time"]):.2f}  {self.flat_record["h_sun"]}  {self.flat_record["ADU"]}')
+                self.auxGui.flat_tab.info_e.append(txt)
+                self.auxGui.tabWidget.setCurrentIndex(1)
+                self.flat_record["go"] = False
+
+                active_tel = self.active_tel
+                f_name = self.flat_log_files[active_tel]
+                flat_log_file = self.script_location+f_name #"/Logs/zb08_flats_log.txt"
+                if os.path.exists(flat_log_file):
+                    pass
+                else:
+                    with open(flat_log_file,"w") as log_file:
+                        log_file.write("DATE UT | type | filter | exp | h_sun | ADU\n")
+                with open(flat_log_file,"a") as log_file:
+                    log_file.write(txt+"\n")
+                self.flat_record["go"] = False
+
 
     @qs.asyncSlot()
     async def ccd_Snap(self):
@@ -1437,9 +1556,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                self.mntGui.mntMotors_c.setChecked(False)
                txt="TELEMETRY: motors OFF"
                self.msg(txt,"black")
+           self.mount_update(None)
 
-           self.mntGui.mntStat_e.setText(txt)
-           self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+           #self.mntGui.mntStat_e.setText(txt)
+           #self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
 
     @qs.asyncSlot()
     async def covers_openOrClose(self):
@@ -1542,9 +1662,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                        self.req_ra=ra
                        self.req_dec=dec
                        self.req_epoch=epoch
-                       ra,dec = RaDecEpoch(self.observatory,ra,dec,epoch)
-                       ra=hmsRa2float(ra)
-                       dec=arcDeg2float(dec)
+                       ra=ra_to_decimal(ra)
+                       dec=dec_to_decimal(dec)
+                       ra,dec = ra_dec_epoch(ra,dec,epoch)
+
                        await self.mount.aput_slewtocoo_async(ra, dec)
                        txt=f"REQUEST: slew to Ra: {ra} Dec: {dec}"
                        self.msg(txt,"black")
@@ -1606,7 +1727,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         #self.mount_parked=self.mount.atpark
         txt=""
-        if self.mount_slewing and self.mount_tracking:
+        if not self.mount_motortatus:
+            txt = "SLEWING, TRACKING"
+            self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+        elif self.mount_slewing and self.mount_tracking:
             txt="SLEWING, TRACKING"
             self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
             self.mntGui.tracking_c.setChecked(True)
@@ -1646,8 +1770,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mount_alt=await self.mount.aget_alt()
         self.mount_az=await self.mount.aget_az()
         if "--" not in str(self.mount_ra) and "--" not in str(self.mount_dec) and self.mount_ra != None and self.mount_dec != None:
-           self.mntGui.mntRa_e.setText(Deg2H(self.mount_ra))
-           self.mntGui.mntDec_e.setText(Deg2DMS(self.mount_dec))
+            self.mntGui.mntRa_e.setText(to_hourangle_sexagesimal(self.mount_ra))
+            self.mntGui.mntDec_e.setText(dec_to_sexagesimal(self.mount_dec))
         if "--" not in str(self.mount_alt) and "--" not in str(self.mount_az) and self.mount_alt != None and self.mount_az != None:
            self.mntGui.mntAlt_e.setText(f"{self.mount_alt:.3f}")
            self.mntGui.mntAz_e.setText(f"{self.mount_az:.3f}")
@@ -1679,7 +1803,61 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except IndexError: pass
         self.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
 
+    @qs.asyncSlot()
+    async def pulse_up(self):
+        if await self.user.aget_is_access():
+            arcsec = self.mntGui.pulse_window.pulseDec_e.text()
+            sec = 1000 * (float(arcsec)/6 )
+            sec = int(sec)
+            await self.mount.aput_pulseguide(0,sec)
+            self.pulseDec = self.pulseDec + float(arcsec)
+            self.mntGui.pulse_window.sumDec_e.setText(str(self.pulseDec))
+            self.msg(f"REQUEST: pulse DEC + {arcsec}", "black")
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
 
+    @qs.asyncSlot()
+    async def pulse_down(self):
+        if await self.user.aget_is_access():
+            arcsec = self.mntGui.pulse_window.pulseDec_e.text()
+            sec = 1000 * (float(arcsec)/6 )
+            sec = int(sec)
+            await self.mount.aput_pulseguide(1,sec)
+            self.pulseDec = self.pulseDec - float(arcsec)
+            self.mntGui.pulse_window.sumDec_e.setText(str(self.pulseDec))
+            self.msg(f"REQUEST: pulse DEC - {arcsec}", "black")
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
+
+    @qs.asyncSlot()
+    async def pulse_left(self):
+        if await self.user.aget_is_access():
+            arcsec = self.mntGui.pulse_window.pulseRa_e.text()
+            sec = 1000 * (float(arcsec)/6  )
+            sec = int(sec)
+            await self.mount.aput_pulseguide(2,sec)
+            self.pulseRa = self.pulseRa + float(arcsec)
+            self.mntGui.pulse_window.sumRa_e.setText(str(self.pulseRa))
+            self.msg(f"REQUEST: pulse Ra + {arcsec}", "black")
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
+
+    @qs.asyncSlot()
+    async def pulse_right(self):
+        if await self.user.aget_is_access():
+            arcsec = self.mntGui.pulse_window.pulseRa_e.text()
+            sec = 1000 * (float(arcsec)/6 )
+            sec = int(sec)
+            await self.mount.aput_pulseguide(3,sec)
+            self.pulseRa = self.pulseRa - float(arcsec)
+            self.mntGui.pulse_window.sumRa_e.setText(str(self.pulseRa))
+            self.msg(f"REQUEST: pulse Ra - {arcsec}", "black")
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
 
     # ################# DOME ########################
     @qs.asyncSlot()
@@ -1806,40 +1984,80 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.dome_next_az_ok or self.dome_next_az_ok == None : self.mntGui.domeNextAz_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
         else: self.mntGui.domeNextAz_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
+
     @qs.asyncSlot()
-    async def domeFansOnOff(self):
+    async def VentilatorsOnOff(self):
+        if await self.user.aget_is_access():
+            r = await self.dome.aget_dome_fans_running()
+            print(r)
+        #    if r == "True": self.dome_fanStatus=True
+        #    else: self.dome_fanStatus=False
+        #    if self.dome_fanStatus:
+        #       txt="REQUEST: mirror fans OFF"
+        #       self.msg(txt,"green")
+        #       await self.focus.aput_fansturnoff()
+        #    else:
+        #        txt="REQUEST: mirror fans ON"
+        #        self.msg(txt,"green")
+        #        await self.focus.aput_fansturnon()
+        #    self.mntGui.fans_e.setText(txt)
+        #    self.mntGui.fans_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+        # else:
+        #     await self.Ventilators_update(False)
+        #     txt="WARNING: U don't have controll"
+        #     self.WarningWindow(txt)
+
+    async def Ventilators_update(self,event):
+           pass
+           # r = await self.focus.aget_fansstatus()
+           # if r == "True": self.dome_fanStatus=True
+           # else: self.dome_fanStatus=False
+           #
+           # if self.dome_fanStatus:
+           #     self.mntGui.mirrorFans_c.setChecked(True)
+           #     txt="FANS ON"
+           # else:
+           #     self.mntGui.mirrorFans_c.setChecked(False)
+           #     txt="FANS OFF"
+           # self.mntGui.mirrorFans_e.setText(txt)
+           # self.mntGui.mirrorFans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+
+    # OTHER COMPONENTS
+
+    @qs.asyncSlot()
+    async def mirrorFansOnOff(self):
         if await self.user.aget_is_access():
            r = await self.focus.aget_fansstatus()
            if r == "True": self.dome_fanStatus=True
            else: self.dome_fanStatus=False
            if self.dome_fanStatus:
-              txt="REQUEST: fans OFF"
+              txt="REQUEST: mirror fans OFF"
               self.msg(txt,"green")
               await self.focus.aput_fansturnoff()
            else:
-               txt="REQUEST: fans ON"
+               txt="REQUEST: mirror fans ON"
                self.msg(txt,"green")
                await self.focus.aput_fansturnon()
            self.mntGui.fans_e.setText(txt)
            self.mntGui.fans_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
         else:
-            await self.domeFans_update(False)
+            await self.mirrorFans_update(False)
             txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
-    async def domeFans_update(self,event):
+    async def mirrorFans_update(self,event):
            r = await self.focus.aget_fansstatus()
            if r == "True": self.dome_fanStatus=True
            else: self.dome_fanStatus=False
 
            if self.dome_fanStatus:
-               self.mntGui.fans_c.setChecked(True)
+               self.mntGui.mirrorFans_c.setChecked(True)
                txt="FANS ON"
            else:
-               self.mntGui.fans_c.setChecked(False)
+               self.mntGui.mirrorFans_c.setChecked(False)
                txt="FANS OFF"
-           self.mntGui.fans_e.setText(txt)
-           self.mntGui.fans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+           self.mntGui.mirrorFans_e.setText(txt)
+           self.mntGui.mirrorFans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
 
 
     @qs.asyncSlot()
