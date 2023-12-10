@@ -116,22 +116,43 @@ class WelcomeGui(QWidget):
 
         self.pic_l = QLabel(" ")
         self.pic_l.setPixmap(QtGui.QPixmap(png_file).scaled(300, 200))
-        grid.addWidget(self.pic_l, w,0,2,1)
+        grid.addWidget(self.pic_l, w,0,5,1)
 
         self.wind_l = QLabel("Wind:")
         self.wind_e = QLineEdit()
         self.wind_e.setReadOnly(True)
         self.wind_e.setStyleSheet("background-color: rgb(235,235,235);")
+        self.windDir_l = QLabel("Direction:")
+        self.windDir_e = QLineEdit()
+        self.windDir_e.setReadOnly(True)
+        self.windDir_e.setStyleSheet("background-color: rgb(235,235,235);")
         self.temp_l = QLabel("Temp:")
         self.temp_e = QLineEdit()
         self.temp_e.setReadOnly(True)
         self.temp_e.setStyleSheet("background-color: rgb(235,235,235);")
+        self.hummidity_l = QLabel("Humidity:")
+        self.hummidity_e = QLineEdit()
+        self.hummidity_e.setReadOnly(True)
+        self.hummidity_e.setStyleSheet("background-color: rgb(235,235,235);")
+        self.pressure_l = QLabel("Pressure:")
+        self.pressure_e = QLineEdit()
+        self.pressure_e.setReadOnly(True)
+        self.pressure_e.setStyleSheet("background-color: rgb(235,235,235);")
+
         grid.addWidget(self.temp_l, w, 1)
         grid.addWidget(self.temp_e, w, 2)
         w = w + 1
+        grid.addWidget(self.hummidity_l, w, 1)
+        grid.addWidget(self.hummidity_e, w, 2)
+        w = w + 1
         grid.addWidget(self.wind_l, w, 1)
         grid.addWidget(self.wind_e, w, 2)
-
+        w = w + 1
+        grid.addWidget(self.windDir_l, w, 1)
+        grid.addWidget(self.windDir_e, w, 2)
+        w = w + 1
+        grid.addWidget(self.pressure_l, w, 1)
+        grid.addWidget(self.pressure_e, w, 2)
         w = w + 1
         self.observer_l = QLabel("Welcome observer, please provide Your name:")
         self.observer_e = QLineEdit()

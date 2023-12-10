@@ -15,7 +15,9 @@ import pwd
 import os
 import subprocess
 
+from astropy.io import fits
 import pyaraucaria
+
 
 from PyQt5 import QtWidgets, QtCore
 
@@ -29,7 +31,9 @@ from pyaraucaria.airmass import airmass
 
 from ocaboxapi import ClientAPI, Observatory
 from ob.planrunner.cycle_time_calc.cycle_time_calc import CycleTimeCalc
-from serverish.messenger import Messenger, single_read, get_reader
+from serverish.messenger import Messenger, single_read, get_reader, get_journalreader
+from serverish.messenger.msg_journal_pub import MsgJournalPublisher, get_journalpublisher, JournalEntry
+from serverish.messenger.msg_journal_read import MsgJournalReader
 
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 
@@ -97,8 +101,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.focus_conn="unknown"
         self.covercalibrator_conn="unknown"
 
-        # self.cfg_wind_limits = 36 # km/h
-        self.cfg_wind_limits = 11
+
+        self.cfg_wind_limit_pointing =  11  # m/s
+        self.cfg_wind_limit = 14 # m/s
+        self.cfg_humidity_limit = 70  # %
         self.overhed = 20
 
         self.nextOB_ok = None
@@ -112,6 +118,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # weather telemetry
         self.telemetry_temp = None
         self.telemetry_wind = None
+        self.telemetry_wind_direction = None
+        self.telemetry_humidity = None
+        self.telemetry_pressure = None
 
         # aux zmienne
         self.fits_exec=False
@@ -227,7 +236,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #self.add_background_task(self.fw.asubscribe_position(self.obsGui.instrument_update))
 
         self.add_background_task(self.TOItimer())
-
+        self.add_background_task(self.nats_weather_loop())
 
         # MQTT
         # try:
@@ -242,37 +251,40 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
          # except Exception as e: pass
 
         # NATS weather
-        self.add_background_task(self.nats_weather_loop())
+
 
 
 
     async def nats_weather_loop(self):
-        reader = get_reader('telemetry.weather.davis', deliver_policy='last')
-        async for data, meta in reader:
-            weather = data['measurements']
-            print(weather)
-            self.telemetry_temp = weather["temperature_C"]
-            self.telemetry_wind = weather["wind_ms"]
-            self.auxGui.welcome_tab.wind_e.setText(f"{self.telemetry_wind:.1f} [m/s]")
-            if int(self.telemetry_wind)>self.cfg_wind_limits:
-                self.auxGui.tabWidget.setCurrentIndex(0)
-                self.auxGui.welcome_tab.wind_e.setStyleSheet("color: red;")
-            else:
-                self.auxGui.welcome_tab.wind_e.setStyleSheet("color: black;")
-            self.auxGui.welcome_tab.temp_e.setText(f"{self.telemetry_temp:.1f} [C]")
+        try:
+            reader = get_reader('telemetry.weather.davis', deliver_policy='last')
+            async for data, meta in reader:
+                weather = data['measurements']
+                self.telemetry_temp = weather["temperature_C"]
+                self.telemetry_wind = weather["wind_10min_ms"]
+                self.telemetry_wind_direction = weather["wind_dir_deg"]
+                self.telemetry_humidity = weather["humidity"]
+                self.telemetry_pressure = weather["pressure_Pa"]
+                self.updateWeather()
+        except Exception as e:
+            logger.warning(f'TOI: nats_weather_loop: {e}')
 
-    def on_weather_message(self, client, userdata, message):
-        weather = message.payload.decode('utf-8')
-        weather_dict = json.loads(weather)
-        self.telemetry_temp = weather_dict["temp"]
-        self.telemetry_wind = weather_dict["wind"]
-        self.auxGui.welcome_tab.wind_e.setText(f"{self.telemetry_wind} [km/h]")
-        if int(self.telemetry_wind)>self.cfg_wind_limits:
-            self.auxGui.tabWidget.setCurrentIndex(0)
-            self.auxGui.welcome_tab.wind_e.setStyleSheet("color: red;")
-        else:
-            self.auxGui.welcome_tab.wind_e.setStyleSheet("color: black;")
-        self.auxGui.welcome_tab.temp_e.setText(f"{self.telemetry_temp} [C]")
+    # def on_weather_message(self, client, userdata, message):
+    #     weather = message.payload.decode('utf-8')
+    #     weather_dict = json.loads(weather)
+    #     self.telemetry_temp = weather_dict["temp"]
+    #     self.telemetry_wind = weather_dict["wind"]
+    #     self.auxGui.welcome_tab.wind_e.setText(f"{self.telemetry_wind} [km/h]")
+
+    async def nats_get_config(self):
+        observatory_config = {}
+        try:
+            observatory_config, meta = await single_read('tic.config.observatory')
+            #print(observatory_config)
+        except Exception as e:
+            logger.warning('Getting observatory config from NATS failed')
+
+
 
     def on_mqtt_connect(self, client, userdata, flags, rc):
         if rc == 0: self.mqtt_client.subscribe((self.mqtt_topic_weather, 1))
@@ -295,6 +307,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def teleskop_switched(self):
+
+        await self.stop_background_tasks()
+
+        self.nats_journal_flats_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.flats')
+
+
+
         #print("go")
         #subprocess.run(["aplay", self.script_location+"/sounds/spceflow.wav"])
         #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
@@ -318,8 +337,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         tel=self.obs_tel_tic_names[self.active_tel_i]
         self.active_tel = tel
-        if tel == "zb08": self.cfg_focus_directory = self.script_location+"/../../Desktop/fits_zb08/focus/actual"
-        elif tel == "jk15": self.cfg_focus_directory = self.script_location+"/../../Desktop/fits_jk15/focus/actual"
+        if tel == "zb08": self.cfg_focus_directory = "/data/fits/zb08/focus/actual"
+        elif tel == "jk15": self.cfg_focus_directory = "/data/fits/zb08/focus/actual"
         self.cfg_focus_record_file = self.script_location+"/focus_data.txt"
         self.catalog_file=self.script_location+"/object_catalog.txt"
         self.overhed = 20
@@ -404,8 +423,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.TOItimer0())
+        self.add_background_task(self.nats_weather_loop())
+        self.add_background_task(self.nats_log_reader())
 
-        await self.stop_background_tasks()
         await self.run_background_tasks()
 
         filter_list = await self.fw.aget_names() # To jest dziwny slownik
@@ -416,6 +436,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.planGui.updateUI()
         self.instGui.updateUI()
         self.mntGui.telFilter_s.addItems(self.filter_list)
+
+        self.updateWeather()
 
         self.catalog = readCatalog(self.catalog_file)
         completer = QtWidgets.QCompleter(self.catalog)
@@ -429,6 +451,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.EmStop_p.clicked.connect(self.EmStop)
 
         #self.force_update()
+
+    # ################### METODY POD NATSY ##################
+    async def nats_log_reader(self):
+        reader = get_journalreader(f'tic.journal.{self.active_tel}.log.flats', deliver_policy='last')
+        async for data, meta in reader:
+            d:JournalEntry = data
+            r = d.message
+            print("############ COS IDZIE #######")
+            print("NATS ", r)
+
 
 
     # ################### METODY POD SUBSKRYPCJE ##################
@@ -485,7 +517,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def TOItimer(self):
         while True:
             await asyncio.sleep(1)
-            print("* PING")
+            #print("* PING")
 
             # testowo guider
             try:
@@ -520,15 +552,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         status = "reading imagearray"
                         # Analiza guidera
                         stats = FFS(image)
-                        print("********* DUPA **********")
-                        print(f"{stats.rms:.0f}/{stats.sigma_quantile:.0f}\n")
-                        print(f"{stats.min:.0f}/{stats.median:.0f}/{stats.max:.0f}\n")
+                        #print("********* DUPA **********")
+                        #print(f"{stats.rms:.0f}/{stats.sigma_quantile:.0f}\n")
+                        #print(f"{stats.min:.0f}/{stats.median:.0f}/{stats.max:.0f}\n")
                         status = "fits stat"
                         th = float(self.auxGui.guider_tab.guiderView.treshold_s.value())
                         fwhm = float(self.auxGui.guider_tab.guiderView.fwhm_s.value())
                         status = "th and fwhm definition"
                         coo,adu = stats.find_stars(threshold=th,kernel_size=int(2*fwhm),fwhm=fwhm)
-                        print(len(coo))
+                        #print(len(coo))
                         x_coo, y_coo = zip(*coo)
                         adu = []
                         for x,y in zip(x_coo,y_coo):
@@ -636,7 +668,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             # sprawdzenie czy jest nowy fits do wyswietlenia
             if self.flag_newimage:    # sprawdza tylko jak jest imageready
                 self.image = self.ccd.imagearray
-                if self.image != self.prev_image:
+                if False:# self.image != self.prev_image:
                     self.prev_image = self.image
                     self.flag_newimage = False
                     self.new_fits()
@@ -816,6 +848,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def PlanRun1(self,info):
+        if "exp_started" in info.keys() and "exp_done" in info.keys() and "exp_saved" in info.keys():
+            if info["exp_started"]==True and info["exp_done"]==True and info["exp_saved"]==True:
+                hdul = fits.open("/data/fits/zb08/last_shoot.fits")
+                self.image = hdul[0].data
+                await self.new_fits()
+
         # AUTOFOCUS
         if self.autofocus_started:
             if "id" in info.keys():
@@ -1110,14 +1148,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.ccd.imageready:
             self.flag_newimage = True
 
-    def new_fits(self):
-        if self.image:
+    @qs.asyncSlot()
+    async def new_fits(self):
+        if True: #self.image:
             image = self.image
             #image = self.ccd.imagearray
             #image = await self.ccd.aget_imagearray()
 
             image = numpy.asarray(image)
-            image = image.astype(numpy.uint16)
+            #image = image.astype(numpy.uint16)
 
             stats = FFS(image)
 
@@ -1187,6 +1226,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         log_file.write("DATE UT | type | filter | exp | h_sun | ADU\n")
                 with open(flat_log_file,"a") as log_file:
                     log_file.write(txt+"\n")
+                w: MsgJournalPublisher = self.nats_journal_flats_writter
+                await w.log('INFO', txt)
                 self.flat_record["go"] = False
 
 
@@ -1557,7 +1598,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                self.mntGui.mntMotors_c.setChecked(False)
                txt="TELEMETRY: motors OFF"
                self.msg(txt,"black")
-           self.mount_update(None)
+           await self.mount_update(None)
 
            #self.mntGui.mntStat_e.setText(txt)
            #self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
@@ -1615,8 +1656,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.mntGui.mntStat_e.setText(txt)
                 self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,0,0); background-color: rgb(233, 233, 233);")
                 self.msg(txt, "green")
+                self.mntGui.domeAuto_c.setChecked(False)
                 await self.mount.aput_park()
-                await self.dome.aput_park()
+                await self.dome.aput_slewtoazimuth(180.)
             else:
                 txt = "WARNING: Motors are OFF"
                 self.WarningWindow(txt)
@@ -2234,6 +2276,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if await self.user.aget_is_access():
             txt = f"REQUEST: telescope shutdown"
             self.msg(txt, "green")
+            self.mntGui.domeAuto_c.setChecked(False)
+            await self.dome.aput_slewtoazimuth(180.)
             await self.telescope.shutdown()
         else:
            txt = "WARNING: U don't have controll"
@@ -2277,7 +2321,32 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             self.msg(f"TELEMETRY: user {txt} have controll","black")
 
-# ############ INNE ##############################3
+# ############ INNE ##############################
+
+    def updateWeather(self):
+        try:
+            self.auxGui.welcome_tab.wind_e.setText(f"{self.telemetry_wind:.1f} [m/s]")
+            self.auxGui.welcome_tab.windDir_e.setText(f"{self.telemetry_wind_direction:.0f} [deg]")
+            self.auxGui.welcome_tab.temp_e.setText(f"{self.telemetry_temp:.1f} [C]")
+            self.auxGui.welcome_tab.hummidity_e.setText(f"{self.telemetry_humidity:.0f} [%]")
+            self.auxGui.welcome_tab.pressure_e.setText(f"{self.telemetry_pressure:.1f} [Pa]")
+
+            if float(self.telemetry_wind)>float(self.cfg_wind_limit):
+                self.auxGui.welcome_tab.wind_e.setStyleSheet("color: red; background-color: rgb(235,235,235);")
+            else:
+                self.auxGui.welcome_tab.wind_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
+
+            if float(self.telemetry_humidity)>float(self.cfg_humidity_limit):
+                self.auxGui.welcome_tab.hummidity_e.setStyleSheet("color: red; background-color: rgb(235,235,235);")
+            else:
+                self.auxGui.welcome_tab.hummidity_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
+
+            self.obsGui.main_form.skyView.updateWind(self)
+        except Exception as e:
+            logger.warning(f'TOI: updateWeather: {e}')
+
+
+
     def ephem_update(self,tmp):
         self.ephem_utc = float(self.ephemeris.utc)
     def WarningWindow(self,txt):
@@ -2287,7 +2356,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.tmp_box.setText(txt)
         self.tmp_box.show()
 
-    async def on_start_app(self):
+    async def on_start_app(self):    # rozczlonkowac ta metoda i wlozyc wszystko do run_qt_app
+        await self.nats_get_config()
         await self.run_background_tasks()
         await self.mntGui.on_start_app()
         await self.obsGui.on_start_app()
@@ -2445,16 +2515,6 @@ class TelBasicState():
         self.parent.obsGui.main_form.update_table()
 
 
-
-
-
-
-
-
-
-
-
-
 async def run_qt_app():
 
     host = socket.gethostname()
@@ -2469,12 +2529,8 @@ async def run_qt_app():
     nats_port = observatory_model.get_app_cfg('nats_port')
     msg = Messenger()
     nats_opener = await msg.open(host=nats_host, port=nats_port, wait=3)
-    observatory_config = {}
-    await nats_opener
-    try:
-        observatory_config, meta = await single_read('tic.config.observatory')
-    except Exception as e:
-        logger.warning('Getting observatory config from NATS failed')
+
+
 
     def close_future(future_, loop_):
         loop_.call_later(10, future_.cancel)

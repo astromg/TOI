@@ -70,6 +70,24 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.edit_window.raise_()
          else: print("no plan loaded") # ERROR MSG
 
+      def pocisniecie_addStop(self):
+         if len(self.plan)>self.i:
+             print("ide ***************")
+             ob = {"name": "STOP"}
+             ob["type"] = "STOP"
+             ob["block"] = "STOP"
+             self.plan.insert(self.i+1,ob)
+             self.update_table()
+         else: pass
+
+      def pocisniecie_addBell(self):
+         if len(self.plan)>self.i:
+             ob = {"name": "BELL"}
+             ob["type"] = "BELL"
+             ob["block"] = "BELL"
+             self.plan.insert(self.i+1,ob)
+             self.update_table()
+         else: pass
 
       def check_next_i(self):                   # sprawdza czy nastepny obiekt nie zostal juz wykonany, albo skip
           if self.next_i > len(self.plan)-1:
@@ -203,6 +221,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                      #icon.setAlignment(QtCore.Qt.AlignCenter)
                      #self.plan_t.setCellWidget(i,0,txt)
 
+
                  if "skip" in self.plan[i].keys():
                     if self.plan[i]["skip"]:
                        font=QtGui.QFont()
@@ -236,7 +255,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     if self.plan[i]["type"]=="BELL":
                        font=QtGui.QFont()
                        font.setPointSize(20)
-                       txt=QTableWidgetItem("\U0001F50A")
+                       txt=QTableWidgetItem("\u266A")
                        txt.setFont(font)
                        txt.setTextAlignment(QtCore.Qt.AlignCenter)
                        #txt.setForeground(QtGui.QColor("red"))
@@ -326,7 +345,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           t2 = time.time() - t0
           self.parent.obsGui.main_form.skyView.updateRadar()
           t3 = time.time() - t0
-          print("time: ",t1,t2,t3)
+          #print("time: ",t1,t2,t3)
           self.plan_t.blockSignals(False)
 
 
@@ -362,11 +381,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
 
-      def setStop(self):
-          if "stop" in self.plan[self.i].keys():          
-             if self.plan[self.i]["stop"]:self.plan[self.i]["stop"]=False
-          else: self.plan[self.i]["stop"]=True
-          self.update_table()
 
       def setSkip(self):
           if "skip" in self.plan[self.i].keys():          
@@ -432,7 +446,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.i=self.i+1
               if self.i+1>len(self.plan): self.i=self.i-1
               self.update_table()
-              self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
+              #self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               self.repaint()
 
       def pocisniecie_last(self):
@@ -444,7 +458,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   self.next_i = self.next_i - 1
                   self.check_next_i()
               self.update_table()
-              self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
+              #self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               self.repaint()
 
       def pocisniecie_up(self):
@@ -672,7 +686,42 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.line_l.setFrameShape(QFrame.HLine)
           self.line_l.setFrameShadow(QFrame.Raised)
           self.grid.addWidget(self.line_l, w,0,1,5)
-          
+
+
+
+          w=w+1
+          self.next_p=QPushButton('NEXT \u2192')
+          self.skip_p=QPushButton('SKIP \u26D4')
+
+          self.grid.addWidget(self.next_p, w,0)
+          self.grid.addWidget(self.skip_p, w, 4)
+
+          w=w+1
+          self.line_l=QFrame()
+          self.line_l.setFrameShape(QFrame.HLine)
+          self.line_l.setFrameShadow(QFrame.Raised)
+          self.grid.addWidget(self.line_l, w,0,1,5)
+
+          w=w+1
+          self.addStop_p=QPushButton()
+          self.addStop_p.setText("STOP \u2B23")
+          self.addBell_p = QPushButton('BELL \u266A')
+          self.add_p=QPushButton('Add OB')
+          self.add_p.setStyleSheet(" color: gray;")
+          self.edit_p=QPushButton('Edit OB')
+          self.edit_p.setStyleSheet(" color: gray;")
+
+          self.grid.addWidget(self.addStop_p, w,0)
+          self.grid.addWidget(self.addBell_p, w, 1)
+          self.grid.addWidget(self.add_p, w,3)
+          self.grid.addWidget(self.edit_p, w, 4)
+
+          w=w+1
+          self.line_l=QFrame()
+          self.line_l.setFrameShape(QFrame.HLine)
+          self.line_l.setFrameShadow(QFrame.Raised)
+          self.grid.addWidget(self.line_l, w,0,1,5)
+
           w=w+1
           self.del_p=QPushButton('Del') 
           self.up_p=QPushButton('Up')          
@@ -696,27 +745,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.grid.addWidget(self.last_p, w,4)
 
           w=w+1
-          self.line_l=QFrame()
-          self.line_l.setFrameShape(QFrame.HLine)
-          self.line_l.setFrameShadow(QFrame.Raised)
-          self.grid.addWidget(self.line_l, w,0,1,5)
-
-          w=w+1
-          self.add_p=QPushButton('Add') 
-          self.add_p.setStyleSheet(" color: gray;")
-          self.edit_p=QPushButton('Edit')          
-          self.edit_p.setStyleSheet(" color: gray;")
-          self.next_p=QPushButton('Next')
-          self.stopHere_p=QPushButton('Stop')
-          self.skip_p=QPushButton('Skip')
-
-          self.grid.addWidget(self.next_p, w,0)
-          #self.grid.addWidget(self.stopHere_p, w,1)
-          self.grid.addWidget(self.add_p, w,1)
-          self.grid.addWidget(self.skip_p, w, 2)
-          self.grid.addWidget(self.edit_p, w,4)
-          w=w+1
-
           self.ob_l=QLabel("current OB:")
           self.ob_e=QLineEdit("")
           self.ob_e.setReadOnly(True)
@@ -753,7 +781,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.import_p.clicked.connect(self.import_to_manuall)
           self.plotPlan_p.clicked.connect(self.plot_plan)
           self.next_p.clicked.connect(self.setNext)
-          self.stopHere_p.clicked.connect(self.setStop)
           self.skip_p.clicked.connect(self.setSkip)
           self.up_p.clicked.connect(self.pocisniecie_up)
           self.down_p.clicked.connect(self.pocisniecie_down)
@@ -762,7 +789,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.last_p.clicked.connect(self.pocisniecie_last)
           self.swap_p.clicked.connect(self.pocisniecie_swap)
           self.edit_p.clicked.connect(self.pocisniecie_edit)
-          
+          self.addStop_p.clicked.connect(self.pocisniecie_addStop)
+          self.addBell_p.clicked.connect(self.pocisniecie_addBell)
+
           self.setLayout(self.grid)
           self.plan_t.setColumnWidth(0,30)
 
@@ -786,14 +815,13 @@ class PlotWindow(QWidget):
         super(PlotWindow, self).__init__()
         self.parent = parent
         self.setStyleSheet("font-size: 11pt;")
-        self.setMinimumSize(800,500)
+        self.setMinimumSize(1200,600)
         #self.setGeometry(100,100,400,100)
         self.mkUI()
         self.refresh()
         self.close_p.clicked.connect(lambda: self.close())
 
     def refresh(self):
-
 
         self.oca = ephem.Observer()
         self.oca.date = ephem.now()
@@ -818,25 +846,26 @@ class PlotWindow(QWidget):
         self.t0_dusk = self.oca.next_setting(ephem.Sun(),use_center=True)
         self.t_end_dusk = self.oca.next_rising(ephem.Sun(),use_center=True)
 
-        self.axes.fill_betweenx([0,90],self.t0,self.t0_dusk,color="yellow",alpha=0.1)
-        self.axes.fill_betweenx([0, 90], self.t_end_dusk, self.t_end, color="yellow", alpha=0.1)
-        self.axes.axvline(x=self.t_now,color="red")
 
+
+        # Rysowanie
         if len(self.parent.plan)>0:
             if self.t_now > self.t0:
                 self.t = self.t_now
             else:
                 self.t = self.t0
+            color = ["c","m"]
+            j=0
             for i, tmp in enumerate(self.parent.plan):
+                if j==2: j=0
                 tmp_ok = False
                 if self.parent.current_i > -1 and i >= self.parent.current_i: tmp_ok = True
                 if i >= self.parent.next_i: tmp_ok = True
                 if tmp_ok:
                     if "wait" in self.parent.plan[i].keys():
                         slotTime = float(self.parent.plan[i]["wait"])
-                        self.axes.fill_betweenx([40, 80], self.t, self.t+ephem.second*slotTime, color="blue", alpha=0.1)
+                        self.axes.fill_betweenx([0, 5], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
                         self.t = self.t + ephem.second * slotTime
-
 
                     if "seq" in self.parent.plan[i].keys():
                         slotTime = 0
@@ -856,13 +885,34 @@ class PlotWindow(QWidget):
                                 alt_tab.append(deg_to_decimal_deg(str(alt)))
                                 t = t + 10*ephem.second
                             #print(alt_tab,t_tab)
-                            self.axes.plot(t_tab,alt_tab)
+                            self.axes.plot(t_tab,alt_tab,color=color[j])
+                            j=j+1
                         self.t = self.t + ephem.second * slotTime
 
             self.axes.set_ylim(0, 90)
-            self.axes.set_xlim(self.t0-ephem.hour,self.t_end+ephem.hour)
-            self.axes.fill_betweenx([0, 40], self.t0_dusk, self.t_end_dusk, color="grey", alpha=0.1)
+            self.axes.set_xlim(self.t0-0.5*ephem.hour,self.t_end+0.5*ephem.hour)
+            self.axes.fill_betweenx([0, 35], self.t0_dusk, self.t_end_dusk, color="grey", alpha=0.1)
             self.axes.fill_betweenx([80, 90], self.t0_dusk, self.t_end_dusk, color="grey", alpha=0.1)
+            self.axes.fill_betweenx([0, 90], self.t0, self.t0_dusk, color="yellow", alpha=0.1)
+            self.axes.fill_betweenx([0, 90], self.t_end_dusk, self.t_end, color="yellow", alpha=0.1)
+            self.axes.axvline(x=self.t_now, color="blue")
+
+            xtics = [self.t0, self.t0_dusk, self.t_end_dusk, self.t_end]
+            xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
+            self.axes.set_xticks(xtics)
+            self.axes.set_xticklabels(xtics_labels,rotation=45,minor=False)
+
+            self.axes.set_yticks([0, 35, 80, 90])
+            self.axes.set_yticklabels(["0 deg", "35 deg", "80 deg", "90 deg"])
+
+            #self.axes.set_ylabel("altitude")
+            #self.axes.set_xlabel("UT")
+            self.fig.subplots_adjust(bottom=0.17,top=0.97,left=0.08,right=0.98)
+            self.fig.tight_layout()
+
+            self.canvas.draw()
+            self.show()
+
 
 
 
@@ -878,19 +928,12 @@ class PlotWindow(QWidget):
 
 
 
-
-            print(self.t_now)
-            print(self.t0)
-            print(self.t0_dusk)
-            print(self.t_end_dusk)
-            print(self.t_end)
-
     def mkUI(self):
         grid = QGridLayout()
         self.fig = Figure((1.0, 1.0), linewidth=-1, dpi=100)
         self.canvas = FigureCanvas(self.fig)
-        self.axes = self.fig.add_axes([0, 0, 1, 1])
-        #self.axes.axis("off")
+        #self.axes = self.fig.add_axes([0, 0, 1, 1])
+        self.axes = self.fig.add_subplot(111)
         grid.addWidget(self.canvas,0,0,1,2)
 
         self.toolbar = NavigationToolbar(self.canvas,self)

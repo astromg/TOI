@@ -530,8 +530,6 @@ class SkyView(QWidget):
             az = az * 2 * 3.14 / 360.
             self.mount = self.axes.plot(az, alt, color = color, marker = "o", markersize = "10", markerfacecolor = "white", alpha = 0.7)
 
-
-
             self.canvas.draw()
             self.show()
 
@@ -562,6 +560,31 @@ class SkyView(QWidget):
                                       alpha=0.5)
         self.canvas.draw()
         self.show()
+
+    def updateWind(self,parent):
+        try:
+            self.wind.remove()
+        except Exception as e:
+            pass
+
+        self.parent = parent
+        try:
+            wind=float(self.parent.telemetry_wind)
+            if wind<float(self.parent.cfg_wind_limit_pointing):
+                color="g"
+            elif wind<float(self.parent.cfg_wind_limit):
+                color="orange"
+            else:
+                color = "r"
+            theta = float(self.parent.telemetry_wind_direction)
+            theta = theta * numpy.pi / 180.
+
+            self.wind = self.axes.arrow(theta,120,0,-20,color=color,head_width=0.1,overhang=50,length_includes_head=True,head_starts_at_zero=True)
+
+            self.canvas.draw()
+            self.show()
+        except Exception as e:
+            print("toi, updateWind: ",e)
 
     # ======= Budowa okna ====================
 

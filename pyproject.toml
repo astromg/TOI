@@ -10,6 +10,7 @@ keywords = ["astronomy", "telescopes"]
 [tool.poetry.dependencies]
 python = "^3.9"
 pyaraucaria = {git = "https://github.com/araucaria-project/pyaraucaria.git"}
+serverish = {version="^0.11.2", extras=["messenger"]}
 #pyqt5-qt5 = "^5.15.2"
 #PyQt5 = "^5.15.7"
 astropy = ">=5.0.4,<5.1.0"
