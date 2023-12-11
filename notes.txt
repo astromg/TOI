@@ -42,6 +42,29 @@
           self.done=[]              # lista uuid wykonanych ob
 
 
+# ######### MQTT #######################
+
+        # MQTT
+        # try:
+        #     self.mqtt_client = mqtt.Client()
+        #     self.mqtt_broker = 'docker.oca.lan'
+        #     self.mqtt_port = 1883
+        #     self.mqtt_topic_weather = 'weather'
+        #     self.mqtt_client.connect(self.mqtt_broker, self.mqtt_port)
+        #     self.mqtt_client.message_callback_add(self.mqtt_topic_weather, self.on_weather_message)
+        #     self.mqtt_client.on_connect = self.on_mqtt_connect
+        #     self.mqtt_client.loop_start()
+         # except Exception as e: pass
+
+
+
+    # def on_weather_message(self, client, userdata, message):
+    #     weather = message.payload.decode('utf-8')
+    #     weather_dict = json.loads(weather)
+    #     self.telemetry_temp = weather_dict["temp"]
+    #     self.telemetry_wind = weather_dict["wind"]
+    #     self.auxGui.welcome_tab.wind_e.setText(f"{self.telemetry_wind} [km/h]")
+
 
 # ######### AUTOFLAT ########################
 

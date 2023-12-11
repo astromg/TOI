@@ -355,7 +355,7 @@ class GuiderView(QWidget):
             w = 0
             self.guiderCameraOn_l = QLabel("LOOP [s]:")
             self.guiderLoop_e = QLineEdit()
-            self.guiderLoop_e.setText("10")
+            self.guiderLoop_e.setText("5")
             self.guiderCameraOn_c = QCheckBox()
             self.guiderCameraOn_c.setChecked(False)
             self.guiderCameraOn_c.setLayoutDirection(Qt.RightToLeft)
@@ -374,13 +374,13 @@ class GuiderView(QWidget):
             self.treshold_s = QSlider(Qt.Horizontal)
             self.treshold_s.setMinimum(1)
             self.treshold_s.setMaximum(50)
-            self.treshold_s.setValue(20)
+            self.treshold_s.setValue(10)
             grid.addWidget(self.treshold_s, w, 2, 1, 3)
             w = w + 1
             self.fwhm_s = QSlider(Qt.Horizontal)
             self.fwhm_s.setMinimum(1)
             self.fwhm_s.setMaximum(10)
-            self.fwhm_s.setValue(3)
+            self.fwhm_s.setValue(4)
             grid.addWidget(self.fwhm_s, w, 2, 1, 3)
             w = w + 1
             self.line_l = QFrame()

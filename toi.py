@@ -238,17 +238,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.nats_weather_loop())
 
-        # MQTT
-        # try:
-        #     self.mqtt_client = mqtt.Client()
-        #     self.mqtt_broker = 'docker.oca.lan'
-        #     self.mqtt_port = 1883
-        #     self.mqtt_topic_weather = 'weather'
-        #     self.mqtt_client.connect(self.mqtt_broker, self.mqtt_port)
-        #     self.mqtt_client.message_callback_add(self.mqtt_topic_weather, self.on_weather_message)
-        #     self.mqtt_client.on_connect = self.on_mqtt_connect
-        #     self.mqtt_client.loop_start()
-         # except Exception as e: pass
 
         # NATS weather
 
@@ -269,12 +258,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'TOI: nats_weather_loop: {e}')
 
-    # def on_weather_message(self, client, userdata, message):
-    #     weather = message.payload.decode('utf-8')
-    #     weather_dict = json.loads(weather)
-    #     self.telemetry_temp = weather_dict["temp"]
-    #     self.telemetry_wind = weather_dict["wind"]
-    #     self.auxGui.welcome_tab.wind_e.setText(f"{self.telemetry_wind} [km/h]")
+
 
     async def nats_get_config(self):
         observatory_config = {}
@@ -523,8 +507,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             try:
                 status = "start"
                 guider_loop = int(self.auxGui.guider_tab.guiderView.guiderLoop_e.text())
+
                 self.tmp_i = self.tmp_i + 1
-                if self.tmp_i > guider_loop: self.tmp_i = 0
+
+                if self.tmp_i > guider_loop:
+                    self.tmp_i = 0
+
                 status = "loop definition"
                 if self.tmp_i == 1:
                     exp = float(self.auxGui.guider_tab.guiderView.guiderExp_e.text())
@@ -550,17 +538,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             txt = "Guider DARK saved"
                             self.auxGui.guider_tab.guiderView.result_e.setText(txt)
                         status = "reading imagearray"
+
                         # Analiza guidera
                         stats = FFS(image)
-                        #print("********* DUPA **********")
-                        #print(f"{stats.rms:.0f}/{stats.sigma_quantile:.0f}\n")
-                        #print(f"{stats.min:.0f}/{stats.median:.0f}/{stats.max:.0f}\n")
+
                         status = "fits stat"
                         th = float(self.auxGui.guider_tab.guiderView.treshold_s.value())
                         fwhm = float(self.auxGui.guider_tab.guiderView.fwhm_s.value())
                         status = "th and fwhm definition"
+
                         coo,adu = stats.find_stars(threshold=th,kernel_size=int(2*fwhm),fwhm=fwhm)
-                        #print(len(coo))
+                        print(f"Guider found {len(coo)} stars")
+
                         x_coo, y_coo = zip(*coo)
                         adu = []
                         for x,y in zip(x_coo,y_coo):
@@ -613,27 +602,59 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 xr0.append(x_range)
                                 yr0.append(y_range)
 
-                            xr=numpy.array(xr)
+                            xr = numpy.array(xr)
                             yr = numpy.array(yr)
                             xr0 = numpy.array(xr0)
                             yr0 = numpy.array(yr0)
-                            dr = xr + yr
-                            dr0 = xr0 + yr0
+                            print(xr,yr)
+                            print(xr0,yr0)
 
+                            dx_multiStars,dy_multiStars = None,None
                             dx_tab = []
                             dy_tab = []
-                            for i,d in enumerate(dr):
-                                d_tmp = numpy.abs(d - dr0)
-                                i_tmp = numpy.argmin(d_tmp)
-                                if xr[i]-xr0[i_tmp]<5 and yr[i]-yr0[i_tmp]<5:
-                                    dx = x_coo[i] - x_ref[i_tmp]
-                                    dy = y_coo[i] - y_ref[i_tmp]
+                            for i,tmp in enumerate(xr):
+                                j_list = numpy.array([i for i in range(len(xr0))])
+                                x_diff = numpy.abs(xr[i] - xr0)
+                                y_diff = numpy.abs(yr[i] - yr0)
+                                mk1 = x_diff < 3
+                                mk2 = y_diff < 3
+                                mk = [k and z for k,z in zip(mk1,mk2)]
+                                tmp_rx0 = xr0[mk]
+                                tmp_ry0 = yr0[mk]
+                                j_list = j_list[mk]
+                                prev_diff = 10000
+                                if len(j_list)>0:
+                                    for j in j_list:
+                                        diff = x_diff[j]+y_diff[j]
+                                        if diff<prev_diff:
+                                            k = j
+                                            prev_diff = diff
+                                        dx = xr[i] - xr0[k]
+                                        dy = yr[i] - yr0[k]
                                     dx_tab.append(dx)
                                     dy_tab.append(dy)
-                            print(dx_tab,dy_tab)
 
-                            dx = numpy.median(dx_tab)
-                            dy = numpy.median(dy_tab)
+                            if len(dx_tab) > 0:
+                                dx_multiStars = numpy.median(dx_tab)
+                                dy_multiStars = numpy.median(dy_tab)
+
+                            single = coo[0]
+                            single_x = single[0]
+                            single_y = single[1]
+
+                            single0 = self.prev_guider_coo[0]
+                            single_x0 = single0[0]
+                            single_y0 = single0[1]
+
+                            dx = single_x0 - single_x
+                            dy = single_y0 - single_y
+
+                            print(f"single: {dx} {dy}")
+
+                            dx = dx_multiStars
+                            dy = dy_multiStars
+
+                            print(f"multi: {dx} {dy}")
 
                             self.guider_passive_dx.append(dx)
                             self.guider_passive_dy.append(dy)
@@ -650,6 +671,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             except Exception as e:
                 txt = f"GUIDER FAILED after {status}, {e}"
                 self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+            print(status)
 
 
             # sprawdzenie gubienia subskrypcji

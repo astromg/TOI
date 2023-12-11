@@ -677,7 +677,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=w+8
           self.import_p = QPushButton('\u2B05 Import to MANUAL')
           self.plotPlan_p = QPushButton('Plot Plan')
-          self.plotPlan_p.setStyleSheet("color: gray;")
           self.grid.addWidget(self.import_p, w, 0,1,3)
           self.grid.addWidget(self.plotPlan_p, w, 4, 1, 1)
 
@@ -815,7 +814,7 @@ class PlotWindow(QWidget):
         super(PlotWindow, self).__init__()
         self.parent = parent
         self.setStyleSheet("font-size: 11pt;")
-        self.setMinimumSize(1200,600)
+        self.setMinimumSize(1800,600)
         #self.setGeometry(100,100,400,100)
         self.mkUI()
         self.refresh()
@@ -849,6 +848,7 @@ class PlotWindow(QWidget):
 
 
         # Rysowanie
+
         if len(self.parent.plan)>0:
             if self.t_now > self.t0:
                 self.t = self.t_now
@@ -857,14 +857,21 @@ class PlotWindow(QWidget):
             color = ["c","m"]
             j=0
             for i, tmp in enumerate(self.parent.plan):
-                if j==2: j=0
+                fontsize = 9
+                if j==len(color): j=0
                 tmp_ok = False
                 if self.parent.current_i > -1 and i >= self.parent.current_i: tmp_ok = True
                 if i >= self.parent.next_i: tmp_ok = True
                 if tmp_ok:
+                    if 'type' in self.parent.plan[i].keys():
+                        if self.parent.plan[i]["type"] == "STOP":
+                            self.axes.axvline(x=self.t, color="red",alpha=0.5)
+                            self.axes.text(self.t,2,"STOP",rotation=90,fontsize=fontsize)
+
                     if "wait" in self.parent.plan[i].keys():
                         slotTime = float(self.parent.plan[i]["wait"])
-                        self.axes.fill_betweenx([0, 5], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
+                        self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
+                        self.axes.text(self.t, 3, f"WAIT {int(slotTime)}s", rotation=90, fontsize=fontsize)
                         self.t = self.t + ephem.second * slotTime
 
                     if "seq" in self.parent.plan[i].keys():
@@ -873,6 +880,15 @@ class PlotWindow(QWidget):
                         for x_seq in seq.split(","):
                             if "a" not in x_seq:
                                 slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(self.parent.parent.overhed)))
+                        if slotTime < 60:
+                            fontsize = 2
+                        if slotTime < 60 * 5:
+                            fontsize = 5
+                        if slotTime < 60 * 10:
+                            fontsize = 7
+                        else:
+                            fontsize = 9
+
                         if "ra" in self.parent.plan[i].keys():
                             ra = self.parent.plan[i]["ra"]
                             dec = self.parent.plan[i]["dec"]
@@ -886,7 +902,9 @@ class PlotWindow(QWidget):
                                 t = t + 10*ephem.second
                             #print(alt_tab,t_tab)
                             self.axes.plot(t_tab,alt_tab,color=color[j])
+                            self.axes.text(self.t, 93, f"{self.parent.plan[i]['name']}", color=color[j], rotation=90, fontsize=fontsize)
                             j=j+1
+
                         self.t = self.t + ephem.second * slotTime
 
             self.axes.set_ylim(0, 90)
@@ -896,6 +914,8 @@ class PlotWindow(QWidget):
             self.axes.fill_betweenx([0, 90], self.t0, self.t0_dusk, color="yellow", alpha=0.1)
             self.axes.fill_betweenx([0, 90], self.t_end_dusk, self.t_end, color="yellow", alpha=0.1)
             self.axes.axvline(x=self.t_now, color="blue")
+            txt = str(self.t_now).split()[1].split(":")[0] + ":" + str(self.t_now).split()[1].split(":")[1]
+            self.axes.text(self.t_now, 82, f"{txt}", rotation=90, fontsize=fontsize)
 
             xtics = [self.t0, self.t0_dusk, self.t_end_dusk, self.t_end]
             xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
@@ -907,7 +927,7 @@ class PlotWindow(QWidget):
 
             #self.axes.set_ylabel("altitude")
             #self.axes.set_xlabel("UT")
-            self.fig.subplots_adjust(bottom=0.17,top=0.97,left=0.08,right=0.98)
+            self.fig.subplots_adjust(bottom=0.12,top=0.8,left=0.08,right=0.98)
             self.fig.tight_layout()
 
             self.canvas.draw()
