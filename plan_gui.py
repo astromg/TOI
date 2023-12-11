@@ -862,6 +862,9 @@ class PlotWindow(QWidget):
                 tmp_ok = False
                 if self.parent.current_i > -1 and i >= self.parent.current_i: tmp_ok = True
                 if i >= self.parent.next_i: tmp_ok = True
+                if 'skip' in self.parent.plan[i].keys():
+                    if self.parent.plan[i]['skip']:
+                        tmp_ok = False
                 if tmp_ok:
                     if 'type' in self.parent.plan[i].keys():
                         if self.parent.plan[i]["type"] == "STOP":
@@ -875,6 +878,7 @@ class PlotWindow(QWidget):
                         self.t = self.t + ephem.second * slotTime
 
                     if "seq" in self.parent.plan[i].keys():
+                        print(self.parent.plan[i])
                         slotTime = 0
                         seq = self.parent.plan[i]["seq"]
                         for x_seq in seq.split(","):
