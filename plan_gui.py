@@ -333,7 +333,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                  self.plan_t.item(self.prev_i,2).setBackground(QtGui.QColor(230, 236, 240))
                  self.plan_t.item(self.prev_i, 3).setBackground(QtGui.QColor(230, 236, 240))
 
-             if self.i > 0:
+             if self.i >= 0:
                  self.plan_t.item(self.i,1).setBackground(QtGui.QColor(125, 195, 227))
                  self.plan_t.item(self.i,2).setBackground(QtGui.QColor(125, 195, 227))
                  self.plan_t.item(self.i, 3).setBackground(QtGui.QColor(125, 195, 227))

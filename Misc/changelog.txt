@@ -1,6 +1,6 @@
 <h4>Whats New?</h4>
 
---- 10.12.23 --- <br> Pulse movement window is operational. Flat tab added to aux window.
+--- 10.12.23 --- <br> Pulse movement window is operational. Passive guider is working. Flat tab added to aux window.
 Pushbuttons to add STOP and BELL to Plan. Weather is read from Davis weather station.
 Wind direction is indicated in the SkyView. Plot Plan window added.
 <br><br>
@@ -12,7 +12,7 @@ Wind direction is indicated in the SkyView. Plot Plan window added.
  In Plan GUI more info are avialable - planned UT of observations with
  predicted Alt, comments and full OB. ''Import to MANUAL'' is separete now from Next Marker.
  <br>
-Radar colors and Icons are changed, and any more small changes.
+Radar colors and Icons are changed, and many more small changes.
 <br><br>
  --- 09.06.23 --- <br> Major plan execution BUG in TOI was fixed. <br>DOMEFLAT and SKYFLAT for Plan and Manual is working now<br>
 

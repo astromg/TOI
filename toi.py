@@ -154,6 +154,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # guider
         self.prev_guider_coo = []
         self.prev_guider_adu = []
+        self.guider_failed = 1
 
         # dome
         self.dome_con=False
@@ -309,11 +310,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.guider_passive_dx = []
         self.guider_passive_dy = []
-
-        self.makeGuiderDark = False
-        self.saveGuiderDark = False
-        self.GuiderDark = None
-        self.GuiderDarkOk = False
+        self.guider_failed = 1
 
         self.flat_record={}
         self.flat_record["go"] = False
@@ -503,17 +500,20 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await asyncio.sleep(1)
             #print("* PING")
 
-            # testowo guider
+            # ############# GUIDER ################
+            # to jest brudny algorytm guidera
+            #
+
             try:
-                status = "start"
                 guider_loop = int(self.auxGui.guider_tab.guiderView.guiderLoop_e.text())
+                method = self.auxGui.guider_tab.guiderView.method_s.currentText()
 
+                # guider robi sie w petli, co guider_loop robi sie ekspozycja
                 self.tmp_i = self.tmp_i + 1
-
                 if self.tmp_i > guider_loop:
                     self.tmp_i = 0
 
-                status = "loop definition"
+                # tu sie robie ekspozycja
                 if self.tmp_i == 1:
                     exp = float(self.auxGui.guider_tab.guiderView.guiderExp_e.text())
                     if self.auxGui.guider_tab.guiderView.guiderCameraOn_c.checkState():
@@ -521,35 +521,28 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             await self.guider.aput_startexposure(exp,True)
                         except Exception as e:
                             pass
-                        status = "start exposure"
 
+                # ######## Analiza obrazu guider
+                # poniewaz nie wiem ile sie czyta kamera, to analiza robi sie tuz przed nastepna ekspozycja
+                # nie ma na razie zabezpieczenia ze petla trwa krocej niz ekspozycja
                 if self.tmp_i == 0:
                     self.guider_image = await self.guider.aget_imagearray()
                     if self.guider_image:
                         image = self.guider_image
                         image = numpy.asarray(image)
-                        #image = image.astype(numpy.uint16)
-                        if self.GuiderDarkOk:
-                            image = image/self.GuiderDark
-                        if self.makeGuiderDark:
-                            self.GuiderDark = image
-                            self.makeGuiderDark = False
-                            self.GuiderDarkOk = True
-                            txt = "Guider DARK saved"
-                            self.auxGui.guider_tab.guiderView.result_e.setText(txt)
-                        status = "reading imagearray"
+                        self.auxGui.guider_tab.guiderView.updateImage(image)   # wyswietla sie obrazek
 
-                        # Analiza guidera
+                        # tu licza sie podstawowe statystyki obrazka, potrzebne do dalszej analizy
                         stats = FFS(image)
-
-                        status = "fits stat"
                         th = float(self.auxGui.guider_tab.guiderView.treshold_s.value())
                         fwhm = float(self.auxGui.guider_tab.guiderView.fwhm_s.value())
-                        status = "th and fwhm definition"
 
+                        # a tutaj znajdujemy gwiazdy, ale dla guidera to wychopdzi ledwo co...
                         coo,adu = stats.find_stars(threshold=th,kernel_size=int(2*fwhm),fwhm=fwhm)
-                        print(f"Guider found {len(coo)} stars")
+                        #print(f"Guider found {len(coo)} stars")
 
+                        # a tutaj robimy bardziej przyzwoita fotometrie znalezionych gwiazd
+                        # bez tego nawet czesto nie znajdziemy najjasniejszej gwiazdy
                         x_coo, y_coo = zip(*coo)
                         adu = []
                         for x,y in zip(x_coo,y_coo):
@@ -562,116 +555,190 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         indices = numpy.argsort(adu)[::-1]
                         adu = numpy.array(adu)[indices]
                         coo = coo[indices]
-                        status = "finding stars"
 
                         coo = numpy.array(coo)
                         adu = numpy.array(adu)
+                        # tutaj wybieramy tylko 10 najjasniejszych gwiazd i na nich dalej pracujemy
                         coo = coo[:10]
                         adu = adu[:10]
 
-                        self.auxGui.guider_tab.guiderView.update(image,coo)
-                        status = "updating image"
-                        if len(coo)>3 and len(self.prev_guider_coo)>3:
-                            x_coo, y_coo = zip(*coo)
-                            x_ref, y_ref = zip(*self.prev_guider_coo)
-                            xr = []
-                            yr = []
-                            for x,y in zip(x_coo,y_coo):
-                                x_tmp = numpy.abs(x - x_coo)
-                                y_tmp = numpy.abs(y - y_coo)
-                                r_tmp = x_tmp**2 + y_tmp**2
-                                i_tmp = numpy.argsort(r_tmp)
-                                i1 = i_tmp[1]
-                                i2 = i_tmp[2]
-                                x_range = (x - x_coo[i1]) + (x - x_coo[i2])
-                                y_range = (y - y_coo[i1]) + (y - y_coo[i2])
-                                xr.append(x_range)
-                                yr.append(y_range)
+                        if len(coo)>1:
+                            x_tmp,y_tmp=zip(*coo)
+                            # zaznaczamy 10 gwiazd na obrazku
+                            self.auxGui.guider_tab.guiderView.updateCoo(x_tmp,y_tmp,color="white")
 
-                            xr0 = []
-                            yr0 = []
-                            for x,y in zip(x_ref,y_ref):
-                                x_tmp = numpy.abs(x - x_ref)
-                                y_tmp = numpy.abs(y - y_ref)
-                                r_tmp = x_tmp**2 + y_tmp**2
-                                i_tmp = numpy.argsort(r_tmp)
-                                i1 = i_tmp[1]
-                                i2 = i_tmp[2]
-                                x_range = (x - x_ref[i1]) + (x - x_ref[i2])
-                                y_range = (y - y_ref[i1]) + (y - y_ref[i2])
-                                xr0.append(x_range)
-                                yr0.append(y_range)
+                        dx_multiStars, dy_multiStars = None, None
+                        dx_single, dy_single = None, None
+                        dx,dy = None,None
 
-                            xr = numpy.array(xr)
-                            yr = numpy.array(yr)
-                            xr0 = numpy.array(xr0)
-                            yr0 = numpy.array(yr0)
-                            print(xr,yr)
-                            print(xr0,yr0)
+                        # Algorytm multistars
+                        if method=="Auto" or method=="Multistar":
+                            if len(coo)>3 and len(self.prev_guider_coo)>3:
+                                x_coo, y_coo = zip(*coo)
+                                x_ref, y_ref = zip(*self.prev_guider_coo)
+                                xr = []
+                                yr = []
+                                # dla kazdej gwiazdy znajdujemy inne najblizsze gwiazdy
+                                for x,y in zip(x_coo,y_coo):
+                                    x_tmp = numpy.abs(x - x_coo)
+                                    y_tmp = numpy.abs(y - y_coo)
+                                    r_tmp = x_tmp**2 + y_tmp**2
+                                    i_tmp = numpy.argsort(r_tmp)
+                                    i1 = i_tmp[1]
+                                    i2 = i_tmp[2]
+                                    # dla kazdej gwiazdy liczymy taki indeks geometryczny
+                                    # uwzgledniajacy polozenie wzgledne
+                                    x_range = (x - x_coo[i1]) + (x - x_coo[i2])
+                                    y_range = (y - y_coo[i1]) + (y - y_coo[i2])
+                                    xr.append(x_range)
+                                    yr.append(y_range)
 
-                            dx_multiStars,dy_multiStars = None,None
-                            dx_tab = []
-                            dy_tab = []
-                            for i,tmp in enumerate(xr):
-                                j_list = numpy.array([i for i in range(len(xr0))])
-                                x_diff = numpy.abs(xr[i] - xr0)
-                                y_diff = numpy.abs(yr[i] - yr0)
-                                mk1 = x_diff < 3
-                                mk2 = y_diff < 3
-                                mk = [k and z for k,z in zip(mk1,mk2)]
-                                tmp_rx0 = xr0[mk]
-                                tmp_ry0 = yr0[mk]
-                                j_list = j_list[mk]
-                                prev_diff = 10000
-                                if len(j_list)>0:
-                                    for j in j_list:
-                                        diff = x_diff[j]+y_diff[j]
-                                        if diff<prev_diff:
-                                            k = j
-                                            prev_diff = diff
-                                        dx = xr[i] - xr0[k]
-                                        dy = yr[i] - yr0[k]
-                                    dx_tab.append(dx)
-                                    dy_tab.append(dy)
+                                xr0 = []
+                                yr0 = []
+                                # tu robimy to samo, ale dla obrazka referencyjnego (poprzedniego)
+                                for x,y in zip(x_ref,y_ref):
+                                    x_tmp = numpy.abs(x - x_ref)
+                                    y_tmp = numpy.abs(y - y_ref)
+                                    r_tmp = x_tmp**2 + y_tmp**2
+                                    i_tmp = numpy.argsort(r_tmp)
+                                    i1 = i_tmp[1]
+                                    i2 = i_tmp[2]
+                                    x_range = (x - x_ref[i1]) + (x - x_ref[i2])
+                                    y_range = (y - y_ref[i1]) + (y - y_ref[i2])
+                                    xr0.append(x_range)
+                                    yr0.append(y_range)
 
-                            if len(dx_tab) > 0:
-                                dx_multiStars = numpy.median(dx_tab)
-                                dy_multiStars = numpy.median(dy_tab)
+                                xr,yr = numpy.array(xr),numpy.array(yr)
+                                xr0,yr0 = numpy.array(xr0),numpy.array(yr0)
+                                x_coo,y_coo = numpy.array(x_coo),numpy.array(y_coo)
+                                x_ref,y_ref = numpy.array(x_ref), numpy.array(y_ref)
 
-                            single = coo[0]
-                            single_x = single[0]
-                            single_y = single[1]
+                                dx_tab = []
+                                dy_tab = []
+                                x_matched=[]
+                                y_matched=[]
+                                # A tutaj bedziemy porownywac te indeksy
+                                for i,tmp in enumerate(xr):
+                                    # sprawdzamy czy indeks geometryczny dla okazdej osi jest rozsadny
+                                    j_list = numpy.array([i for i in range(len(xr0))])
+                                    x_diff = numpy.abs(xr[i] - xr0)
+                                    y_diff = numpy.abs(yr[i] - yr0)
+                                    mk1 = x_diff < 3
+                                    mk2 = y_diff < 3
+                                    mk = [k and z for k,z in zip(mk1,mk2)]
+                                    tmp_rx0 = xr0[mk]
+                                    tmp_ry0 = yr0[mk]
+                                    j_list = j_list[mk]
+                                    prev_diff = 10000
+                                    # jak juz wybralismy gwiazdy z obrazka referencyjnego ktore
+                                    # moga byc nasza gwiazda, jezeli jest ich wiecej niz jedna,
+                                    # to wybieramy ta ktorej indeks geometryczny jest njbardziej zhblizony
+                                    if len(j_list)>0:
+                                        for j in j_list:
+                                            diff = x_diff[j]+y_diff[j]
+                                            if diff<prev_diff:
+                                                k = j
+                                                prev_diff = diff
+                                            # dla tak znalezionej gwiazdy liczymy roznice na
+                                            # obrazku i obrazku referencyjnym
+                                            dx = x_coo[i] - x_ref[k]
+                                            dy = y_coo[i] - y_ref[k]
+                                        x_matched.append(x_coo[i])
+                                        y_matched.append(y_coo[i])
+                                        dx_tab.append(dx)
+                                        dy_tab.append(dy)
 
-                            single0 = self.prev_guider_coo[0]
-                            single_x0 = single0[0]
-                            single_y0 = single0[1]
+                                if len(dx_tab) > 0:
+                                    x_tmp = numpy.median(dx_tab)
+                                    y_tmp = numpy.median(dy_tab)
+                                    if numpy.abs(x_tmp) < 50 and numpy.abs(y_tmp) < 50: # dodatkowy warunek rozsadku
+                                        dx_multiStars = x_tmp
+                                        dy_multiStars = y_tmp
 
-                            dx = single_x0 - single_x
-                            dy = single_y0 - single_y
+                        # a tu po prostu porownujemy pozycje najjasniejszej gwiazdy
+                        if len(coo) > 1 and len(self.prev_guider_coo) > 1:
+                            if method=="Auto" or method=="Single star":
 
-                            print(f"single: {dx} {dy}")
+                                single = coo[0]
+                                single_x = single[0]
+                                single_y = single[1]
 
-                            dx = dx_multiStars
-                            dy = dy_multiStars
+                                single0 = self.prev_guider_coo[0]
+                                single_x0 = single0[0]
+                                single_y0 = single0[1]
 
-                            print(f"multi: {dx} {dy}")
+                                x_tmp = single_x0 - single_x
+                                y_tmp = single_y0 - single_y
 
+                                if numpy.abs(x_tmp) < 50 and numpy.abs(y_tmp) < 50:
+                                    dx_single = x_tmp
+                                    dy_single = y_tmp
+
+                        # jak wybralismy metode Multistar
+                        if method=="Multistar":
+                            if dx_multiStars != None:
+                                dx = dx_multiStars
+                                dy = dy_multiStars
+                                txt=f"multistar\n dx={dx} dy={dy}"
+                                self.auxGui.guider_tab.guiderView.updateCoo(x_matched, y_matched, color="cyan")
+                            else:
+                                txt="multistar failed"
+                            self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+
+                        # jak wybralismy metode Singlestar
+                        elif method=="Single star":
+                            if dx_single != None:
+                                dx = dx_single
+                                dy = dy_single
+                                txt=f"single star\n dx={dx} dy={dy}"
+                                self.auxGui.guider_tab.guiderView.updateCoo([single_x], [single_y], color="magenta")
+                            else:
+                                txt = "single star failed"
+                            self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+
+                        # jak wybralismy Auto, to najpierw stara sie multistar a
+                        # jak sie nie uda to single star
+                        elif method=="Auto":
+                            if dx_multiStars != None:
+                                dx = dx_multiStars
+                                dy = dy_multiStars
+                                txt=f"Auto (multistar)\n dx={dx} dy={dy}"
+                                self.auxGui.guider_tab.guiderView.updateCoo(x_matched, y_matched, color="cyan")
+                            elif dx_single != None:
+                                dx = dx_single
+                                dy = dy_single
+                                txt=f"Auto (single star)\n dx={dx} dy={dy}"
+                                self.auxGui.guider_tab.guiderView.updateCoo([single_x], [single_y], color="magenta")
+                            else:
+                                txt = "auto failed"
+                            self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+
+                        # tutaj jest lista ostatnich 20 pomiarow, sluzaca
+                        # do liczenia kumulatywnego przesuniecia
+                        # jak teleskop zrobi slew to sie lista zeruje
+                        if dx != None:
                             self.guider_passive_dx.append(dx)
                             self.guider_passive_dy.append(dy)
 
-                            if len(self.guider_passive_dx)>10:
-                                self.guider_passive_dx = self.guider_passive_dx[1:]
-                                self.guider_passive_dy = self.guider_passive_dy[1:]
+                        if len(self.guider_passive_dx)>20:
+                            self.guider_passive_dx = self.guider_passive_dx[1:]
+                            self.guider_passive_dy = self.guider_passive_dy[1:]
 
-                            self.auxGui.guider_tab.guiderView.update_plot(self.guider_passive_dx,self.guider_passive_dy)
+                        self.auxGui.guider_tab.guiderView.update_plot(self.guider_passive_dx,self.guider_passive_dy)
 
-                        self.prev_guider_coo = coo
-                        self.prev_guider_adu = adu
+                        # aktualny obrazek staje sie referencyjnym, chyba ze nie udalo znalez sie przesuniecia
+                        # wtedy 1 raz tego nie robi (steruje tym guider_failed)
+                        if (dx != None and dy != None) or self.guider_failed==1:
+                            self.prev_guider_coo = coo
+                            self.prev_guider_adu = adu
+                            self.guider_failed = 0
+                        else:
+                            self.guider_failed = 1
 
             except Exception as e:
-                txt = f"GUIDER FAILED after {status}, {e}"
-                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
-            print(status)
+                pass
+                #txt = f"GUIDER FAILED after {status}, {e}"
+                #self.auxGui.guider_tab.guiderView.result_e.setText(txt)
 
 
             # sprawdzenie gubienia subskrypcji
@@ -928,10 +995,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         if "name" in info.keys() and "started" in info.keys() and "done" in info.keys():
-            if info["name"] == "Night plan" and info["started"] and not info["done"]:
+            if info["name"] == "NIGHTPLAN" and info["started"] and not info["done"]:
                 self.msg("PLAN: Sequence started","black")
 
-            elif info["name"] == "Night plan" and info["done"]:
+            elif info["name"] == "NIGHTPLAN" and info["done"]:
                 self.ob["done"] = True
                 if "uid" in self.ob.keys():
                     self.planGui.done.append(self.ob["uid"])
@@ -1823,6 +1890,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.mntAlt_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
             self.mntGui.mntRa_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
             self.mntGui.mntDec_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+            self.guider_passive_dx=[]
+            self.guider_passive_dy=[]
         else:
             self.mntGui.mntAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             self.mntGui.mntAlt_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
@@ -2344,6 +2413,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.msg(f"TELEMETRY: user {txt} have controll","black")
 
 # ############ INNE ##############################
+
+    def GuiderPassiveOnOff(self):
+        if self.auxGui.guider_tab.guiderView.guiderCameraOn_c.checkState():
+            self.guider_failed = 1
+            self.guider_passive_dx = []
+            self.guider_passive_dy = []
 
     def updateWeather(self):
         try:

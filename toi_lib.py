@@ -22,6 +22,23 @@ class Worker(QThread):
             print("DUPA!!! ", numpy.mean(self.image))
             self.finished.emit()
 
+
+#seq=10x(4/B/10,2/V/46)
+#seq=4/B/10,2/V/46,4/B/10,2/V/46,4/B/10,2/V/46,4/B/10,2/V/46,4/B/10,2/V/46,4/B/10,2/V/46,4/B/10,2/V/46
+
+def seq_parser(seq):
+    if "x" in seq and "(" in seq and ")" in seq:
+        try:
+            n = int(seq.split("x")[0])
+            s = seq.split("x")[1].strip("(").strip(")")+","
+            r = s*n
+            r=r[:-1]
+            return r
+        except Exception as e:
+            print(f"seq_parser: {e}")
+
+
+
 def readCatalog(plik):
     l = []
     with open(plik, "r") as f:

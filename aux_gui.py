@@ -300,7 +300,16 @@ class GuiderView(QWidget):
         self.show()
         self.canvas2.draw()
 
-    def update(self, image,coo):
+    def updateCoo(self,x,y,color):
+        color=color
+        x,y=x,y
+        if len(x)>0:
+            self.axes.plot(x, y, color=color, marker="o", markersize="10", markerfacecolor="none", linestyle="")
+            self.canvas.draw()
+            self.show()
+
+
+    def updateImage(self, image):
         self.image = image
         self.image = numpy.asarray(self.image)
         self.image = self.image.astype(numpy.uint16)
@@ -310,23 +319,26 @@ class GuiderView(QWidget):
             vmin = numpy.mean(self.image) - 1 * numpy.std(self.image)
             vmax = numpy.mean(self.image) + 1 * numpy.std(self.image)
             im = self.axes.imshow(self.image, vmin=vmin, vmax=vmax, cmap=matplotlib.colormaps["ocean"])
-            if len(coo)>0:
-                x,y = zip(*coo)
-                self.axes.plot(x, y, color="white", marker="o", markersize="10", markerfacecolor="none",linestyle="")
-
             self.canvas.draw()
             self.show()
 
 
-    def makeDark(self):
-        self.parent.makeGuiderDark = True
+    # def makeDark(self):
+    #     self.parent.makeGuiderDark = True
     def update_plot(self,dx,dy):
         self.axes2.clear()
         self.axes2.set_xlim(-50, 50)
         self.axes2.set_ylim(-50, 50)
         self.axes2.axhline(y=0,color="k",linestyle="-",alpha=0.3)
         self.axes2.axvline(x=0,color="k",linestyle="-",alpha=0.3)
-        self.axes2.plot(dx, dy, color="b", marker=".", linestyle="")
+        self.axes2.plot([0,0],[0,numpy.sum(dy)],color="red")
+        self.axes2.plot([0,numpy.sum(dx)],[0,0],color="red")
+
+        self.axes2.plot(dx, dy, color="b", marker=".", linestyle="",alpha=0.2)
+        if len(dx)>0:
+            self.axes2.plot(dx[0], dy[0], color="b", marker=".", linestyle="", alpha=1)
+        if len(dx)>1:
+            self.axes2.plot(dx[1], dy[1], color="b", marker=".", linestyle="", alpha=0.6)
         self.canvas2.draw()
 
     def mkUI(self):
@@ -348,9 +360,9 @@ class GuiderView(QWidget):
             w = 0
             grid.addWidget(self.canvas, w, 0,12,2)
             w = w + 12
-            self.makeDark_p = QPushButton('Make DARK')
-            self.makeDark_p.clicked.connect(self.makeDark)
-            grid.addWidget(self.makeDark_p, w, 0)
+            #self.makeDark_p = QPushButton('Make DARK')
+            #self.makeDark_p.clicked.connect(self.makeDark)
+            #grid.addWidget(self.makeDark_p, w, 0)
 
             w = 0
             self.guiderCameraOn_l = QLabel("LOOP [s]:")
@@ -360,7 +372,7 @@ class GuiderView(QWidget):
             self.guiderCameraOn_c.setChecked(False)
             self.guiderCameraOn_c.setLayoutDirection(Qt.RightToLeft)
             self.guiderCameraOn_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-            #self.guiderCameraOn_c.clicked.connect(self.parent.mount_motorsOnOff)
+            self.guiderCameraOn_c.clicked.connect(self.parent.GuiderPassiveOnOff)
             grid.addWidget(self.guiderCameraOn_l, w, 2)
             grid.addWidget(self.guiderLoop_e, w, 3)
             grid.addWidget(self.guiderCameraOn_c, w, 4)
@@ -397,7 +409,7 @@ class GuiderView(QWidget):
             w = w + 3
             self.method_l = QLabel("Method:")
             self.method_s = QComboBox()
-            self.method_s.addItems(["All stars", ""])
+            self.method_s.addItems(["Auto", "Multistar", "Single star"])
             grid.addWidget(self.method_l, w, 2)
             grid.addWidget(self.method_s, w, 3,1,2)
             w = w + 1
