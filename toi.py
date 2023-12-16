@@ -983,7 +983,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.planGui.current_i = -1
 
                             if self.ob["type"] == "BELL":
-                                await self.msg("INFO: BELL")
+                                await self.msg("INFO: BELL","black")
                                 #w = self.nats_journal_toi_msg
                                 #txt = f"BELL by {self.myself}"
                                 #await w.log('INFO', txt)
