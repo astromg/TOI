@@ -137,6 +137,16 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               if "uid" not in self.plan[i].keys():               # nadaje uuid jak nie ma
                   self.plan[i]["uid"] = str(uuid.uuid4())[:8]
 
+              if "seq" in self.plan[i].keys():
+                  seq = self.plan[i]["seq"]
+                  ok,err = seq_verification(seq,self.parent.filter_list)
+                  if not ok:
+                      self.plan[i]["skip"] = True
+                      self.plan[i]["seq_wrong"] = True
+                  else:
+                      self.plan[i]["seq_wrong"] = False
+
+
               if "ra" in self.plan[i].keys():                    # liczy aktualna wysokosc na horyzontem
                   ra=self.plan[i]["ra"]
                   dec=self.plan[i]["dec"]
@@ -166,6 +176,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       az = f"{deg_to_decimal_deg((str(az))):.1f}"
                       self.plan[i]["meta_plan_alt"] = alt
                       self.plan[i]["meta_plan_az"] = az
+                      if float(alt) < 0:
+                          self.plan[i]["skip"] = True
                   if "wait" in self.plan[i].keys():
                       ob_time =  ob_time + ephem.second * float(self.plan[i]["wait"])
                   if self.plan[i]["uid"] in self.done:
@@ -230,6 +242,38 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        txt.setFont(font)
                        txt.setTextAlignment(QtCore.Qt.AlignCenter)
                        self.plan_t.setItem(i,0,txt)
+
+                 if "meta_plan_alt" in self.plan[i].keys():
+                     alt = float(self.plan[i]["meta_plan_alt"])
+                     if alt < 0 :
+                         font = QtGui.QFont()
+                         font.setPointSize(15)
+                         txt = QTableWidgetItem("\u26A0")
+                         txt.setFont(font)
+                         txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                         txt.setForeground(QtGui.QColor("red"))
+                         self.plan_t.setItem(i, 0, txt)
+                     elif alt < 35 :
+                         font = QtGui.QFont()
+                         font.setPointSize(15)
+                         txt = QTableWidgetItem("\u26A0")
+                         txt.setFont(font)
+                         txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                         txt.setForeground(QtGui.QColor("orange"))
+                         if self.plan[i]["skip"]:
+                             txt = QTableWidgetItem("\u26D4")  # aby jednak wstawil ikonke skip jak trzeba
+                         self.plan_t.setItem(i, 0, txt)
+
+
+                 if "seq_wrong" in self.plan[i].keys():
+                     if self.plan[i]["seq_wrong"]:
+                         font = QtGui.QFont()
+                         font.setPointSize(15)
+                         txt = QTableWidgetItem("\u2692")
+                         txt.setFont(font)
+                         txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                         txt.setForeground(QtGui.QColor("red"))
+                         self.plan_t.setItem(i, 0, txt)
 
                  if "type" in self.plan[i].keys():    # wait
                     if self.plan[i]["type"]=="WAIT":
@@ -297,12 +341,19 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                          txt = tmp.split(":")[0]+":"+tmp.split(":")[1]
                      if "meta_plan_alt" in self.plan[i].keys() and (i >= self.next_i or (i >= self.current_i and self.current_i>-1)):
                          txt = txt + " (" + str(self.plan[i]["meta_plan_alt"])+")"
-
+                         alt = float(self.plan[i]["meta_plan_alt"])
+                         txt = QTableWidgetItem(txt)
+                         if alt < 0:
+                             txt.setForeground(QtGui.QColor("red"))
+                         elif alt < 35:
+                             txt.setForeground(QtGui.QColor("orange"))
                  else:
                      txt = ""
                      if "meta_alt" in self.plan[i].keys():
                          txt = str(self.plan[i]["meta_alt"])
-                 txt=QTableWidgetItem(txt)
+                         txt=QTableWidgetItem(txt)
+
+                 txt = QTableWidgetItem(txt)
                  self.plan_t.setItem(i,2,txt)
 
                  # 3 KOLUMNA

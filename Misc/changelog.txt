@@ -2,7 +2,8 @@
 
 --- 10.12.23 --- <br> Pulse movement window is operational. Passive guider is working. Flat tab added to aux window.
 Pushbuttons to add STOP and BELL to Plan. Weather is read from Davis weather station.
-Wind direction is indicated in the SkyView. Plot Plan window added.
+Wind direction is indicated in the SkyView. Plot Plan window added. Sequence verification and
+plan alt verification is added.
 <br><br>
 --- 14.11.23 --- <br> Telemetry updating is automatised and problem-triggered. JK15 covers work from TOI now.
 <br><br>

@@ -36,7 +36,34 @@ def seq_parser(seq):
             return r
         except Exception as e:
             print(f"seq_parser: {e}")
+    else:
+        return seq
 
+def seq_verification(seq,filter_list):
+    ok = True
+    err = ""
+    seq = seq_parser(seq)
+    for x_seq in seq.split(","):
+        try:
+            n,f,t = x_seq.split("/")
+            try:
+                n = int(n)
+                if n<= 0 :
+                    ok,err = False, f"N value should be grater than 0: {n}"
+            except ValueError:
+                ok,err = False, f"wrong N value {n}"
+            if t != "a":
+                try:
+                    t = float(t)
+                    if t< 0 :
+                        ok,err = False, f"EXP value should be grater than 0: {n}"
+                except ValueError:
+                    ok,err = False, f"wrong EXP value {t}"
+            if f not in filter_list:
+                ok,err = False, f"filter {f} not in a filter list {filter_list}"
+        except Exception as e:
+            ok,err = False, f"wrong sequence format {x_seq}, {e}"
+    return ok,err
 
 
 def readCatalog(plik):
