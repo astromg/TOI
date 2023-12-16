@@ -7,6 +7,7 @@
 import asyncio
 import functools
 import logging
+import datetime
 #import requests
 import socket
 #import json
@@ -19,7 +20,8 @@ import subprocess
 #import pyaraucaria
 
 
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
+
 
 import sys
 import qasync as qs
@@ -729,6 +731,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             date=str(self.almanac["ut"]).split()[0]
             self.date=date.split("/")[2]+"/"+date.split("/")[1]+"/"+date.split("/")[0]
             ut=str(self.almanac["ut"]).split()[1]
+
+
+            hohoho = datetime.datetime(2023, 12, 24, 14, 30, 0)
+            no_hohoho = datetime.datetime(2023, 12, 25, 14, 0, 0)
+            if datetime.datetime.now() > hohoho and datetime.datetime.now() < no_hohoho:
+                png_file = './Icons/zb08_christmas.png'
+                self.auxGui.welcome_tab.pic_l.setPixmap(QtGui.QPixmap(png_file).scaled(300, 200))
+                print("HO HO HO")
             self.obsGui.main_form.date_e.setText(str(self.date))
             self.obsGui.main_form.ut_e.setText(str(ut))
             self.obsGui.main_form.skyView.updateAlmanac()

@@ -15,6 +15,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib
+import datetime
 
 import numpy
 import paho.mqtt.client as mqtt
@@ -98,6 +99,9 @@ class WelcomeGui(QWidget):
         elif self.parent.active_tel == "zb08":
             png_file = './Icons/zb08.png'
             plik_teleskopu = "./Misc/zb08.txt"
+
+
+
 
         elif self.parent.active_tel == "jk15":
             png_file = './Icons/jk15.png'
