@@ -96,7 +96,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.nats_weather_loop())
 
-        self.nats_journal_toi_msg = get_journalpublisher(f'tic.journal.{self.active_tel}.toi.signal')
+
     # NATS weather
 
     async def nats_weather_loop(self):
@@ -151,8 +151,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.nats_journal_flats_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.flats')
         self.nats_journal_focus_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.focus')
-
-
+        self.nats_journal_toi_msg = get_journalpublisher(f'tic.journal.{self.active_tel}.toi.signal')
 
         #print("go")
         #subprocess.run(["aplay", self.script_location+"/sounds/spceflow.wav"])
@@ -250,6 +249,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_weather_loop())
         self.add_background_task(self.nats_log_flat_reader())
         self.add_background_task(self.nats_log_focus_reader())
+        self.add_background_task(self.nats_log_toi_reader())
 
         await self.run_background_tasks()
 
@@ -290,6 +290,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             d:JournalEntry = data
             r = d.message
             print("NATS FOCUS: ", r)
+
+    async def nats_log_toi_reader(self):
+        reader = get_journalreader(f'tic.journal.{self.active_tel}.toi.signal', deliver_policy='last')
+        async for data, meta in reader:
+            d:JournalEntry = data
+            r = d.message
+            print("NATS TOI: ", r)
 
 
     # ################### METODY POD SUBSKRYPCJE ##################
@@ -2305,6 +2312,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.tmp_box.setText(txt)
         self.tmp_box.show()
 
+    @qs.asyncSlot()
     async def msg(self, txt, color):
         c = QtCore.Qt.black
         if "yellow" in color: c = QtCore.Qt.darkYellow
@@ -2315,9 +2323,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         txt = ut + " " + txt
         if txt.split()[1] != "TELEMETRY:":
             self.obsGui.main_form.msg_e.append(txt)
-            w = self.nats_journal_toi_msg
-            tmp = f"{self.myself} {txt}"
-            await w.log('INFO', tmp)
+            try:
+                w: MsgJournalPublisher = self.nats_journal_toi_msg
+                info = f"TOI {self.myself} {txt}"
+                await w.log('INFO', info)
+            except Exception as e:
+                pass
+
 
         # LOG dzialan
         if os.path.exists(self.msg_log_file):
