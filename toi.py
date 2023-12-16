@@ -818,7 +818,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         await self.focus.aput_move(int(max_sharpness_focus))
                         self.msg(f"PLAN: focus set to {int(max_sharpness_focus)}","black")
                         if self.filter != None and self.telemetry_temp != None:
-                            txt = f"{self.ut} {self.telemetry_temp} {self.filter} {int(max_sharpness_focus)} \n"
+                            txt = f"{self.ut} {self.telemetry_temp:.2f} {self.filter} {int(max_sharpness_focus)} \n"
                             with open(self.cfg_focus_record_file,"a+") as plik:
                                 plik.seek(0)
                                 plik.write(txt)
@@ -2277,7 +2277,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.auxGui.welcome_tab.windDir_e.setText(f"{self.telemetry_wind_direction:.0f} [deg]")
             self.auxGui.welcome_tab.temp_e.setText(f"{self.telemetry_temp:.1f} [C]")
             self.auxGui.welcome_tab.hummidity_e.setText(f"{self.telemetry_humidity:.0f} [%]")
-            self.auxGui.welcome_tab.pressure_e.setText(f"{self.telemetry_pressure:.1f} [Pa]")
+            self.auxGui.welcome_tab.pressure_e.setText(f"{self.telemetry_pressure:.1f} [hPa]")
 
             if float(self.telemetry_wind)>float(self.cfg_wind_limit):
                 self.auxGui.welcome_tab.wind_e.setStyleSheet("color: red; background-color: rgb(235,235,235);")
