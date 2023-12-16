@@ -141,10 +141,12 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   seq = self.plan[i]["seq"]
                   ok,err = seq_verification(seq,self.parent.filter_list)
                   if not ok:
-                      self.plan[i]["skip"] = True
-                      self.plan[i]["seq_wrong"] = True
+                      if "skip" in self.plan[i].keys() and "seq_wrong" in self.plan[i].keys():
+                          self.plan[i]["skip"] = True
+                          self.plan[i]["seq_wrong"] = True
                   else:
-                      self.plan[i]["seq_wrong"] = False
+                      if "seq_wrong" in self.plan[i].keys():
+                          self.plan[i]["seq_wrong"] = False
 
 
               if "ra" in self.plan[i].keys():                    # liczy aktualna wysokosc na horyzontem
@@ -260,8 +262,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                          txt.setFont(font)
                          txt.setTextAlignment(QtCore.Qt.AlignCenter)
                          txt.setForeground(QtGui.QColor("orange"))
-                         if self.plan[i]["skip"]:
-                             txt = QTableWidgetItem("\u26D4")  # aby jednak wstawil ikonke skip jak trzeba
+                         if "skip" in self.plan[i].keys():
+                            if self.plan[i]["skip"]:
+                                 txt = QTableWidgetItem("\u26D4")  # aby jednak wstawil ikonke skip jak trzeba
                          self.plan_t.setItem(i, 0, txt)
 
 
