@@ -91,7 +91,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.auxGui.show()
         self.auxGui.raise_()
 
-        self.msg=self.obsGui.main_form.msg
         self.oca_tel_stat()
 
         self.add_background_task(self.TOItimer())
@@ -152,7 +151,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.nats_journal_flats_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.flats')
         self.nats_journal_focus_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.focus')
-        self.nats_journal_toi_signal = get_journalpublisher(f'tic.journal.{self.active_tel}.toi.signal')
+        self.nats_journal_toi_msg = get_journalpublisher(f'tic.journal.{self.active_tel}.toi.signal')
 
 
         #print("go")
@@ -977,9 +976,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.planGui.current_i = -1
 
                             if self.ob["type"] == "BELL":
-                                w = self.nats_journal_toi_signal
-                                txt = f"BELL by {self.myself}"
-                                await w.log('INFO', txt)
+                                self.msg("INFO: BELL")
+                                #w = self.nats_journal_toi_msg
+                                #txt = f"BELL by {self.myself}"
+                                #await w.log('INFO', txt)
                                 #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
                                 self.ob["done"]=True
                                 self.ob["run"]=True
@@ -2304,6 +2304,35 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.tmp_box.setWindowTitle("TOI message")
         self.tmp_box.setText(txt)
         self.tmp_box.show()
+
+    def msg(self, txt, color):
+        c = QtCore.Qt.black
+        if "yellow" in color: c = QtCore.Qt.darkYellow
+        if "green" in color: c = QtCore.Qt.darkGreen
+        if "red" in color: c = QtCore.Qt.darkRed
+        self.obsGui.main_form.msg_e.setTextColor(c)
+        ut = str(self.ut).split()[1].split(":")[0] + ":" + str(self.ut).split()[1].split(":")[1]
+        txt = ut + " " + txt
+        if txt.split()[1] != "TELEMETRY:":
+            self.obsGui.main_form.msg_e.append(txt)
+            w = self.nats_journal_toi_msg
+            tmp = f"{self.myself} {txt}"
+            await w.log('INFO', tmp)
+
+
+        # LOG dzialan
+        if os.path.exists(self.msg_log_file):
+            pass
+        else:
+            with open(self.msg_log_file,"w") as log_file:
+                log_file.write("")
+        with open(self.msg_log_file,"r") as log_file:
+            tmp = log_file.read().splitlines()
+            log = "\n".join(tmp[-1*int(self.msg_log_lines):])
+
+        with open(self.msg_log_file,"w") as log_file:
+            log = log + "\n" + txt + "\n"
+            log_file.write(log)
 
     def variables_init(self):
 
