@@ -228,8 +228,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # self.add_background_task(self.user.asubscribe_current_user(self.user_update))
 
         # 2x problem? ok
-        self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
-        self.add_background_task(self.mount.asubscribe_slewing(self.mount_update_track))
+        self.add_background_task(self.mount.asubscribe_tracking(self.mount_update_track))
+        self.add_background_task(self.mount.asubscribe_slewing(self.mount_update_slew))
 
         # 2x problem? ok
         self.add_background_task(self.focus.asubscribe_position(self.focus_update))
@@ -1763,7 +1763,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #   self.mntGUI.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
 
 
-    async def mount_update(self, event):
+    async def mount_update_slew(self, event):
         self.mount_slewing = await self.mount.aget_slewing()
         self.mount_tracking = self.mount.tracking
         #self.mount_motorsOn=self.mount.motorstatus
