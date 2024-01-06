@@ -2056,7 +2056,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def domeStatus_update(self, event):
            # self.dome_status=await self.dome.aget_slewing()
-           self.dome_status=await self.dome.slewing
+           self.dome_status=self.dome.slewing
            if self.dome_status==False:
               txt="STOPPED"
               self.mntGui.domeStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
