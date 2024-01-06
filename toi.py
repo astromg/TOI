@@ -249,7 +249,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.cover.asubscribe_coverstate(self.covers_update))
         #
         #self.add_background_task(self.fw.asubscribe_connected(self.filterCon_update))
-        self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
+        # self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
         self.add_background_task(self.fw.asubscribe_position(self.filter_update))
         #
         #
@@ -1607,7 +1607,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                self.mntGui.mntMotors_c.setChecked(False)
                txt="TELEMETRY: motors OFF"
                await self.msg(txt,"black")
-           await self.mount_update(None)
+           # await self.mount_update(None)
 
            #self.mntGui.mntStat_e.setText(txt)
            #self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
@@ -1754,12 +1754,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
                 await self.msg(txt,"green")
             else:
-                await self.mount_update(False)
+                # await self.mount_update(False)
                 txt = "WARNING: Motors are OFF"
                 self.WarningWindow(txt)
 
         else:
-            await self.mount_update(False)
+            # await self.mount_update(False)
             txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
 
