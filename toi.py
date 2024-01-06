@@ -219,7 +219,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         # 4x problems? ok
-        self.add_background_task(self.mount.asubscribe_ra(self.radec_update_ra))
+        self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
         self.add_background_task(self.mount.asubscribe_dec(self.radec_update))
         self.add_background_task(self.mount.asubscribe_az(self.radec_update))
         self.add_background_task(self.mount.asubscribe_alt(self.radec_update))
