@@ -1447,7 +1447,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             temp=float(self.instGui.ccd_tab.inst_setTemp_e.text())
             if temp>-81 and temp<20:
                 txt=f"REQUEST: CCD temp. set to {temp} deg."
-                await self.ccd.aput_setccdtemperature(temp)
+                self.ccd.aput_setccdtemperature(temp)
                 await self.msg(txt,"green")
             else:
                 txt="Value of CCD temp. not allowed"
@@ -1497,7 +1497,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def ccd_temp_set_update(self, event):
         self.ccd_temp = self.ccd.ccdtemperature
-        self.ccd_temp_set = await self.ccd.aget_setccdtemperature()
+        self.ccd_temp_set = self.ccd.setccdtemperature
         ccd_temp=self.ccd_temp
         if ccd_temp: txt = f" {ccd_temp:.1f} /"
         else: txt = " -- /"
