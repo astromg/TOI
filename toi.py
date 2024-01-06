@@ -1460,20 +1460,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def ccd_coolerOnOf(self):
-        pass
-        # if await self.user.aget_is_access():
-        #     if self.ccd.cooleron:
-        #       txt="REQUEST: CCD cooler OFF"
-        #       await self.ccd.aput_cooleron(False)
-        #       await self.msg(txt,"green")
-        #     else:
-        #       txt="REQUEST: CCD cooler ON"
-        #       await self.ccd.aput_cooleron(True)
-        #       await self.msg(txt,"green")
-        # else:
-        #     txt="WARNING: U don't have controll"
-        #     self.WarningWindow(txt)
-        #     await self.ccd_update(True)
+        if await self.user.aget_is_access():
+            if self.ccd.cooleron:
+              txt="REQUEST: CCD cooler OFF"
+              await self.ccd.aput_cooleron(False)
+              await self.msg(txt,"green")
+            else:
+              txt="REQUEST: CCD cooler ON"
+              await self.ccd.aput_cooleron(True)
+              await self.msg(txt,"green")
+        else:
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
+            await self.ccd_update(True)
 
     async def ccd_cooler_update(self, event):
         # self.ccd_cooler = await  self.ccd.aget_cooleron()
