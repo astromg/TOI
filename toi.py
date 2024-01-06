@@ -206,20 +206,44 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ephemeris = self.observatory_model.get_ephemeris()
         self.add_background_task(self.ephemeris.asubscribe_utc(self.ephem_update))
 
-        self.add_background_task(self.user.asubscribe_current_user(self.user_update))
+
 
         self.add_background_task(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update))
         self.add_background_task(self.dome.asubscribe_az(self.domeAZ_update))
+
         self.add_background_task(self.dome.asubscribe_slewing(self.domeStatus_update))
         self.add_background_task(self.focus.asubscribe_fansstatus(self.mirrorFans_update))
 
         #self.add_background_task(self.mount.asubscribe_connected(self.mountCon_update))
+
+
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        # 4x problems?
         self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
         self.add_background_task(self.mount.asubscribe_dec(self.radec_update))
         self.add_background_task(self.mount.asubscribe_az(self.radec_update))
         self.add_background_task(self.mount.asubscribe_alt(self.radec_update))
+
+        # problem?
+        self.add_background_task(self.user.asubscribe_current_user(self.user_update))
+
+        # 2x problem?
         self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
         self.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
+
+        # 2x problem?
+        self.add_background_task(self.focus.asubscribe_position(self.focus_update))
+        self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
+
+        # 2x problem?
+        self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update))
+        self.add_background_task(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update))
+
+        # 2x problem?
+        self.add_background_task(self.ccd.asubscribe_binx(self.ccd_bin_update))
+        self.add_background_task(self.ccd.asubscribe_biny(self.ccd_bin_update))
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
         self.add_background_task(self.mount.asubscribe_motorstatus(self.mountMotors_update))
         #
         self.add_background_task(self.cover.asubscribe_coverstate(self.covers_update))
@@ -228,18 +252,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
         self.add_background_task(self.fw.asubscribe_position(self.filter_update))
         #
-        self.add_background_task(self.focus.asubscribe_position(self.focus_update))
-        self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
         #
         #self.add_background_task(self.rotator.asubscribe_connected(self.rotatorCon_update))
         self.add_background_task(self.rotator.asubscribe_position(self.rotator_update))
         self.add_background_task(self.rotator.asubscribe_mechanicalposition(self.rotator_update))
         self.add_background_task(self.rotator.asubscribe_ismoving(self.rotator_update))
-        #
-        self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update))
-        self.add_background_task(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update))
-        self.add_background_task(self.ccd.asubscribe_binx(self.ccd_bin_update))
-        self.add_background_task(self.ccd.asubscribe_biny(self.ccd_bin_update))
+
+
         self.add_background_task(self.ccd.asubscribe_camerastate(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_cooleron(self.ccd_cooler_update))
         self.add_background_task(self.ccd.asubscribe_gain(self.ccd_gain_update))
