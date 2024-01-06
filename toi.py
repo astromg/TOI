@@ -218,30 +218,30 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        # 4x problems?
-        self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
-        self.add_background_task(self.mount.asubscribe_dec(self.radec_update))
-        self.add_background_task(self.mount.asubscribe_az(self.radec_update))
-        self.add_background_task(self.mount.asubscribe_alt(self.radec_update))
-
-        # problem?
-        self.add_background_task(self.user.asubscribe_current_user(self.user_update))
-
-        # 2x problem?
-        self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
-        self.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
-
-        # 2x problem?
-        self.add_background_task(self.focus.asubscribe_position(self.focus_update))
-        self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
-
-        # 2x problem?
-        self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update))
-        self.add_background_task(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update))
-
-        # 2x problem?
-        self.add_background_task(self.ccd.asubscribe_binx(self.ccd_bin_update))
-        self.add_background_task(self.ccd.asubscribe_biny(self.ccd_bin_update))
+        # # 4x problems?
+        # self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
+        # self.add_background_task(self.mount.asubscribe_dec(self.radec_update))
+        # self.add_background_task(self.mount.asubscribe_az(self.radec_update))
+        # self.add_background_task(self.mount.asubscribe_alt(self.radec_update))
+        #
+        # # problem?
+        # self.add_background_task(self.user.asubscribe_current_user(self.user_update))
+        #
+        # # 2x problem?
+        # self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
+        # self.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
+        #
+        # # 2x problem?
+        # self.add_background_task(self.focus.asubscribe_position(self.focus_update))
+        # self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
+        #
+        # # 2x problem?
+        # self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update))
+        # self.add_background_task(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update))
+        #
+        # # 2x problem?
+        # self.add_background_task(self.ccd.asubscribe_binx(self.ccd_bin_update))
+        # self.add_background_task(self.ccd.asubscribe_biny(self.ccd_bin_update))
         # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         self.add_background_task(self.mount.asubscribe_motorstatus(self.mountMotors_update))
