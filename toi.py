@@ -1480,7 +1480,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.instGui.ccd_tab.cooler_c.setChecked(self.ccd_cooler)
     async def ccd_temp_update(self, event):
         self.ccd_temp = await  self.ccd.aget_ccdtemperature()
-        self.ccd_temp_set = await self.ccd.setccdtemperature
+        self.ccd_temp_set = self.ccd.setccdtemperature
         ccd_temp=self.ccd_temp
         if ccd_temp: txt = f" {ccd_temp:.1f} /"
         else: txt = " -- /"
@@ -1493,7 +1493,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             else: self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(0,150,0)")
 
     async def ccd_temp_set_update(self, event):
-        self.ccd_temp = await  self.ccd.ccdtemperature
+        self.ccd_temp = self.ccd.ccdtemperature
         self.ccd_temp_set = await self.ccd.aget_setccdtemperature()
         ccd_temp=self.ccd_temp
         if ccd_temp: txt = f" {ccd_temp:.1f} /"
@@ -1545,7 +1545,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             else: self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
 
     async def ccd_biny_update(self, event):
-        self.ccd_binx = await  self.ccd.binx
+        self.ccd_binx = self.ccd.binx
         self.ccd_biny = await  self.ccd.aget_biny()
         if self.ccd_binx and self.ccd_biny:
             txt=f"{self.ccd_binx}x{self.ccd_biny}"
@@ -1765,7 +1765,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def mount_update(self, event):
         self.mount_slewing = await self.mount.aget_slewing()
-        self.mount_tracking = await self.mount.tracking
+        self.mount_tracking = self.mount.tracking
         #self.mount_motorsOn=self.mount.motorstatus
 
         #self.mount_parked=self.mount.atpark
@@ -1810,7 +1810,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.mntDec_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
     async def mount_update_track(self, event):
-        self.mount_slewing = await self.mount.slewing
+        self.mount_slewing = self.mount.slewing
         self.mount_tracking = await self.mount.aget_tracking()
         #self.mount_motorsOn=self.mount.motorstatus
 
@@ -1857,9 +1857,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def radec_update_ra(self, event):
         self.mount_ra=await self.mount.aget_ra()
-        self.mount_dec=await self.mount.declination
-        self.mount_alt=await self.mount.altitude
-        self.mount_az=await self.mount.azimuth
+        self.mount_dec=self.mount.declination
+        self.mount_alt=self.mount.altitude
+        self.mount_az=self.mount.azimuth
         if "--" not in str(self.mount_ra) and "--" not in str(self.mount_dec) and self.mount_ra != None and self.mount_dec != None:
             self.mntGui.mntRa_e.setText(to_hourangle_sexagesimal(self.mount_ra))
             self.mntGui.mntDec_e.setText(dec_to_sexagesimal(self.mount_dec))
@@ -1880,10 +1880,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                await self.dome.aput_slewtoazimuth(az)
 
     async def radec_update_dec(self, event):
-        self.mount_ra=await self.mount.rightascension
+        self.mount_ra=self.mount.rightascension
         self.mount_dec=await self.mount.aget_dec()
-        self.mount_alt=await self.mount.altitude
-        self.mount_az=await self.mount.azimuth
+        self.mount_alt=self.mount.altitude
+        self.mount_az=self.mount.azimuth
         if "--" not in str(self.mount_ra) and "--" not in str(self.mount_dec) and self.mount_ra != None and self.mount_dec != None:
             self.mntGui.mntRa_e.setText(to_hourangle_sexagesimal(self.mount_ra))
             self.mntGui.mntDec_e.setText(dec_to_sexagesimal(self.mount_dec))
@@ -1904,10 +1904,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                await self.dome.aput_slewtoazimuth(az)
 
     async def radec_update_alt(self, event):
-        self.mount_ra=await self.mount.rightascension
-        self.mount_dec=await self.mount.declination
+        self.mount_ra=self.mount.rightascension
+        self.mount_dec=self.mount.declination
         self.mount_alt=await self.mount.aget_alt()
-        self.mount_az=await self.mount.azimuth
+        self.mount_az=self.mount.azimuth
         if "--" not in str(self.mount_ra) and "--" not in str(self.mount_dec) and self.mount_ra != None and self.mount_dec != None:
             self.mntGui.mntRa_e.setText(to_hourangle_sexagesimal(self.mount_ra))
             self.mntGui.mntDec_e.setText(dec_to_sexagesimal(self.mount_dec))
@@ -1928,9 +1928,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                await self.dome.aput_slewtoazimuth(az)
 
     async def radec_update_az(self, event):
-        self.mount_ra=await self.mount.rightascension
-        self.mount_dec=await self.mount.declination
-        self.mount_alt=await self.mount.altitude
+        self.mount_ra=self.mount.rightascension
+        self.mount_dec=self.mount.declination
+        self.mount_alt=self.mount.altitude
         self.mount_az=await self.mount.aget_az()
         if "--" not in str(self.mount_ra) and "--" not in str(self.mount_dec) and self.mount_ra != None and self.mount_dec != None:
             self.mntGui.mntRa_e.setText(to_hourangle_sexagesimal(self.mount_ra))
@@ -2288,7 +2288,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def focus_update(self, event):
         self.focus_value = await self.focus.aget_position()
-        self.focus_moving = await self.focus.ismoving
+        self.focus_moving = self.focus.ismoving
 
         if self.focus_value != None:
             self.mntGui.telFocus_e.setText(str(self.focus_value))
@@ -2308,7 +2308,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            self.mntGui.setFocus_s.valueChanged.connect(self.focusClicked)
 
     async def focus_update_is_mov(self, event):
-        self.focus_value = await self.focus.position
+        self.focus_value = self.focus.position
         self.focus_moving = await self.focus.aget_ismoving()
 
         if self.focus_value != None:
