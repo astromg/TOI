@@ -262,7 +262,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.ccd.asubscribe_camerastate(self.ccd_update))
         self.add_background_task(self.ccd.asubscribe_cooleron(self.ccd_cooler_update))
         self.add_background_task(self.ccd.asubscribe_gain(self.ccd_gain_update))
-        self.add_background_task(self.ccd.asubscribe_readoutmode(self.ccd_rm_update))
+        #self.add_background_task(self.ccd.asubscribe_readoutmode(self.ccd_rm_update))
         self.add_background_task(self.ccd.asubscribe_imageready(self.ccd_imageready))
 
         self.add_background_task(self.TOItimer())
