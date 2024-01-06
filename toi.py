@@ -218,30 +218,30 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        # # 4x problems?
-        # self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
-        # self.add_background_task(self.mount.asubscribe_dec(self.radec_update))
-        # self.add_background_task(self.mount.asubscribe_az(self.radec_update))
-        # self.add_background_task(self.mount.asubscribe_alt(self.radec_update))
-        #
-        # # problem?
+        # 4x problems? ok
+        self.add_background_task(self.mount.asubscribe_ra(self.radec_update_ra))
+        self.add_background_task(self.mount.asubscribe_dec(self.radec_update_alt))
+        self.add_background_task(self.mount.asubscribe_az(self.radec_update_az))
+        self.add_background_task(self.mount.asubscribe_alt(self.radec_update_alt))
+
+        # problem?
         # self.add_background_task(self.user.asubscribe_current_user(self.user_update))
-        #
-        # # 2x problem?
-        # self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
-        # self.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
-        #
-        # # 2x problem?
-        # self.add_background_task(self.focus.asubscribe_position(self.focus_update))
-        # self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
-        #
-        # # 2x problem?
-        # self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update))
-        # self.add_background_task(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update))
-        #
-        # # 2x problem?
-        # self.add_background_task(self.ccd.asubscribe_binx(self.ccd_bin_update))
-        # self.add_background_task(self.ccd.asubscribe_biny(self.ccd_bin_update))
+
+        # 2x problem? ok
+        self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
+        self.add_background_task(self.mount.asubscribe_slewing(self.mount_update_track))
+
+        # 2x problem? ok
+        self.add_background_task(self.focus.asubscribe_position(self.focus_update))
+        self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update_is_mov))
+
+        # 2x problem? ok
+        self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update))
+        self.add_background_task(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_set_update))
+
+        # 2x problem? ok
+        self.add_background_task(self.ccd.asubscribe_binx(self.ccd_binx_update))
+        self.add_background_task(self.ccd.asubscribe_biny(self.ccd_biny_update))
         # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         self.add_background_task(self.mount.asubscribe_motorstatus(self.mountMotors_update))
@@ -1480,6 +1480,20 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.instGui.ccd_tab.cooler_c.setChecked(self.ccd_cooler)
     async def ccd_temp_update(self, event):
         self.ccd_temp = await  self.ccd.aget_ccdtemperature()
+        self.ccd_temp_set = await self.ccd.setccdtemperature
+        ccd_temp=self.ccd_temp
+        if ccd_temp: txt = f" {ccd_temp:.1f} /"
+        else: txt = " -- /"
+        if self.ccd_temp_set: txt = txt +  f" {self.ccd_temp_set:.1f}"
+        else: txt = txt + " -- "
+        self.instGui.ccd_tab.inst_ccdTemp_e.setText(txt)
+        if self.ccd_temp:
+            if float(ccd_temp)>self.ccd_max_temp:
+                self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(204,0,0)")
+            else: self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(0,150,0)")
+
+    async def ccd_temp_set_update(self, event):
+        self.ccd_temp = await  self.ccd.ccdtemperature
         self.ccd_temp_set = await self.ccd.aget_setccdtemperature()
         ccd_temp=self.ccd_temp
         if ccd_temp: txt = f" {ccd_temp:.1f} /"
@@ -1520,8 +1534,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             else: self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
 
-    async def ccd_bin_update(self, event):
+    async def ccd_binx_update(self, event):
         self.ccd_binx = await  self.ccd.aget_binx()
+        self.ccd_biny = self.ccd.binx
+        if self.ccd_binx and self.ccd_biny:
+            txt=f"{self.ccd_binx}x{self.ccd_biny}"
+            self.instGui.ccd_tab.inst_Bin_e.setText(txt)
+            if txt == "1x1":
+                self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            else: self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
+
+    async def ccd_biny_update(self, event):
+        self.ccd_binx = await  self.ccd.binx
         self.ccd_biny = await  self.ccd.aget_biny()
         if self.ccd_binx and self.ccd_biny:
             txt=f"{self.ccd_binx}x{self.ccd_biny}"
@@ -1741,6 +1765,52 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def mount_update(self, event):
         self.mount_slewing = await self.mount.aget_slewing()
+        self.mount_tracking = await self.mount.tracking
+        #self.mount_motorsOn=self.mount.motorstatus
+
+        #self.mount_parked=self.mount.atpark
+        txt=""
+        if not self.mount_motortatus:
+            txt = "SLEWING, TRACKING"
+            self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+        elif self.mount_slewing and self.mount_tracking:
+            txt="SLEWING, TRACKING"
+            self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+            self.mntGui.tracking_c.setChecked(True)
+        elif self.mount_slewing:
+            txt="SLEWING"
+            self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+        elif self.mount_tracking:
+            txt="TRACKING"
+            self.mntGui.mntStat_e.setStyleSheet("color: rgb(0,150,0); background-color: rgb(233, 233, 233);")
+            self.mntGui.tracking_c.setChecked(True)
+        #elif self.mount_parked:
+        #    txt="PARKED"
+        #    self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+        #    self.mntGui.tracking_c.setChecked(False)
+        else:
+            txt="IDLE"
+            self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+            self.mntGui.tracking_c.setChecked(False)
+        self.mntGui.mntStat_e.setText(txt)
+        self.obsGui.main_form.skyView.updateMount()
+        await self.msg(f"TELEMETRY: mount {txt}","black")
+
+        if self.mount_slewing:
+            self.mntGui.mntAz_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+            self.mntGui.mntAlt_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+            self.mntGui.mntRa_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+            self.mntGui.mntDec_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+            self.guider_passive_dx=[]
+            self.guider_passive_dy=[]
+        else:
+            self.mntGui.mntAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            self.mntGui.mntAlt_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            self.mntGui.mntRa_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            self.mntGui.mntDec_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
+    async def mount_update_track(self, event):
+        self.mount_slewing = await self.mount.slewing
         self.mount_tracking = await self.mount.aget_tracking()
         #self.mount_motorsOn=self.mount.motorstatus
 
@@ -1785,10 +1855,82 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.mntRa_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             self.mntGui.mntDec_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
-    async def radec_update(self, event):
+    async def radec_update_ra(self, event):
         self.mount_ra=await self.mount.aget_ra()
+        self.mount_dec=await self.mount.declination
+        self.mount_alt=await self.mount.altitude
+        self.mount_az=await self.mount.azimuth
+        if "--" not in str(self.mount_ra) and "--" not in str(self.mount_dec) and self.mount_ra != None and self.mount_dec != None:
+            self.mntGui.mntRa_e.setText(to_hourangle_sexagesimal(self.mount_ra))
+            self.mntGui.mntDec_e.setText(dec_to_sexagesimal(self.mount_dec))
+        if "--" not in str(self.mount_alt) and "--" not in str(self.mount_az) and self.mount_alt != None and self.mount_az != None:
+           self.mntGui.mntAlt_e.setText(f"{self.mount_alt:.3f}")
+           self.mntGui.mntAz_e.setText(f"{self.mount_az:.3f}")
+           self.obsGui.main_form.skyView.updateMount()
+           airmass = calc_airmass(float(self.mount_alt))
+           if airmass != None:
+               self.mntGui.mntAirmass_e.setText("%.1f" % airmass)
+           else:
+               self.mntGui.mntAirmass_e.setText(" -- ")
+
+        az=self.mount_az
+        if az != None:
+            az=float(az)
+            if self.mntGui.domeAuto_c.isChecked() and abs(az-float(self.dome_az)>5.):     # Do wywalenia po implementacji w TIC
+               await self.dome.aput_slewtoazimuth(az)
+
+    async def radec_update_dec(self, event):
+        self.mount_ra=await self.mount.rightascension
         self.mount_dec=await self.mount.aget_dec()
+        self.mount_alt=await self.mount.altitude
+        self.mount_az=await self.mount.azimuth
+        if "--" not in str(self.mount_ra) and "--" not in str(self.mount_dec) and self.mount_ra != None and self.mount_dec != None:
+            self.mntGui.mntRa_e.setText(to_hourangle_sexagesimal(self.mount_ra))
+            self.mntGui.mntDec_e.setText(dec_to_sexagesimal(self.mount_dec))
+        if "--" not in str(self.mount_alt) and "--" not in str(self.mount_az) and self.mount_alt != None and self.mount_az != None:
+           self.mntGui.mntAlt_e.setText(f"{self.mount_alt:.3f}")
+           self.mntGui.mntAz_e.setText(f"{self.mount_az:.3f}")
+           self.obsGui.main_form.skyView.updateMount()
+           airmass = calc_airmass(float(self.mount_alt))
+           if airmass != None:
+               self.mntGui.mntAirmass_e.setText("%.1f" % airmass)
+           else:
+               self.mntGui.mntAirmass_e.setText(" -- ")
+
+        az=self.mount_az
+        if az != None:
+            az=float(az)
+            if self.mntGui.domeAuto_c.isChecked() and abs(az-float(self.dome_az)>5.):     # Do wywalenia po implementacji w TIC
+               await self.dome.aput_slewtoazimuth(az)
+
+    async def radec_update_alt(self, event):
+        self.mount_ra=await self.mount.rightascension
+        self.mount_dec=await self.mount.declination
         self.mount_alt=await self.mount.aget_alt()
+        self.mount_az=await self.mount.azimuth
+        if "--" not in str(self.mount_ra) and "--" not in str(self.mount_dec) and self.mount_ra != None and self.mount_dec != None:
+            self.mntGui.mntRa_e.setText(to_hourangle_sexagesimal(self.mount_ra))
+            self.mntGui.mntDec_e.setText(dec_to_sexagesimal(self.mount_dec))
+        if "--" not in str(self.mount_alt) and "--" not in str(self.mount_az) and self.mount_alt != None and self.mount_az != None:
+           self.mntGui.mntAlt_e.setText(f"{self.mount_alt:.3f}")
+           self.mntGui.mntAz_e.setText(f"{self.mount_az:.3f}")
+           self.obsGui.main_form.skyView.updateMount()
+           airmass = calc_airmass(float(self.mount_alt))
+           if airmass != None:
+               self.mntGui.mntAirmass_e.setText("%.1f" % airmass)
+           else:
+               self.mntGui.mntAirmass_e.setText(" -- ")
+
+        az=self.mount_az
+        if az != None:
+            az=float(az)
+            if self.mntGui.domeAuto_c.isChecked() and abs(az-float(self.dome_az)>5.):     # Do wywalenia po implementacji w TIC
+               await self.dome.aput_slewtoazimuth(az)
+
+    async def radec_update_az(self, event):
+        self.mount_ra=await self.mount.rightascension
+        self.mount_dec=await self.mount.declination
+        self.mount_alt=await self.mount.altitude
         self.mount_az=await self.mount.aget_az()
         if "--" not in str(self.mount_ra) and "--" not in str(self.mount_dec) and self.mount_ra != None and self.mount_dec != None:
             self.mntGui.mntRa_e.setText(to_hourangle_sexagesimal(self.mount_ra))
@@ -2146,6 +2288,27 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def focus_update(self, event):
         self.focus_value = await self.focus.aget_position()
+        self.focus_moving = await self.focus.ismoving
+
+        if self.focus_value != None:
+            self.mntGui.telFocus_e.setText(str(self.focus_value))
+            if self.focus_moving != None:
+                if self.focus_moving:
+                    self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+                else:
+                    self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        else:
+            self.mntGui.telFocus_e.setText(f"ERROR")
+            self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
+            await self.msg("TELEMETRY: focus position ERROR","red")
+
+        if not self.focus_editing:
+           self.mntGui.setFocus_s.valueChanged.disconnect(self.focusClicked)
+           self.mntGui.setFocus_s.setValue(int(self.focus_value))
+           self.mntGui.setFocus_s.valueChanged.connect(self.focusClicked)
+
+    async def focus_update_is_mov(self, event):
+        self.focus_value = await self.focus.position
         self.focus_moving = await self.focus.aget_ismoving()
 
         if self.focus_value != None:
