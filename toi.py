@@ -225,7 +225,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.mount.asubscribe_alt(self.radec_update))
 
         # problem?
-        # self.add_background_task(self.user.asubscribe_current_user(self.user_update))
+        self.add_background_task(self.user.asubscribe_current_user(self.user_update))
 
         # 2x problem? ok
         self.add_background_task(self.mount.asubscribe_tracking(self.mount_update_track))
@@ -616,14 +616,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
             # sprawdzenie gubienia subskrypcji
-            if (float(self.ephem_utc) - self.ephem_prev_utc) > 1.5:
-                    #await self.msg("WARNING: tic UTC callback missed", "red")
-                    self.comProblem = True
-                    self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: orange;")
-                    self.force_update()
-                    print(f"================== LOST {self.ephem_utc-self.ephem_prev_utc} ")
-            else: self.comProblem = False
-            self.ephem_prev_utc = self.ephem_utc
+            # if (float(self.ephem_utc) - self.ephem_prev_utc) > 1.5:
+            #         #await self.msg("WARNING: tic UTC callback missed", "red")
+            #         self.comProblem = True
+            #         self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: orange;")
+            #         self.force_update()
+            #         print(f"================== LOST {self.ephem_utc-self.ephem_prev_utc} ")
+            # else: self.comProblem = False
+            # self.ephem_prev_utc = self.ephem_utc
 
 
             #continue
@@ -2395,7 +2395,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def user_update(self, event):
         self.TICuser=self.user.current_user
-        self.acces=bool(await self.user.aget_is_access())
+        self.acces=bool(self.user.is_access)
         txt=str(self.TICuser["name"])
         self.obsGui.main_form.control_e.setText(txt)
         if self.acces:
