@@ -1475,11 +1475,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await self.ccd_update(True)
 
     async def ccd_cooler_update(self, event):
-        self.ccd_cooler = await  self.ccd.aget_cooleron()
+        # self.ccd_cooler = await  self.ccd.aget_cooleron()
+        self.ccd_cooler = self.ccd.cooleron
         if self.ccd_cooler != None:
             self.instGui.ccd_tab.cooler_c.setChecked(self.ccd_cooler)
     async def ccd_temp_update(self, event):
-        self.ccd_temp = await  self.ccd.aget_ccdtemperature()
+        # self.ccd_temp = await  self.ccd.aget_ccdtemperature()
+        self.ccd_temp = self.ccd.ccdtemperature
         self.ccd_temp_set = self.ccd.setccdtemperature
         ccd_temp=self.ccd_temp
         if ccd_temp: txt = f" {ccd_temp:.1f} /"
@@ -1508,7 +1510,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     async def ccd_gain_update(self, event):
-        self.ccd_gain = await  self.ccd.aget_gain()
+        # self.ccd_gain = await  self.ccd.aget_gain()
+        self.ccd_gain = self.ccd.gain
         gain_list = ["1x","2x","4x"]
         self.ccd_gain = self.ccd.gain
         if self.ccd_gain != None:
@@ -1521,7 +1524,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             except Exception as e: pass
 
     async def ccd_rm_update(self, event):
-        self.ccd_readoutmode = await self.ccd.aget_readoutmode()
+        # self.ccd_readoutmode = await self.ccd.aget_readoutmode()
+        self.ccd_readoutmode = self.ccd.readoutmode
         # READ MODES
 
         if self.ccd_readoutmode != None:
@@ -1535,7 +1539,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             else: self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
 
     async def ccd_binx_update(self, event):
-        self.ccd_binx = await  self.ccd.aget_binx()
+        # self.ccd_binx = await  self.ccd.aget_binx()
+        self.ccd_binx = self.ccd.binx
         self.ccd_biny = self.ccd.binx
         if self.ccd_binx and self.ccd_biny:
             txt=f"{self.ccd_binx}x{self.ccd_biny}"
@@ -1546,7 +1551,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def ccd_biny_update(self, event):
         self.ccd_binx = self.ccd.binx
-        self.ccd_biny = await  self.ccd.aget_biny()
+        # self.ccd_biny = await  self.ccd.aget_biny()
+        self.ccd_biny = self.ccd.biny
         if self.ccd_binx and self.ccd_biny:
             txt=f"{self.ccd_binx}x{self.ccd_biny}"
             self.instGui.ccd_tab.inst_Bin_e.setText(txt)
@@ -1555,7 +1561,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             else: self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
 
     async def ccd_update(self, event):
-        self.ccd_state = await  self.ccd.aget_camerastate()
+        # self.ccd_state = await  self.ccd.aget_camerastate()
+        self.ccd_state = self.ccd.camerastate
 
 
     # ############ MOUNT ##################################
@@ -1584,7 +1591,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def mountMotors_update(self,event):
-           r = await self.mount.aget_motorstatus()
+           # r = await self.mount.aget_motorstatus()
+           r = self.mount.motorstatus
            if r=="true":
                self.mount_motortatus = True
            else:
@@ -1625,7 +1633,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def covers_update(self,event):
-           self.cover_status = await self.cover.aget_coverstate()
+           # self.cover_status = await self.cover.aget_coverstate()
+           self.cover_status = self.cover.coverstate
 
            if self.cover_status==3:
                self.mntGui.telCovers_c.setChecked(True)
@@ -1764,7 +1773,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     async def mount_update_slew(self, event):
-        self.mount_slewing = await self.mount.aget_slewing()
+        self.mount_slewing = self.mount.slewing
         self.mount_tracking = self.mount.tracking
         #self.mount_motorsOn=self.mount.motorstatus
 
@@ -1811,7 +1820,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def mount_update_track(self, event):
         self.mount_slewing = self.mount.slewing
-        self.mount_tracking = await self.mount.aget_tracking()
+        # self.mount_tracking = await self.mount.aget_tracking()
+        self.mount_tracking = self.mount.tracking
         #self.mount_motorsOn=self.mount.motorstatus
 
         #self.mount_parked=self.mount.atpark
@@ -2012,7 +2022,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             else: self.mntGui.domeAuto_c.setChecked(True)
 
     async def domeShutterStatus_update(self, event):
-           self.dome_shutterstatus=await self.dome.aget_shutterstatus()
+           # self.dome_shutterstatus=await self.dome.aget_shutterstatus()
+           self.dome_shutterstatus=self.dome.shutterstatus
            if self.dome_shutterstatus==0:
               txt="OPEN"
               self.mntGui.domeShutter_e.setStyleSheet("color: rgb(0,150,0); background-color: rgb(233, 233, 233);")
@@ -2044,7 +2055,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            await self.msg(f"TELEMETRY: shutter {txt}","black")
 
     async def domeStatus_update(self, event):
-           self.dome_status=await self.dome.aget_slewing()
+           # self.dome_status=await self.dome.aget_slewing()
+           self.dome_status=await self.dome.slewing
            if self.dome_status==False:
               txt="STOPPED"
               self.mntGui.domeStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
@@ -2059,7 +2071,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            await self.msg(f"TELEMETRY: dome {txt}","black")
 
     async def domeAZ_update(self, event):
-        self.dome_az = await self.dome.aget_az()
+        # self.dome_az = await self.dome.aget_az()
+        self.dome_az =self.dome.azimuth
         if self.dome_az:
             self.mntGui.domeAz_e.setText(f"{self.dome_az:.2f}")
             self.obsGui.main_form.skyView.updateDome()
@@ -2137,7 +2150,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def mirrorFans_update(self,event):
-           r = await self.focus.aget_fansstatus()
+           # r = await self.focus.aget_fansstatus()
+           r = self.focus.fansstatus
            if r == "True": self.dome_fanStatus=True
            else: self.dome_fanStatus=False
 
@@ -2215,7 +2229,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.focus_editing=True
 
     async def focus_update(self, event):
-        self.focus_value = await self.focus.aget_position()
+        # self.focus_value = await self.focus.aget_position()
+        self.focus_value = self.focus.position
         self.focus_moving = self.focus.ismoving
 
         if self.focus_value != None:
@@ -2237,7 +2252,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def focus_update_is_mov(self, event):
         self.focus_value = self.focus.position
-        self.focus_moving = await self.focus.aget_ismoving()
+        # self.focus_moving = await self.focus.aget_ismoving()
+        self.focus_moving = self.focus.ismoving
 
         if self.focus_value != None:
             self.mntGui.telFocus_e.setText(str(self.focus_value))
@@ -2281,7 +2297,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def filter_update(self, event):
-        pos = int(await self.fw.aget_position())
+        # pos = int(await self.fw.aget_position())
+        pos = int(self.fw.position)
         self.curent_filter=self.filter_list[pos]
         if pos == -1: filtr = "--"
         else: filtr = self.filter_list[pos]
@@ -2294,7 +2311,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else: self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
     async def filterList_update(self, event):
-        filter_list = await self.fw.aget_names()  # To jest dziwny slownik
+        # filter_list = await self.fw.aget_names()  # To jest dziwny slownik
+        filter_list = self.fw.names  # To jest dziwny slownik
         self.filter_list = [key for key, value in sorted(filter_list.items(), key=lambda item: item[1])]
 
     # ############### ROTATOR #####################
