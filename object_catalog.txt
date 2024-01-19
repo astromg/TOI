@@ -48,3 +48,14 @@
 
   LMC       05:23:34.6  -69:45:22       # LMC central field
   SMC       00:52:38.0  -72:48:01       # SMC central field
+
+TPHE  00:30:16    -46:27:55   #  standard field mV between 11 and 14.5"
+SA92  00:56:08    +01:04:29   #  standard field mV between 11 and 15"
+SA95  03:53:04    +00:03:12   #  standard field mV between 11 and 15"
+SA98  06:52:05    -00:19:18   #  standard field mV between 10 and 15"
+RU149  07:24:14   -00:31:41   #  standard field mV between 11.5 and 14.5"
+RU152  07:29:56   -02:05:39   #  standard field mV between 11 and 15"
+SA104  12:42:21   -00:33:12   #  standard field mV between 10 and 15"
+SA110  18:42:45   +00:07:42   #  standard field mV between 10 and 14"
+SA113  21:41:00   +00:27:21   #  standard field mV between 10 and 14"
+SA114 22:41:37    +01:08:14   #  standard field mV between 9.5 and 12"

@@ -15,6 +15,7 @@ import time
 import pwd
 import os
 import subprocess
+from pathlib import Path
 
 #from astropy.io import fits
 #import pyaraucaria
@@ -802,9 +803,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def PlanRun1(self,info):
         if "exp_started" in info.keys() and "exp_done" in info.keys() and "exp_saved" in info.keys():
             if info["exp_started"]==True and info["exp_done"]==True and info["exp_saved"]==True:
-                hdul = fits.open("/data/fits/zb08/last_shoot.fits")
-                self.image = hdul[0].data
-                await self.new_fits()
+                if Path("/data/fits/zb08/last_shoot.fits").is_file():
+                    hdul = fits.open("/data/fits/zb08/last_shoot.fits")
+                    self.image = hdul[0].data
+                    await self.new_fits()
+                else:
+                    self.image = await self.ccd.aget_imagearray()
+                    await self.new_fits()
 
         # AUTOFOCUS
         if self.autofocus_started:
