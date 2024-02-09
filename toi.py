@@ -205,7 +205,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.planrunner.add_info_callback('exec_json', self.PlanRun1)
 
         self.ephemeris = self.observatory_model.get_ephemeris()
-        self.add_background_task(self.ephemeris.asubscribe_utc(self.ephem_update))
+        self.add_background_task(self.ephemeris.asubscribe_utc(self.ephem_update,time_of_data_tolerance=0))
 
         self.add_background_task(self.user.asubscribe_current_user(self.user_update))
 

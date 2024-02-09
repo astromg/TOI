@@ -162,7 +162,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               tmp_ok = False
               if self.current_i > -1 and i >= self.current_i:
                   tmp_ok = True
-              if i >= self.next_i:
+              if self.next_i > -1 and i >= self.next_i:
                   tmp_ok = True
               if tmp_ok:
                   if "wait_ut" in self.plan[i].keys():
@@ -178,7 +178,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       az = f"{deg_to_decimal_deg((str(az))):.1f}"
                       self.plan[i]["meta_plan_alt"] = alt
                       self.plan[i]["meta_plan_az"] = az
-                      if float(alt) < 0:
+                      if float(alt) < 0 or float(alt) > 80:
                           self.plan[i]["skip"] = True
                   if "wait" in self.plan[i].keys():
                       ob_time =  ob_time + ephem.second * float(self.plan[i]["wait"])
@@ -266,6 +266,14 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                             if self.plan[i]["skip"]:
                                  txt = QTableWidgetItem("\u26D4")  # aby jednak wstawil ikonke skip jak trzeba
                          self.plan_t.setItem(i, 0, txt)
+                     elif alt > 80 :
+                         font = QtGui.QFont()
+                         font.setPointSize(15)
+                         txt = QTableWidgetItem("\u26A0")
+                         txt.setFont(font)
+                         txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                         txt.setForeground(QtGui.QColor("red"))
+                         self.plan_t.setItem(i, 0, txt)
 
 
                  if "seq_wrong" in self.plan[i].keys():
@@ -350,6 +358,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                              txt.setForeground(QtGui.QColor("red"))
                          elif alt < 35:
                              txt.setForeground(QtGui.QColor("orange"))
+                         elif alt > 80:
+                             txt.setForeground(QtGui.QColor("red"))
                  else:
                      txt = ""
                      if "meta_alt" in self.plan[i].keys():
@@ -548,8 +558,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.repaint()
 
 
-
-
       def pocisniecie_swap(self):
           if self.i != self.current_i and self.prev_i != self.current_i:
               self.plan[self.i],self.plan[self.prev_i]=self.plan[self.prev_i],self.plan[self.i]
@@ -557,15 +565,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.i,self.prev_i=self.prev_i,self.i
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               self.repaint()
-
-      def calc_slot_time(self,seq,overhed):
-          slotTime = 0
-          for x_seq in seq.split(","):
-              if "a" not in x_seq:
-                  slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(overhed)))
-          return slotTime
-
-
 
       def loadPlan(self):
 
@@ -631,7 +630,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   ob["block"]=block
                                   ob["type"]=ob_type
                                   ob["seq"]=seq
-                                  ob["slotTime"] = self.calc_slot_time(seq,self.parent.overhed)
+                                  ob["slotTime"] = calc_slot_time(seq,self.parent.overhed)
                                   self.plan.append(ob)
 
                                elif "SKYFLAT" in line:
@@ -646,7 +645,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   ob["block"]=block
                                   ob["type"]=ob_type
                                   ob["seq"]=seq
-                                  ob["slotTime"] = self.calc_slot_time(seq,self.parent.overhed)
+                                  ob["slotTime"] = calc_slot_time(seq,self.parent.overhed)
                                   self.plan.append(ob)
 
                                elif "ZERO" in line:
@@ -661,7 +660,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   ob["block"]=block
                                   ob["type"]=ob_type
                                   ob["seq"]=seq
-                                  ob["slotTime"] = self.calc_slot_time(seq,self.parent.overhed)
+                                  ob["slotTime"] = calc_slot_time(seq,self.parent.overhed)
                                   self.plan.append(ob)
 
                                elif "DARK" in line:
@@ -676,7 +675,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   ob["block"]=block
                                   ob["type"]=ob_type
                                   ob["seq"]=seq
-                                  ob["slotTime"] = self.calc_slot_time(seq,self.parent.overhed)
+                                  ob["slotTime"] = calc_slot_time(seq,self.parent.overhed)
                                   self.plan.append(ob)
 
                                elif "OBJECT" in line:
@@ -696,7 +695,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   if "seq=" in line:
                                       seq=line.split("seq=")[1].split()[0]
                                       ob["seq"] = seq
-                                      ob["slotTime"] = self.calc_slot_time(seq,self.parent.overhed)
+                                      ob["slotTime"] = calc_slot_time(seq,self.parent.overhed)
 
                                   if "comment=" in line:
                                       ob["comment"] = line.split("comment=")[1].split("\"")[1]
@@ -933,11 +932,9 @@ class PlotWindow(QWidget):
 
                     if "seq" in self.parent.plan[i].keys():
                         print(self.parent.plan[i])
-                        slotTime = 0
                         seq = self.parent.plan[i]["seq"]
-                        for x_seq in seq.split(","):
-                            if "a" not in x_seq:
-                                slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(self.parent.parent.overhed)))
+                        slotTime = calc_slot_time(seq,self.parent.parent.overhed)
+
                         if slotTime < 60:
                             fontsize = 2
                         if slotTime < 60 * 5:

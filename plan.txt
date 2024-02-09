@@ -12,6 +12,8 @@ DARK seq=5/Ic/600
 #STOP
 STOP
 STOP
+ZERO seq=2x(1/Ic/0)
+DARK seq=2x(2/Ic/2)
 STOP
 
 #WAIT wait=10

@@ -26,6 +26,11 @@ class Worker(QThread):
 #seq=10x(4/B/10,2/V/46)
 #seq=4/B/10,2/V/46,4/B/10,2/V/46,4/B/10,2/V/46,4/B/10,2/V/46,4/B/10,2/V/46,4/B/10,2/V/46,4/B/10,2/V/46
 
+
+
+
+
+
 def seq_parser(seq):
     if "x" in seq and "(" in seq and ")" in seq:
         try:
@@ -64,6 +69,19 @@ def seq_verification(seq,filter_list):
         except Exception as e:
             ok,err = False, f"wrong sequence format {x_seq}, {e}"
     return ok,err
+
+
+def calc_slot_time(seq, overhed):
+    slotTime = 0
+    k = 1
+    if "x(" in seq and ")" in seq:
+        k = int(seq.split("x")[0])
+        seq = seq.split("x(")[1].split(")")[0]
+    for x_seq in seq.split(","):
+        if "a" in x_seq:
+            x_seq = x_seq.replace("/a", "/5")
+            slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(overhed)))
+    return k * slotTime
 
 
 def readCatalog(plik):
