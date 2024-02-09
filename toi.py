@@ -598,14 +598,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
             # sprawdzenie gubienia subskrypcji
-            if (float(self.ephem_utc) - self.ephem_prev_utc) > 1.5:
-                    #await self.msg("WARNING: tic UTC callback missed", "red")
-                    self.comProblem = True
-                    self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: orange;")
-                    self.force_update()
-                    print(f"================== LOST {self.ephem_utc-self.ephem_prev_utc} ")
-            else: self.comProblem = False
-            self.ephem_prev_utc = self.ephem_utc
+            # if (float(self.ephem_utc) - self.ephem_prev_utc) > 1.5:
+            #         #await self.msg("WARNING: tic UTC callback missed", "red")
+            #         self.comProblem = True
+            #         self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: orange;")
+            #         #self.force_update()
+            #         print(f"================== LOST {self.ephem_utc-self.ephem_prev_utc} ")
+            # else: self.comProblem = False
+            # self.ephem_prev_utc = self.ephem_utc
 
 
             #continue
