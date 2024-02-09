@@ -1919,8 +1919,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if az != None and dome_az != None:
                 az=float(az)
                 dome_az=float(dome_az)
-                if self.mntGui.domeAuto_c.isChecked() and abs(az - dome_az)>5.:  # Do wywalenia po implementacji w TIC
-                    await self.dome.aput_slewtoazimuth(az)
+                # if self.mntGui.domeAuto_c.isChecked() and abs(az - dome_az)>5.:  # Do wywalenia po implementacji w TIC
+                #    await self.dome.aput_slewtoazimuth(az)
         else:
             txt="WARNING: You don't have controll"
             self.WarningWindow(txt)
