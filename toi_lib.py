@@ -80,7 +80,7 @@ def calc_slot_time(seq, overhed):
     for x_seq in seq.split(","):
         if "a" in x_seq:
             x_seq = x_seq.replace("/a", "/5")
-            slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(overhed)))
+        slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(overhed)))
     return k * slotTime
 
 
