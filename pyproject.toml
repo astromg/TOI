@@ -23,8 +23,8 @@ qasync = "^0.23.0"
 ocabox = {path = "../ocabox", develop = true}
 paho-mqtt = "^1.6.1"
 scipy = "^1.9.0"
-pyqt5-qt5 = "*"
-pyqt5 = "*"
+pyqt5-qt5 = "5.15.2"  # TODO: switch to pyQt6. 5 is a mess, 5.15.2 does not work on Mac, 5.15.13 does not work on Ubuntu...
+pyqt5 = "^5.15.10"
 
 
 [tool.poetry.scripts]
