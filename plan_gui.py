@@ -178,8 +178,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       az = f"{deg_to_decimal_deg((str(az))):.1f}"
                       self.plan[i]["meta_plan_alt"] = alt
                       self.plan[i]["meta_plan_az"] = az
-                      if float(alt) < 0 or float(alt) > 80:
-                          self.plan[i]["skip"] = True
+                      # This is evil, prevents wk06 form beeing high, marks more and more ob as skiped when just clicking on the plan
+                      # if float(alt) < 0 or float(alt) > 80:
+                      #     self.plan[i]["skip"] = True
                   if "wait" in self.plan[i].keys():
                       ob_time =  ob_time + ephem.second * float(self.plan[i]["wait"])
                   if self.plan[i]["uid"] in self.done:
