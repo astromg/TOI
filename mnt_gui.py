@@ -95,9 +95,13 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     self.nextAlt_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
                     self.nextAz_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
         if self.parent.nextOB_ok:
-            if float(alt) < 0 or float(alt) > 80:
+            if float(alt) < 0 or float(alt) > 80 and self.parent.active_tel != "wk06":
                 self.parent.nextOB_ok = False
                 self.nextAlt_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+            elif float(alt) < 0 and self.parent.active_tel == "wk06":
+                self.parent.nextOB_ok = False
+                self.nextAlt_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+
             if float(az) > 360 or float(az)<0:
                 self.parent.nextOB_ok = False
                 self.nextAz_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
@@ -172,7 +176,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.setWindowTitle('')
         self.setStyleSheet("font-size: 11pt;")
 
-        local_dic={"wk06":'WK06 Mount Manual Controll',"zb08":'ZB08 Mount Manual Controll',"jk15":'JK15 Mount Manual Controll',"sim":'SIM Mount Manual Controll'}
+        local_dic={"wk06":'wk06 Mount Manual Controll',"zb08":'zb08 Mount Manual Controll',"jk15":'jk15 Mount Manual Controll',"sim":'SIM Mount Manual Controll'}
         try: txt = local_dic[self.parent.active_tel]
         except: txt = "Unknown Mount Manual Controll"
         self.setWindowTitle(txt)
@@ -634,7 +638,10 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             if tel=="zb08":
                 self.setFocus_s.setRange(0,28000)
                 self.setFocus_s.setSingleStep(50)
-            if tel=="jk15":
+            elif tel=="wk06":
+                self.setFocus_s.setRange(0,28000)
+                self.setFocus_s.setSingleStep(50)
+            elif tel=="jk15":
                 self.setFocus_s.setRange(0,50000)
                 self.setFocus_s.setSingleStep(50)
         self.setFocus_s.valueChanged.connect(self.parent.focusClicked)

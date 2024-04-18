@@ -172,11 +172,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.flat_record={}
         self.flat_record["go"] = False
 
-
+        # TELESCOPE CONFIGURATION HARDCODED
         tel=self.obs_tel_tic_names[self.active_tel_i]
         self.active_tel = tel
-        if tel == "zb08": self.cfg_focus_directory = "/data/fits/zb08/focus/actual"
-        elif tel == "jk15": self.cfg_focus_directory = "/data/fits/zb08/focus/actual"
+        if tel == "zb08":
+            self.cfg_tel_directory = "/data/fits/zb08/"
+            self.flat_log_files = "/Logs/zb08_flats_log.txt"
+        elif tel == "wk06":
+            self.cfg_tel_directory = "/data/fits/wk06/"
+            self.flat_log_files = "/Logs/wk06_flats_log.txt"
+        elif tel == "jk15":
+            self.cfg_tel_directory = "/data/fits/jk15/"
+            self.flat_log_files = "/Logs/jk15_flats_log.txt"
+
+        #if tel == "zb08": self.cfg_focus_directory = "/data/fits/zb08/focus/actual"
+        #elif tel == "wk06": self.cfg_focus_directory = "/data/fits/wk06/focus/actual"
+        #elif tel == "jk15": self.cfg_focus_directory = "/data/fits/jk15/focus/actual"
+
+
+
         self.cfg_focus_record_file = self.script_location+"/focus_data.txt"
         self.catalog_file=self.script_location+"/object_catalog.txt"
         self.overhed = 20
@@ -198,7 +212,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ccd = self.telescope.get_camera()
         self.guider = self.telescope.get_camera(id='guider')
         self.fw = self.telescope.get_filterwheel()
-        self.rotator = self.telescope.get_rotator()
+        if self.active_tel != "wk06":
+            self.rotator = self.telescope.get_rotator()
         self.cctv = self.telescope.get_cctv()
         self.planrunner = self.telescope.get_observation_plan()
 
@@ -233,9 +248,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
         #
         #self.add_background_task(self.rotator.asubscribe_connected(self.rotatorCon_update))
-        self.add_background_task(self.rotator.asubscribe_position(self.rotator_update))
-        self.add_background_task(self.rotator.asubscribe_mechanicalposition(self.rotator_update))
-        self.add_background_task(self.rotator.asubscribe_ismoving(self.rotator_update))
+        if self.active_tel != "wk06":
+            self.add_background_task(self.rotator.asubscribe_position(self.rotator_update))
+            self.add_background_task(self.rotator.asubscribe_mechanicalposition(self.rotator_update))
+            self.add_background_task(self.rotator.asubscribe_ismoving(self.rotator_update))
         #
         self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update))
         self.add_background_task(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update))
@@ -344,7 +360,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.mount_conn = True
                 #self.mount_conn = await self.self.mount.aget_connected()
                 self.dome_conn = True
-                self.rotator_conn = True
+                if self.active_tel != "wk06":
+                    self.rotator_conn = True
+                else: self.rotator_conn = None
                 self.fw_conn = True
                 self.focus_conn = True
                 self.inst_conn = True
@@ -772,6 +790,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if self.rotator_conn == True:
                 self.mntGui.comRotator1_l.setText("\U0001F7E2")
                 self.mntGui.telRotator1_l.setStyleSheet("color: rgb(0,150,0);")
+            elif self.rotator_conn == None:
+                self.mntGui.comRotator1_l.setText("\u2B24")
+                self.mntGui.comRotator1_l.setStyleSheet("color: rgb(190,190,190);")
+                self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
             else:
                 self.mntGui.comRotator1_l.setText("\U0001F534")
                 self.mntGui.telRotator1_l.setStyleSheet("color: rgb(150,0,0);")
@@ -803,8 +825,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def PlanRun1(self,info):
         if "exp_started" in info.keys() and "exp_done" in info.keys() and "exp_saved" in info.keys():
             if info["exp_started"]==True and info["exp_done"]==True and info["exp_saved"]==True:
-                if Path("/data/fits/zb08/last_shoot.fits").is_file():
-                    hdul = fits.open("/data/fits/zb08/last_shoot.fits")
+                if Path(self.cfg_tel_directory + "last_shoot.fits").is_file():
+                    hdul = fits.open(self.cfg_tel_directory + "last_shoot.fits")
                     self.image = hdul[0].data
                     await self.new_fits()
                 else:
@@ -817,7 +839,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if info["id"]=="auto_focus" and info["started"]==True and info["done"]==True:
                     self.autofocus_started=False
                     await self.msg("PLAN: Auto-focus sequence finished","black")
-                    max_sharpness_focus, calc_metadata = calFoc.calculate(self.cfg_focus_directory,method=self.focus_method)
+                    max_sharpness_focus, calc_metadata = calFoc.calculate(self.cfg_tel_directory+"focus/actual",method=self.focus_method)
                     coef = calc_metadata["poly_coef"]
                     focus_list_ret = calc_metadata["focus_values"]
                     sharpness_list_ret = calc_metadata["sharpness_values"]
@@ -1180,7 +1202,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.flat_record["go"] = False
 
                 active_tel = self.active_tel
-                f_name = self.flat_log_files[active_tel]
+                f_name = self.flat_log_files
                 flat_log_file = self.script_location+f_name #"/Logs/zb08_flats_log.txt"
                 if os.path.exists(flat_log_file):
                     pass
@@ -2364,7 +2386,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.observatory = ["-24:35:24","-70:11:47","2800"]
 
-        self.flat_log_files={"zb08":"/Logs/zb08_flats_log.txt","wk06":"/Logs/wk06_flats_log.txt","jk15":"/Logs/jk15_flats_log.txt"}
 
         self.cwd = os.getcwd()
         self.comProblem = False
@@ -2426,7 +2447,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.acces=True
 
         # obs model
-        self.obs_tel_tic_names=["wk06","zb08","jk15","sim"]  # wg25 is not working
+        self.obs_tel_tic_names=["wk06","zb08","jk15"]  # wg25 is not working
         self.obs_tel_in_table = self.obs_tel_tic_names
 
         # active telescope & universal

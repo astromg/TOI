@@ -35,7 +35,7 @@ class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
       def updateUI(self):
 
-          local_dic={"wk06":'WK06 Instrument Manual Controll',"zb08":'ZB08 Instrument Manual Controll',"jk15":'JK15 Instrument Manual Controll',"sim":'SIM Instrument Manual Controll'}
+          local_dic={"wk06":'wk06 Instrument Manual Controll',"zb08":'zb08 Instrument Manual Controll',"jk15":'jk15 Instrument Manual Controll',"sim":'SIM Instrument Manual Controll'}
           try: txt = local_dic[self.parent.active_tel]
           except: txt = "unknow Instrument Manual Controll"
           self.setWindowTitle(txt)
