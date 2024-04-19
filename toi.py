@@ -1127,12 +1127,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 program = self.ob["block"]
                                 if "comment" in program:
                                     program = program.split("comment")[0]
-                                await self.planrunner.aload_nightplan_string('program', string=program, overwrite=True)
-                                await self.planrunner.arun_nightplan('program', step_id="00")
+                                await self.planrunner.aload_nightplan_string('auto_focus', string=program, overwrite=True)
+                                await self.planrunner.arun_nightplan('auto_focus', step_id="00")
 
                                 self.program_name="program"
                                 self.fits_exec=True
                                 self.plan_runner_origin="Plan Gui"
+                                self.focus_method = "rms_quad"
                                 self.autofocus_started = True
 
 
