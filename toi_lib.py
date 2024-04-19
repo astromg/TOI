@@ -74,14 +74,19 @@ def seq_verification(seq,filter_list):
 def calc_slot_time(seq, overhed):
     slotTime = 0
     k = 1
-    if "x(" in seq and ")" in seq:
-        k = int(seq.split("x")[0])
-        seq = seq.split("x(")[1].split(")")[0]
-    for x_seq in seq.split(","):
-        if "a" in x_seq:
-            x_seq = x_seq.replace("/a", "/5")
-        slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(overhed)))
-    return k * slotTime
+    res = 0
+    try:
+        if "x(" in seq and ")" in seq:
+            k = int(seq.split("x")[0])
+            seq = seq.split("x(")[1].split(")")[0]
+        for x_seq in seq.split(","):
+            if "a" in x_seq:
+                x_seq = x_seq.replace("/a", "/5")
+            slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(overhed)))
+        res = k * slotTime
+    except:
+        print(f"wrong seq {seq}")
+    return res
 
 
 def readCatalog(plik):

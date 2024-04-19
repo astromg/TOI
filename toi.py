@@ -150,16 +150,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def teleskop_switched(self):
 
-        await self.stop_background_tasks()
+        #await self.stop_background_tasks()
 
         self.nats_journal_flats_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.flats')
         self.nats_journal_focus_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.focus')
         self.nats_journal_toi_msg = get_journalpublisher(f'tic.journal.{self.active_tel}.toi.signal')
 
-        #print("go")
         #subprocess.run(["aplay", self.script_location+"/sounds/spceflow.wav"])
         #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
-        #print("done")
+
         self.tmp = 0
 
         self.pulseRa = 0
@@ -175,7 +174,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # TELESCOPE CONFIGURATION HARDCODED
         tel=self.obs_tel_tic_names[self.active_tel_i]
         self.active_tel = tel
-        if tel == "zb08":
+
+        if tel == "wk06":
+            self.cfg_tel_directory = "/data/fits/wk06/"
+            self.flat_log_files = "/Logs/wk06_flats_log.txt"
+
+            self.cfg_showRotator = False
+            self.cfg_alt_limits = {"min":0,"max":90,"low":35}
+
+            self.cfg_inst_obstype = ["Science", "Zero", "Dark", "Sky Flat", "Dome Flat"]
+            self.cfg_inst_mode = ["Normal", "Sky", "JitterBox", "JitterRandom"]
+            self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
+            self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
+            self.cfg_inst_gain = ["1x","2x","4x"]
+            self.cfg_inst_rm = ["5MHz","3MHz","1MHz","0.05MHz"]
+            self.cfg_inst_temp = "-60"
+
+            self.cfg_inst_defSetUp = {"gain": "4x", "rm": "1MHz","bin":"1x1", "temp":-58}
+
+        elif tel == "zb08":
             self.cfg_tel_directory = "/data/fits/zb08/"
             self.flat_log_files = "/Logs/zb08_flats_log.txt"
 
@@ -190,21 +207,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_rm = ["5MHz","3MHz","1MHz","0.05MHz"]
             self.cfg_inst_temp = "-60"
 
-
-        elif tel == "wk06":
-            self.cfg_tel_directory = "/data/fits/wk06/"
-            self.flat_log_files = "/Logs/wk06_flats_log.txt"
-
-            self.cfg_showRotator = False
-            self.cfg_alt_limits = {"min":0,"max":90,"low":35}
-
-            self.cfg_inst_obstype = ["Science", "Zero", "Dark", "Sky Flat", "Dome Flat"]
-            self.cfg_inst_mode = ["Normal", "Sky", "JitterBox", "JitterRandom"]
-            self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
-            self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
-            self.cfg_inst_gain = ["1x","2x","4x"]
-            self.cfg_inst_rm = ["5MHz","3MHz","1MHz","0.05MHz"]
-            self.cfg_inst_temp = "-60"
+            self.cfg_inst_defSetUp = {"gain": "4x", "rm": "1MHz","bin":"1x1", "temp":-58}
 
         elif tel == "jk15":
             self.cfg_tel_directory = "/data/fits/jk15/"
@@ -221,10 +224,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_rm = ["5MHz","3MHz","1MHz","0.05MHz"]
             self.cfg_inst_temp = "-60"
 
-        #if tel == "zb08": self.cfg_focus_directory = "/data/fits/zb08/focus/actual"
-        #elif tel == "wk06": self.cfg_focus_directory = "/data/fits/wk06/focus/actual"
-        #elif tel == "jk15": self.cfg_focus_directory = "/data/fits/jk15/focus/actual"
-
+            self.cfg_inst_defSetUp = {"gain": "4x", "rm": "1MHz","bin":"1x1", "temp":-58}
 
 
         self.cfg_focus_record_file = self.script_location+"/focus_data.txt"
@@ -330,6 +330,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.weatherStop_p.clicked.connect(self.weatherStop)
         self.obsGui.main_form.EmStop_p.clicked.connect(self.EmStop)
 
+        #self.force_update()
 
     # ################### METODY POD NATSY ##################
     async def nats_log_flat_reader(self):
@@ -649,17 +650,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 pass
                 #txt = f"GUIDER FAILED after {status}, {e}"
                 #self.auxGui.guider_tab.guiderView.result_e.setText(txt)
-
-
-            # sprawdzenie gubienia subskrypcji
-            # if (float(self.ephem_utc) - self.ephem_prev_utc) > 1.5:
-            #         #await self.msg("WARNING: tic UTC callback missed", "red")
-            #         self.comProblem = True
-            #         self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: orange;")
-            #         #self.force_update()
-            #         print(f"================== LOST {self.ephem_utc-self.ephem_prev_utc} ")
-            # else: self.comProblem = False
-            # self.ephem_prev_utc = self.ephem_utc
 
 
             #continue
@@ -1545,7 +1535,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else: txt = txt + " -- "
         self.instGui.ccd_tab.inst_ccdTemp_e.setText(txt)
         if self.ccd_temp:
-            if float(ccd_temp)>self.ccd_max_temp:
+            if float(ccd_temp) > self.cfg_inst_defSetUp["temp"]:
                 self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(204,0,0)")
             else: self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(0,150,0)")
 
@@ -1558,7 +1548,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             try:
                 txt = gain_list[int(self.ccd_gain)]
                 self.instGui.ccd_tab.inst_gain_e.setText(txt)
-                if txt == "4x":
+                if txt == self.cfg_inst_defSetUp["gain"]:
                     self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
                 else: self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
             except Exception as e: pass
@@ -1573,7 +1563,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             txt = modes[i]
             self.ccd_readmode=txt
             self.instGui.ccd_tab.inst_read_e.setText(txt)
-            if txt == "1MHz":
+            if txt == self.cfg_inst_defSetUp["rm"]:
                 self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             else: self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
 
@@ -1583,7 +1573,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.ccd_binx and self.ccd_biny:
             txt=f"{self.ccd_binx}x{self.ccd_biny}"
             self.instGui.ccd_tab.inst_Bin_e.setText(txt)
-            if txt == "1x1":
+            if txt == self.cfg_inst_defSetUp["bin"]:
                 self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             else: self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
 
@@ -2116,8 +2106,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                txt="REQUEST: mirror fans ON"
                await self.msg(txt,"green")
                await self.focus.aput_fansturnon()
-           self.mntGui.fans_e.setText(txt)
-           self.mntGui.fans_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+           self.mntGui.mirrorFans_e.setText(txt)
+           self.mntGui.mirrorFans_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
         else:
             await self.mirrorFans_update(False)
             txt="WARNING: U don't have controll"
@@ -2519,7 +2509,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # ccd
         self.binxy_changed=False
-        self.ccd_max_temp = -50
 
         # filter wheel
         self.filter = None
@@ -2683,7 +2672,7 @@ class TelBasicState():
         st = self.ccd.camerastate
 
         if st != None:
-            if st==0 and temp > self.ccd_max_temp:
+            if st==0 and temp > self.cfg_inst_defSetUp["temp"]:
                 state="WARM"
                 rgb=(0, 0, 0)
             elif st==0:

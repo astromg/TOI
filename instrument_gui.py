@@ -1,25 +1,10 @@
 #!/usr/bin/env python3
 
-#----------------
-# 01.08.2022
-# Marek Gorski
-#----------------
-
-import logging
-import time
-
 import qasync as qs
-from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QRadioButton, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
-
-from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 from qasync import QEventLoop
-
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
-from toi_lib import *
-
-
 
 class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
@@ -84,9 +69,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.inst_object_e.setText("skyflat")
           elif self.inst_Obtype_s.currentIndex()==4:
               self.inst_object_e.setText("domeflat")
-          #elif self.inst_Obtype_s.currentIndex()==5:
-          #    self.inst_object_e.setText("FOCUS")
-          else: pass
+          else: pass                                  # nie ma Focusa bo nie da sie go zrobic w tym oknie
 
       def Select(self):
           if self.Select1_r.isChecked():
@@ -285,15 +268,6 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           grid.addWidget(self.inst_Stop_p, w,2) 
           grid.addWidget(self.inst_Start_p, w,3)
 
-
-
-          #grid.setColumnMinimumWidth(6,100)
-          #grid.setColumnMinimumWidth(8,100)
-          #grid.setColumnMinimumWidth(10,100)
-          
-          #grid.setSpacing(10)
-     
-          
           self.setLayout(grid)
 
       async def on_start_app(self):

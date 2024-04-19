@@ -29,7 +29,6 @@ from toi_lib import *
 class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     def __init__(self, parent, loop: QEventLoop = None, client_api=None):
         super().__init__(loop=loop, client_api=client_api)
-        # super(QMainWindow, self).__init__()
         self.parent = parent
         self.setWindowTitle('Telescope Operator Interface')
         self.main_form = MainForm(self.parent)
@@ -68,9 +67,6 @@ class MainForm(QWidget):
 
     def update_table(self):
 
-        #TODO: I would get rid of this, first - it's hardcoded, second - it introduces another notation for
-        # telescopes names (mikolaj)
-        # translate_tel_names = {"wk06": "WK-06", "zb08": "ZB-08", "jk15": "JK-15", "wg25": "WG-25", "sim": "SIM"}
         translate_tel_names = {"wk06": "WK-06", "zb08": "ZB-08", "jk15": "JK-15", "sim": "SIM"}
 
         for i, tel in enumerate(self.parent.obs_tel_tic_names):
@@ -234,7 +230,7 @@ class MainForm(QWidget):
 
         w = w + 1
 
-        self.ojd_l = QLabel("OJD:")
+        self.ojd_l = QLabel("JD:")
         self.ojd_e = QLineEdit("--")
         self.ojd_e.setReadOnly(True)
         self.ojd_e.setStyleSheet("background-color: rgb(233, 233, 233);")
@@ -257,10 +253,9 @@ class MainForm(QWidget):
         self.obs_t.setSelectionMode(QTableWidget.SingleSelection)
         self.obs_t.verticalHeader().hide()
         self.obs_t.setShowGrid(False)
-        self.obs_t.setStyleSheet("selection-background-color: rgb(138,176,219);")
         self.obs_t.setEditTriggers(QTableWidget.NoEditTriggers)
         self.obs_t.setFixedWidth(550)  # Size
-        self.obs_t.setStyleSheet("font-size: 9pt;")
+        self.obs_t.setStyleSheet("font-size: 9pt; selection-background-color: rgb(138,176,219);")
         grid.addWidget(self.obs_t, w, 0, 1, 5)
 
         w = w + 1
