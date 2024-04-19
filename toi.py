@@ -1133,6 +1133,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.program_name="program"
                                 self.fits_exec=True
                                 self.plan_runner_origin="Plan Gui"
+                                self.autofocus_started = True
+
 
                             if self.ob["type"] == "OBJECT" and "block" in self.ob.keys():
                                 program = self.ob["block"]
