@@ -178,12 +178,48 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if tel == "zb08":
             self.cfg_tel_directory = "/data/fits/zb08/"
             self.flat_log_files = "/Logs/zb08_flats_log.txt"
+
+            self.cfg_showRotator = True
+            self.cfg_alt_limits = {"min":0,"max":80,"low":35}
+
+            self.cfg_inst_obstype =  ["Science","Zero","Dark","Sky Flat","Dome Flat"]
+            self.cfg_inst_mode =  ["Normal", "Sky", "JitterBox", "JitterRandom"]
+            self.cfg_inst_bins = ["1x1","2x2","1x2","2x1"]
+            self.cfg_inst_subraster = ["No","Subraster1","Subraster2","Subraster3"]
+            self.cfg_inst_gain = ["1x","2x","4x"]
+            self.cfg_inst_rm = ["5MHz","3MHz","1MHz","0.05MHz"]
+            self.cfg_inst_temp = "-60"
+
+
         elif tel == "wk06":
             self.cfg_tel_directory = "/data/fits/wk06/"
             self.flat_log_files = "/Logs/wk06_flats_log.txt"
+
+            self.cfg_showRotator = False
+            self.cfg_alt_limits = {"min":0,"max":90,"low":35}
+
+            self.cfg_inst_obstype = ["Science", "Zero", "Dark", "Sky Flat", "Dome Flat"]
+            self.cfg_inst_mode = ["Normal", "Sky", "JitterBox", "JitterRandom"]
+            self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
+            self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
+            self.cfg_inst_gain = ["1x","2x","4x"]
+            self.cfg_inst_rm = ["5MHz","3MHz","1MHz","0.05MHz"]
+            self.cfg_inst_temp = "-60"
+
         elif tel == "jk15":
             self.cfg_tel_directory = "/data/fits/jk15/"
             self.flat_log_files = "/Logs/jk15_flats_log.txt"
+
+            self.cfg_showRotator = True
+            self.cfg_alt_limits = {"min":0,"max":80,"low":35}
+
+            self.cfg_inst_obstype = ["Science", "Zero", "Dark", "Sky Flat", "Dome Flat"]
+            self.cfg_inst_mode = ["Normal", "Sky", "JitterBox", "JitterRandom"]
+            self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
+            self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
+            self.cfg_inst_gain = ["1x","2x","4x"]
+            self.cfg_inst_rm = ["5MHz","3MHz","1MHz","0.05MHz"]
+            self.cfg_inst_temp = "-60"
 
         #if tel == "zb08": self.cfg_focus_directory = "/data/fits/zb08/focus/actual"
         #elif tel == "wk06": self.cfg_focus_directory = "/data/fits/wk06/focus/actual"
@@ -212,7 +248,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ccd = self.telescope.get_camera()
         self.guider = self.telescope.get_camera(id='guider')
         self.fw = self.telescope.get_filterwheel()
-        if self.active_tel != "wk06":
+        if self.cfg_showRotator:
             self.rotator = self.telescope.get_rotator()
         self.cctv = self.telescope.get_cctv()
         self.planrunner = self.telescope.get_observation_plan()
@@ -248,7 +284,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
         #
         #self.add_background_task(self.rotator.asubscribe_connected(self.rotatorCon_update))
-        if self.active_tel != "wk06":
+        if self.cfg_showRotator:
             self.add_background_task(self.rotator.asubscribe_position(self.rotator_update))
             self.add_background_task(self.rotator.asubscribe_mechanicalposition(self.rotator_update))
             self.add_background_task(self.rotator.asubscribe_ismoving(self.rotator_update))
@@ -360,7 +396,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.mount_conn = True
                 #self.mount_conn = await self.self.mount.aget_connected()
                 self.dome_conn = True
-                if self.active_tel != "wk06":
+                if self.cfg_showRotator:
                     self.rotator_conn = True
                 else: self.rotator_conn = None
                 self.fw_conn = True
@@ -2383,6 +2419,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             log_file.write(log)
 
     def variables_init(self):
+
+        self.cfg_showRotator = True
+        self.cfg_alt_limits = {"min":0,"max":90,"low":35}
+
+        self.cfg_inst_obstype = []
+        self.cfg_inst_mode = []
+        self.cfg_inst_bins = []
+        self.cfg_inst_subraster = []
+        self.cfg_inst_gain = []
+        self.cfg_inst_rm = []
+        self.cfg_inst_temp = "-50"
 
         self.observatory = ["-24:35:24","-70:11:47","2800"]
 

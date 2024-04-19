@@ -35,9 +35,10 @@ class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
       def updateUI(self):
 
-          local_dic={"wk06":'wk06 Instrument Manual Controll',"zb08":'zb08 Instrument Manual Controll',"jk15":'jk15 Instrument Manual Controll',"sim":'SIM Instrument Manual Controll'}
-          try: txt = local_dic[self.parent.active_tel]
-          except: txt = "unknow Instrument Manual Controll"
+          tmp = ""
+          if self.parent.active_tel != None:
+              tmp = self.parent.active_tel
+          txt = tmp + " Instrument Manual Controll"
           self.setWindowTitle(txt)
 
           tmp=QWidget()
@@ -52,10 +53,8 @@ class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
           self.ccd_tab=CCDGui(self.parent,loop=self.parent.loop, client_api=self.parent.client_api)
           self.tab.addTab(self.ccd_tab,"\U0001F534 CCD")
 
-
           self.layout.addWidget(self.tab,0,0)
           del tmp
-
 
       async def on_start_app(self):
           await self.run_background_tasks()
@@ -120,8 +119,6 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         # =================== OKNO GLOWNE ====================================
       def mkUI(self):
 
-          self.setWindowTitle('Instrument Manual Controll')
-          
           grid = QGridLayout()
           w=0   
 
@@ -130,7 +127,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.inst_Obtype_l=QLabel("TYPE:")
           self.inst_Obtype_s=QComboBox()
-          self.inst_Obtype_s.addItems(["Science","Zero","Dark","Sky Flat","Dome Flat"])
+          self.inst_Obtype_s.addItems(self.parent.cfg_inst_obstype)
           self.inst_Obtype_s.currentIndexChanged.connect(self.ObsTypeChanged)
           
           grid.addWidget(self.inst_object_l, w,0)
@@ -163,16 +160,8 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.Select2_r.toggled.connect(self.Select)
           self.inst_Seq_e.mousePressEvent = self.Select2   # connect
 
-
-
-          #self.inst_Seq_p=QPushButton('EXECUTE')
-          #self.inst_Seq_p.setStyleSheet(" color: gray;")
-          #self.inst_Seq_p.clicked.connect(self.parent.ccd_startSequence)
-
-
           grid.addWidget(self.inst_Seq_l, w,0)
           grid.addWidget(self.inst_Seq_e, w,1,1,3)
-          #grid.addWidget(self.inst_Seq_p, w,2,1,2)
           grid.addWidget(self.Select2_r, w, 4)
 
           w=w+1
@@ -184,9 +173,6 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.inst_DitProg_n=QProgressBar(self)
           self.inst_DitProg_n.setStyleSheet("background-color: rgb(233, 233, 233)")
-          #self.inst_DitProg_n.setValue(75)
-          #self.inst_DitProg_n.setFormat("237/300")
-
 
           grid.addWidget(self.inst_NditProg_n, w,0,1,2)
           grid.addWidget(self.inst_DitProg_n, w,2,1,2)
@@ -194,7 +180,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=w+1
           self.inst_Mode_l=QLabel("Mode:")
           self.inst_Mode_s=QComboBox()
-          self.inst_Mode_s.addItems(["Normal","Sky","JitterBox","JitterRandom"])             
+          self.inst_Mode_s.addItems(self.parent.cfg_inst_mode)
           
           grid.addWidget(self.inst_Mode_l, w,0) 
           grid.addWidget(self.inst_Mode_s, w,1)          
@@ -204,7 +190,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_Bin_e=QLineEdit()
           self.inst_Bin_e.setReadOnly(True)
           self.inst_Bin_s=QComboBox()
-          self.inst_Bin_s.addItems(["1x1","2x2","1x2","2x1"])
+          self.inst_Bin_s.addItems(self.parent.cfg_inst_bins)
           self.inst_SetBin_p=QPushButton('Set')
           self.inst_SetBin_p.setStyleSheet(" color: gray;")
           self.inst_SetBin_p.clicked.connect(self.parent.ccd_setBin)
@@ -217,7 +203,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=w+1
           self.inst_Subraster_l=QLabel("Subraster:")
           self.inst_Subraster_s=QComboBox()
-          self.inst_Subraster_s.addItems(["No","Subraster1","Subraster2","Subraster3"])             
+          self.inst_Subraster_s.addItems(self.parent.cfg_inst_subraster)
           
           grid.addWidget(self.inst_Subraster_l, w,0) 
           grid.addWidget(self.inst_Subraster_s, w,1)            
@@ -230,7 +216,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_gain_e.setReadOnly(True)
           self.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
           self.inst_setGain_e=QComboBox()
-          self.inst_setGain_e.addItems(["1x","2x","4x"])
+          self.inst_setGain_e.addItems(self.parent.cfg_inst_gain)
           self.inst_setGain_p=QPushButton('Set')
           self.inst_setGain_p.clicked.connect(self.parent.ccd_setGain)
 
@@ -247,7 +233,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_read_e.setReadOnly(True)
           self.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
           self.inst_setRead_e=QComboBox()
-          self.inst_setRead_e.addItems(["5MHz","3MHz","1MHz","0.05MHz"])
+          self.inst_setRead_e.addItems(self.parent.cfg_inst_rm)
           self.inst_setRead_p=QPushButton('Set')
           self.inst_setRead_p.clicked.connect(self.parent.ccd_setReadMode)
 
@@ -263,7 +249,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_ccdTemp_e=QLineEdit()
           self.inst_ccdTemp_e.setReadOnly(True)
           self.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-          self.inst_setTemp_e=QLineEdit("-60")
+          self.inst_setTemp_e=QLineEdit(self.parent.cfg_inst_temp)
           self.inst_setTemp_p=QPushButton('Set')
           self.inst_setTemp_p.clicked.connect(self.parent.ccd_setTemp)
 

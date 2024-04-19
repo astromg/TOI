@@ -95,10 +95,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     self.nextAlt_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
                     self.nextAz_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
         if self.parent.nextOB_ok:
-            if float(alt) < 0 or float(alt) > 80 and self.parent.active_tel != "wk06":
-                self.parent.nextOB_ok = False
-                self.nextAlt_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
-            elif float(alt) < 0 and self.parent.active_tel == "wk06":
+            if float(alt) < self.parent.cfg_alt_limits["min"] or float(alt) > self.parent.cfg_alt_limits["max"] :
                 self.parent.nextOB_ok = False
                 self.nextAlt_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
@@ -316,7 +313,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         ###############################################
 
-        self.target_l = QLabel("TARGET: ")
+        self.target_l = QLabel("SEARCH: ")
         self.target_e = QLineEdit("")
         self.target_e.editingFinished.connect(self.parent.target_provided)
         self.target_e.textChanged.connect(self.parent.target_changed)

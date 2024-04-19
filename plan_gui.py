@@ -178,9 +178,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       az = f"{deg_to_decimal_deg((str(az))):.1f}"
                       self.plan[i]["meta_plan_alt"] = alt
                       self.plan[i]["meta_plan_az"] = az
-                      if float(alt) < 0 or float(alt) > 80 and self.parent.active_tel != "wk06":
-                          self.plan[i]["skip"] = True
-                      elif float(alt) < 0 and self.parent.active_tel == "wk06":
+                      if float(alt) < self.parent.cfg_alt_limits["min"] or float(alt) > self.parent.cfg_alt_limits["max"] :
                           self.plan[i]["skip"] = True
                   if "wait" in self.plan[i].keys():
                       ob_time =  ob_time + ephem.second * float(self.plan[i]["wait"])
@@ -249,7 +247,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                  if "meta_plan_alt" in self.plan[i].keys():
                      alt = float(self.plan[i]["meta_plan_alt"])
-                     if alt < 0 :
+                     if alt < self.parent.cfg_alt_limits["min"] :
                          font = QtGui.QFont()
                          font.setPointSize(15)
                          txt = QTableWidgetItem("\u26A0")
@@ -257,7 +255,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                          txt.setTextAlignment(QtCore.Qt.AlignCenter)
                          txt.setForeground(QtGui.QColor("red"))
                          self.plan_t.setItem(i, 0, txt)
-                     elif alt < 35 :
+                     elif alt < self.parent.cfg_alt_limits["low"] :
                          font = QtGui.QFont()
                          font.setPointSize(15)
                          txt = QTableWidgetItem("\u26A0")
@@ -268,7 +266,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                             if self.plan[i]["skip"]:
                                  txt = QTableWidgetItem("\u26D4")  # aby jednak wstawil ikonke skip jak trzeba
                          self.plan_t.setItem(i, 0, txt)
-                     elif alt > 80 :
+                     elif alt > self.parent.cfg_alt_limits["max"] :
                          font = QtGui.QFont()
                          font.setPointSize(15)
                          txt = QTableWidgetItem("\u26A0")
@@ -356,11 +354,11 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                          txt = txt + " (" + str(self.plan[i]["meta_plan_alt"])+")"
                          alt = float(self.plan[i]["meta_plan_alt"])
                          txt = QTableWidgetItem(txt)
-                         if alt < 0:
+                         if alt < self.parent.cfg_alt_limits["min"]:
                              txt.setForeground(QtGui.QColor("red"))
-                         elif alt < 35:
+                         elif alt < self.parent.cfg_alt_limits["low"]:
                              txt.setForeground(QtGui.QColor("orange"))
-                         elif alt > 80 and self.parent.active_tel != "wk06":
+                         elif alt > self.parent.cfg_alt_limits["max"]:
                              txt.setForeground(QtGui.QColor("red"))
                  else:
                      txt = ""
@@ -678,6 +676,30 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   ob["type"]=ob_type
                                   ob["seq"]=seq
                                   ob["slotTime"] = calc_slot_time(seq,self.parent.overhed)
+                                  self.plan.append(ob)
+
+                               elif "FOCUS" in line:
+                                  ll=line.split()
+                                  block=line
+                                  ob_type=ll[0]
+                                  name="FOCSUS "+ll[1]
+                                  ra=ll[2]
+                                  dec=ll[3]
+
+                                  ob = {"name":name}
+                                  ob["block"]=block
+                                  ob["type"]=ob_type
+                                  ob["ra"]=ra
+                                  ob["dec"]=dec
+
+                                  if "seq=" in line:
+                                      seq=line.split("seq=")[1].split()[0]
+                                      ob["seq"] = seq
+                                      ob["slotTime"] = calc_slot_time(seq,self.parent.overhed)
+
+                                  if "comment=" in line:
+                                      ob["comment"] = line.split("comment=")[1].split("\"")[1]
+
                                   self.plan.append(ob)
 
                                elif "OBJECT" in line:
