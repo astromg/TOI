@@ -1123,6 +1123,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.fits_exec=True
                                 self.plan_runner_origin="Plan Gui"
 
+                            if self.ob["type"] == "FOCUS" and "block" in self.ob.keys():
+                                program = self.ob["block"]
+                                if "comment" in program:
+                                    program = program.split("comment")[0]
+                                await self.planrunner.aload_nightplan_string('program', string=program, overwrite=True)
+                                await self.planrunner.arun_nightplan('program', step_id="00")
+
+                                self.program_name="program"
+                                self.fits_exec=True
+                                self.plan_runner_origin="Plan Gui"
 
                             if self.ob["type"] == "OBJECT" and "block" in self.ob.keys():
                                 program = self.ob["block"]

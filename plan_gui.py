@@ -682,7 +682,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                   ll=line.split()
                                   block=line
                                   ob_type=ll[0]
-                                  name="FOCSUS "+ll[1]
+                                  name="FOCUS "+ll[1]
                                   ra=ll[2]
                                   dec=ll[3]
 
