@@ -60,15 +60,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     def __init__(self, loop, observatory_model: Observatory, client_api: ClientAPI,  app=None):
         self.app = app
+
         super().__init__(loop=loop, client_api=client_api)
         self.setWindowTitle("Telescope Operator Interface")
         self.setLayout(QtWidgets.QVBoxLayout())
 
         host = socket.gethostname()
         user = pwd.getpwuid(os.getuid())[0]
-
         self.myself=f'{user}@{host}'
         self.observatory_model = observatory_model
+
 
         self.variables_init()
 
@@ -150,7 +151,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def teleskop_switched(self):
 
-        #await self.stop_background_tasks()
+
 
         self.nats_journal_flats_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.flats')
         self.nats_journal_focus_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.focus')
@@ -239,7 +240,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.msg(txt,"green")
 
         self.telescope = self.observatory_model.get_telescope(tel)
-        #await self.stop_background_tasks()
         self.user = self.telescope.get_access_grantor()
         self.dome = self.telescope.get_dome()
         self.mount = self.telescope.get_mount()
@@ -254,6 +254,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.planrunner = self.telescope.get_observation_plan()
 
         self.planrunner.add_info_callback('exec_json', self.PlanRun1)
+
+        await self.stop_background_tasks()
 
         self.ephemeris = self.observatory_model.get_ephemeris()
         self.add_background_task(self.ephemeris.asubscribe_utc(self.ephem_update,time_of_data_tolerance=0))
@@ -359,12 +361,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def force_update(self):
-        #print('\a')
-        #print("====== UPDATE START ======")
-        #await self.msg("REQUEST: UPDATE START","yellow")
-        #mount_conn = await self.telescope.is_telescope_alpaca_server_available()
-        #await self.msg(str(mount_conn),"red")
-        #await self.msg(self.mount.connected,"red")
         await self.user_update(None)
         await self.mountMotors_update(None)
         await self.filter_update(None)

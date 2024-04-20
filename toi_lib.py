@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from collections import OrderedDict
 import ephem
 import numpy
 import time
@@ -70,6 +71,327 @@ def seq_verification(seq,filter_list):
             ok,err = False, f"wrong sequence format {x_seq}, {e}"
     return ok,err
 
+def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZERO","SKYFLAT","DOMEFLAT","FOCUS"],filter_list=["B","V","Ic"]):
+    ob = OrderedDict({"block":block,"type":"","name":"","ra":"","dec":"","seq":"","pos":"","wait":"","wait_ut":"","wait_sunset":"","wait_sunrise":"","slotTime":"","comment":""})
+    ob_header = OrderedDict({"block":"","type":"","name":"","ra":"","dec":"","seq":"seq=","pos":"pos=","wait":"wait=","wait_ut":"ut=","wait_sunset":"sunset=","wait_sunrise":"sunrise=","slotTime":"","comment":"comment="})
+    active = OrderedDict({"block":True,"type":True,"name":True,"ra":None,"dec":None,"seq":None,"pos":None,"wait":None,"wait_ut":None,"wait_sunset":None,"wait_sunrise":None,"slotTime":None,"comment":None})
+    ok = OrderedDict({"block":None,"type":None,"name":None,"ra":None,"dec":None,"seq":None,"pos":None,"wait":None,"wait_ut":None,"wait_sunset":None,"wait_sunrise":None,"slotTime":None,"comment":None})
+    options = OrderedDict({"block":None,"type":None,"name":None,"ra":None,"dec":None,"seq":None,"pos":None,"wait":None,"wait_ut":None,"wait_sunset":None,"wait_sunrise":None,"slotTime":None,"comment":None})
+
+    err = block+"\n"
+
+    ll = block.split()
+
+    type = ""
+    try:
+        type = ll[0]
+        if type in types:
+            ob["type"] = type
+            ok["type"] = True
+    except IndexError:
+        ok["type"] = False
+
+
+    if type == "STOP":
+        ob["name"] = "STOP"
+        ok["name"] = True
+        active = OrderedDict(
+            {"block": True, "type": True, "name": True, "ra": False, "dec": False, "seq": False, "pos": False, "wait": False,
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": False, "comment": None})
+
+    if type == "BELL":
+        ob["name"] = "BELL"
+        ok["name"] = True
+        active = OrderedDict(
+            {"block": True, "type": True, "name": True, "ra": False, "dec": False, "seq": False, "pos": False, "wait": False,
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": False, "comment": None})
+
+    if type == "WAIT":
+        ob["name"] = "WAIT"
+        ok["name"] = True
+        active = OrderedDict(
+            {"block": True, "type": True, "name": True, "ra": False, "dec": False, "seq": False, "pos": False, "wait": None,
+             "wait_ut": None, "wait_sunset": None, "wait_sunrise": None, "slotTime": False, "comment": None})
+
+        if "wait=" in block:
+            try:
+                tmp = block.split("wait=")[1].split()[0]
+                ob["wait"] = tmp
+                q = float(tmp)+1
+                ok["wait"] = True
+            except:
+                ok["wait"] = False
+            active["wait"] = True
+        elif "ut=" in block:
+            try:
+                tmp = block.split("ut=")[1].split()[0]
+                ob["wait_ut"] = tmp
+                q = 3600*float(tmp.split(":")[0])+60*float(tmp.split(":")[1])+float(tmp.split(":")[2])
+                ok["wait_ut"] = True
+            except:
+                ok["wait_ut"] = False
+            active["wait_ut"] = True
+        elif "sunset=" in block:
+            try:
+                tmp = block.split("sunset=")[1].split()[0]
+                ob["wait_sunset"] = tmp
+                q = float(tmp)
+                ok["wait_sunset"] = True
+            except:
+                ok["wait_sunset"] = False
+            active["wait_sunset"] = True
+        elif "sunrise=" in block:
+            try:
+                tmp = block.split("sunrise=")[1].split()[0]
+                ob["wait_sunrise"] = tmp
+                q = float(tmp)
+                ok["wait_sunrise"] = True
+            except:
+                ok["wait_sunrise"] = False
+            active["wait_sunrise"] = True
+        else:
+            ok["wait"] = False
+            active["wait"] = True
+            ok["wait_ut"] = False
+            active["wait_ut"] = True
+            ok["wait_sunset"] = False
+            active["wait_sunset"] = True
+            ok["wait_sunrise"] = False
+            active["wait_sunrise"] = True
+
+    if type == "ZERO":
+        ob["name"] = "ZERO"
+        ok["name"] = True
+        active = OrderedDict(
+            {"block": True, "type": True, "name": True, "ra": False, "dec": False, "seq": True, "pos": False, "wait": False,
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": False, "comment": None})
+
+        if "seq=" in block:
+            try:
+                tmp = block.split("seq=")[1].split()[0]
+                ob["seq"] = tmp
+                ver,err = seq_verification(tmp, filter_list)
+                if ver:
+                    ok["seq"] = True
+                    ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                else:
+                    ok["seq"] = False
+            except:
+                ok["seq"] = False
+
+
+    if type == "DARK":
+        ob["name"] = "DARK"
+        ok["name"] = True
+        active = OrderedDict(
+            {"block": True, "type": True, "name": True, "ra": False, "dec": False, "seq": True, "pos": False, "wait": False,
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": False, "comment": None})
+
+        if "seq=" in block:
+            try:
+                tmp = block.split("seq=")[1].split()[0]
+                ob["seq"] = tmp
+                ver,err = seq_verification(tmp, filter_list)
+                if ver:
+                    ok["seq"] = True
+                    ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                else:
+                    ok["seq"] = False
+            except:
+                ok["seq"] = False
+
+    if type == "DOMEFLAT":
+        try:
+            ob["name"] = ll[0]
+            ok["name"] = True
+        except:
+            ok["name"] = False
+        active = OrderedDict(
+            {"block": True, "type": True, "name": True, "ra": False, "dec": False, "seq": True, "pos": False, "wait": False,
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": False, "comment": None})
+
+        if "seq=" in block:
+            try:
+                tmp = block.split("seq=")[1].split()[0]
+                ob["seq"] = tmp
+                ver,err = seq_verification(tmp, filter_list)
+                if ver:
+                    ok["seq"] = True
+                    ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                else:
+                    ok["seq"] = False
+            except:
+                ok["seq"] = False
+
+    if type == "SKYFLAT":
+        try:
+            ob["name"] = ll[0]
+            ok["name"] = True
+        except:
+            ok["name"] = False
+        active = OrderedDict(
+            {"block": True, "type": True, "name": True, "ra": True, "dec": True, "seq": True, "pos": False, "wait": False,
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": False, "comment": None})
+
+        try:
+            ra = ll[2]
+            ob["ra"] = ra
+            ok["ra"] = True
+            if float(ra.split(":")[0])<0 or float(ra.split(":")[0])>24:
+                ok["ra"] = False
+            if float(ra.split(":")[1])<0 or float(ra.split(":")[1])>60:
+                ok["ra"] = False
+            if float(ra.split(":")[2])<0 or float(ra.split(":")[2])>60:
+                ok["ra"] = False
+        except:
+            ok["ra"] = False
+
+        try:
+            dec = ll[3]
+            ob["dec"] = dec
+            ok["dec"] = True
+            if float(dec.split(":")[0]) < -90 or float(dec.split(":")[0]) > 90:
+                ok["dec"] = False
+            if float(dec.split(":")[1]) < 0 or float(dec.split(":")[1]) > 60:
+                ok["dec"] = False
+            if float(dec.split(":")[2]) < 0 or float(dec.split(":")[2]) > 60:
+                ok["dec"] = False
+        except:
+            ok["dec"] = False
+
+
+        if "seq=" in block:
+            try:
+                tmp = block.split("seq=")[1].split()[0]
+                ob["seq"] = tmp
+                ver,err = seq_verification(tmp, filter_list)
+                if ver:
+                    ok["seq"] = True
+                    ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                else:
+                    ok["seq"] = False
+            except:
+                ok["seq"] = False
+
+
+    if type == "OBJECT":
+        try:
+            ob["name"] = ll[1]
+            ok["name"] = True
+        except:
+            ok["name"] = False
+        active = OrderedDict(
+            {"block": True, "type": True, "name": True, "ra": True, "dec": True, "seq": True, "pos": False,
+             "wait": False,
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": False, "comment": None})
+
+        try:
+            ra = ll[2]
+            ob["ra"] = ra
+            ok["ra"] = True
+            if float(ra.split(":")[0]) < 0 or float(ra.split(":")[0]) > 24:
+                ok["ra"] = False
+            if float(ra.split(":")[1]) < 0 or float(ra.split(":")[1]) > 60:
+                ok["ra"] = False
+            if float(ra.split(":")[2]) < 0 or float(ra.split(":")[2]) > 60:
+                ok["ra"] = False
+        except:
+            ok["ra"] = False
+
+        try:
+            dec = ll[3]
+            ob["dec"] = dec
+            ok["dec"] = True
+            if float(dec.split(":")[0]) < -90 or float(dec.split(":")[0]) > 90:
+                ok["dec"] = False
+            if float(dec.split(":")[1]) < 0 or float(dec.split(":")[1]) > 60:
+                ok["dec"] = False
+            if float(dec.split(":")[2]) < 0 or float(dec.split(":")[2]) > 60:
+                ok["dec"] = False
+        except:
+            ok["dec"] = False
+
+        if "seq=" in block:
+            try:
+                tmp = block.split("seq=")[1].split()[0]
+                ob["seq"] = tmp
+                ver, err = seq_verification(tmp, filter_list)
+                if ver:
+                    ok["seq"] = True
+                    ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                else:
+                    ok["seq"] = False
+            except:
+                ok["seq"] = False
+
+    if type == "FOCUS":
+        try:
+            ob["name"] = ll[1]
+            ok["name"] = True
+        except:
+            ok["name"] = False
+        active = OrderedDict(
+            {"block": True, "type": True, "name": True, "ra": True, "dec": True, "seq": True, "pos": True,
+             "wait": False,
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": False, "comment": None})
+
+        try:
+            ra = ll[2]
+            ob["ra"] = ra
+            ok["ra"] = True
+            if float(ra.split(":")[0]) < 0 or float(ra.split(":")[0]) > 24:
+                ok["ra"] = False
+            if float(ra.split(":")[1]) < 0 or float(ra.split(":")[1]) > 60:
+                ok["ra"] = False
+            if float(ra.split(":")[2]) < 0 or float(ra.split(":")[2]) > 60:
+                ok["ra"] = False
+        except:
+            ok["ra"] = False
+
+        try:
+            dec = ll[3]
+            ob["dec"] = dec
+            ok["dec"] = True
+            if float(dec.split(":")[0]) < -90 or float(dec.split(":")[0]) > 90:
+                ok["dec"] = False
+            if float(dec.split(":")[1]) < 0 or float(dec.split(":")[1]) > 60:
+                ok["dec"] = False
+            if float(dec.split(":")[2]) < 0 or float(dec.split(":")[2]) > 60:
+                ok["dec"] = False
+        except:
+            ok["dec"] = False
+
+        if "seq=" in block:
+            try:
+                tmp = block.split("seq=")[1].split()[0]
+                ob["seq"] = tmp
+                ver, err = seq_verification(tmp, filter_list)
+                if ver:
+                    ok["seq"] = True
+                    ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                else:
+                    ok["seq"] = False
+            except:
+                ok["seq"] = False
+
+        if "pos=" in block:
+            try:
+                tmp = block.split("pos=")[1].split()[0]
+                ob["pos"] = tmp
+                if float(tmp.split("/")[0])>0 and float(tmp.split("/")[1])>0:
+                    ok["pos"] = True
+                else:
+                    ok["pos"] = False
+            except:
+                ok["pos"] = False
+
+    ok["block"] = True
+    for key in ob.keys():
+        if active[key]:
+            if not ok[key]:
+                ok["block"] = False
+
+    return ob,ok,active,options,ob_header
 
 def calc_slot_time(seq, overhed):
     slotTime = 0

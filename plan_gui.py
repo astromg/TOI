@@ -12,7 +12,10 @@ import ephem
 import qasync as qs
 from qasync import QEventLoop
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel,QCheckBox, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar)
+from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
+                             QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout,
+                             QVBoxLayout, QTableWidget, QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame,
+                             QComboBox, QProgressBar, QHeaderView)
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -785,7 +788,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.add_p=QPushButton('Add OB')
           self.add_p.setStyleSheet(" color: gray;")
           self.edit_p=QPushButton('Edit OB')
-          self.edit_p.setStyleSheet(" color: gray;")
 
           self.grid.addWidget(self.addStop_p, w,0)
           self.grid.addWidget(self.addBell_p, w, 1)
@@ -1058,95 +1060,108 @@ class PlotWindow(QWidget):
 class EditWindow(QWidget):
       def __init__(self, parent):
           super(EditWindow, self).__init__()
+          self.setWindowTitle("EDIT WINDOW")
           self.parent=parent
           self.setStyleSheet("font-size: 11pt;")
           self.mkUI()
           self.refresh()
           self.close_p.clicked.connect(lambda: self.close())
+          self.change_p.clicked.connect(self.change_plan)
 
       def refresh(self):
-          i=self.parent.i
-          ob=self.parent.plan[i]
-          self.setWindowTitle(ob["type"])
+          self.tab_t.disconnect()
+          block = self.block_e.text()
+          self.ob,self.ok,self.active,self.options,self.ob_header = ob_parser(block,overhed=self.parent.parent.overhed,filter_list=self.parent.parent.filter_list)
 
-          if ob["type"]=="OBJECT":
-             local_keys=["type","name","ra","dec","alt","az","instrument","seq","mode","bining","subraster","defocus","tracking","guiding","comments"]
-             txt=""
-             for k in local_keys:
-                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
-                 else: txt=txt+"# "+k+"=\n"
+          if self.ok["block"]:
+              self.block_e.setStyleSheet("background-color: rgb(217, 239, 217);")
+          else:
+              self.block_e.setStyleSheet("background-color: rgb(255, 160, 0);")
+          self.update_tab()
+          self.estimTime_e.setText(str(self.ob["slotTime"]))
+          self.tab_t.cellChanged.connect(self.table_changed)
 
-          if ob["type"]=="ZERO":
-             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
-             txt=""
-             for k in local_keys:
-                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
-                 else: txt=txt+"# "+k+"=\n"
 
-          if ob["type"]=="DARK":
-             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
-             txt=""
-             for k in local_keys:
-                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
-                 else: txt=txt+"# "+k+"=\n"
 
-          if ob["type"]=="SKY_FLAT":
-             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
-             txt=""
-             for k in local_keys:
-                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
-                 else: txt=txt+"# "+k+"=\n"
+      def update_tab(self):
+          self.tab_t.clearContents()
+          j=0
+          for i,k in enumerate(self.ob.keys()):
+              if self.active[k] is not False:
+                  if k not in ["slotTime","block"]:
+                      j=j+1
+                      if self.tab_t.rowCount() <= j:
+                          self.tab_t.insertRow(j)
+                      txt = str(self.ob_header[k])
+                      if txt=="": txt = k
+                      txt = QTableWidgetItem(txt)
+                      txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                      if self.ok[k]:
+                          txt.setBackground(QtGui.QColor(217, 239, 217))
+                      elif self.active[k]:
+                          txt.setBackground(QtGui.QColor(255, 160, 0))
+                      self.tab_t.setItem(j,0,txt)
 
-          if ob["type"]=="DOME_FLAT":
-             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
-             txt=""
-             for k in local_keys:
-                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
-                 else: txt=txt+"# "+k+"=\n"
+                      txt = QTableWidgetItem(str(self.ob[k]))
+                      txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                      if self.ok[k]:
+                          txt.setBackground(QtGui.QColor(217, 239, 217))
+                      elif self.active[k]:
+                          txt.setBackground(QtGui.QColor(255, 160, 0))
+                      self.tab_t.setItem(j,1,txt)
 
-          if ob["type"]=="FOCUS":
-             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
-             txt=""
-             for k in local_keys:
-                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
-                 else: txt=txt+"# "+k+"=\n"
+          self.tab_t.resizeColumnsToContents()
+          self.tab_t.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
-          if ob["type"]=="STOP":
-             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
-             txt=""
-             for k in local_keys:
-                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
-                 else: txt=txt+"# "+k+"=\n"
+      def table_changed(self,x,y):
+          if self.tab_t.rowCount()>1:
+              i=-1
+              txt = ""
+              for k in self.ob.keys():
+                  if self.active[k]:
+                      i = i + 1
+                      if self.tab_t.item(i,1):
+                        txt = txt + self.ob_header[k] + self.tab_t.item(i,1).text().strip() + " "
+              self.block_e.setText(txt)
 
-          if ob["type"]=="BELL":
-             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
-             txt=""
-             for k in local_keys:
-                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
-                 else: txt=txt+"# "+k+"=\n"
-
-          if ob["type"]=="WAIT":
-             local_keys=["type","name","instrument","seq","mode","bining","subraster","comments"]
-             txt=""
-             for k in local_keys:
-                 if k in ob.keys(): txt=txt+k+" = "+str(ob[k])+"\n"
-                 else: txt=txt+"# "+k+"=\n"
-
-          self.params_e.setText(txt)
+      def change_plan(self):
+          ob = {key: value for key,value in self.ob.items() if self.active.get(key)}
+          self.parent.plan[self.parent.i] = ob
+          txt = f"TOI: plan {self.ob['name']} changed "
+          self.parent.parent.msg(txt, "black")
+          self.close()
 
       def mkUI(self):
           grid = QGridLayout()
           w=0
-          self.params_e=QTextEdit()
-          #self.telCovers_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+          self.block_e=QLineEdit()
+          i = self.parent.i
+          ob = self.parent.plan[i]
+          self.block_e.setText(ob["block"])
+          self.block_e.textChanged.connect(self.refresh)
+
           w=w+1
-          grid.addWidget(self.params_e, w,0,3,2)
-          w=w+3
-          self.close_p=QPushButton('Close Edit')
-          grid.addWidget(self.close_p, w,1)
+          grid.addWidget(self.block_e, w,0,1,2)
+          w=w+1
+          self.tab_t=QTableWidget(1,2)
+          grid.addWidget(self.tab_t, w,0,1,2)
+
+          w=w+1
+          self.label_l = QLabel("Estimated time [s]:")
+          grid.addWidget(self.label_l, w, 0)
+
+          self.estimTime_e = QLineEdit()
+          grid.addWidget(self.estimTime_e, w, 1)
+
+          w=w+1
+          self.change_p=QPushButton('Change')
+          grid.addWidget(self.change_p, w,1)
+
+          self.close_p=QPushButton('Cancel')
+          grid.addWidget(self.close_p, w,0)
 
           self.setLayout(grid)
-          
+          self.resize(600, 500)
           
           
           

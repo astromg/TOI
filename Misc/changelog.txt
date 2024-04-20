@@ -1,5 +1,7 @@
 <h4>Whats New?</h4>
 
+--- 19.04.2024 --- <br> Support for wk06 added. Edit OB pushbutton works now. 
+
 --- 10.12.23 --- <br> Pulse movement window is operational. Passive guider is working. Flat tab added to aux window.
 Pushbuttons to add STOP and BELL to Plan. Weather is read from Davis weather station.
 Wind direction is indicated in the SkyView. Plot Plan window added. Sequence verification and

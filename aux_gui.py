@@ -240,11 +240,11 @@ class FocusGui(QWidget):
         grid.addWidget(self.canvas, w, 0, 1, 4)
 
         w = w + 1
-        self.last_l = QLabel("Last Value:")
+        self.last_l = QLabel("Central Value:")
         self.last_e = QLineEdit()
         self.last_e.setText("15350")
 
-        self.range_l = QLabel("STEPS No.:")
+        self.range_l = QLabel("Steps No.:")
         self.range_e = QLineEdit()
         self.range_e.setText("8")
 
