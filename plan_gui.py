@@ -66,6 +66,21 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
          else: print("no plan loaded") # ERROR MSG
 
 
+      def pocisniecie_copy(self):
+         if len(self.plan)>self.i:
+             tmp_ob = self.plan[self.i]
+             if self.prev_i==-1:
+                 i = self.i + 1
+             else:
+                 i = self.prev_i + 1
+             self.plan.insert(i,tmp_ob)
+             if i < self.i:
+                 self.i = self.i + 1
+
+             self.update_table()
+             self.repaint()
+         else: print("no plan loaded") # ERROR MSG
+
       def pocisniecie_edit(self):
          if len(self.plan)>self.i:
             self.edit_window=EditWindow(self)
@@ -395,7 +410,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
 
-             if self.prev_i > 0:
+             if self.prev_i >= 0:
                  self.plan_t.item(self.prev_i,1).setBackground(QtGui.QColor(230, 236, 240))
                  self.plan_t.item(self.prev_i,2).setBackground(QtGui.QColor(230, 236, 240))
                  self.plan_t.item(self.prev_i, 3).setBackground(QtGui.QColor(230, 236, 240))
@@ -770,9 +785,13 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           w=w+1
           self.next_p=QPushButton('NEXT \u2192')
+          self.addStop_p=QPushButton("STOP \u2B23")
+          self.addBell_p = QPushButton('BELL \u266A')
           self.skip_p=QPushButton('SKIP \u26D4')
 
-          self.grid.addWidget(self.next_p, w,0)
+          self.grid.addWidget(self.next_p, w, 0)
+          self.grid.addWidget(self.addStop_p, w, 2)
+          self.grid.addWidget(self.addBell_p, w, 3)
           self.grid.addWidget(self.skip_p, w, 4)
 
           w=w+1
@@ -782,17 +801,17 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.grid.addWidget(self.line_l, w,0,1,5)
 
           w=w+1
-          self.addStop_p=QPushButton()
-          self.addStop_p.setText("STOP \u2B23")
-          self.addBell_p = QPushButton('BELL \u266A')
+
           self.add_p=QPushButton('Add OB')
           self.add_p.setStyleSheet(" color: gray;")
           self.edit_p=QPushButton('Edit OB')
+          self.copy_p=QPushButton('Copy OB')
 
-          self.grid.addWidget(self.addStop_p, w,0)
-          self.grid.addWidget(self.addBell_p, w, 1)
-          self.grid.addWidget(self.add_p, w,3)
-          self.grid.addWidget(self.edit_p, w, 4)
+
+          self.grid.addWidget(self.copy_p, w, 2)
+          self.grid.addWidget(self.edit_p, w, 3)
+          self.grid.addWidget(self.add_p, w,4)
+
 
           w=w+1
           self.line_l=QFrame()
@@ -867,6 +886,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.last_p.clicked.connect(self.pocisniecie_last)
           self.swap_p.clicked.connect(self.pocisniecie_swap)
           self.edit_p.clicked.connect(self.pocisniecie_edit)
+          self.copy_p.clicked.connect(self.pocisniecie_copy)
           self.addStop_p.clicked.connect(self.pocisniecie_addStop)
           self.addBell_p.clicked.connect(self.pocisniecie_addBell)
 
