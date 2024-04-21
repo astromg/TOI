@@ -1159,6 +1159,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ob["run"]=False
         await self.planrunner.astop_nightplan()
         self.planGui.current_i = -1
+        self.planGui.update_table()
 
 
     # ############ CCD ##################################
