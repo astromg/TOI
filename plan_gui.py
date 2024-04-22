@@ -447,7 +447,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           t3 = time.time() - t0
           #print("time: ",t1,t2,t3)
           self.plan_t.blockSignals(False)
-
+          self.plan_t.resizeColumnsToContents()
+          for col in range(1,self.plan_t.columnCount()):
+              self.plan_t.horizontalHeader().setSectionResizeMode(col,QHeaderView.Stretch)
 
       def setNext(self):
           self.next_i=self.i
@@ -530,6 +532,18 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.i=i
           self.update_table()
           self.repaint()
+
+      def pocisniecie_delAll(self):
+          if self.current_i >= 0:
+              ob_tmp = self.plan[self.current_i]
+              self.plan = []
+              self.plan.append(ob_tmp)
+          else:
+              self.plan = []
+          self.i = -1
+          self.prev_i = -1
+          self.next_i = -1
+          self.update_table()
 
       def pocisniecie_del(self):
           if self.i != self.current_i and self.i < len(self.plan):
@@ -623,23 +637,24 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
 
           if self.fileName:
-              self.plan = []
-              self.done = []
-              self.i = 0
-              self.prev_i = -1
-              self.next_i = 0
-              self.current_i = -1
+              #self.plan = []
+              #self.done = []
+              #self.i = 0
+              #self.prev_i = -1
+              #self.next_i = 0
+              #self.current_i = -1
 
               with open(self.fileName, "r") as plik:
                  if plik != None:
+                     tmp_plan = []
                      for line in plik:
                         if len(line.strip())>0:
                            if line.strip()[0]!="#":
                                if "TEL: zb08" in line: pass  # wprowadzic do planow jako obowiazek?
 
                                ob,ok,tmp1,tmp2,tmp3 = ob_parser(line,overhed=self.parent.overhed,filter_list=self.parent.filter_list)
-                               self.plan.append(ob)
-
+                               tmp_plan.append(ob)
+                     self.plan[self.i+1:self.i+1] = tmp_plan
           self.update_table()          
 
         
@@ -658,15 +673,23 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.grid = QGridLayout()
 
           w=0
+          self.stop_p=QPushButton('Stop')
+          self.resume_p=QPushButton('Resume')
+          self.start_p=QPushButton('Start')
+          self.grid.addWidget(self.stop_p, w,0)
+          self.grid.addWidget(self.resume_p, w,2)
+          self.grid.addWidget(self.start_p, w,4)
+
+          w=w+1
           self.plan_t=QTableWidget(0,4)
           self.plan_t.setHorizontalHeaderLabels(self.table_header)
           self.plan_t.setSelectionMode(QAbstractItemView.NoSelection)
           self.plan_t.verticalHeader().hide()
           self.plan_t.setStyleSheet("selection-background-color: green;")
 
-          self.grid.addWidget(self.plan_t, w,0,8,5)
+          self.grid.addWidget(self.plan_t, w,0,7,5)
           
-          w=w+8
+          w=w+7
           self.import_p = QPushButton('\u2B05 Import to MANUAL')
           self.plotPlan_p = QPushButton('Plot Plan')
           self.grid.addWidget(self.import_p, w, 0,1,3)
@@ -729,8 +752,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           
           w=w+1
           self.delAll_p=QPushButton('Del All') 
-          self.delAll_p.setStyleSheet("color: gray;")
-          self.down_p=QPushButton('Down')          
+          self.down_p=QPushButton('Down')
           self.last_p=QPushButton('Last')
 
           self.grid.addWidget(self.delAll_p, w,0)
@@ -753,15 +775,12 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           w=w+3
           self.load_p=QPushButton('Load Plan')
-          self.stop_p=QPushButton('Stop')
+          self.save_p = QPushButton('Save Plan')
 
-          self.resume_p=QPushButton('Resume')
-          self.start_p=QPushButton('Start')
+          self.grid.addWidget(self.load_p, w,0,1,2)
+          self.grid.addWidget(self.save_p, w,3,1,2)
 
-          self.grid.addWidget(self.load_p, w,0)
-          self.grid.addWidget(self.stop_p, w,2)
-          self.grid.addWidget(self.resume_p, w,3)
-          self.grid.addWidget(self.start_p, w,4)
+
 
           self.stop_p.clicked.connect(self.parent.stop_program)
           self.resume_p.clicked.connect(self.parent.resume_program)
@@ -778,6 +797,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.up_p.clicked.connect(self.pocisniecie_up)
           self.down_p.clicked.connect(self.pocisniecie_down)
           self.del_p.clicked.connect(self.pocisniecie_del)
+          self.delAll_p.clicked.connect(self.pocisniecie_delAll)
           self.first_p.clicked.connect(self.pocisniecie_first)
           self.last_p.clicked.connect(self.pocisniecie_last)
           self.swap_p.clicked.connect(self.pocisniecie_swap)
@@ -1046,7 +1066,10 @@ class AddWindow(QWidget):
             for i in range(self.tab_t.rowCount()):
                 k = self.keys_in_table[i]
                 if self.tab_t.item(i, 1):
-                    txt = txt + self.ob_header[k] + self.tab_t.item(i, 1).text().strip() + " "
+                    if k == "comment":
+                        txt = txt + self.ob_header[k] + '"' + self.tab_t.item(i, 1).text().strip() + '"'
+                    else:
+                        txt = txt + self.ob_header[k] + self.tab_t.item(i, 1).text().strip() + " "
             self.block_e.setText(txt)
 
     def change_plan(self):
@@ -1158,7 +1181,10 @@ class EditWindow(QWidget):
               for i in range(self.tab_t.rowCount()):
                   k = self.keys_in_table[i]
                   if self.tab_t.item(i,1):
-                      txt = txt + self.ob_header[k] + self.tab_t.item(i,1).text().strip() + " "
+                      if k == "comment":
+                          txt = txt + self.ob_header[k] + '"' + self.tab_t.item(i, 1).text().strip() + '"'
+                      else:
+                          txt = txt + self.ob_header[k] + self.tab_t.item(i,1).text().strip() + " "
               self.block_e.setText(txt)
 
       def change_plan(self):

@@ -394,6 +394,33 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
             if not ok[key]:
                 ok["block"] = False
 
+
+    if "comment=" in block:
+        active["comment"] = True
+        com1 = block.split("comment=")[1]
+        if "'" == com1[0]:
+            try:
+                ob["comment"] = com1.split("'")[1]
+                ok["comment"] = True
+            except:
+                pass
+        elif '"' == com1[0]:
+            try:
+                ob["comment"] = com1.split('"')[1]
+                ok["comment"] = True
+            except:
+                pass
+        elif '(' == com1[0]:
+            try:
+                ob["comment"] = com1.split('(')[1].split(')')[0]
+                ok["comment"] = True
+            except:
+                pass
+        else:
+           ob["comment"] = com1
+           ok["comment"] = True
+
+
     ob = {key: value for key, value in ob.items() if active.get(key)}
     ok = {key: value for key, value in ok.items() if active.get(key)}
     options = {key: value for key, value in options.items() if active.get(key)}

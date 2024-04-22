@@ -1,7 +1,7 @@
 <h4>Whats New?</h4>
 
 --- 19.04.2024 --- <br> Support for wk06 added. (Edit OB) and (Add OB) pushbuttons works now. (Copy OB) pushbutton added.
-Bugs related to (del) OB fixed. OB verification added, and displayed in plan as icon. Skip Icon changed to "next track". 
+Bugs related to (del) OB fixed. OB verification added, and displayed in plan as icon. Skip Icon changed to "next track".
 <br><br>
 --- 10.12.23 --- <br> Pulse movement window is operational. Passive guider is working. Flat tab added to aux window.
 Pushbuttons to add STOP and BELL to Plan. Weather is read from Davis weather station.

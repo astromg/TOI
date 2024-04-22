@@ -2,33 +2,4 @@
 WAIT wait=5
 WAIT wait=2
 WAIT wait=300
-WAIT wait=60
-WAIT wait=70
-WAIT wait=80
-WAIT wait=90
-WAIT wait=40
-OBJECT DUPA 00:00:00 00:00:00 seq=1/dupa/5
-WAIT wait=50
-WAIT wait=60
-WAIT wait=70
-ZERO seq=2/g/0
-ZERO seq=2/r/0
-ZERO seq=2/i/0
-DARK seq=10/u/600
-DARK seq=2/u/3
-WAIT wait=5
 
-STOP
-DARK seq=4/u/1
-DARK seq=2/u/6
-STOP
-#DARK seq=4/u/6
-
-# SKYFLAT az=90:00:00 alt=+70:00:00 seq=2/u/5
-# OBJECT FF_Aql 22:58:14.75 +17:21:39.29 seq=2/u/5
-# OBJECT FF_Aql 18:58:14.75 +17:21:39.29 seq=2/u/5,2/u/4
-
-
-WAIT sunset=-12
-
-WAIT wait=10

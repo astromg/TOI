@@ -1,28 +1,10 @@
 
-WAIT wait=5
-BELL
-STOP
-ZERO seq=15/Ic/0
-DARK seq=5/Ic/600
-
-
-#WAIT sunset=-12
-#WAIT wait=60
-#WAIT wait=300
-#STOP
-STOP
-STOP
-ZERO seq=2x(1/Ic/0)
-DARK seq=2x(2/Ic/2)
+STOP                        comment=cos tam
+BELL                        comment="cos innego"
+ZERO seq=15/Ic/0            comment='cos dupa'
+DARK seq=5/Ic/600           comment=( cos )
 STOP
 
-#WAIT wait=10
-
-
-
-#SKYFLAT az=90:00:00 alt=+70:00:00 seq=2/u/5
-#OBJECT FF_Aql 22:58:14.75 +17:21:39.29 seq=2/u/5
-#OBJECT FF_Aql 18:58:14.75 +17:21:39.29 seq=2/u/5,2/u/4
 
 
 
