@@ -68,15 +68,10 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
       def pocisniecie_copy(self):
          if len(self.plan)>self.i:
-             tmp_ob = self.plan[self.i]
-             if self.prev_i==-1:
-                 i = self.i + 1
-             else:
-                 i = self.prev_i + 1
+             tmp_ob = self.plan[self.i].copy()
+             i = self.i + 1
              self.plan.insert(i,tmp_ob)
-             if i < self.i:
-                 self.i = self.i + 1
-
+             self.plan[i]["uid"] = str(uuid.uuid4())[:8]
              self.update_table()
              self.repaint()
          else: print("no plan loaded") # ERROR MSG
@@ -170,8 +165,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
               if "uid" not in self.plan[i].keys():               # nadaje uuid jak nie ma
                   self.plan[i]["uid"] = str(uuid.uuid4())[:8]
-
-
 
               if "ra" in self.plan[i].keys():                    # liczy aktualna wysokosc na horyzontem
                   ra=self.plan[i]["ra"]
@@ -624,6 +617,23 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               self.repaint()
 
+      def savePlan(self):
+          self.File_dialog = QFileDialog()
+          self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
+          txt = ""
+          for ob in self.plan:
+              block = ob["block"]
+              if "\n" not in block:
+                  block = block + "\n"
+              txt = txt + block
+          if self.fileName:
+              with open(self.fileName, "w") as plik:
+                  plik.write(txt)
+              txt = f"TOI: plan saved to {self.fileName} file"
+              self.parent.msg(txt, "black")
+
+
+
       def loadPlan(self):
 
           # ob["name","block","type","ra","dec","seq","pos","comment","ok"]
@@ -787,6 +797,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.start_p.clicked.connect(self.parent.plan_start)
 
           self.load_p.clicked.connect(self.loadPlan)
+          self.save_p.clicked.connect(self.savePlan)
           self.plan_t.cellClicked.connect(self.pocisniecie_tabelki)
           self.plan_t.horizontalHeader().sectionClicked.connect(self.pocisniecie_headera)
 
@@ -1181,7 +1192,9 @@ class EditWindow(QWidget):
               for i in range(self.tab_t.rowCount()):
                   k = self.keys_in_table[i]
                   if self.tab_t.item(i,1):
-                      if k == "comment":
+                      if k == "name" and self.tab_t.item(i, 1).text().strip() in ["ZERO","DARK","STOP","BELL"]:
+                          pass
+                      elif k == "comment":
                           txt = txt + self.ob_header[k] + '"' + self.tab_t.item(i, 1).text().strip() + '"'
                       else:
                           txt = txt + self.ob_header[k] + self.tab_t.item(i,1).text().strip() + " "
