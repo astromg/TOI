@@ -622,7 +622,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
           txt = ""
           for ob in self.plan:
-              if ob.["uid"] not in self.done:
+              if ob["uid"] not in self.done:
                   block = ob["block"]
                   if "\n" not in block:
                       block = block + "\n"
