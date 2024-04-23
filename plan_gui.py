@@ -195,10 +195,42 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       az = f"{deg_to_decimal_deg((str(az))):.1f}"
                       self.plan[i]["meta_plan_alt"] = alt
                       self.plan[i]["meta_plan_az"] = az
-                      if float(alt) < self.parent.cfg_alt_limits["min"] or float(alt) > self.parent.cfg_alt_limits["max"] :
+
+                      self.oca = ephem.Observer()
+                      self.oca.lat = self.parent.observatory[0]
+                      self.oca.lon = self.parent.observatory[1]
+                      self.oca.elevation = float(self.parent.observatory[2])
+                      self.oca.date = ob_time
+
+                      star = ephem.FixedBody()
+                      star._ra = str(ra)
+                      star._dec = str(dec)
+
+                      self.plan[i]["skip_alt"] = False
+
+                      if float(alt) < self.parent.cfg_alt_limits["min"]:
                           self.plan[i]["skip_alt"] = True
                       else:
-                          self.plan[i]["skip_alt"] = False
+                          self.oca.horizon = self.parent.cfg_alt_limits["min"]
+                          try:
+                              t = self.oca.next_setting(star, use_center=True)
+                              if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
+                                  self.plan[i]["skip_alt"] = True
+                          except ephem.AlwaysUpError:
+                              pass
+
+                      if float(alt) > self.parent.cfg_alt_limits["max"]:
+                          self.plan[i]["skip_alt"] = True
+                      else:
+                          self.oca.horizon = self.parent.cfg_alt_limits["max"]
+                          try:
+                              t = self.oca.next_rising(star, use_center=True)
+                              if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
+                                  self.plan[i]["skip_alt"] = True
+                          except ephem.AlwaysUpError:
+                              pass
+
+
                   if "wait" in self.plan[i].keys():
                       ob_time =  ob_time + ephem.second * float(self.plan[i]["wait"])
                   if self.plan[i]["uid"] in self.done:
@@ -285,15 +317,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                  if "meta_plan_alt" in self.plan[i].keys():
                      alt = float(self.plan[i]["meta_plan_alt"])
-                     if alt < self.parent.cfg_alt_limits["min"] :
-                         font = QtGui.QFont()
-                         font.setPointSize(15)
-                         txt = QTableWidgetItem("\u26A0")
-                         txt.setFont(font)
-                         txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                         txt.setForeground(QtGui.QColor("red"))
-                         self.plan_t.setItem(i, 0, txt)
-                     elif alt < self.parent.cfg_alt_limits["low"] :
+                     if alt < self.parent.cfg_alt_limits["low"] :
                          font = QtGui.QFont()
                          font.setPointSize(15)
                          txt = QTableWidgetItem("\u26A0")
@@ -301,7 +325,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                          txt.setTextAlignment(QtCore.Qt.AlignCenter)
                          txt.setForeground(QtGui.QColor("orange"))
                          self.plan_t.setItem(i, 0, txt)
-                     elif alt > self.parent.cfg_alt_limits["max"] :
+
+                 if "skip_alt" in self.plan[i].keys():
+                     if self.plan[i]["skip_alt"]:
                          font = QtGui.QFont()
                          font.setPointSize(15)
                          txt = QTableWidgetItem("\u26A0")
