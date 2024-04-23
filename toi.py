@@ -265,7 +265,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update))
         self.add_background_task(self.dome.asubscribe_az(self.domeAZ_update))
         self.add_background_task(self.dome.asubscribe_slewing(self.domeStatus_update))
-        self.add_background_task(self.focus.asubscribe_fansstatus(self.mirrorFans_update))
+        self.add_background_task(self.dome.asubscribe_dome_fans_running(self.Ventilators_update))
 
         #self.add_background_task(self.mount.asubscribe_connected(self.mountCon_update))
         self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
@@ -277,6 +277,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.mount.asubscribe_motorstatus(self.mountMotors_update))
         #
         self.add_background_task(self.cover.asubscribe_coverstate(self.covers_update))
+        self.add_background_task(self.focus.asubscribe_fansstatus(self.mirrorFans_update))
         #
         #self.add_background_task(self.fw.asubscribe_connected(self.filterCon_update))
         self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
@@ -2054,38 +2055,41 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def VentilatorsOnOff(self):
         if await self.user.aget_is_access():
             r = await self.dome.aget_dome_fans_running()
-            print(r)
-        #    if r == "True": self.dome_fanStatus=True
-        #    else: self.dome_fanStatus=False
-        #    if self.dome_fanStatus:
-        #       txt="REQUEST: mirror fans OFF"
-        #       await self.msg(txt,"green")
-        #       await self.focus.aput_fansturnoff()
-        #    else:
-        #        txt="REQUEST: mirror fans ON"
-        #        await self.msg(txt,"green")
-        #        await self.focus.aput_fansturnon()
-        #    self.mntGui.fans_e.setText(txt)
-        #    self.mntGui.fans_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
-        # else:
-        #     await self.Ventilators_update(False)
-        #     txt="WARNING: U don't have controll"
-        #     self.WarningWindow(txt)
+            if r:
+                self.dome_fanStatus=True
+            else:
+                self.dome_fanStatus=False
+
+            if self.dome_fanStatus:
+               txt="REQUEST: ventilators OFF"
+               await self.msg(txt,"green")
+               await self.dome.aput_fans_turn_off()
+            else:
+                txt="REQUEST: ventilators ON"
+                await self.msg(txt,"green")
+                await self.dome.aput_dome_fans_turn_on()
+            self.mntGui.ventilators_e.setText(txt)
+            self.mntGui.ventilators_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+        else:
+            await self.Ventilators_update(False)
+            txt="WARNING: U don't have controll"
+            self.WarningWindow(txt)
 
     async def Ventilators_update(self,event):
-           pass
-           # r = await self.focus.aget_fansstatus()
-           # if r == "True": self.dome_fanStatus=True
-           # else: self.dome_fanStatus=False
-           #
-           # if self.dome_fanStatus:
-           #     self.mntGui.mirrorFans_c.setChecked(True)
-           #     txt="FANS ON"
-           # else:
-           #     self.mntGui.mirrorFans_c.setChecked(False)
-           #     txt="FANS OFF"
-           # self.mntGui.mirrorFans_e.setText(txt)
-           # self.mntGui.mirrorFans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+        r = await self.dome.aget_dome_fans_running()
+        if r:
+            self.dome_fanStatus=True
+        else:
+            self.dome_fanStatus=False
+
+        if self.dome_fanStatus:
+            self.mntGui.ventilators_c.setChecked(True)
+            txt="VENT ON"
+        else:
+            self.mntGui.ventilators_c.setChecked(False)
+            txt="VENT OFF"
+        self.mntGui.ventilators_e.setText(txt)
+        self.mntGui.ventilators_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
 
     # OTHER COMPONENTS
 
