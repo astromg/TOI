@@ -1,0 +1,26 @@
+STOP
+ZERO seq=11/u/0
+WAIT wait_sunset=-9
+
+SKYFLAT BF00 00:34:18.0 -49:39:55.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF01 01:45:15.0 -47:48:00.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF02 02:32:34.0 -47:02:55.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF03 03:38:39.0 -47:53:05.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF04 04:34:30.0 -45:39:25.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF05 05:23:00.0 -48:51:45.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF06 06:32:38.0 -48:57:45.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF07 07:05:55.0 -63:31:15.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF08 08:41:49.0 -64:07:35.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF09 09:36:00.0 -43:05:40.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF10 10:17:07.0 -26:00:30.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF11 11:33:10.0 -34:19:35.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF12 12:49:45.0 -35:14:50.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF13 13:09:23.0 -29:31:30.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF14 14:34:24.0 -32:27:50.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF15 15:14:45.0 -34:06:45.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF18 18:31:40.0 -51:47:15.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF19 19:38:51.0 -48:52:00.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF20 20:31:00.0 -43:02:00.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF21 21:31:41.0 -53:42:30.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF22 22:29:38.0 -52:21:30.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
+SKYFLAT BF23 23:39:05.0 -48:23:10.0   seq=7/Ic/a,7/B/a,7/Ha_w/a,7/V/a,7/Ha_n/a
