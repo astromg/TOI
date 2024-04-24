@@ -227,7 +227,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                               t = self.oca.next_rising(star, use_center=True)
                               if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
                                   self.plan[i]["skip_alt"] = True
-                          except ephem.AlwaysUpError:
+                          except ephem.NeverUpError:
                               pass
 
 
