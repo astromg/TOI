@@ -178,6 +178,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         if tel == "wk06":
             self.cfg_tel_directory = "/data/fits/wk06/"
+            self.cfg_tel_ob_list = "/data/misc/objects_list/"
             self.flat_log_files = "/Logs/wk06_flats_log.txt"
 
             self.cfg_showRotator = False
@@ -195,6 +196,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         elif tel == "zb08":
             self.cfg_tel_directory = "/data/fits/zb08/"
+            self.cfg_tel_ob_list = "/data/misc/objects_list/"
             self.flat_log_files = "/Logs/zb08_flats_log.txt"
 
             self.cfg_showRotator = True
@@ -212,6 +214,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         elif tel == "jk15":
             self.cfg_tel_directory = "/data/fits/jk15/"
+            self.cfg_tel_ob_list = "/data/misc/objects_list/"
             self.flat_log_files = "/Logs/jk15_flats_log.txt"
 
             self.cfg_showRotator = True

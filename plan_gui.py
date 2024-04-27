@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import os
 #----------------
 # 01.08.2022
 # Marek Gorski
@@ -64,6 +64,11 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.plot_window.show()
             self.plot_window.raise_()
          else: print("no plan loaded") # ERROR MSG
+
+      def plot_phase(self):
+            self.phase_window=PhaseWindow(self)
+            self.phase_window.show()
+            self.phase_window.raise_()
 
 
       def pocisniecie_copy(self):
@@ -227,7 +232,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                               t = self.oca.next_rising(star, use_center=True)
                               if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
                                   self.plan[i]["skip_alt"] = True
-                          except ephem.NeverUpError:
+                          except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
                               pass
 
 
@@ -394,7 +399,13 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                  if self.show_ob:
                      txt=self.plan[i]["block"]
                  else:
-                     txt = self.plan[i]["name"]
+                     if "type" in self.plan[i].keys():
+                         if self.plan[i]["type"] == "FOCUS":
+                             txt = "FOCUS "+ self.plan[i]["name"]
+                         else:
+                             txt = self.plan[i]["name"]
+                     else:
+                         txt = self.plan[i]["name"]
                  txt=QTableWidgetItem(txt)
                  self.plan_t.setItem(i,1,txt)
 
@@ -729,7 +740,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=w+7
           self.import_p = QPushButton('\u2B05 Import to MANUAL')
           self.plotPlan_p = QPushButton('Plot Plan')
-          self.grid.addWidget(self.import_p, w, 0,1,3)
+          self.plotPhase_p = QPushButton('Plot Phase')
+          self.grid.addWidget(self.import_p, w, 0,1,2)
+          self.grid.addWidget(self.plotPhase_p, w, 3, 1, 1)
           self.grid.addWidget(self.plotPlan_p, w, 4, 1, 1)
 
           w=w+1
@@ -830,6 +843,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.import_p.clicked.connect(self.import_to_manuall)
           self.plotPlan_p.clicked.connect(self.plot_plan)
+          self.plotPhase_p.clicked.connect(self.plot_phase)
           self.next_p.clicked.connect(self.setNext)
           self.skip_p.clicked.connect(self.setSkip)
           self.up_p.clicked.connect(self.pocisniecie_up)
@@ -857,6 +871,136 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
       async def closeEvent(self, event):
           await self.stop_background_tasks()
           super().closeEvent(event)
+
+
+
+
+
+# #############################################
+# ######### OKNO WYKRESU (PHASE) ##########
+# #############################################
+
+class PhaseWindow(QWidget):
+    def __init__(self, parent):
+        super(PhaseWindow, self).__init__()
+        self.parent = parent
+        self.setStyleSheet("font-size: 11pt;")
+        self.setMinimumSize(800,400)
+        #self.setGeometry(100,100,400,100)
+        self.mkUI()
+        try:
+            self.get_object()
+        except FileNotFoundError:
+            pass
+        self.refresh()
+
+
+    def get_object(self):
+        self.name = self.parent.plan[self.parent.i]["name"]
+        self.ut = self.parent.plan[self.parent.i]["meta_plan_ut"]
+        self.f_path = self.parent.parent.cfg_tel_directory+"processed-ofp/targets/"+self.name.lower()
+        self.filters = os.listdir(self.f_path)
+        self.file_s.addItems(self.filters)
+
+    def refresh(self):
+        self.axes.clear()
+        try:
+            filter = self.file_s.currentText()
+            file = self.f_path+"/"+filter+"/light-curve/"+self.name.lower()+"_"+filter+"_diff_light_curve.txt"
+            t = self.parent.parent.almanac['jd']
+            mag = []
+            jd = []
+            with open(file, "r") as plik:
+                if plik != None:
+                    for line in plik:
+                        if len(line.strip()) > 0:
+                            try:
+                                mag.append(float(line.split()[1]))
+                                jd.append(float(line.split()[3]))
+                            except ValueError:
+                                pass
+            if len(mag) == len(jd) and len(jd)>0:
+                if self.phase_c.isChecked():
+                    objects = []
+                    periods = []
+                    jd0s = []
+                    file = self.parent.parent.cfg_tel_ob_list+"objects.txt"
+                    with open(file, "r") as plik:
+                        if plik != None:
+                            for line in plik:
+                                if len(line.strip()) > 0:
+                                    try:
+                                        a = line.split()[0]
+                                        b = float(line.split()[3])
+                                        c = float(line.split()[4])
+                                        objects.append(a)
+                                        periods.append(b)
+                                        jd0s.append(c)
+                                    except ValueError:
+                                        pass
+                    i = objects.index(self.name)
+                    P = periods[i]
+                    jd0 = jd0s[i]
+                    if numpy.isnan(jd0):
+                        jd0 = min(jd)
+                    jd = (numpy.array(jd) - float(jd0))/float(P)%1
+                    t = (t - float(jd0))/float(P)%1
+                    self.axes.set_xlim(-0.1,1.1)
+                    self.axes.set_title(f"{self.name} P={P}")
+                else:
+                    self.axes.set_title(f"{self.name}")
+
+                self.axes.plot(jd,mag,".c")
+                d = 0.1*(max(mag)-min(mag))
+                self.axes.set_ylim(max(mag)+d,min(mag)-d)
+                self.axes.axvline(x=t, color="red")
+
+                #self.fig.subplots_adjust(bottom=0.12,top=0.8,left=0.15,right=0.98)
+        except (FileNotFoundError,ValueError) as e:
+            print(f"Phase Window Error: {e}")
+
+        self.fig.tight_layout()
+        self.canvas.draw()
+        self.show()
+
+
+
+    def mkUI(self):
+        grid = QGridLayout()
+
+        self.file_s = QComboBox()
+        self.file_s.currentIndexChanged.connect(self.refresh)
+        self.phase_c = QCheckBox("Phase")
+        self.phase_c.setChecked(True)
+        #self.phase_c.setLayoutDirection(Qt.RightToLeft)
+        self.phase_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.phase_c.clicked.connect(self.refresh)
+
+
+        self.fig = Figure((2.0, 2.0), linewidth=-1, dpi=100)
+        self.canvas = FigureCanvas(self.fig)
+        #self.axes = self.fig.add_axes([0, 0, 1, 1])
+        self.axes = self.fig.add_subplot(111)
+        grid.addWidget(self.file_s, 0, 0)
+        grid.addWidget(self.phase_c, 0, 3)
+        grid.addWidget(self.canvas,1,0,4,4)
+
+        self.toolbar = NavigationToolbar(self.canvas,self)
+        grid.addWidget(self.toolbar, 5, 0, 1, 4)
+
+        self.close_p = QPushButton('Close')
+        self.close_p.clicked.connect(lambda: self.close())
+        grid.addWidget(self.close_p, 6, 3)
+
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 0)
+        grid.setRowStretch(0, 1)
+        grid.setRowStretch(1, 0)
+        grid.setRowStretch(2, 0)
+
+        self.setLayout(grid)
+
+
 
 
 # #############################################
