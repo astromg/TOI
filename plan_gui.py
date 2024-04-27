@@ -897,7 +897,12 @@ class PhaseWindow(QWidget):
 
     def get_object(self):
         self.name = self.parent.plan[self.parent.i]["name"]
-        self.ut = self.parent.plan[self.parent.i]["meta_plan_ut"]
+
+        if "meta_plan_ut" in self.parent.plan[self.parent.i].keys():
+            self.ut = self.parent.plan[self.parent.i]["meta_plan_ut"]
+        else:
+            self.ut = self.parent.parent.almanac['ut']
+
         self.f_path = self.parent.parent.cfg_tel_directory+"processed-ofp/targets/"+self.name.lower()
         self.filters = os.listdir(self.f_path)
         self.file_s.addItems(self.filters)
@@ -907,7 +912,9 @@ class PhaseWindow(QWidget):
         try:
             filter = self.file_s.currentText()
             file = self.f_path+"/"+filter+"/light-curve/"+self.name.lower()+"_"+filter+"_diff_light_curve.txt"
-            t = self.parent.parent.almanac['jd']
+            s = ephem.Observer()
+            s.date = ephem.Date(self.ut)
+            t = ephem.julian_date(s)
             mag = []
             jd = []
             with open(file, "r") as plik:
@@ -946,9 +953,9 @@ class PhaseWindow(QWidget):
                     jd = (numpy.array(jd) - float(jd0))/float(P)%1
                     t = (t - float(jd0))/float(P)%1
                     self.axes.set_xlim(-0.1,1.1)
-                    self.axes.set_title(f"{self.name} P={P}")
+                    self.axes.set_title(f"{self.ut} {self.name} P={P}")
                 else:
-                    self.axes.set_title(f"{self.name}")
+                    self.axes.set_title(f"{self.ut} {self.name}")
 
                 self.axes.plot(jd,mag,".c")
                 d = 0.1*(max(mag)-min(mag))
