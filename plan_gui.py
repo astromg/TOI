@@ -191,6 +191,37 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       wait_ut = ephem.Date(ob_date+" "+self.plan[i]["wait_ut"])
                       if ob_time < wait_ut:
                           ob_time =  wait_ut
+
+                  if "wait_sunset" in self.plan[i].keys():
+
+                      oca = ephem.Observer()
+                      oca.date = ephem.now()
+                      oca.lat = self.parent.observatory[0]
+                      oca.lon = self.parent.observatory[1]
+                      oca.elevation = float(self.parent.observatory[2])
+
+                      oca.horizon = self.plan[i]["wait_sunset"]
+                      wait_ut =  oca.next_setting(ephem.Sun(), use_center=True)
+
+                      if ob_time < wait_ut:
+                          ob_time =  wait_ut
+
+
+                  if "wait_sunrise" in self.plan[i].keys():
+
+                      oca = ephem.Observer()
+                      oca.date = ephem.now()
+                      oca.lat = self.parent.observatory[0]
+                      oca.lon = self.parent.observatory[1]
+                      oca.elevation = float(self.parent.observatory[2])
+
+                      oca.horizon = self.plan[i]["wait_sunrise"]
+                      wait_ut = oca.next_rising(ephem.Sun(), use_center=True)
+
+                      if ob_time < wait_ut:
+                          ob_time =  wait_ut
+
+
                   self.plan[i]["meta_plan_ut"] = str(ephem.Date(ob_time))
                   if "ra" in self.plan[i].keys():
                       ra = self.plan[i]["ra"]
@@ -1089,8 +1120,34 @@ class PlotWindow(QWidget):
                         self.axes.text(self.t, 3, f"WAIT {int(slotTime)}s", rotation=90, fontsize=fontsize)
                         self.t = self.t + ephem.second * slotTime
 
+                    if "wait_ut" in self.parent.plan[i].keys():
+                        ob_date = str(ephem.Date(ephem.now())).split()[0]
+                        wait_ut = ephem.Date(ob_date + " " + self.parent.plan[i]["wait_ut"])
+                        if self.t < wait_ut:
+                            self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
+                                                    alpha=0.5)
+                            self.axes.text(self.t, 3, f"WAIT UT {wait_ut}", rotation=90, fontsize=fontsize)
+                            self.t = wait_ut
+
+                    if "wait_sunset" in self.parent.plan[i].keys():
+                        self.oca.horizon = self.parent.plan[i]["wait_sunset"]
+                        wait_ut = self.oca.next_setting(ephem.Sun(), use_center=True)
+                        if self.t < wait_ut:
+                            self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
+                                                    alpha=0.5)
+                            self.axes.text(self.t, 3, f"WAIT SUNSET {wait_ut}", rotation=90, fontsize=fontsize)
+                            self.t = wait_ut
+
+                    if "wait_sunrise" in self.parent.plan[i].keys():
+                        self.oca.horizon = self.parent.plan[i]["wait_sunrise"]
+                        wait_ut = self.oca.next_rising(ephem.Sun(), use_center=True)
+                        if self.t < wait_ut:
+                            self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
+                                                    alpha=0.5)
+                            self.axes.text(self.t, 3, f"WAIT SUNRISE {wait_ut}", rotation=90, fontsize=fontsize)
+                            self.t = wait_ut
+
                     if "seq" in self.parent.plan[i].keys():
-                        print(self.parent.plan[i])
                         seq = self.parent.plan[i]["seq"]
                         slotTime = calc_slot_time(seq,self.parent.parent.overhed)
 

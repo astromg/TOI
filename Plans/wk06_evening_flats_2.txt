@@ -23,7 +23,7 @@ SKYFLAT BF21 21:31:41.0 -53:42:30.0   seq=7/u_s/a,7/v_s/a,7/y_s/a,7/b_s/a
 SKYFLAT BF22 22:29:38.0 -52:21:30.0   seq=7/u_s/a,7/v_s/a,7/y_s/a,7/b_s/a
 SKYFLAT BF23 23:39:05.0 -48:23:10.0   seq=7/u_s/a,7/v_s/a,7/y_s/a,7/b_s/a
 
-ZERO seq=11/u/0
+ZERO seq=11/V/0
 WAIT wait_sunset=-17
 STOP
 

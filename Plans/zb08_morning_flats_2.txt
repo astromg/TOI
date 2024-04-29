@@ -1,6 +1,6 @@
 STOP
 ZERO seq=11/u/0
-WAIT wait_sunset=-8
+WAIT wait_sunrise=-8
 
 SKYFLAT BF00 00:34:18.0 -49:39:55.0   seq=7/B/a,7/V/a,7/Ic/a,7/u/a
 SKYFLAT BF01 01:45:15.0 -47:48:00.0   seq=7/B/a,7/V/a,7/Ic/a,7/u/a

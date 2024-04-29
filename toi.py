@@ -194,6 +194,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             self.cfg_inst_defSetUp = {"gain": "4x", "rm": "1MHz","bin":"1x1", "temp":-58}
 
+            self.overhed = 7
+
         elif tel == "zb08":
             self.cfg_tel_directory = "/data/fits/zb08/"
             self.cfg_tel_ob_list = "/data/misc/objects_list/"
@@ -211,6 +213,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_temp = "-60"
 
             self.cfg_inst_defSetUp = {"gain": "4x", "rm": "1MHz","bin":"1x1", "temp":-58}
+
+            self.overhed = 7
 
         elif tel == "jk15":
             self.cfg_tel_directory = "/data/fits/jk15/"
@@ -230,10 +234,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             self.cfg_inst_defSetUp = {"gain": "4x", "rm": "1MHz","bin":"1x1", "temp":-58}
 
+            self.overhed = 20
+
 
         self.cfg_focus_record_file = self.script_location+"/focus_data.txt"
         self.catalog_file=self.script_location+"/object_catalog.txt"
-        self.overhed = 20
+
 
 
         self.dome_con=False
@@ -894,6 +900,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             w: MsgJournalPublisher = self.nats_journal_focus_writter
                             await w.log('INFO', txt)
                     else:
+                        await self.focus.aput_move(int(self.last_focus_position))
+                        await self.msg(f"PLAN: focusing FAILED. Focus set to previous value {int(self.last_focus_position)}", "red")
                         self.auxGui.focus_tab.result_e.setText(status)
                         self.auxGui.focus_tab.max_sharp=None
                     self.auxGui.focus_tab.update()
@@ -1016,6 +1024,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.plan_runner_origin="auto_focus"
                 self.program_name="auto_focus"
                 self.autofocus_started=True
+                self.last_focus_position=float(self.mntGui.telFocus_e.text())
         else:
             txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
@@ -1125,6 +1134,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.plan_runner_origin="Plan Gui"
                                 self.focus_method = "rms_quad"
                                 self.autofocus_started = True
+                                self.last_focus_position = float(self.mntGui.telFocus_e.text())
 
 
                             if self.ob["type"] == "OBJECT" and "block" in self.ob.keys():
@@ -2498,6 +2508,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.plan_runner_status=""
         self.ob={"run":False,"done":False}
         self.autofocus_started=False
+        self.last_focus_position=None
         self.acces=True
 
         # obs model
