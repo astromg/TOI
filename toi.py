@@ -689,7 +689,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if self.ob_started:
                 if "slot_time" in self.ob.keys():
-                    print(self.ob["slot_time"])
+                    print(self.ob)
                     t = self.ob_start_time - self.time
                     p = t/self.ob["slot_time"]
                     txt = f"{t}/{self.ob['slot_time']}"
