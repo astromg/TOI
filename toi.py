@@ -696,7 +696,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.planGui.ob_Prog_n.setValue(int(100*p))
                     self.planGui.ob_Prog_n.setFormat(txt)
 
-                    if p > 1.01:
+                    if p > 1.1:
                         RED_PROGBAR_STYLE = """
                         QProgressBar{
                             border: 2px solid grey;
