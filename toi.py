@@ -182,7 +182,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.flat_log_files = "/Logs/wk06_flats_log.txt"
 
             self.cfg_showRotator = False
-            self.cfg_alt_limits = {"min":0,"max":90,"low":35}
+            self.cfg_alt_limits = {"min":0,"max":91,"low":35}
 
             self.cfg_inst_obstype = ["Science", "Zero", "Dark", "Sky Flat", "Dome Flat"]
             self.cfg_inst_mode = ["Normal", "Sky", "JitterBox", "JitterRandom"]
@@ -789,7 +789,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if datetime.datetime.now() > hohoho and datetime.datetime.now() < no_hohoho:
                 png_file = './Icons/zb08_christmas.png'
                 self.auxGui.welcome_tab.pic_l.setPixmap(QtGui.QPixmap(png_file).scaled(300, 200))
-                print("HO HO HO")
+                #print("HO HO HO")
             self.obsGui.main_form.date_e.setText(str(self.date))
             self.obsGui.main_form.ut_e.setText(str(ut))
             self.obsGui.main_form.skyView.updateAlmanac()

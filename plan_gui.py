@@ -50,7 +50,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.plan=[]
           self.i=0                  # aktualne podswietlenie
-          self.prev_i=1             # poprzednie podswietlenie
+          self.prev_i=-1             # poprzednie podswietlenie
           self.next_i=0             # zmienna funkcjonalna, nastepny obiekt do obserwacji
           self.current_i=-1         # zmienna funckjonalna, ktore ob wlasnie sie wykonuje.
           self.done=[]              # lista uuid wykonanych ob
@@ -97,7 +97,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
       def pocisniecie_addStop(self):
          if len(self.plan)>self.i:
-             print("ide ***************")
+             #print("ide ***************")
              ob = {"name": "STOP"}
              ob["type"] = "STOP"
              ob["block"] = "STOP"
@@ -187,42 +187,39 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               if self.next_i > -1 and i >= self.next_i:
                   tmp_ok = True
               if tmp_ok:
+                  self.plan[i]["meta_plan_ut"] = str(ephem.Date(ob_time))
+
+                  if "wait" in self.plan[i].keys():
+                      ob_time =  ob_time + ephem.second * float(self.plan[i]["wait"])
+
                   if "wait_ut" in self.plan[i].keys():
                       wait_ut = ephem.Date(ob_date+" "+self.plan[i]["wait_ut"])
                       if ob_time < wait_ut:
                           ob_time =  wait_ut
 
                   if "wait_sunset" in self.plan[i].keys():
-
                       oca = ephem.Observer()
                       oca.date = ephem.now()
                       oca.lat = self.parent.observatory[0]
                       oca.lon = self.parent.observatory[1]
                       oca.elevation = float(self.parent.observatory[2])
-
                       oca.horizon = self.plan[i]["wait_sunset"]
                       wait_ut =  oca.next_setting(ephem.Sun(), use_center=True)
-
                       if ob_time < wait_ut:
                           ob_time =  wait_ut
 
 
                   if "wait_sunrise" in self.plan[i].keys():
-
                       oca = ephem.Observer()
                       oca.date = ephem.now()
                       oca.lat = self.parent.observatory[0]
                       oca.lon = self.parent.observatory[1]
                       oca.elevation = float(self.parent.observatory[2])
-
                       oca.horizon = self.plan[i]["wait_sunrise"]
                       wait_ut = oca.next_rising(ephem.Sun(), use_center=True)
-
                       if ob_time < wait_ut:
                           ob_time =  wait_ut
 
-
-                  self.plan[i]["meta_plan_ut"] = str(ephem.Date(ob_time))
                   if "ra" in self.plan[i].keys():
                       ra = self.plan[i]["ra"]
                       dec = self.plan[i]["dec"]
@@ -258,7 +255,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       if float(alt) > self.parent.cfg_alt_limits["max"]:
                           self.plan[i]["skip_alt"] = True
                       else:
-                          self.oca.horizon = self.parent.cfg_alt_limits["max"]
+                          self.oca.horizon =  self.parent.cfg_alt_limits["max"]
                           try:
                               t = self.oca.next_rising(star, use_center=True)
                               if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
@@ -267,8 +264,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                               pass
 
 
-                  if "wait" in self.plan[i].keys():
-                      ob_time =  ob_time + ephem.second * float(self.plan[i]["wait"])
                   if self.plan[i]["uid"] in self.done:
                       ob_time = ob_time
                   else:
@@ -416,7 +411,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     txt.setForeground(QtGui.QColor("blue"))
                     self.plan_t.setItem(i,0,txt)
 
-                 if i==self.next_i and self.current_i<0:    # nastepmy
+                 if i==self.next_i: #and self.current_i<0:    # nastepmy
                     font=QtGui.QFont()
                     font.setPointSize(25)
                     txt=QTableWidgetItem("\u2192")
