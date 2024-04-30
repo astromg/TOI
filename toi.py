@@ -56,6 +56,7 @@ from ffs_lib.ffs import FFS
 logging.basicConfig(level='INFO')
 logger = logging.getLogger(__name__)
 
+
 class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def __init__(self, loop, observatory_model: Observatory, client_api: ClientAPI,  app=None):
@@ -694,9 +695,29 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     txt = f"{int(t)}/{int(self.ob['slotTime'])}"
                     self.planGui.ob_Prog_n.setValue(int(100*p))
                     self.planGui.ob_Prog_n.setFormat(txt)
+
+                    if p > 1.01:
+                        RED_PROGBAR_STYLE = """
+                        QProgressBar{
+                            border: 2px solid grey;
+                            border-radius: 5px;
+                            text-align: center
+                        }
+
+                        QProgressBar::chunk {
+                            background-color: red;
+                            width: 10px;
+                            margin: 1px;
+                        }
+                        """
+                        self.planGui.ob_Prog_n.setStyleSheet(RED_PROGBAR_STYLE)
+                    else:
+                        self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
+
             elif self.ob_done:
                 self.planGui.ob_Prog_n.setValue(100)
                 self.planGui.ob_Prog_n.setFormat("DONE")
+                self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
 
 
             if self.ob["run"] and "name" in self.ob.keys():

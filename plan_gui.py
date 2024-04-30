@@ -31,6 +31,9 @@ from pyaraucaria.coordinates import *
 
 from toi_lib import *
 
+
+
+
 class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
       def __init__(self, parent, loop: QEventLoop = None, client_api=None):
