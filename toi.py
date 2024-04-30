@@ -688,6 +688,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             #self.ob_start_time = 0
 
             if self.ob_started:
+                print("kuku")
                 if "slot_time" in self.ob.keys():
                     t = self.ob_start_time - self.time
                     p = t/self.ob["slot_time"]
