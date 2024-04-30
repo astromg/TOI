@@ -192,7 +192,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             self.cfg_inst_defSetUp = {"gain": "4x", "rm": "1MHz","bin":"1x1", "temp":-58}
 
-            self.overhed = 7
+            self.overhed = 10
 
         elif tel == "zb08":
             self.cfg_tel_directory = "/data/fits/zb08/"
@@ -212,7 +212,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             self.cfg_inst_defSetUp = {"gain": "4x", "rm": "1MHz","bin":"1x1", "temp":-58}
 
-            self.overhed = 7
+            self.overhed = 10
 
         elif tel == "jk15":
             self.cfg_tel_directory = "/data/fits/jk15/"
@@ -691,7 +691,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if "slotTime" in self.ob.keys():
                     t = self.time - self.ob_start_time
                     p = t/self.ob["slotTime"]
-                    txt = f"{int(t)}/{self.ob['slotTime']}"
+                    txt = f"{int(t)}/{int(self.ob['slotTime'])}"
                     self.planGui.ob_Prog_n.setValue(int(100*p))
                     self.planGui.ob_Prog_n.setFormat(txt)
             elif self.ob_done:
@@ -2533,7 +2533,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cfg_wind_limit_pointing =  11  # m/s
         self.cfg_wind_limit = 14 # m/s
         self.cfg_humidity_limit = 70  # %
-        self.overhed = 20
+        self.overhed = 10
 
         self.nextOB_ok = None
         self.flag_newimage = None

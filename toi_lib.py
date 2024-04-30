@@ -411,7 +411,7 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
     return ob,ok,active,options,ob_header
 
 def calc_slot_time(seq, overhed):
-    slotTime = 0
+    slotTime = 10
     k = 1
     res = 0
     try:
