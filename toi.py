@@ -691,9 +691,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if "slot_time" in self.ob.keys():
                     t = self.ob_start_time - self.time
                     p = t/self.ob["slot_time"]
-                    txt = f"{t}/{self.ob["slot_time"]}"
+                    txt = f"{t}/{self.ob['slot_time']}"
                     self.planGui.ob_Prog_n.setValue(int(100*p))
                     self.planGui.ob_Prog_n.setFormat(txt)
+            elif self.ob_done:
+                self.planGui.ob_Prog_n.setValue(100)
+                self.planGui.ob_Prog_n.setFormat("DONE")
+
 
             if self.ob["run"] and "name" in self.ob.keys():
                 txt = self.ob["name"]

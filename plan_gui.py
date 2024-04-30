@@ -765,7 +765,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=w+1
           self.ob_Prog_n=QProgressBar(self)
           self.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
-          self.ob_Prog_n.setValue(50)
           self.grid.addWidget(self.ob_Prog_n, w, 0,1,5)
 
           w=w+1
