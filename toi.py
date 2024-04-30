@@ -34,7 +34,7 @@ from pyaraucaria.airmass import airmass
 
 from ocaboxapi import ClientAPI, Observatory
 from ob.planrunner.cycle_time_calc.cycle_time_calc import CycleTimeCalc
-from serverish.messenger import Messenger, single_read, get_reader, get_journalreader
+from serverish.messenger import Messenger, single_read, get_reader, get_journalreader, get_publisher
 from serverish.messenger.msg_journal_pub import MsgJournalPublisher, get_journalpublisher, JournalEntry
 from serverish.messenger.msg_journal_read import MsgJournalReader
 
@@ -150,8 +150,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def teleskop_switched(self):
-
-
 
         self.nats_journal_flats_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.flats')
         self.nats_journal_focus_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.focus')
@@ -317,6 +315,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_log_flat_reader())
         self.add_background_task(self.nats_log_focus_reader())
         self.add_background_task(self.nats_log_toi_reader())
+        self.add_background_task(self.nats_tic_reader())
+
+
 
         await self.run_background_tasks()
 
@@ -345,6 +346,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #self.force_update()
 
     # ################### METODY POD NATSY ##################
+
+
+    async def nats_tic_reader(self):
+        try:
+            reader = get_reader(f'tic.status.{self.active_tel}.mount.tracking', deliver_policy='last')
+            async for data, meta in reader:
+                txt = data
+                print("TIC : ", txt)
+        except Exception as e:
+            pass
+
     async def nats_log_flat_reader(self):
         reader = get_journalreader(f'tic.journal.{self.active_tel}.log.flats', deliver_policy='last')
         async for data, meta in reader:
@@ -670,6 +682,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             self.time=time.perf_counter()
 
+            #self.ob_started = False
+            #self.ob_done = False
+            #self.ob_time = 0
+            #self.ob_start_time = 0
+
+            if self.ob_started:
+                if "slot_time" in self.ob.keys():
+                    t = self.ob_start_time - self.time
+                    p = t/self.ob["slot_time"]
+                    txt = f"{t}/{self.ob["slot_time"]}"
+                    self.planGui.ob_Prog_n.setValue(int(100*p))
+                    self.planGui.ob_Prog_n.setFormat(txt)
+
             if self.ob["run"] and "name" in self.ob.keys():
                 txt = self.ob["name"]
                 if "seq" in self.ob.keys():
@@ -855,6 +880,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def PlanRun1(self,info):
+
+        # obsluga poczatku i konca OB
+        # if "name" in info.keys() and "seq" in info.keys() and "started" in info.keys() and "done" in info.keys():
+        #     if info["name"] == "OBJECT":
+        #         if info["started"] == True and info["done"] == False:
+        #             self.ob_exec = True
+        #             self.ob_start_time = self.time
+        #
+        #         if info["started"] == True and info["done"] == True:
+        #             self.ob_exec = False
+        #             self.ob_start_time = 0
+
+
         if "exp_started" in info.keys() and "exp_done" in info.keys() and "exp_saved" in info.keys():
             if info["exp_started"]==True and info["exp_done"]==True and info["exp_saved"]==True:
                 if Path(self.cfg_tel_directory + "last_shoot.fits").is_file():
@@ -922,7 +960,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         if "name" in info.keys() and "started" in info.keys() and "done" in info.keys():
             if info["name"] == "NIGHTPLAN" and info["started"] and not info["done"]:
-                await self.msg("PLAN: Sequence started","black")
+                await self.msg("PLAN: Plan started","black")
+                self.ob_started = True
+                self.ob_done = False
+                self.ob_time = 0
+                self.ob_start_time = self.time
+
 
             elif info["name"] == "NIGHTPLAN" and info["done"]:
                 self.ob["done"] = True
@@ -932,6 +975,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.dit_start = 0
                 self.instGui.ccd_tab.inst_DitProg_n.setFormat("IDLE")
                 await self.msg("PLAN: Plan finished", "black")
+                self.ob_started = False
+                self.ob_done = True
+                self.ob_time = 0
+                self.ob_start_time = 0
 
             elif info["name"] == "SKYFLAT" and info["started"] and not info["done"]:  # SKYFLAT
                 await self.msg(f"PLAN: AUTO FLAT program started", "black")                       # SKYFLAT
@@ -1042,6 +1089,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.ob = self.planGui.plan[self.planGui.next_i]
                 self.ob["done"]=False
                 self.ob["run"]=True
+                self.ob["start_time"] = self.time
 
 
                 if "uid" in self.ob.keys():
@@ -2510,6 +2558,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.autofocus_started=False
         self.last_focus_position=None
         self.acces=True
+
+        self.ob_started = False
+        self.ob_done = False
+        self.ob_time = 0
+        self.ob_start_time = 0
+
 
         # obs model
         self.obs_tel_tic_names=["wk06","zb08","jk15"]  # wg25 is not working
