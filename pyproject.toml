@@ -8,7 +8,7 @@ repository = "https://github.com/astromg/TOI"  # to be moved to https://github.c
 keywords = ["astronomy", "telescopes"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 pyaraucaria = {git = "https://github.com/araucaria-project/pyaraucaria.git"}
 serverish = {version="^1.1.0", extras=["messenger"]}
 #pyqt5-qt5 = "^5.15.2"
@@ -21,6 +21,7 @@ numpy = "^1.24.1"
 qasync = "^0.23.0"
 # ocabox = {git = "https://github.com/araucaria-project/ocabox.git"}
 ocabox = {path = "../ocabox", develop = true}
+tpg = {path = "../tpg", develop = true}
 paho-mqtt = "^1.6.1"
 scipy = "^1.9.0"
 pyqt5-qt5 = "5.15.2"  # TODO: switch to pyQt6. 5 is a mess, 5.15.2 does not work on Mac, 5.15.13 does not work on Ubuntu...

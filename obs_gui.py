@@ -6,7 +6,6 @@ import time
 
 import numpy
 
-
 import qasync as qs
 from qasync import QEventLoop
 from PyQt5 import QtCore, QtGui
@@ -64,7 +63,6 @@ class MainForm(QWidget):
         self.parent.active_tel = self.parent.obs_tel_tic_names[i]
         await self.parent.teleskop_switched()
 
-
     def update_table(self):
 
         translate_tel_names = {"wk06": "WK-06", "zb08": "ZB-08", "jk15": "JK-15", "sim": "SIM"}
@@ -117,56 +115,56 @@ class MainForm(QWidget):
                 item.setTextAlignment(QtCore.Qt.AlignHCenter)
                 item.setTextAlignment(QtCore.Qt.AlignVCenter)
                 self.obs_t.setItem(i, 4, item)
-            except KeyError: pass
+            except KeyError:
+                pass
 
+            # item = QTableWidgetItem(" -- ")
+            # if "mount" in self.parent.tel[tel].state.keys():
+            # state = self.parent.tel[tel].state["mount"]
+            # if state == "Motors off":
+            # item = QTableWidgetItem("Motors OFF")
+            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+            # elif state == "IDLE":
+            # item = QTableWidgetItem("IDLE")
+            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+            # elif state == "Tracking":
+            # item = QTableWidgetItem("Tracking")
+            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 150, 0)))
+            # elif state == "Slewing":
+            # item = QTableWidgetItem("Slewing")
+            # item.setForeground(QtGui.QBrush(QtGui.QColor(255, 160, 0)))
+            # else:
+            # item = QTableWidgetItem("unknown")
+            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+            # item.setTextAlignment(QtCore.Qt.AlignHCenter)
+            # item.setTextAlignment(QtCore.Qt.AlignVCenter)
+            # self.obs_t.setItem(i, 2, item)
 
-            #item = QTableWidgetItem(" -- ")
-            #if "mount" in self.parent.tel[tel].state.keys():
-                #state = self.parent.tel[tel].state["mount"]
-                #if state == "Motors off":
-                    #item = QTableWidgetItem("Motors OFF")
-                    #item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
-                #elif state == "IDLE":
-                    #item = QTableWidgetItem("IDLE")
-                    #item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
-                #elif state == "Tracking":
-                    #item = QTableWidgetItem("Tracking")
-                    #item.setForeground(QtGui.QBrush(QtGui.QColor(0, 150, 0)))
-                #elif state == "Slewing":
-                    #item = QTableWidgetItem("Slewing")
-                    #item.setForeground(QtGui.QBrush(QtGui.QColor(255, 160, 0)))
-                #else:
-                    #item = QTableWidgetItem("unknown")
-                    #item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
-            #item.setTextAlignment(QtCore.Qt.AlignHCenter)
-            #item.setTextAlignment(QtCore.Qt.AlignVCenter)
-            #self.obs_t.setItem(i, 2, item)
+            # item = QTableWidgetItem(" -- ")
+            # if "instrument" in self.parent.tel[tel].state.keys():
+            # state = self.parent.tel[tel].state["instrument"]
+            # if state == "warm":
+            # item = QTableWidgetItem("warm")
+            # item.setForeground(QtGui.QBrush(QtGui.QColor(150, 0, 0)))
+            # elif state == "IDLE":
+            # item = QTableWidgetItem("IDLE")
+            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+            # elif "exposing" in state:
+            # item = QTableWidgetItem(state)
+            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 150, 0)))
+            # else:
+            # item = QTableWidgetItem("unknown")
+            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+            # item.setTextAlignment(QtCore.Qt.AlignHCenter)
+            # item.setTextAlignment(QtCore.Qt.AlignVCenter)
+            # self.obs_t.setItem(i, 3, item)
 
-            #item = QTableWidgetItem(" -- ")
-            #if "instrument" in self.parent.tel[tel].state.keys():
-                #state = self.parent.tel[tel].state["instrument"]
-                #if state == "warm":
-                    #item = QTableWidgetItem("warm")
-                    #item.setForeground(QtGui.QBrush(QtGui.QColor(150, 0, 0)))
-                #elif state == "IDLE":
-                    #item = QTableWidgetItem("IDLE")
-                    #item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
-                #elif "exposing" in state:
-                    #item = QTableWidgetItem(state)
-                    #item.setForeground(QtGui.QBrush(QtGui.QColor(0, 150, 0)))
-                #else:
-                    #item = QTableWidgetItem("unknown")
-                    #item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
-            #item.setTextAlignment(QtCore.Qt.AlignHCenter)
-            #item.setTextAlignment(QtCore.Qt.AlignVCenter)
-            #self.obs_t.setItem(i, 3, item)
-
-        #for i, txt in enumerate(self.parent.obs_tel_in_table):
-            #txt = self.parent.obs_program_in_table[i]
-            #item = QTableWidgetItem(txt)
-            #item.setTextAlignment(QtCore.Qt.AlignHCenter)
-            #item.setTextAlignment(QtCore.Qt.AlignVCenter)
-            #self.obs_t.setItem(i, 4, item)
+        # for i, txt in enumerate(self.parent.obs_tel_in_table):
+        # txt = self.parent.obs_program_in_table[i]
+        # item = QTableWidgetItem(txt)
+        # item.setTextAlignment(QtCore.Qt.AlignHCenter)
+        # item.setTextAlignment(QtCore.Qt.AlignVCenter)
+        # self.obs_t.setItem(i, 4, item)
 
     def msg(self, txt, color):
         c = QtCore.Qt.black
@@ -183,16 +181,15 @@ class MainForm(QWidget):
         if os.path.exists(self.parent.msg_log_file):
             pass
         else:
-            with open(self.parent.msg_log_file,"w") as log_file:
+            with open(self.parent.msg_log_file, "w") as log_file:
                 log_file.write("")
-        with open(self.parent.msg_log_file,"r") as log_file:
+        with open(self.parent.msg_log_file, "r") as log_file:
             tmp = log_file.read().splitlines()
-            log = "\n".join(tmp[-1*int(self.parent.msg_log_lines):])
+            log = "\n".join(tmp[-1 * int(self.parent.msg_log_lines):])
 
-        with open(self.parent.msg_log_file,"w") as log_file:
+        with open(self.parent.msg_log_file, "w") as log_file:
             log = log + "\n" + txt + "\n"
             log_file.write(log)
-
 
     # =================== OKNO GLOWNE ====================================
     def mkUI(self):
@@ -208,7 +205,7 @@ class MainForm(QWidget):
         self.takeControl_p.clicked.connect(self.parent.takeControl)
 
         grid.addWidget(self.ticStatus2_l, w, 0)
-        #grid.addWidget(self.tic_l, w, 1)
+        # grid.addWidget(self.tic_l, w, 1)
         grid.addWidget(self.control_e, w, 2, 1, 4)
         grid.addWidget(self.takeControl_p, w, 6)
         w = w + 1
@@ -260,9 +257,9 @@ class MainForm(QWidget):
 
         w = w + 1
         self.shutdown_p = QPushButton('Shutdown')
-        #self.shutdown_p.setStyleSheet(" color: gray;")
+        # self.shutdown_p.setStyleSheet(" color: gray;")
         self.weatherStop_p = QPushButton('Weather Stop')
-        #self.weatherStop_p.setStyleSheet(" color: gray;")
+        # self.weatherStop_p.setStyleSheet(" color: gray;")
         self.EmStop_p = QPushButton('Emergency Stop')
         self.EmStop_p.setStyleSheet(" color: rgb(133, 5, 5);")
 
@@ -408,11 +405,13 @@ class SkyView(QWidget):
 
         r, fi = 198, 224
         fi = fi * 2 * 3.14 / 360.
-        self.txt6= self.axes.text(fi, r, f"Moonset: {moonset}", fontsize=9)
+        self.txt6 = self.axes.text(fi, r, f"Moonset: {moonset}", fontsize=9)
 
         try:
-            self.sun = self.axes.plot(deg_to_decimal_deg(self.parent.almanac["sun_az"]) * 2 * 3.14 / 360., 90 - deg_to_decimal_deg(self.parent.almanac["sun_alt"]), "oy", alpha=0.7)
-            self.moon = self.axes.plot(deg_to_decimal_deg(self.parent.almanac["moon_az"]) * 2 * 3.14 / 360., 90 - deg_to_decimal_deg(self.parent.almanac["moon_alt"]), "ok", alpha=0.7)
+            self.sun = self.axes.plot(deg_to_decimal_deg(self.parent.almanac["sun_az"]) * 2 * 3.14 / 360.,
+                                      90 - deg_to_decimal_deg(self.parent.almanac["sun_alt"]), "oy", alpha=0.7)
+            self.moon = self.axes.plot(deg_to_decimal_deg(self.parent.almanac["moon_az"]) * 2 * 3.14 / 360.,
+                                       90 - deg_to_decimal_deg(self.parent.almanac["moon_alt"]), "ok", alpha=0.7)
         except Exception as es:
             print(es)
 
@@ -444,7 +443,8 @@ class SkyView(QWidget):
             alt = 90 - self.parent.mount_alt
             az = self.parent.mount_az
             az = az * 2 * 3.14 / 360.
-            self.mount = self.axes.plot(az, alt, color = color, marker = "o", markersize = "10", markerfacecolor = "white", alpha = 0.9)
+            self.mount = self.axes.plot(az, alt, color=color, marker="o", markersize="10", markerfacecolor="white",
+                                        alpha=0.9)
 
         # ### STARS ###
         try:
@@ -461,8 +461,8 @@ class SkyView(QWidget):
             pass
         if len(self.plan) > 0:
             self.plan_to_show = self.plan
-            i = int(self.plan_next_i)-1
-            if i < 0 : i = 0
+            i = int(self.plan_next_i) - 1
+            if i < 0: i = 0
             plan = self.plan_to_show[i:]
             az = [float(d["meta_az"]) for d in plan if "meta_az" in d]
             az = numpy.array(az)
@@ -504,7 +504,8 @@ class SkyView(QWidget):
                 az = float(star["meta_az"])
                 az = az * 2 * 3.14 / 360.
                 alt = 90 - float(star["meta_alt"])
-                point = self.axes.plot(az, alt, color="b", marker="D", markersize = "5", markerfacecolor = "white", alpha = 0.9)
+                point = self.axes.plot(az, alt, color="b", marker="D", markersize="5", markerfacecolor="white",
+                                       alpha=0.9)
                 self.stars.append(point)
             except Exception as e:
                 pass
@@ -523,7 +524,8 @@ class SkyView(QWidget):
             alt = 90 - self.parent.mount_alt
             az = self.parent.mount_az
             az = az * 2 * 3.14 / 360.
-            self.mount = self.axes.plot(az, alt, color = color, marker = "o", markersize = "10", markerfacecolor = "white", alpha = 0.7)
+            self.mount = self.axes.plot(az, alt, color=color, marker="o", markersize="10", markerfacecolor="white",
+                                        alpha=0.7)
 
             self.canvas.draw()
             self.show()
@@ -556,7 +558,7 @@ class SkyView(QWidget):
         self.canvas.draw()
         self.show()
 
-    def updateWind(self,parent):
+    def updateWind(self, parent):
         try:
             self.wind.remove()
         except Exception as e:
@@ -564,22 +566,23 @@ class SkyView(QWidget):
 
         self.parent = parent
         try:
-            wind=float(self.parent.telemetry_wind)
-            if wind<float(self.parent.cfg_wind_limit_pointing):
-                color="g"
-            elif wind<float(self.parent.cfg_wind_limit):
-                color="orange"
+            wind = float(self.parent.telemetry_wind)
+            if wind < float(self.parent.cfg_wind_limit_pointing):
+                color = "g"
+            elif wind < float(self.parent.cfg_wind_limit):
+                color = "orange"
             else:
                 color = "r"
             theta = float(self.parent.telemetry_wind_direction)
             theta = theta * numpy.pi / 180.
 
-            self.wind = self.axes.arrow(theta,120,0,-20,color=color,head_width=0.1,overhang=50,length_includes_head=True,head_starts_at_zero=True)
+            self.wind = self.axes.arrow(theta, 120, 0, -20, color=color, head_width=0.1, overhang=50,
+                                        length_includes_head=True, head_starts_at_zero=True)
 
             self.canvas.draw()
             self.show()
         except Exception as e:
-            print("toi, updateWind: ",e)
+            print("toi, updateWind: ", e)
 
     # ======= Budowa okna ====================
 

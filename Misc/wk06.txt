@@ -1,1 +1,9 @@
 <h4>Wojciech Krzeminski telescope <u>WK06</u></h4>
+------------------------------------------------
+<table>
+<tr><td>Ritchey–Chrétien <b>f7</b>  </td><td>|    focal length = <b>4200</b>mm </td></tr>
+<tr><td>filters: </td><td>|    Stromgren, J-C & diffusor </td></tr>
+<tr><td>Instrument: </td><td>|    Andor iKon-L <b>2048x2048</b> </td></tr>
+<tr><td>Pixscale = <b>0.66</b>'/pix </td><td>|    FOV = <b>22.5</b> arcmin   </td> </tr>
+</table>
+------------------------------------------------

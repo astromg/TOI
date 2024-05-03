@@ -30,6 +30,7 @@ from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from pyaraucaria.coordinates import *
 
 from toi_lib import *
+from telescope_plan_generator import telescope_plan_generator as tpg
 
 
 
@@ -42,6 +43,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.subscriber_time_of_data_tolerance = 0.5
 
           self.parent=parent
+
 
           #self.setStyleSheet("font-size: 11pt;")
           self.setGeometry(self.parent.plan_geometry[0],self.parent.plan_geometry[1],self.parent.plan_geometry[2],self.parent.plan_geometry[3])
@@ -72,6 +74,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.phase_window=PhaseWindow(self)
             self.phase_window.show()
             self.phase_window.raise_()
+
+      def run_tpg(self):
+          self.tpg_window = TPGWindow(self)
 
 
       def pocisniecie_copy(self):
@@ -859,9 +864,11 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           w=w+3
           self.load_p=QPushButton('Load Plan')
+          self.tpg_p = QPushButton('TPG')
           self.save_p = QPushButton('Save Plan')
 
           self.grid.addWidget(self.load_p, w,0,1,2)
+          self.grid.addWidget(self.tpg_p, w, 2, 1, 1)
           self.grid.addWidget(self.save_p, w,3,1,2)
 
 
@@ -871,6 +878,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.start_p.clicked.connect(self.parent.plan_start)
 
           self.load_p.clicked.connect(self.loadPlan)
+          self.tpg_p.clicked.connect(self.run_tpg)
           self.save_p.clicked.connect(self.savePlan)
           self.plan_t.cellClicked.connect(self.pocisniecie_tabelki)
           self.plan_t.horizontalHeader().sectionClicked.connect(self.pocisniecie_headera)
@@ -906,6 +914,89 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           await self.stop_background_tasks()
           super().closeEvent(event)
 
+
+# #############################################
+# ######### OKNO TPG  ##########
+# #############################################
+
+class TPGWindow(QWidget):
+    def __init__(self, parent):
+        super(TPGWindow, self).__init__()
+        self.parent = parent
+        self.setStyleSheet("font-size: 11pt;")
+        self.setMinimumSize(200,200)
+        #self.setGeometry(100,100,400,100)
+        self.mkUI()
+
+
+    def add(self):
+        tel = self.parent.parent.active_tel
+        ut = self.ut_e.text()
+
+        if self.ut_c.isChecked():
+            date = [ut.split()[0],ut.split()[1]]
+        else:
+            date = [ut.split()[0]]
+
+        if self.wind_c.isChecked():
+            wind = float(self.wind_e.text())
+        else:
+            wind = None
+
+        p = tpg(tel, date, wind=wind)
+
+        tmp_plan=[]
+        for blok in p.plan:
+            ob, ok, tmp1, tmp2, tmp3 = ob_parser(blok, overhed=self.parent.parent.overhed,
+                                                                 filter_list=self.parent.parent.filter_list)
+            tmp_plan.append(ob)
+        self.parent.plan[self.parent.i + 1:self.parent.i + 1] = tmp_plan
+        self.parent.update_table()
+
+        self.close()
+
+
+    def mkUI(self):
+        grid = QGridLayout()
+
+
+        self.ut_c = QCheckBox("Start at UT")
+        self.ut_c.setChecked(False)
+        self.ut_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        #self.phase_c.clicked.connect(self.refresh)
+        self.ut_e = QLineEdit("")
+        self.ut_e.setText(f"{self.parent.parent.ut}")
+
+        self.wind_c = QCheckBox("Avoid wind direction")
+        self.wind_c.setChecked(False)
+        self.wind_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        #self.phase_c.clicked.connect(self.refresh)
+        self.wind_e = QLineEdit("")
+        self.wind_e.setText(f"{self.parent.parent.telemetry_wind_direction:.0f}")
+
+        self.repeat_c = QCheckBox("Dont repean observed objects")
+        self.repeat_c.setChecked(False)
+        self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        #self.phase_c.clicked.connect(self.refresh)
+
+        self.add_p = QPushButton('Generate Plan')
+        self.add_p.clicked.connect(self.add)
+        self.close_p = QPushButton('Cancel')
+        self.close_p.clicked.connect(lambda: self.close())
+
+        grid.addWidget(self.ut_c, 1, 0)
+        grid.addWidget(self.ut_e, 1, 1)
+
+        grid.addWidget(self.wind_c, 2, 0)
+        grid.addWidget(self.wind_e, 2, 1)
+
+        grid.addWidget(self.repeat_c, 3, 0,1,2)
+
+        grid.addWidget(self.add_p, 4, 1)
+        grid.addWidget(self.close_p, 4, 0)
+
+        self.setLayout(grid)
+        self.show()
 
 
 

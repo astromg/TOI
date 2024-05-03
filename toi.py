@@ -193,7 +193,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             self.cfg_inst_defSetUp = {"gain": "4x", "rm": "1MHz","bin":"1x1", "temp":-58}
 
-            self.overhed = 10
+            self.overhed = 15
 
         elif tel == "zb08":
             self.cfg_tel_directory = "/data/fits/zb08/"
@@ -213,7 +213,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             self.cfg_inst_defSetUp = {"gain": "4x", "rm": "1MHz","bin":"1x1", "temp":-58}
 
-            self.overhed = 10
+            self.overhed = 15
 
         elif tel == "jk15":
             self.cfg_tel_directory = "/data/fits/jk15/"
@@ -906,17 +906,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def PlanRun1(self,info):
 
-        # obsluga poczatku i konca OB
-        # if "name" in info.keys() and "seq" in info.keys() and "started" in info.keys() and "done" in info.keys():
-        #     if info["name"] == "OBJECT":
-        #         if info["started"] == True and info["done"] == False:
-        #             self.ob_exec = True
-        #             self.ob_start_time = self.time
-        #
-        #         if info["started"] == True and info["done"] == True:
-        #             self.ob_exec = False
-        #             self.ob_start_time = 0
-
 
         if "exp_started" in info.keys() and "exp_done" in info.keys() and "exp_saved" in info.keys():
             if info["exp_started"]==True and info["exp_done"]==True and info["exp_saved"]==True:
@@ -1247,6 +1236,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.planrunner.astop_nightplan()
         self.planGui.current_i = -1
         self.planGui.update_table()
+
+        self.ob_started = False
+        self.ob_done = True
+        self.ob_time = 0
+        self.ob_start_time = 0
 
 
     # ############ CCD ##################################
