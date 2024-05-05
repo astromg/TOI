@@ -933,11 +933,10 @@ class TPGWindow(QWidget):
         tel = self.parent.parent.active_tel
         ut = self.ut_e.text()
 
-        if self.ut_c.isChecked():
-            date = [ut.split()[0],ut.split()[1]]
-        else:
+        if self.sunset_c.isChecked():
             date = [ut.split()[0]]
-
+        else:
+            date = [ut.split()[0], ut.split()[1]]
         if self.wind_c.isChecked():
             wind = float(self.wind_e.text())
         else:
@@ -959,33 +958,33 @@ class TPGWindow(QWidget):
     def mkUI(self):
         grid = QGridLayout()
 
-
-        self.ut_c = QCheckBox("Start at UT")
-        self.ut_c.setChecked(False)
-        self.ut_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-        #self.phase_c.clicked.connect(self.refresh)
+        self.sunset_c = QCheckBox("Start at SUNSET")
+        self.sunset_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
         self.ut_e = QLineEdit("")
         self.ut_e.setText(f"{self.parent.parent.ut}")
+
+        if ephem.Date(self.parent.parent.almanac["sunset"]) > ephem.Date(self.parent.parent.almanac["sunrise"]):
+            self.sunset_c.setChecked(False)
 
         self.wind_c = QCheckBox("Avoid wind direction")
         self.wind_c.setChecked(False)
         self.wind_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-        #self.phase_c.clicked.connect(self.refresh)
         self.wind_e = QLineEdit("")
         self.wind_e.setText(f"{self.parent.parent.telemetry_wind_direction:.0f}")
 
-        self.repeat_c = QCheckBox("Dont repean observed objects")
+        self.repeat_c = QCheckBox("Dont repeat observed objects")
         self.repeat_c.setChecked(False)
-        self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-        #self.phase_c.clicked.connect(self.refresh)
+        self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+        #self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+
 
         self.add_p = QPushButton('Generate Plan')
         self.add_p.clicked.connect(self.add)
         self.close_p = QPushButton('Cancel')
         self.close_p.clicked.connect(lambda: self.close())
 
-        grid.addWidget(self.ut_c, 1, 0)
-        grid.addWidget(self.ut_e, 1, 1)
+        grid.addWidget(self.ut_e, 0, 0,1,2)
+        grid.addWidget(self.sunset_c, 1, 0)
 
         grid.addWidget(self.wind_c, 2, 0)
         grid.addWidget(self.wind_e, 2, 1)

@@ -18,7 +18,7 @@ import subprocess
 from pathlib import Path
 
 #from astropy.io import fits
-#import pyaraucaria
+from pyaraucaria import dome_eq
 
 
 from PyQt5 import QtWidgets, QtCore, QtGui
@@ -71,8 +71,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.myself=f'{user}@{host}'
         self.observatory_model = observatory_model
 
-
         self.variables_init()
+
 
         # window generation
 
@@ -102,7 +102,40 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_weather_loop())
 
 
+        self.oca_telemetry={}
+        self.add_tel_telemetry("wk06")
+        self.add_tel_telemetry("zb08")
+
+        self.add_background_task(self.oca_telemetry_reader())
+
+    def add_tel_telemetry(self,tel):
+        self.oca_telemetry[tel] = {
+            "name": tel,
+            "dome_shutter": None,
+            "dome_slewing": None
+        }
+
+
+    async def oca_telemetry_reader(self):
+        for t in self.oca_telemetry.keys():
+            tel = self.oca_telemetry[t]["name"]
+            try:
+                r = get_reader(f'tic.status.{tel}.dome.shutterstatus', deliver_policy='last')
+                async for data, meta in r:
+                    txt = data
+                    print("STATUSY TIC ", tel,txt)
+            except Exception as e:
+                logger.warning(f'{e}')
+
     # NATS weather
+
+    async def nats_get_config(self):
+        observatory_config = {}
+        try:
+            observatory_config, meta = await single_read('tic.config.observatory')
+            #print(observatory_config)
+        except Exception as e:
+            logger.warning('Getting observatory config from NATS failed')
 
     async def nats_weather_loop(self):
         try:
@@ -120,13 +153,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 
-    async def nats_get_config(self):
-        observatory_config = {}
-        try:
-            observatory_config, meta = await single_read('tic.config.observatory')
-            #print(observatory_config)
-        except Exception as e:
-            logger.warning('Getting observatory config from NATS failed')
+
 
 
 
@@ -170,6 +197,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.flat_record={}
         self.flat_record["go"] = False
+
+        self.almanac = Almanac(self.observatory)
 
         # TELESCOPE CONFIGURATION HARDCODED
         tel=self.obs_tel_tic_names[self.active_tel_i]
@@ -316,7 +345,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_log_flat_reader())
         self.add_background_task(self.nats_log_focus_reader())
         self.add_background_task(self.nats_log_toi_reader())
-        self.add_background_task(self.nats_tic_reader())
+        #self.add_background_task(self.nats_tic_reader())
 
 
 
@@ -349,14 +378,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # ################### METODY POD NATSY ##################
 
 
-    async def nats_tic_reader(self):
-        try:
-            reader = get_reader(f'tic.status.{self.active_tel}.mount.tracking', deliver_policy='last')
-            async for data, meta in reader:
-                txt = data
-                print("TIC : ", txt)
-        except Exception as e:
-            pass
 
     async def nats_log_flat_reader(self):
         reader = get_journalreader(f'tic.journal.{self.active_tel}.log.flats', deliver_policy='last')
@@ -411,6 +432,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 tmp = await self.telescope.is_telescope_alpaca_server_available()
                 self.tel_alpaca_conn = tmp["alpaca"]
 
+            if self.tic_conn == True and self.comProblem == False:
+                self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
+                self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: green;")
+            elif self.tic_conn == False and self.comProblem == False:
+                self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
+                self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
+
             if self.tic_conn and self.tel_alpaca_conn:
 
                 self.mount_conn = True
@@ -429,6 +457,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         while True:
             await asyncio.sleep(1)
             #print("* PING")
+
+            self.tic_conn = await self.observatory_model.is_tic_server_available()
+
+            if self.tic_conn == True and self.comProblem == False:
+                self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
+                self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: green;")
+            elif self.tic_conn == False and self.comProblem == False:
+                self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
+                self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
+
+
 
             # ############# GUIDER ################
             # to jest brudny algorytm guidera
@@ -1748,6 +1787,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                self.mntGui.telCovers_e.setStyleSheet("color: rgb(233, 0, 0); background-color: rgb(233, 233, 233);")
 
            self.mntGui.telCovers_e.setText(txt)
+           self.obsGui.main_form.skyView.updateMount()
 
     @qs.asyncSlot()
     async def park_mount(self):
@@ -2624,6 +2664,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mount_tracking="--"
         self.pulseRa = 0
         self.pulseDec = 0
+        self.cover_status = None
 
 
         # focus

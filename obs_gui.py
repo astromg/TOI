@@ -429,22 +429,28 @@ class SkyView(QWidget):
 
     def updateRadar(self):
         # ### MOUNT ###
-        try:
-            for p in self.mount:
-                p.remove()
-        except Exception as e:
-            pass
-        color = "r"
-        if self.parent.mount_tracking:
-            color = "g"
-        if self.parent.mount_slewing:
-            color = "orange"
-        if self.parent.mount_alt:
-            alt = 90 - self.parent.mount_alt
-            az = self.parent.mount_az
-            az = az * 2 * 3.14 / 360.
-            self.mount = self.axes.plot(az, alt, color=color, marker="o", markersize="10", markerfacecolor="white",
-                                        alpha=0.9)
+        # try:
+        #     for p in self.mount:
+        #         p.remove()
+        # except Exception as e:
+        #     pass
+        # color = "r"
+        # if self.parent.mount_tracking:
+        #     color = "g"
+        # if self.parent.mount_slewing:
+        #     color = "orange"
+        # if self.parent.cover_status == 1:
+        #     facecolor = "red"
+        # elif self.parent.cover_status == 3:
+        #     facecolor = "white"
+        # else:
+        #     facecolor = "red"
+        # if self.parent.mount_alt:
+        #     alt = 90 - self.parent.mount_alt
+        #     az = self.parent.mount_az
+        #     az = az * 2 * 3.14 / 360.
+        #     self.mount = self.axes.plot(az, alt, color=color, marker="o", markersize="10", markerfacecolor="red",
+        #                                 alpha=0.9)
 
         # ### STARS ###
         try:
@@ -518,13 +524,20 @@ class SkyView(QWidget):
         except:
             pass
         color = "r"
-        if self.parent.mount_tracking: color = "g"
-        if self.parent.mount_slewing: color = "orange"
+        facecolor = "r"
+        if self.parent.mount_tracking:
+            color = "g"
+            facecolor = "g"
+        if self.parent.mount_slewing:
+            color = "orange"
+            facecolor = "orange"
+        if self.parent.cover_status == 3:
+            facecolor = "white"
         if self.parent.mount_alt:
             alt = 90 - self.parent.mount_alt
             az = self.parent.mount_az
             az = az * 2 * 3.14 / 360.
-            self.mount = self.axes.plot(az, alt, color=color, marker="o", markersize="10", markerfacecolor="white",
+            self.mount = self.axes.plot(az, alt, color=color, marker="o", markersize="10", markerfacecolor=facecolor,
                                         alpha=0.7)
 
             self.canvas.draw()
