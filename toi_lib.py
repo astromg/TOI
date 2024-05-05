@@ -413,7 +413,6 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
 def calc_slot_time(seq, overhed):
     slotTime = 10
     k = 1
-    res = 0
     try:
         if "x(" in seq and ")" in seq:
             k = int(seq.split("x")[0])
@@ -422,10 +421,10 @@ def calc_slot_time(seq, overhed):
             if "a" in x_seq:
                 x_seq = x_seq.replace("/a", "/5")
             slotTime = slotTime + (float(x_seq.split("/")[0]) * (float(x_seq.split("/")[2]) + float(overhed)))
-        res = k * slotTime
+        slotTime = k * slotTime
     except:
         print(f"wrong seq {seq}")
-    return res
+    return slotTime
 
 
 def readCatalog(plik):
