@@ -436,6 +436,15 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                      if "type" in self.plan[i].keys():
                          if self.plan[i]["type"] == "FOCUS":
                              txt = "FOCUS "+ self.plan[i]["name"]
+                         elif self.plan[i]["type"] == "WAIT":
+                             try: txt = "wait="+self.plan[i]["wait"]
+                             except: pass
+                             try: txt = "ut="+self.plan[i]["wait_ut"]
+                             except: pass
+                             try: txt = "sunset="+self.plan[i]["wait_sunset"]
+                             except: pass
+                             try: txt = "sunrise="+self.plan[i]["wait_sunrise"]
+                             except: pass
                          else:
                              txt = self.plan[i]["name"]
                      else:
@@ -1461,6 +1470,7 @@ class EditWindow(QWidget):
           self.setWindowTitle("EDIT WINDOW")
           self.parent=parent
           self.setStyleSheet("font-size: 11pt;")
+          self.types = ["STOP","BELL","WAIT","OBJECT","DARK","ZERO","SKYFLAT","DOMEFLAT","FOCUS"]
           self.mkUI()
           self.refresh()
           self.close_p.clicked.connect(lambda: self.close())
@@ -1468,6 +1478,8 @@ class EditWindow(QWidget):
 
       def refresh(self):
           self.tab_t.disconnect()
+          self.type_s.disconnect()
+          self.block_e.disconnect()
           block = self.block_e.text()
           self.ob,self.ok,self.active,self.options,self.ob_header = ob_parser(block,overhed=self.parent.parent.overhed,filter_list=self.parent.parent.filter_list)
 
@@ -1476,18 +1488,30 @@ class EditWindow(QWidget):
           else:
               self.block_e.setStyleSheet("background-color: rgb(255, 160, 0);")
           self.update_tab()
+          self.table_changed()
           self.estimTime_e.setText(str(self.ob["slotTime"]))
           self.tab_t.cellChanged.connect(self.table_changed)
+          self.type_s.currentIndexChanged.connect(self.type_changed)
+          self.block_e.textChanged.connect(self.refresh)
 
 
+      def type_changed(self):
+          block = self.block_e.text()
+          block = block.replace(block.split()[0],self.type_s.currentText())
+          self.block_e.setText(block)
+          self.refresh()
 
       def update_tab(self):
+
+          self.type_s.setCurrentText(self.ob["type"])
+
           self.tab_t.clearContents()
+          self.tab_t.setRowCount(0)
           j=0
           self.keys_in_table=[]
           for i,k in enumerate(self.ob.keys()):
               if self.active[k] is not False:
-                  if k not in ["slotTime","block","ok"]:
+                  if k not in ["slotTime","block","ok","type"]:
                       if self.tab_t.rowCount() <= j:
                           self.tab_t.insertRow(j)
                       txt = str(self.ob_header[k])
@@ -1513,19 +1537,34 @@ class EditWindow(QWidget):
           self.tab_t.resizeColumnsToContents()
           self.tab_t.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
-      def table_changed(self,x,y):
-          if self.tab_t.rowCount()>1:
+      def table_changed(self,x=None,y=None):
+          if self.tab_t.rowCount()>0:
+              txt = self.type_s.currentText()+" "
               i=-1
-              txt = ""
               for i in range(self.tab_t.rowCount()):
                   k = self.keys_in_table[i]
                   if self.tab_t.item(i,1):
-                      if k == "name" and self.tab_t.item(i, 1).text().strip() in ["ZERO","DARK","STOP","BELL"]:
+                      if k == "type":
+                          pass
+                      elif k == "name" and self.tab_t.item(i, 1).text().strip() in ["ZERO","DARK","STOP","BELL"]:
                           pass
                       elif k == "comment":
                           txt = txt + self.ob_header[k] + '"' + self.tab_t.item(i, 1).text().strip() + '"'
+                      elif k == "wait":
+                          if len(self.tab_t.item(i,1).text().strip())>0:
+                            txt = txt + self.ob_header[k] + self.tab_t.item(i, 1).text().strip() + " "
+                      elif k == "wait_ut":
+                          if len(self.tab_t.item(i,1).text().strip())>0:
+                            txt = txt + self.ob_header[k] + self.tab_t.item(i, 1).text().strip() + " "
+                      elif k == "wait_sunset":
+                          if  len(self.tab_t.item(i,1).text().strip())>0:
+                            txt = txt + self.ob_header[k] + self.tab_t.item(i, 1).text().strip() + " "
+                      elif k == "wait_sunrise":
+                          if len(self.tab_t.item(i,1).text().strip())>0:
+                            txt = txt + self.ob_header[k] + self.tab_t.item(i, 1).text().strip() + " "
                       else:
                           txt = txt + self.ob_header[k] + self.tab_t.item(i,1).text().strip() + " "
+              self.block_e.setText("")
               self.block_e.setText(txt)
 
       def change_plan(self):
@@ -1546,6 +1585,14 @@ class EditWindow(QWidget):
 
           w=w+1
           grid.addWidget(self.block_e, w,0,1,2)
+
+          w=w+1
+          self.type_l = QLabel("TYPE")
+          self.type_s = QComboBox()
+          self.type_s.addItems(self.types)
+          grid.addWidget(self.type_l, w, 0)
+          grid.addWidget(self.type_s, w, 1)
+
           w=w+1
           self.tab_t=QTableWidget(1,2)
           grid.addWidget(self.tab_t, w,0,1,2)

@@ -84,60 +84,114 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
              "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True, "comment": None})
 
     if type == "WAIT":
-        try:
-            ob["name"] = ll[1]
-            ok["name"] = True
-        except:
-            ok["name"] = False
+
+        ob["name"] = ""
+        ok["name"] = True
         active = OrderedDict(
             {"block": True, "ok":True, "type": True, "name": True, "ra": False, "dec": False, "seq": False, "pos": False, "wait": None,
              "wait_ut": None, "wait_sunset": None, "wait_sunrise": None, "slotTime": True, "comment": None})
 
+        chx = True
         if "wait=" in block:
             try:
                 tmp = block.split("wait=")[1].split()[0]
-                ob["wait"] = tmp
-                q = float(tmp)+1
-                ok["wait"] = True
+                if "=" not in tmp:
+                    ob["wait"] = tmp
+                    q = float(tmp)+1
+                    ok["wait"] = True
+                    active["wait"] = True
+                    chx = False
+                else:
+                    ok["wait"] = False
+                    active["wait"] = None
+                    active["wait_ut"] = None
+                    active["wait_sunset"] = None
+                    active["wait_sunrise"] = None
             except:
                 ok["wait"] = False
-            active["wait"] = True
-        elif "ut=" in block:
+                active["wait"] = None
+                active["wait_ut"] = None
+                active["wait_sunset"] = None
+                active["wait_sunrise"] = None
+
+        if "ut=" in block and chx:
             try:
                 tmp = block.split("ut=")[1].split()[0]
-                ob["wait_ut"] = tmp
-                q = 3600*float(tmp.split(":")[0])+60*float(tmp.split(":")[1])+float(tmp.split(":")[2])
-                ok["wait_ut"] = True
+                if "=" not in tmp:
+                    ob["wait_ut"] = tmp
+                    q = 3600*float(tmp.split(":")[0])+60*float(tmp.split(":")[1])+float(tmp.split(":")[2])
+                    ok["wait_ut"] = True
+                    active["wait_ut"] = True
+                    chx = False
+                else:
+                    ok["wait_ut"] = False
+                    active["wait"] = None
+                    active["wait_ut"] = None
+                    active["wait_sunset"] = None
+                    active["wait_sunrise"] = None
             except:
                 ok["wait_ut"] = False
-            active["wait_ut"] = True
-        elif "sunset=" in block:
+                active["wait"] = None
+                active["wait_ut"] = None
+                active["wait_sunset"] = None
+                active["wait_sunrise"] = None
+
+        if "sunset=" in block and chx:
             try:
                 tmp = block.split("sunset=")[1].split()[0]
-                ob["wait_sunset"] = tmp
-                q = float(tmp)
-                ok["wait_sunset"] = True
+                if "=" not in tmp:
+                    ob["wait_sunset"] = tmp
+                    q = float(tmp)
+                    ok["wait_sunset"] = True
+                    active["wait_sunset"] = True
+                    chx = False
+                else:
+                    ok["wait_sunset"] = False
+                    active["wait"] = None
+                    active["wait_ut"] = None
+                    active["wait_sunset"] = None
+                    active["wait_sunrise"] = None
             except:
                 ok["wait_sunset"] = False
-            active["wait_sunset"] = True
-        elif "sunrise=" in block:
+                active["wait"] = None
+                active["wait_ut"] = None
+                active["wait_sunset"] = None
+                active["wait_sunrise"] = None
+
+        if "sunrise=" in block and chx:
             try:
                 tmp = block.split("sunrise=")[1].split()[0]
-                ob["wait_sunrise"] = tmp
-                q = float(tmp)
-                ok["wait_sunrise"] = True
+                if "=" not in tmp:
+                    ob["wait_sunrise"] = tmp
+                    q = float(tmp)
+                    ok["wait_sunrise"] = True
+                    active["wait_sunrise"] = True
+                    chx = False
+                else:
+                    ok["wait_sunrise"] = False
+                    active["wait"] = None
+                    active["wait_ut"] = None
+                    active["wait_sunset"] = None
+                    active["wait_sunrise"] = None
             except:
                 ok["wait_sunrise"] = False
-            active["wait_sunrise"] = True
-        else:
+                active["wait"] = None
+                active["wait_ut"] = None
+                active["wait_sunset"] = None
+                active["wait_sunrise"] = None
+
+        if chx:
             ok["wait"] = False
-            active["wait"] = True
             ok["wait_ut"] = False
-            active["wait_ut"] = True
             ok["wait_sunset"] = False
-            active["wait_sunset"] = True
             ok["wait_sunrise"] = False
-            active["wait_sunrise"] = True
+            active["wait"] = None
+            active["wait_ut"] = None
+            active["wait_sunset"] = None
+            active["wait_sunrise"] = None
+
+
+
 
     if type == "ZERO":
         ob["name"] = "ZERO"
@@ -145,17 +199,18 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         active = OrderedDict(
             {"block": True, "ok":True, "type": True, "name": True, "ra": False, "dec": False, "seq": True, "pos": False, "wait": False,
              "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True, "comment": None})
-
         if "seq=" in block:
             try:
                 tmp = block.split("seq=")[1].split()[0]
-                ob["seq"] = tmp
-                ver,err = seq_verification(tmp, filter_list)
-                if ver:
-                    ok["seq"] = True
-                    ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
-                else:
-                    ok["seq"] = False
+                if "=" not in tmp:
+                    ob["seq"] = tmp
+                    ver,err = seq_verification(tmp, filter_list)
+                    if ver:
+                        ok["seq"] = True
+                        ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                    else:
+                        ok["seq"] = False
+                ok["seq"] = False
             except:
                 ok["seq"] = False
 
@@ -170,11 +225,14 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         if "seq=" in block:
             try:
                 tmp = block.split("seq=")[1].split()[0]
-                ob["seq"] = tmp
-                ver,err = seq_verification(tmp, filter_list)
-                if ver:
-                    ok["seq"] = True
-                    ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                if "=" not in tmp:
+                    ob["seq"] = tmp
+                    ver,err = seq_verification(tmp, filter_list)
+                    if ver:
+                        ok["seq"] = True
+                        ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                    else:
+                        ok["seq"] = False
                 else:
                     ok["seq"] = False
             except:
@@ -193,11 +251,14 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         if "seq=" in block:
             try:
                 tmp = block.split("seq=")[1].split()[0]
-                ob["seq"] = tmp
-                ver,err = seq_verification(tmp, filter_list)
-                if ver:
-                    ok["seq"] = True
-                    ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                if "=" not in tmp:
+                    ob["seq"] = tmp
+                    ver,err = seq_verification(tmp, filter_list)
+                    if ver:
+                        ok["seq"] = True
+                        ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                    else:
+                        ok["seq"] = False
                 else:
                     ok["seq"] = False
             except:
@@ -243,11 +304,14 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         if "seq=" in block:
             try:
                 tmp = block.split("seq=")[1].split()[0]
-                ob["seq"] = tmp
-                ver,err = seq_verification(tmp, filter_list)
-                if ver:
-                    ok["seq"] = True
-                    ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                if "=" not in tmp:
+                    ob["seq"] = tmp
+                    ver,err = seq_verification(tmp, filter_list)
+                    if ver:
+                        ok["seq"] = True
+                        ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                    else:
+                        ok["seq"] = False
                 else:
                     ok["seq"] = False
             except:
@@ -294,11 +358,14 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         if "seq=" in block:
             try:
                 tmp = block.split("seq=")[1].split()[0]
-                ob["seq"] = tmp
-                ver, err = seq_verification(tmp, filter_list)
-                if ver:
-                    ok["seq"] = True
-                    ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                if "=" not in tmp:
+                    ob["seq"] = tmp
+                    ver, err = seq_verification(tmp, filter_list)
+                    if ver:
+                        ok["seq"] = True
+                        ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                    else:
+                        ok["seq"] = False
                 else:
                     ok["seq"] = False
             except:
@@ -344,11 +411,14 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         if "seq=" in block:
             try:
                 tmp = block.split("seq=")[1].split()[0]
-                ob["seq"] = tmp
-                ver, err = seq_verification(tmp, filter_list)
-                if ver:
-                    ok["seq"] = True
-                    ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                if "=" not in tmp:
+                    ob["seq"] = tmp
+                    ver, err = seq_verification(tmp, filter_list)
+                    if ver:
+                        ok["seq"] = True
+                        ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
+                    else:
+                        ok["seq"] = False
                 else:
                     ok["seq"] = False
             except:
@@ -357,9 +427,12 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         if "pos=" in block:
             try:
                 tmp = block.split("pos=")[1].split()[0]
-                ob["pos"] = tmp
-                if float(tmp.split("/")[0])>0 and float(tmp.split("/")[1])>0:
-                    ok["pos"] = True
+                if "=" not in tmp:
+                    ob["pos"] = tmp
+                    if float(tmp.split("/")[0])>0 and float(tmp.split("/")[1])>0:
+                        ok["pos"] = True
+                    else:
+                        ok["pos"] = False
                 else:
                     ok["pos"] = False
             except:
@@ -400,11 +473,11 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         except:
             pass
 
-    ob = {key: value for key, value in ob.items() if active.get(key)}
-    ok = {key: value for key, value in ok.items() if active.get(key)}
-    options = {key: value for key, value in options.items() if active.get(key)}
-    ob_header = {key: value for key, value in ob_header.items() if active.get(key)}
-    active = {key: value for key, value in active.items() if active.get(key)}
+    ob = {key: value for key, value in ob.items() if active.get(key) != False}
+    ok = {key: value for key, value in ok.items() if active.get(key) != False}
+    options = {key: value for key, value in options.items() if active.get(key) != False}
+    ob_header = {key: value for key, value in ob_header.items() if active.get(key) != False}
+    active = {key: value for key, value in active.items() if active.get(key) != False}
 
     ob["ok"]=ok["block"]
 
