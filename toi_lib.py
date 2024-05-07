@@ -210,9 +210,11 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
                         ob["slotTime"] = calc_slot_time(ob["seq"], overhed)
                     else:
                         ok["seq"] = False
-                ok["seq"] = False
+                else:
+                    ok["seq"] = False
             except:
                 ok["seq"] = False
+            print("DUPA ", ok["seq"])
 
 
     if type == "DARK":

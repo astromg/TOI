@@ -196,37 +196,40 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   tmp_ok = True
               if tmp_ok:
                   self.plan[i]["meta_plan_ut"] = str(ephem.Date(ob_time))
-
                   if "wait" in self.plan[i].keys():
-                      ob_time =  ob_time + ephem.second * float(self.plan[i]["wait"])
+                      if len(self.plan[i]["wait"])>0:
+                        ob_time =  ob_time + ephem.second * float(self.plan[i]["wait"])
 
                   if "wait_ut" in self.plan[i].keys():
-                      wait_ut = ephem.Date(ob_date+" "+self.plan[i]["wait_ut"])
-                      if ob_time < wait_ut:
-                          ob_time =  wait_ut
+                      if len(self.plan[i]["wait_ut"]) > 0:
+                          wait_ut = ephem.Date(ob_date+" "+self.plan[i]["wait_ut"])
+                          if ob_time < wait_ut:
+                              ob_time =  wait_ut
 
                   if "wait_sunset" in self.plan[i].keys():
-                      oca = ephem.Observer()
-                      oca.date = ephem.now()
-                      oca.lat = self.parent.observatory[0]
-                      oca.lon = self.parent.observatory[1]
-                      oca.elevation = float(self.parent.observatory[2])
-                      oca.horizon = self.plan[i]["wait_sunset"]
-                      wait_ut =  oca.next_setting(ephem.Sun(), use_center=True)
-                      if ob_time < wait_ut:
-                          ob_time =  wait_ut
+                      if len(self.plan[i]["wait_sunset"]) > 0:
+                          oca = ephem.Observer()
+                          oca.date = ephem.now()
+                          oca.lat = self.parent.observatory[0]
+                          oca.lon = self.parent.observatory[1]
+                          oca.elevation = float(self.parent.observatory[2])
+                          oca.horizon = self.plan[i]["wait_sunset"]
+                          wait_ut =  oca.next_setting(ephem.Sun(), use_center=True)
+                          if ob_time < wait_ut:
+                              ob_time =  wait_ut
 
 
                   if "wait_sunrise" in self.plan[i].keys():
-                      oca = ephem.Observer()
-                      oca.date = ephem.now()
-                      oca.lat = self.parent.observatory[0]
-                      oca.lon = self.parent.observatory[1]
-                      oca.elevation = float(self.parent.observatory[2])
-                      oca.horizon = self.plan[i]["wait_sunrise"]
-                      wait_ut = oca.next_rising(ephem.Sun(), use_center=True)
-                      if ob_time < wait_ut:
-                          ob_time =  wait_ut
+                      if len(self.plan[i]["wait_sunrise"]) > 0:
+                          oca = ephem.Observer()
+                          oca.date = ephem.now()
+                          oca.lat = self.parent.observatory[0]
+                          oca.lon = self.parent.observatory[1]
+                          oca.elevation = float(self.parent.observatory[2])
+                          oca.horizon = self.plan[i]["wait_sunrise"]
+                          wait_ut = oca.next_rising(ephem.Sun(), use_center=True)
+                          if ob_time < wait_ut:
+                              ob_time =  wait_ut
 
                   if "ra" in self.plan[i].keys():
                       ra = self.plan[i]["ra"]
@@ -437,14 +440,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                          if self.plan[i]["type"] == "FOCUS":
                              txt = "FOCUS "+ self.plan[i]["name"]
                          elif self.plan[i]["type"] == "WAIT":
-                             try: txt = "wait="+self.plan[i]["wait"]
-                             except: pass
-                             try: txt = "ut="+self.plan[i]["wait_ut"]
-                             except: pass
-                             try: txt = "sunset="+self.plan[i]["wait_sunset"]
-                             except: pass
-                             try: txt = "sunrise="+self.plan[i]["wait_sunrise"]
-                             except: pass
+                             txt = f'{self.plan[i]["block"].split()[1]} '
+
                          else:
                              txt = self.plan[i]["name"]
                      else:
