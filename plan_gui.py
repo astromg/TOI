@@ -1214,37 +1214,41 @@ class PlotWindow(QWidget):
                             self.axes.text(self.t,2,"STOP",rotation=90,fontsize=fontsize)
 
                     if "wait" in self.parent.plan[i].keys():
-                        slotTime = float(self.parent.plan[i]["wait"])
-                        self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
-                        self.axes.text(self.t, 3, f"WAIT {int(slotTime)}s", rotation=90, fontsize=fontsize)
-                        self.t = self.t + ephem.second * slotTime
+                        if len(self.parent.plan[i]["wait"]) > 0:
+                            slotTime = float(self.parent.plan[i]["wait"])
+                            self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
+                            self.axes.text(self.t, 3, f"WAIT {int(slotTime)}s", rotation=90, fontsize=fontsize)
+                            self.t = self.t + ephem.second * slotTime
 
                     if "wait_ut" in self.parent.plan[i].keys():
-                        ob_date = str(ephem.Date(ephem.now())).split()[0]
-                        wait_ut = ephem.Date(ob_date + " " + self.parent.plan[i]["wait_ut"])
-                        if self.t < wait_ut:
-                            self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
-                                                    alpha=0.5)
-                            self.axes.text(self.t, 3, f"WAIT UT {wait_ut}", rotation=90, fontsize=fontsize)
-                            self.t = wait_ut
+                        if len(self.parent.plan[i]["wait_ut"]) > 0:
+                            ob_date = str(ephem.Date(ephem.now())).split()[0]
+                            wait_ut = ephem.Date(ob_date + " " + self.parent.plan[i]["wait_ut"])
+                            if self.t < wait_ut:
+                                self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
+                                                        alpha=0.5)
+                                self.axes.text(self.t, 3, f"WAIT UT {wait_ut}", rotation=90, fontsize=fontsize)
+                                self.t = wait_ut
 
                     if "wait_sunset" in self.parent.plan[i].keys():
-                        self.oca.horizon = self.parent.plan[i]["wait_sunset"]
-                        wait_ut = self.oca.next_setting(ephem.Sun(), use_center=True)
-                        if self.t < wait_ut:
-                            self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
-                                                    alpha=0.5)
-                            self.axes.text(self.t, 3, f"WAIT SUNSET {wait_ut}", rotation=90, fontsize=fontsize)
-                            self.t = wait_ut
+                        if len(self.parent.plan[i]["wait_sunset"]) > 0:
+                            self.oca.horizon = self.parent.plan[i]["wait_sunset"]
+                            wait_ut = self.oca.next_setting(ephem.Sun(), use_center=True)
+                            if self.t < wait_ut:
+                                self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
+                                                        alpha=0.5)
+                                self.axes.text(self.t, 3, f"WAIT SUNSET {wait_ut}", rotation=90, fontsize=fontsize)
+                                self.t = wait_ut
 
                     if "wait_sunrise" in self.parent.plan[i].keys():
-                        self.oca.horizon = self.parent.plan[i]["wait_sunrise"]
-                        wait_ut = self.oca.next_rising(ephem.Sun(), use_center=True)
-                        if self.t < wait_ut:
-                            self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
-                                                    alpha=0.5)
-                            self.axes.text(self.t, 3, f"WAIT SUNRISE {wait_ut}", rotation=90, fontsize=fontsize)
-                            self.t = wait_ut
+                        if len(self.parent.plan[i]["wait_sunrise"]) > 0:
+                            self.oca.horizon = self.parent.plan[i]["wait_sunrise"]
+                            wait_ut = self.oca.next_rising(ephem.Sun(), use_center=True)
+                            if self.t < wait_ut:
+                                self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
+                                                        alpha=0.5)
+                                self.axes.text(self.t, 3, f"WAIT SUNRISE {wait_ut}", rotation=90, fontsize=fontsize)
+                                self.t = wait_ut
 
                     if "seq" in self.parent.plan[i].keys():
                         seq = self.parent.plan[i]["seq"]
