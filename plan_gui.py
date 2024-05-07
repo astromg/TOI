@@ -92,9 +92,10 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
       def pocisniecie_addOB(self):
-          self.edit_window=AddWindow(self)
-          self.edit_window.show()
-          self.edit_window.raise_()
+          pass
+          #self.edit_window=AddWindow(self)
+          #self.edit_window.show()
+          #self.edit_window.raise_()
 
       def pocisniecie_edit(self):
          if len(self.plan)>self.i:
@@ -826,6 +827,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=w+1
 
           self.add_p=QPushButton('Add OB')
+          self.add_p.setStyleSheet(" color: gray;")
           self.edit_p=QPushButton('Edit OB')
           self.copy_p=QPushButton('Copy OB')
 
@@ -903,7 +905,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.swap_p.clicked.connect(self.pocisniecie_swap)
           self.edit_p.clicked.connect(self.pocisniecie_edit)
           self.copy_p.clicked.connect(self.pocisniecie_copy)
-          self.add_p.clicked.connect(self.pocisniecie_addOB)
+          #self.add_p.clicked.connect(self.pocisniecie_addOB)
           self.addStop_p.clicked.connect(self.pocisniecie_addStop)
           self.addBell_p.clicked.connect(self.pocisniecie_addBell)
 

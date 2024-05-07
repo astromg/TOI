@@ -18,11 +18,9 @@ import subprocess
 from pathlib import Path
 
 #from astropy.io import fits
-from pyaraucaria import dome_eq
-
+from pyaraucaria.dome_eq import dome_eq_azimuth
 
 from PyQt5 import QtWidgets, QtCore, QtGui
-
 
 import sys
 import qasync as qs
@@ -1856,6 +1854,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                     az=float(self.mntGui.nextAz_e.text())
                     if self.mntGui.domeAuto_c.isChecked():
+                        if self.active_tel == "wk06":
+                            side_of_pier = await self.mount.aget_sideofpier()
+                            dome_eq_az, info_dict = dome_eq_azimuth(
+                                ra=self.mount_ra, dec=self.mount_dec, r_dome=2050, spx=-110, spy=-110,
+                                gem=670, side_of_pier=side_of_pier, latitude=-24.598056,
+                                longitude=-70.196389, elevation=2817
+                            )
+                            az = dome_eq_az
+
                         await self.dome.aput_slewtoazimuth(az)
                 else:
                     txt = "WARNING: Slew NOT allowed"
