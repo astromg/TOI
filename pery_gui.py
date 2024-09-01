@@ -11,7 +11,7 @@ import qasync as qs
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QGridLayout, QFrame, QComboBox
-from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
+from obcom.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 

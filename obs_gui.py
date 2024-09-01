@@ -1,27 +1,16 @@
 #!/usr/bin/env python3
 
-import math
 import os.path
-import time
-
-import numpy
-
 import qasync as qs
-from qasync import QEventLoop
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel, QCheckBox, QTextEdit, QLineEdit, QDialog, \
-    QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget, QTableWidgetItem, \
-    QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
-
-from matplotlib.figure import Figure
+from PyQt5.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
+    QVBoxLayout, QTableWidget, QTableWidgetItem
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-
-from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
-from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
-
+from matplotlib.figure import Figure
 from pyaraucaria.coordinates import *
+from qasync import QEventLoop
 
+from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from toi_lib import *
 
 

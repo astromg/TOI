@@ -4,12 +4,10 @@ from abc import ABC, abstractmethod
 from asyncio import Task
 from dataclasses import dataclass
 from typing import List, Coroutine
-
 from PyQt5.QtGui import QStandardItem
-from PyQt5.QtWidgets import QLineEdit
-from ocaboxapi import ClientAPI
-from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
-from ob.comunication.cycle_query import BaseCycleQuery
+from obcom.comunication.base_client_api import BaseClientAPI
+from obcom.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
+from obcom.comunication.cycle_query import BaseCycleQuery
 from qasync import QEventLoop
 from config_service import Config as Cfg
 from util_functions.asyncio_util_functions import wait_for_psce
@@ -22,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 class BaseAsyncWidget(ABC):
 
-    def __init__(self, loop: QEventLoop = None, client_api: ClientAPI = None, **kwargs):
+    def __init__(self, loop: QEventLoop = None, client_api: BaseClientAPI = None, **kwargs):
         self.loop: QEventLoop = loop
-        self.client_api: ClientAPI = client_api
+        self.client_api: BaseClientAPI = client_api
         self._background_tasks: List[BaseAsyncWidget.BackgroundTask] = []
         self._subscriptions: List[BaseCycleQuery] = []
         super().__init__(**kwargs)

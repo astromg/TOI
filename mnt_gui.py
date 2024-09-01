@@ -12,7 +12,6 @@ import qasync as qs
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QSpinBox, QGridLayout, QFrame, QComboBox, QRadioButton
-from ob.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 

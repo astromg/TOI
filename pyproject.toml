@@ -21,6 +21,8 @@ numpy = "^1.24.1"
 qasync = "^0.23.0"
 # ocabox = {git = "https://github.com/araucaria-project/ocabox.git"}
 ocabox = {path = "../ocabox", develop = true}
+#ocabox-common = {git = "https://github.com/araucaria-project/ocabox-common.git"}
+ocabox-common = {path = "../ocabox-common", develop = true}
 tpg = {path = "../tpg", develop = true}
 paho-mqtt = "^1.6.1"
 scipy = "^1.9.0"

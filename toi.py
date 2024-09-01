@@ -17,6 +17,7 @@ import os
 import subprocess
 from pathlib import Path
 
+from obcom.comunication.base_client_api import BaseClientAPI
 #from astropy.io import fits
 from pyaraucaria.dome_eq import dome_eq_azimuth
 
@@ -57,7 +58,7 @@ logger = logging.getLogger(__name__)
 
 class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
-    def __init__(self, loop, observatory_model: Observatory, client_api: ClientAPI,  app=None):
+    def __init__(self, loop, observatory_model: Observatory, client_api: BaseClientAPI,  app=None):
         self.app = app
 
         super().__init__(loop=loop, client_api=client_api)
@@ -2847,21 +2848,21 @@ class TelBasicState():
 
 
 async def run_qt_app():
-
-    host = socket.gethostname()
-    user = pwd.getpwuid(os.getuid())[0]
-
-    api = ClientAPI(name="TOI_Client", user_email="", user_name=f'{user}@{host}',user_description="TOI user interface client.")
-    observatory_model = Observatory(client_name="TOI_Client")
-    observatory_model.connect(api)
-
+    # TODO ernest_nowy_tic COMENT tutaj natsy powinny być uruchamiane przed API ocabox
     # Setup NATS Messenger:
-    nats_host = observatory_model.get_app_cfg('nats_host')
-    nats_port = observatory_model.get_app_cfg('nats_port')
+    # TODO ernest_nowy_tic ZADANIE tutaj trzeba pobierać host i port z jakiegoś lokalnego configa, nie ma juz configa z ocabox w pliku teraz jest w nats i trzeba miśc host i port do nats już wcześniej. Niewiem czy TOI ma jkakis lokalny config jeśli tak to trzeba tam umieścic te zmienne jak nie totrzeba cooś takiego zrobić
+    # nats_host = observatory_model.get_app_cfg('nats_host')
+    # nats_port = observatory_model.get_app_cfg('nats_port')
+    nats_host = "nats.oca.lan"
+    nats_port = 4222
+
     msg = Messenger()
     nats_opener = await msg.open(host=nats_host, port=nats_port, wait=3)
 
-
+    # TODO ernest_nowy_tic COMENT nie powołujemy już 'ClientAPI' ręcznie, Observatory zaciąga konfigurację z nats i tworzy ClientAPI potem
+    observatory_model = Observatory(client_name="TOI_Client", config_stream="tic.config.observatory")
+    await observatory_model.load_client_cfg()
+    api = observatory_model.client
 
     def close_future(future_, loop_):
         loop_.call_later(10, future_.cancel)
