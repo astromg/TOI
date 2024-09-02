@@ -61,9 +61,22 @@ logger = logging.getLogger(__name__)
 class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def __init__(self, loop, observatory_model: Observatory, client_api: BaseClientAPI,  app=None):
+        super().__init__(loop=loop, client_api=client_api)
+        self.telescope = None
+        self.user = None
+        self.dome = None
+        self.mount = None
+        self.cover = None
+        self.focus = None
+        self.ccd = None
+        self.guider = None
+        self.fw = None
+        self.rotator = None
+        self.cctv = None
+        self.planrunner = None
+        self.ephemeris = None
         self.app = app
 
-        super().__init__(loop=loop, client_api=client_api)
         self.setWindowTitle("Telescope Operator Interface")
         self.setLayout(QtWidgets.QVBoxLayout())
 
@@ -277,6 +290,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         txt=f"REQUEST: Telescope {tel} selected"
         await self.msg(txt,"green")
 
+        # if not none, it means we switch telescope, otherwise we select first time
+        if self.telescope is not None:
+            # stop method starting subscription if not finished yet, just fo case
+            await self.stop_background_methods(group="subscribe")
+            # warning this need time to stop, is important only if all application close if we switch to
+            # other tel don't worry
+            self.telescope.unsubscribe_all_component()
+            self.telescope.unwatch_all_component()
+
         self.telescope = self.observatory_model.get_telescope(tel)
         self.user = self.telescope.get_access_grantor()
         self.dome = self.telescope.get_dome()
@@ -296,49 +318,53 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.stop_background_tasks()
 
         self.ephemeris = self.observatory_model.get_ephemeris()
-        self.add_background_task(self.ephemeris.asubscribe_utc(self.ephem_update,time_of_data_tolerance=0))
 
-        self.add_background_task(self.user.asubscribe_current_user(self.user_update))
+        # ---------------------- run subscriptions from ocabox ----------------------
 
-        self.add_background_task(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update))
-        self.add_background_task(self.dome.asubscribe_az(self.domeAZ_update))
-        self.add_background_task(self.dome.asubscribe_slewing(self.domeStatus_update))
-        self.add_background_task(self.dome.asubscribe_dome_fans_running(self.Ventilators_update))
 
-        #self.add_background_task(self.mount.asubscribe_connected(self.mountCon_update))
-        self.add_background_task(self.mount.asubscribe_ra(self.radec_update))
-        self.add_background_task(self.mount.asubscribe_dec(self.radec_update))
-        self.add_background_task(self.mount.asubscribe_az(self.radec_update))
-        self.add_background_task(self.mount.asubscribe_alt(self.radec_update))
-        self.add_background_task(self.mount.asubscribe_tracking(self.mount_update))
-        self.add_background_task(self.mount.asubscribe_slewing(self.mount_update))
-        self.add_background_task(self.mount.asubscribe_motorstatus(self.mountMotors_update))
+        await self.run_method_in_background(self.ephemeris.asubscribe_utc(self.ephem_update,time_of_data_tolerance=0), group="subscribe")
+
+        await self.run_method_in_background(self.user.asubscribe_current_user(self.user_update), group="subscribe")
+
+        await self.run_method_in_background(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update), group="subscribe")
+        await self.run_method_in_background(self.dome.asubscribe_az(self.domeAZ_update), group="subscribe")
+        await self.run_method_in_background(self.dome.asubscribe_slewing(self.domeStatus_update), group="subscribe")
+        await self.run_method_in_background(self.dome.asubscribe_dome_fans_running(self.Ventilators_update), group="subscribe")
+
+        #await self.run_method_in_background(self.mount.asubscribe_connected(self.mountCon_update))
+        await self.run_method_in_background(self.mount.asubscribe_ra(self.radec_update), group="subscribe")
+        await self.run_method_in_background(self.mount.asubscribe_dec(self.radec_update), group="subscribe")
+        await self.run_method_in_background(self.mount.asubscribe_az(self.radec_update), group="subscribe")
+        await self.run_method_in_background(self.mount.asubscribe_alt(self.radec_update), group="subscribe")
+        await self.run_method_in_background(self.mount.asubscribe_tracking(self.mount_update), group="subscribe")
+        await self.run_method_in_background(self.mount.asubscribe_slewing(self.mount_update), group="subscribe")
+        await self.run_method_in_background(self.mount.asubscribe_motorstatus(self.mountMotors_update), group="subscribe")
         #
-        self.add_background_task(self.cover.asubscribe_coverstate(self.covers_update))
-        self.add_background_task(self.focus.asubscribe_fansstatus(self.mirrorFans_update))
+        await self.run_method_in_background(self.cover.asubscribe_coverstate(self.covers_update), group="subscribe")
+        await self.run_method_in_background(self.focus.asubscribe_fansstatus(self.mirrorFans_update), group="subscribe")
         #
-        #self.add_background_task(self.fw.asubscribe_connected(self.filterCon_update))
-        self.add_background_task(self.fw.asubscribe_names(self.filterList_update))
-        self.add_background_task(self.fw.asubscribe_position(self.filter_update))
+        #await self.run_method_in_background(self.fw.asubscribe_connected(self.filterCon_update))
+        await self.run_method_in_background(self.fw.asubscribe_names(self.filterList_update), group="subscribe")
+        await self.run_method_in_background(self.fw.asubscribe_position(self.filter_update), group="subscribe")
         #
-        self.add_background_task(self.focus.asubscribe_position(self.focus_update))
-        self.add_background_task(self.focus.asubscribe_ismoving(self.focus_update))
+        await self.run_method_in_background(self.focus.asubscribe_position(self.focus_update), group="subscribe")
+        await self.run_method_in_background(self.focus.asubscribe_ismoving(self.focus_update), group="subscribe")
         #
-        #self.add_background_task(self.rotator.asubscribe_connected(self.rotatorCon_update))
+        #await self.run_method_in_background(self.rotator.asubscribe_connected(self.rotatorCon_update))
         if self.cfg_showRotator:
-            self.add_background_task(self.rotator.asubscribe_position(self.rotator_update))
-            self.add_background_task(self.rotator.asubscribe_mechanicalposition(self.rotator_update))
-            self.add_background_task(self.rotator.asubscribe_ismoving(self.rotator_update))
+            await self.run_method_in_background(self.rotator.asubscribe_position(self.rotator_update), group="subscribe")
+            await self.run_method_in_background(self.rotator.asubscribe_mechanicalposition(self.rotator_update), group="subscribe")
+            await self.run_method_in_background(self.rotator.asubscribe_ismoving(self.rotator_update), group="subscribe")
         #
-        self.add_background_task(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update))
-        self.add_background_task(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update))
-        self.add_background_task(self.ccd.asubscribe_binx(self.ccd_bin_update))
-        self.add_background_task(self.ccd.asubscribe_biny(self.ccd_bin_update))
-        self.add_background_task(self.ccd.asubscribe_camerastate(self.ccd_update))
-        self.add_background_task(self.ccd.asubscribe_cooleron(self.ccd_cooler_update))
-        self.add_background_task(self.ccd.asubscribe_gain(self.ccd_gain_update))
-        self.add_background_task(self.ccd.asubscribe_readoutmode(self.ccd_rm_update))
-        self.add_background_task(self.ccd.asubscribe_imageready(self.ccd_imageready))
+        await self.run_method_in_background(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update), group="subscribe")
+        await self.run_method_in_background(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update), group="subscribe")
+        await self.run_method_in_background(self.ccd.asubscribe_binx(self.ccd_bin_update), group="subscribe")
+        await self.run_method_in_background(self.ccd.asubscribe_biny(self.ccd_bin_update), group="subscribe")
+        await self.run_method_in_background(self.ccd.asubscribe_camerastate(self.ccd_update), group="subscribe")
+        await self.run_method_in_background(self.ccd.asubscribe_cooleron(self.ccd_cooler_update), group="subscribe")
+        await self.run_method_in_background(self.ccd.asubscribe_gain(self.ccd_gain_update), group="subscribe")
+        await self.run_method_in_background(self.ccd.asubscribe_readoutmode(self.ccd_rm_update), group="subscribe")
+        await self.run_method_in_background(self.ccd.asubscribe_imageready(self.ccd_imageready), group="subscribe")
 
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.TOItimer0())
@@ -2879,12 +2905,10 @@ async def run_qt_app():
     except asyncio.TimeoutError:
         logger.error(f"Can't connect to NATS {nats_host}:{nats_port} timeout accrue. Application stopped!")
         return
-    print("---- end 0")
     # TODO ernest_nowy_tic COMENT nie powołujemy już 'ClientAPI' ręcznie, Observatory zaciąga konfigurację z nats i tworzy ClientAPI potem
     observatory_model = Observatory(client_name="TOI_Client", config_stream="tic.config.observatory")
     await observatory_model.load_client_cfg()
     api = observatory_model.client
-    print("---- end 1")
 
     def close_future(future_, loop_):
         loop_.call_later(10, future_.cancel)

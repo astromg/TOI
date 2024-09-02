@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from asyncio import Task
 from dataclasses import dataclass
-from typing import List, Coroutine
+from typing import List, Coroutine, Dict
 from PyQt5.QtGui import QStandardItem
 from obcom.comunication.base_client_api import BaseClientAPI
 from obcom.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
@@ -25,6 +25,7 @@ class BaseAsyncWidget(ABC):
         self.client_api: BaseClientAPI = client_api
         self._background_tasks: List[BaseAsyncWidget.BackgroundTask] = []
         self._subscriptions: List[BaseCycleQuery] = []
+        self._groups_background_exercise: Dict[str, List[asyncio.Task]] = {"default": []}
         super().__init__(**kwargs)
 
     @dataclass
@@ -162,12 +163,13 @@ class BaseAsyncWidget(ABC):
             logger.error(f"Background tasks cannot be started because loop was not found")
             raise RuntimeError
         for bt in self._background_tasks:
-            name = bt.name
-            co = bt.coro
-            logger.info(f"Starting task: {name}")
-            t = self.loop.create_task(co, name=name)
-            bt.task = t
-            bt.created = True
+            if not bt.created:
+                name = bt.name
+                co = bt.coro
+                logger.info(f"Starting task: {name}")
+                t = self.loop.create_task(co, name=name)
+                bt.task = t
+                bt.created = True
 
     async def stop_background_tasks(self):
         await self._stop_background_tasks()
@@ -204,6 +206,54 @@ class BaseAsyncWidget(ABC):
                 logger.info(f'Ended subscription: {su.get_name()}')
             except asyncio.TimeoutError:
                 logger.error(f"The subscription {su.get_name()} did not close in the required time: {time_to_close}s")
+
+    async def run_method_in_background(self, coro: Coroutine, name: str = "", group: str = ""):
+        """
+        Start coroutine in background and left until it finished. After thad forgot about it.
+        This method run some method once lather, is not necessary to wait for it.
+        Only for method witch do short thing and finish, not for infinite loop.
+
+        :param coro: coroutine
+        :param name: name of task
+        :param group: name of the group method
+        """
+
+        group = "default" if not group else group
+
+        async def background_exercise():
+            logger.debug(f"Background exercise start {name}")
+            await coro
+            logger.debug(f"Background exercise finished {name}")
+
+        def callback(task):
+            self._groups_background_exercise.get(group).remove(task)
+
+        t = asyncio.create_task(background_exercise(), name=name)
+        self._groups_background_exercise.setdefault(group, []).append(t)
+        # self._background_exercise.append(t)
+        t.add_done_callback(callback)
+
+    async def stop_background_methods(self, group: str = ""):
+        """
+        Stop all background methods (not background tasks)
+        """
+        if group:
+            # cancel single group
+            to_remove = [group]
+        else:
+            # cancel all
+            to_remove = self._groups_background_exercise.keys()
+
+        for gr in to_remove:
+            for bt in self._groups_background_exercise.get(gr, []):
+                bt.cancel()
+            try:
+                # gather tasks with a timeout
+                tasks = self._groups_background_exercise.get(gr, [])
+                if len(tasks) > 0:
+                    results = await asyncio.wait(tasks, return_when=asyncio.ALL_COMPLETED, timeout=2.5)
+            except asyncio.TimeoutError:
+                pass  # no problem witch cancellation
 
 
 class MetaAsyncWidgetQtWidget(type(QStandardItem), type(BaseAsyncWidget)):
