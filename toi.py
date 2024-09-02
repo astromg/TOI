@@ -8,6 +8,7 @@ import asyncio
 import functools
 import logging
 import datetime
+import signal
 #import requests
 import socket
 #import json
@@ -17,6 +18,7 @@ import os
 import subprocess
 from pathlib import Path
 
+from PyQt5.QtWidgets import QApplication
 from obcom.comunication.base_client_api import BaseClientAPI
 #from astropy.io import fits
 from pyaraucaria.dome_eq import dome_eq_azimuth
@@ -2848,6 +2850,12 @@ class TelBasicState():
 
 
 async def run_qt_app():
+    # added KeyboardInterrupt to loop let close application by ctrl+c in console
+    def ask_exit():
+        raise KeyboardInterrupt
+    loop = asyncio.get_event_loop()
+    loop.add_signal_handler(signal.SIGINT, ask_exit)
+
     # TODO ernest_nowy_tic ZADANIE tutaj trzeba pobierać host i port z jakiegoś lokalnego configa, nie ma juz configa z ocabox w pliku teraz jest w nats i trzeba miśc host i port do nats już wcześniej. Niewiem czy TOI ma jkakis lokalny config jeśli tak to trzeba tam umieścic te zmienne jak nie totrzeba cooś takiego zrobić
     # nats_host = observatory_model.get_app_cfg('nats_host')
     # nats_port = observatory_model.get_app_cfg('nats_port')
@@ -2856,11 +2864,13 @@ async def run_qt_app():
 
     # TODO ernest_nowy_tic COMENT tutaj natsy powinny być uruchamiane przed API ocabox
     # Setup NATS Messenger:
-    logger.info(f"Try connect to nats")
+    logger.info(f"Try connect to nats ...")
     msg = Messenger()
     nats_opener = await msg.open(host=nats_host, port=nats_port, wait=3)
     try:
-        await nats_opener  # waiting for connection to nats
+        if nats_opener:
+
+            await nats_opener  # waiting for connection to nats
         if msg.is_open:
             logger.info(f"Connected witch NATS successfully")
         else:
@@ -2869,17 +2879,17 @@ async def run_qt_app():
     except asyncio.TimeoutError:
         logger.error(f"Can't connect to NATS {nats_host}:{nats_port} timeout accrue. Application stopped!")
         return
-
+    print("---- end 0")
     # TODO ernest_nowy_tic COMENT nie powołujemy już 'ClientAPI' ręcznie, Observatory zaciąga konfigurację z nats i tworzy ClientAPI potem
     observatory_model = Observatory(client_name="TOI_Client", config_stream="tic.config.observatory")
     await observatory_model.load_client_cfg()
     api = observatory_model.client
+    print("---- end 1")
 
     def close_future(future_, loop_):
         loop_.call_later(10, future_.cancel)
         future_.cancel()
 
-    loop = asyncio.get_event_loop()
     future = asyncio.Future()
     app = qs.QApplication.instance()
     if hasattr(app, "aboutToQuit"):
