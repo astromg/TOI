@@ -2848,16 +2848,27 @@ class TelBasicState():
 
 
 async def run_qt_app():
-    # TODO ernest_nowy_tic COMENT tutaj natsy powinny być uruchamiane przed API ocabox
-    # Setup NATS Messenger:
     # TODO ernest_nowy_tic ZADANIE tutaj trzeba pobierać host i port z jakiegoś lokalnego configa, nie ma juz configa z ocabox w pliku teraz jest w nats i trzeba miśc host i port do nats już wcześniej. Niewiem czy TOI ma jkakis lokalny config jeśli tak to trzeba tam umieścic te zmienne jak nie totrzeba cooś takiego zrobić
     # nats_host = observatory_model.get_app_cfg('nats_host')
     # nats_port = observatory_model.get_app_cfg('nats_port')
     nats_host = "nats.oca.lan"
     nats_port = 4222
 
+    # TODO ernest_nowy_tic COMENT tutaj natsy powinny być uruchamiane przed API ocabox
+    # Setup NATS Messenger:
+    logger.info(f"Try connect to nats")
     msg = Messenger()
     nats_opener = await msg.open(host=nats_host, port=nats_port, wait=3)
+    try:
+        await nats_opener  # waiting for connection to nats
+        if msg.is_open:
+            logger.info(f"Connected witch NATS successfully")
+        else:
+            logger.error(f"Can't connect to NATS {nats_host}:{nats_port} Application stopped!")
+            return
+    except asyncio.TimeoutError:
+        logger.error(f"Can't connect to NATS {nats_host}:{nats_port} timeout accrue. Application stopped!")
+        return
 
     # TODO ernest_nowy_tic COMENT nie powołujemy już 'ClientAPI' ręcznie, Observatory zaciąga konfigurację z nats i tworzy ClientAPI potem
     observatory_model = Observatory(client_name="TOI_Client", config_stream="tic.config.observatory")
@@ -2877,19 +2888,18 @@ async def run_qt_app():
         )
 
     toi = TOI(loop=loop, observatory_model=observatory_model, client_api=api, app=app)
-
-    #logger.info("App created")
     await toi.on_start_app()
-    #logger.info("the asynchronous start of the application has been completed")
     await future
     await msg.close()
     return True
+
 
 def main():
     try:
         qs.run(run_qt_app())
     except asyncio.exceptions.CancelledError:
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
