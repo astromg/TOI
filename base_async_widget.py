@@ -15,17 +15,17 @@ from util_functions.asyncio_util_functions import wait_for_psce
 logger = logging.getLogger(__name__)
 
 
-# TODO uwaga żeby skonfigurować clienta to trzeba mu wetkać gdzieś plik config.yaml ale do domyślnego się nie dostane więc przez SingletonConfig trzeba
-
-
 class BaseAsyncWidget(ABC):
+
+    DEFAULT_GROUP_NAME = "default"
 
     def __init__(self, loop: QEventLoop = None, client_api: BaseClientAPI = None, **kwargs):
         self.loop: QEventLoop = loop
         self.client_api: BaseClientAPI = client_api
-        self._background_tasks: List[BaseAsyncWidget.BackgroundTask] = []
+        self._background_tasks: Dict[str, List[BaseAsyncWidget.BackgroundTask]] = \
+            {BaseAsyncWidget.DEFAULT_GROUP_NAME: []}
         self._subscriptions: List[BaseCycleQuery] = []
-        self._groups_background_exercise: Dict[str, List[asyncio.Task]] = {"default": []}
+        self._groups_background_exercise: Dict[str, List[asyncio.Task]] = {BaseAsyncWidget.DEFAULT_GROUP_NAME: []}
         super().__init__(**kwargs)
 
     @dataclass
@@ -34,6 +34,7 @@ class BaseAsyncWidget(ABC):
         name: str = ""
         task: Task = None
         created: bool = False
+        group: str = ""
 
         def __post_init__(self):
             pass
@@ -42,8 +43,10 @@ class BaseAsyncWidget(ABC):
     async def on_start_app(self):
         raise NotImplemented
 
-    def add_background_task(self, coro: Coroutine, name: str = ""):
-        self._background_tasks.append(self.BackgroundTask(name=name, coro=coro))
+    def add_background_task(self, coro: Coroutine, name: str = "", group: str = ""):
+        group = BaseAsyncWidget.DEFAULT_GROUP_NAME if not group else group
+        bt = self.BackgroundTask(name=name, coro=coro, group=group)
+        self._background_tasks.setdefault(group, []).append(bt)
 
     def add_subscription(self, address: str, time_of_data_tolerance=None, delay=None,
                          name='Unnamed subscription', callback_method: list = None, async_callback_method: list = None):
@@ -155,45 +158,58 @@ class BaseAsyncWidget(ABC):
         address = Cfg.get("OCA_ADDRESS_DICT", {}).get(method_name, None)
         return address
 
-    async def run_background_tasks(self):
-        await self._run_all_background_task()
+    async def run_background_tasks(self, group: str = ""):
+        await self._run_all_background_task(group=group)
 
-    async def _run_all_background_task(self):
+    async def _run_all_background_task(self, group: str = ""):
+        if group:
+            # run single group
+            to_run = [group]
+        else:
+            # run all
+            to_run = self._background_tasks.keys()
+
         if self.loop is None:
             logger.error(f"Background tasks cannot be started because loop was not found")
             raise RuntimeError
-        for bt in self._background_tasks:
-            if not bt.created:
-                name = bt.name
-                co = bt.coro
-                logger.info(f"Starting task: {name}")
-                t = self.loop.create_task(co, name=name)
-                bt.task = t
-                bt.created = True
+        for gr in to_run:
+            for bt in self._background_tasks.get(gr, []):
+                if not bt.created:
+                    name = bt.name
+                    co = bt.coro
+                    logger.info(f"Starting task: {name}")
+                    t = self.loop.create_task(co, name=name)
+                    bt.task = t
+                    bt.created = True
 
-    async def stop_background_tasks(self):
-        await self._stop_background_tasks()
+    async def stop_background_tasks(self, group: str = ""):
+        await self._stop_background_tasks(group=group)
         await self._stop_subscriptions()
 
-    async def _stop_background_tasks(self):
-        for bt in self._background_tasks:
-            t = bt.task
-            if t and t in asyncio.all_tasks(self.loop) and not t.done():
-                t.cancel()
-                logger.info(f'Cancel task: {t.get_name()}')
+    async def _stop_background_tasks(self, group: str = ""):
+        if group:
+            # stop single group
+            to_stop = [group]
+        else:
+            # stop all
+            to_stop = self._background_tasks.keys()
 
-        time_to_close = 0.5
-        for bt in self._background_tasks:
-            t = bt.task
-            if t and t in asyncio.all_tasks(self.loop):
-                logger.info(f'Wait for end task: {t.get_name()}')
-                try:
-                    await wait_for_psce(t, timeout=time_to_close)  # the task should finish in less than 0.5 seconds
-                    logger.info(f'Ended task: {t.get_name()}')
-                except asyncio.TimeoutError:
-                    logger.error(f"The task {t.get_name()} did not close in the required time: {time_to_close}s")
-                except asyncio.CancelledError:
-                    pass
+        for gr in to_stop:
+            for bt in self._background_tasks.get(gr, []):
+                t = bt.task
+                if t and t in asyncio.all_tasks(self.loop) and not t.done():
+                    t.cancel()
+                    logger.info(f'Cancel task: {t.get_name()}')
+
+        for gr in to_stop:
+            to_stop = []
+            for bt in self._background_tasks.get(gr, []):
+                if bt.task and bt.task in asyncio.all_tasks(self.loop):
+                    to_stop.append(bt.task)
+            if len(to_stop) > 0:
+                done, pending = await asyncio.wait(to_stop, return_when=asyncio.ALL_COMPLETED, timeout=2.5)
+                if len(pending) > 0:
+                    logger.error(f"some of background tasks not stopped {pending}")
 
     async def _stop_subscriptions(self):
         for su in self._subscriptions:
@@ -218,7 +234,7 @@ class BaseAsyncWidget(ABC):
         :param group: name of the group method
         """
 
-        group = "default" if not group else group
+        group = BaseAsyncWidget.DEFAULT_GROUP_NAME if not group else group
 
         async def background_exercise():
             logger.debug(f"Background exercise start {name}")
@@ -247,13 +263,13 @@ class BaseAsyncWidget(ABC):
         for gr in to_remove:
             for bt in self._groups_background_exercise.get(gr, []):
                 bt.cancel()
-            try:
-                # gather tasks with a timeout
-                tasks = self._groups_background_exercise.get(gr, [])
-                if len(tasks) > 0:
-                    results = await asyncio.wait(tasks, return_when=asyncio.ALL_COMPLETED, timeout=2.5)
-            except asyncio.TimeoutError:
-                pass  # no problem witch cancellation
+        for gr in to_remove:
+            # gather tasks with a timeout
+            tasks = self._groups_background_exercise.get(gr, [])
+            if len(tasks) > 0:
+                done, pending = await asyncio.wait(tasks, return_when=asyncio.ALL_COMPLETED, timeout=2.5)
+                if len(pending) > 0:
+                    logger.error(f"some of background methods not stopped {pending}")
 
 
 class MetaAsyncWidgetQtWidget(type(QStandardItem), type(BaseAsyncWidget)):

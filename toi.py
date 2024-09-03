@@ -17,9 +17,12 @@ import pwd
 import os
 import subprocess
 from pathlib import Path
+from typing import Optional
 
 from PyQt5.QtWidgets import QApplication
 from obcom.comunication.base_client_api import BaseClientAPI
+from ocaboxapi.ephemeris import Ephemeris
+from ocaboxapi.plan import ObservationPlan
 #from astropy.io import fits
 from pyaraucaria.dome_eq import dome_eq_azimuth
 
@@ -33,7 +36,8 @@ import qasync as qs
 from pyaraucaria.coordinates import *
 from pyaraucaria.airmass import airmass
 
-from ocaboxapi import ClientAPI, Observatory
+from ocaboxapi import ClientAPI, Observatory, Telescope, AccessGrantor, Dome, Mount, CoverCalibrator, Focuser, Camera, \
+    FilterWheel, Rotator, CCTV
 from ob.planrunner.cycle_time_calc.cycle_time_calc import CycleTimeCalc
 from serverish.messenger import Messenger, single_read, get_reader, get_journalreader, get_publisher
 from serverish.messenger.msg_journal_pub import MsgJournalPublisher, get_journalpublisher, JournalEntry
@@ -62,19 +66,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     def __init__(self, loop, observatory_model: Observatory, client_api: BaseClientAPI,  app=None):
         super().__init__(loop=loop, client_api=client_api)
-        self.telescope = None
-        self.user = None
-        self.dome = None
-        self.mount = None
-        self.cover = None
-        self.focus = None
-        self.ccd = None
-        self.guider = None
-        self.fw = None
-        self.rotator = None
-        self.cctv = None
-        self.planrunner = None
-        self.ephemeris = None
+        self.telescope: Optional[Telescope] = None
+        self.user: Optional[AccessGrantor] = None
+        self.dome: Optional[Dome] = None
+        self.mount: Optional[Mount] = None
+        self.cover: Optional[CoverCalibrator] = None
+        self.focus: Optional[Focuser] = None
+        self.ccd: Optional[Camera] = None
+        self.guider: Optional[Camera] = None
+        self.fw: Optional[FilterWheel] = None
+        self.rotator: Optional[Rotator] = None
+        self.cctv: Optional[CCTV] = None
+        self.planrunner: Optional[ObservationPlan] = None
+        self.ephemeris: Optional[Ephemeris] = None
         self.app = app
 
         self.setWindowTitle("Telescope Operator Interface")
@@ -93,6 +97,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui=ObsGui(self, loop=self.loop, client_api=self.client_api)
         self.obsGui.show()
         self.obsGui.raise_()
+        self.obsGui.main_form.shutdown_p.clicked.connect(self.shutdown)
+        self.obsGui.main_form.weatherStop_p.clicked.connect(self.weatherStop)
+        self.obsGui.main_form.EmStop_p.clicked.connect(self.EmStop)
 
         self.mntGui = MntGui(self, loop=self.loop, client_api=self.client_api)
         self.mntGui.show()
@@ -113,6 +120,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.oca_tel_stat()
 
         self.add_background_task(self.TOItimer())
+        self.add_background_task(self.TOItimer_guidera())
+        self.add_background_task(self.TOItimer0())
         self.add_background_task(self.nats_weather_loop())
 
 
@@ -162,6 +171,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.telemetry_humidity = weather["humidity"]
                 self.telemetry_pressure = weather["pressure_Pa"]
                 self.updateWeather()
+        # TODO ernest_nowy_tic COMENT bez odfiltrowania tych błędów nie zamkniemy taska !!!
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
         except Exception as e:
             logger.warning(f'TOI: nats_weather_loop: {e}')
 
@@ -287,8 +299,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.dome_con=False
         self.dome_az="--"
 
-        txt=f"REQUEST: Telescope {tel} selected"
-        await self.msg(txt,"green")
+        txt = f"REQUEST: Telescope {tel} selected"
+        await self.msg(txt, "green")
 
         # if not none, it means we switch telescope, otherwise we select first time
         if self.telescope is not None:
@@ -298,6 +310,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             # other tel don't worry
             self.telescope.unsubscribe_all_component()
             self.telescope.unwatch_all_component()
+            await self.stop_background_tasks(group="telescope_task")
 
         self.telescope = self.observatory_model.get_telescope(tel)
         self.user = self.telescope.get_access_grantor()
@@ -312,52 +325,55 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.rotator = self.telescope.get_rotator()
         self.cctv = self.telescope.get_cctv()
         self.planrunner = self.telescope.get_observation_plan()
-
         self.planrunner.add_info_callback('exec_json', self.PlanRun1)
-
-        await self.stop_background_tasks()
-
         self.ephemeris = self.observatory_model.get_ephemeris()
 
+        # first get filters and then run subscription, because subscription's callback use this
+        filter_list = await self.fw.aget_names()  # To jest dziwny slownik
+        self.filter_list = [key for key, value in sorted(filter_list.items(), key=lambda item: item[1])]
+
         # ---------------------- run subscriptions from ocabox ----------------------
-
-
-        await self.run_method_in_background(self.ephemeris.asubscribe_utc(self.ephem_update,time_of_data_tolerance=0), group="subscribe")
+        await self.run_method_in_background(self.ephemeris.asubscribe_utc(self.ephem_update,time_of_data_tolerance=0),
+                                            group="subscribe")
 
         await self.run_method_in_background(self.user.asubscribe_current_user(self.user_update), group="subscribe")
 
-        await self.run_method_in_background(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update), group="subscribe")
+        await self.run_method_in_background(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update),
+                                            group="subscribe")
         await self.run_method_in_background(self.dome.asubscribe_az(self.domeAZ_update), group="subscribe")
         await self.run_method_in_background(self.dome.asubscribe_slewing(self.domeStatus_update), group="subscribe")
-        await self.run_method_in_background(self.dome.asubscribe_dome_fans_running(self.Ventilators_update), group="subscribe")
+        await self.run_method_in_background(self.dome.asubscribe_dome_fans_running(self.Ventilators_update),
+                                            group="subscribe")
 
-        #await self.run_method_in_background(self.mount.asubscribe_connected(self.mountCon_update))
         await self.run_method_in_background(self.mount.asubscribe_ra(self.radec_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_dec(self.radec_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_az(self.radec_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_alt(self.radec_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_tracking(self.mount_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_slewing(self.mount_update), group="subscribe")
-        await self.run_method_in_background(self.mount.asubscribe_motorstatus(self.mountMotors_update), group="subscribe")
+        await self.run_method_in_background(self.mount.asubscribe_motorstatus(self.mountMotors_update),
+                                            group="subscribe")
         #
         await self.run_method_in_background(self.cover.asubscribe_coverstate(self.covers_update), group="subscribe")
         await self.run_method_in_background(self.focus.asubscribe_fansstatus(self.mirrorFans_update), group="subscribe")
         #
-        #await self.run_method_in_background(self.fw.asubscribe_connected(self.filterCon_update))
         await self.run_method_in_background(self.fw.asubscribe_names(self.filterList_update), group="subscribe")
         await self.run_method_in_background(self.fw.asubscribe_position(self.filter_update), group="subscribe")
         #
         await self.run_method_in_background(self.focus.asubscribe_position(self.focus_update), group="subscribe")
         await self.run_method_in_background(self.focus.asubscribe_ismoving(self.focus_update), group="subscribe")
         #
-        #await self.run_method_in_background(self.rotator.asubscribe_connected(self.rotatorCon_update))
         if self.cfg_showRotator:
-            await self.run_method_in_background(self.rotator.asubscribe_position(self.rotator_update), group="subscribe")
-            await self.run_method_in_background(self.rotator.asubscribe_mechanicalposition(self.rotator_update), group="subscribe")
-            await self.run_method_in_background(self.rotator.asubscribe_ismoving(self.rotator_update), group="subscribe")
+            await self.run_method_in_background(self.rotator.asubscribe_position(self.rotator_update),
+                                                group="subscribe")
+            await self.run_method_in_background(self.rotator.asubscribe_mechanicalposition(self.rotator_update),
+                                                group="subscribe")
+            await self.run_method_in_background(self.rotator.asubscribe_ismoving(self.rotator_update),
+                                                group="subscribe")
         #
         await self.run_method_in_background(self.ccd.asubscribe_ccdtemperature(self.ccd_temp_update), group="subscribe")
-        await self.run_method_in_background(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update), group="subscribe")
+        await self.run_method_in_background(self.ccd.asubscribe_setccdtemperature(self.ccd_temp_update),
+                                            group="subscribe")
         await self.run_method_in_background(self.ccd.asubscribe_binx(self.ccd_bin_update), group="subscribe")
         await self.run_method_in_background(self.ccd.asubscribe_biny(self.ccd_bin_update), group="subscribe")
         await self.run_method_in_background(self.ccd.asubscribe_camerastate(self.ccd_update), group="subscribe")
@@ -366,20 +382,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.run_method_in_background(self.ccd.asubscribe_readoutmode(self.ccd_rm_update), group="subscribe")
         await self.run_method_in_background(self.ccd.asubscribe_imageready(self.ccd_imageready), group="subscribe")
 
-        self.add_background_task(self.TOItimer())
-        self.add_background_task(self.TOItimer0())
-        self.add_background_task(self.nats_weather_loop())
-        self.add_background_task(self.nats_log_flat_reader())
-        self.add_background_task(self.nats_log_focus_reader())
-        self.add_background_task(self.nats_log_toi_reader())
-        #self.add_background_task(self.nats_tic_reader())
+        # background task specific for selected telescope
+        self.add_background_task(self.nats_log_flat_reader(), group="telescope_task")
+        self.add_background_task(self.nats_log_focus_reader(), group="telescope_task")
+        self.add_background_task(self.nats_log_toi_reader(), group="telescope_task")
 
-
-
-        await self.run_background_tasks()
-
-        filter_list = await self.fw.aget_names() # To jest dziwny slownik
-        self.filter_list = [key for key, value in sorted(filter_list.items(), key=lambda item: item[1])]
+        await self.run_background_tasks(group="telescope_task")
 
         self.mntGui.updateUI()
         self.auxGui.updateUI()
@@ -395,16 +403,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
         self.mntGui.target_e.setCompleter(completer)
 
-
-        self.obsGui.main_form.shutdown_p.clicked.connect(self.shutdown)
-        self.obsGui.main_form.weatherStop_p.clicked.connect(self.weatherStop)
-        self.obsGui.main_form.EmStop_p.clicked.connect(self.EmStop)
-
-        #self.force_update()
-
     # ################### METODY POD NATSY ##################
-
-
 
     async def nats_log_flat_reader(self):
         reader = get_journalreader(f'tic.journal.{self.active_tel}.log.flats', deliver_policy='last')
@@ -453,32 +452,282 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def TOItimer0(self):
         while True:
-            self.tic_conn = await self.observatory_model.is_tic_server_available()
+            # TODO ernest_nowy_tic COMENT tutaj tak samo task w tle (timera) odpalamy raz i sprawdzamy w nim czy teleskop jest jurz wybrany
+            if self.telescope is not None:  # if telescope is selected, other component (e.g. dome ...) also. So no check
+                self.tic_conn = await self.observatory_model.is_tic_server_available()
 
-            if self.tic_conn:
-                tmp = await self.telescope.is_telescope_alpaca_server_available()
-                self.tel_alpaca_conn = tmp["alpaca"]
+                if self.tic_conn:
+                    tmp = await self.telescope.is_telescope_alpaca_server_available()
+                    self.tel_alpaca_conn = tmp["alpaca"]
 
-            if self.tic_conn == True and self.comProblem == False:
-                self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
-                self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: green;")
-            elif self.tic_conn == False and self.comProblem == False:
-                self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
-                self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
+                if self.tic_conn == True and self.comProblem == False:
+                    self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
+                    self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: green;")
+                elif self.tic_conn == False and self.comProblem == False:
+                    self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
+                    self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
 
-            if self.tic_conn and self.tel_alpaca_conn:
+                if self.tic_conn and self.tel_alpaca_conn:
 
-                self.mount_conn = True
-                #self.mount_conn = await self.self.mount.aget_connected()
-                self.dome_conn = True
-                if self.cfg_showRotator:
-                    self.rotator_conn = True
-                else: self.rotator_conn = None
-                self.fw_conn = True
-                self.focus_conn = True
-                self.inst_conn = True
+                    self.mount_conn = True
+                    #self.mount_conn = await self.self.mount.aget_connected()
+                    self.dome_conn = True
+                    if self.cfg_showRotator:
+                        self.rotator_conn = True
+                    else: self.rotator_conn = None
+                    self.fw_conn = True
+                    self.focus_conn = True
+                    self.inst_conn = True
 
             await asyncio.sleep(5)
+
+    async def TOItimer_guidera(self):
+        # TODO ernest_nowy_tic COMENT wydzieliłem to do osobnego timera bo jest to dość skomplikowany kawałek kodu i on zalerzy od wybranego teleskopu a nie bardzo rozumiem jak to działa albo poprostu nie działa. Na newno sprawdzamy czy teleskop jest wybrany a potem liczymy coś. Do konsultacji MAREK-ERNEST
+        while True:
+            await asyncio.sleep(1)
+            # ############# GUIDER ################
+            # to jest brudny algorytm guidera
+            #
+            if self.telescope is not None:  # if telescope is selected, other component (e.g. dome ...) also. So no check
+                try:
+                    guider_loop = int(self.auxGui.guider_tab.guiderView.guiderLoop_e.text())
+                    method = self.auxGui.guider_tab.guiderView.method_s.currentText()
+
+                    # guider robi sie w petli, co guider_loop robi sie ekspozycja
+                    self.tmp_i = self.tmp_i + 1
+                    if self.tmp_i > guider_loop:
+                        self.tmp_i = 0
+
+                    # tu sie robie ekspozycja
+                    if self.tmp_i == 1:
+                        exp = float(self.auxGui.guider_tab.guiderView.guiderExp_e.text())
+                        if self.auxGui.guider_tab.guiderView.guiderCameraOn_c.checkState():
+                            try:
+                                await self.guider.aput_startexposure(exp, True)
+                            except Exception as e:
+                                pass
+
+                    # ######## Analiza obrazu guider
+                    # poniewaz nie wiem ile sie czyta kamera, to analiza robi sie tuz przed nastepna ekspozycja
+                    # nie ma na razie zabezpieczenia ze petla trwa krocej niz ekspozycja
+                    if self.tmp_i == 0 and self.auxGui.guider_tab.guiderView.guiderCameraOn_c.checkState():
+                        self.guider_image = await self.guider.aget_imagearray()
+                        if self.guider_image:
+                            image = self.guider_image
+                            image = numpy.asarray(image)
+                            self.auxGui.guider_tab.guiderView.updateImage(image)  # wyswietla sie obrazek
+
+                            # tu licza sie podstawowe statystyki obrazka, potrzebne do dalszej analizy
+                            stats = FFS(image)
+                            th = float(self.auxGui.guider_tab.guiderView.treshold_s.value())
+                            fwhm = float(self.auxGui.guider_tab.guiderView.fwhm_s.value())
+
+                            # a tutaj znajdujemy gwiazdy, ale dla guidera to wychopdzi ledwo co...
+                            coo, adu = stats.find_stars(threshold=th, kernel_size=int(2 * fwhm), fwhm=fwhm)
+                            # print(f"Guider found {len(coo)} stars")
+
+                            # a tutaj robimy bardziej przyzwoita fotometrie znalezionych gwiazd
+                            # bez tego nawet czesto nie znajdziemy najjasniejszej gwiazdy
+                            x_coo, y_coo = zip(*coo)
+                            adu = []
+                            for x, y in zip(x_coo, y_coo):
+                                aperture = image[int(y) - int(fwhm):int(y) + int(fwhm),
+                                           int(x) - int(fwhm):int(x) + int(fwhm)]
+                                adu_tmp = numpy.sum(aperture)
+                                adu_tmp = adu_tmp - aperture.size * stats.median
+                                if adu_tmp <= 0: adu_tmp = 1
+                                adu.append(adu_tmp)
+
+                            indices = numpy.argsort(adu)[::-1]
+                            adu = numpy.array(adu)[indices]
+                            coo = coo[indices]
+
+                            coo = numpy.array(coo)
+                            adu = numpy.array(adu)
+                            # tutaj wybieramy tylko 10 najjasniejszych gwiazd i na nich dalej pracujemy
+                            coo = coo[:10]
+                            adu = adu[:10]
+
+                            if len(coo) > 1:
+                                x_tmp, y_tmp = zip(*coo)
+                                # zaznaczamy 10 gwiazd na obrazku
+                                self.auxGui.guider_tab.guiderView.updateCoo(x_tmp, y_tmp, color="white")
+
+                            dx_multiStars, dy_multiStars = None, None
+                            dx_single, dy_single = None, None
+                            dx, dy = None, None
+
+                            # Algorytm multistars
+                            if method == "Auto" or method == "Multistar":
+                                if len(coo) > 3 and len(self.prev_guider_coo) > 3:
+                                    x_coo, y_coo = zip(*coo)
+                                    x_ref, y_ref = zip(*self.prev_guider_coo)
+                                    xr = []
+                                    yr = []
+                                    # dla kazdej gwiazdy znajdujemy inne najblizsze gwiazdy
+                                    for x, y in zip(x_coo, y_coo):
+                                        x_tmp = numpy.abs(x - x_coo)
+                                        y_tmp = numpy.abs(y - y_coo)
+                                        r_tmp = x_tmp ** 2 + y_tmp ** 2
+                                        i_tmp = numpy.argsort(r_tmp)
+                                        i1 = i_tmp[1]
+                                        i2 = i_tmp[2]
+                                        # dla kazdej gwiazdy liczymy taki indeks geometryczny
+                                        # uwzgledniajacy polozenie wzgledne
+                                        x_range = (x - x_coo[i1]) + (x - x_coo[i2])
+                                        y_range = (y - y_coo[i1]) + (y - y_coo[i2])
+                                        xr.append(x_range)
+                                        yr.append(y_range)
+
+                                    xr0 = []
+                                    yr0 = []
+                                    # tu robimy to samo, ale dla obrazka referencyjnego (poprzedniego)
+                                    for x, y in zip(x_ref, y_ref):
+                                        x_tmp = numpy.abs(x - x_ref)
+                                        y_tmp = numpy.abs(y - y_ref)
+                                        r_tmp = x_tmp ** 2 + y_tmp ** 2
+                                        i_tmp = numpy.argsort(r_tmp)
+                                        i1 = i_tmp[1]
+                                        i2 = i_tmp[2]
+                                        x_range = (x - x_ref[i1]) + (x - x_ref[i2])
+                                        y_range = (y - y_ref[i1]) + (y - y_ref[i2])
+                                        xr0.append(x_range)
+                                        yr0.append(y_range)
+
+                                    xr, yr = numpy.array(xr), numpy.array(yr)
+                                    xr0, yr0 = numpy.array(xr0), numpy.array(yr0)
+                                    x_coo, y_coo = numpy.array(x_coo), numpy.array(y_coo)
+                                    x_ref, y_ref = numpy.array(x_ref), numpy.array(y_ref)
+
+                                    dx_tab = []
+                                    dy_tab = []
+                                    x_matched = []
+                                    y_matched = []
+                                    # A tutaj bedziemy porownywac te indeksy
+                                    for i, tmp in enumerate(xr):
+                                        # sprawdzamy czy indeks geometryczny dla okazdej osi jest rozsadny
+                                        j_list = numpy.array([i for i in range(len(xr0))])
+                                        x_diff = numpy.abs(xr[i] - xr0)
+                                        y_diff = numpy.abs(yr[i] - yr0)
+                                        mk1 = x_diff < 3
+                                        mk2 = y_diff < 3
+                                        mk = [k and z for k, z in zip(mk1, mk2)]
+                                        tmp_rx0 = xr0[mk]
+                                        tmp_ry0 = yr0[mk]
+                                        j_list = j_list[mk]
+                                        prev_diff = 10000
+                                        # jak juz wybralismy gwiazdy z obrazka referencyjnego ktore
+                                        # moga byc nasza gwiazda, jezeli jest ich wiecej niz jedna,
+                                        # to wybieramy ta ktorej indeks geometryczny jest njbardziej zhblizony
+                                        if len(j_list) > 0:
+                                            for j in j_list:
+                                                diff = x_diff[j] + y_diff[j]
+                                                if diff < prev_diff:
+                                                    k = j
+                                                    prev_diff = diff
+                                                # dla tak znalezionej gwiazdy liczymy roznice na
+                                                # obrazku i obrazku referencyjnym
+                                                dx = x_coo[i] - x_ref[k]
+                                                dy = y_coo[i] - y_ref[k]
+                                            x_matched.append(x_coo[i])
+                                            y_matched.append(y_coo[i])
+                                            dx_tab.append(dx)
+                                            dy_tab.append(dy)
+
+                                    if len(dx_tab) > 0:
+                                        x_tmp = numpy.median(dx_tab)
+                                        y_tmp = numpy.median(dy_tab)
+                                        if numpy.abs(x_tmp) < 50 and numpy.abs(y_tmp) < 50:  # dodatkowy warunek rozsadku
+                                            dx_multiStars = x_tmp
+                                            dy_multiStars = y_tmp
+
+                            # a tu po prostu porownujemy pozycje najjasniejszej gwiazdy
+                            if len(coo) > 1 and len(self.prev_guider_coo) > 1:
+                                if method == "Auto" or method == "Single star":
+
+                                    single = coo[0]
+                                    single_x = single[0]
+                                    single_y = single[1]
+
+                                    single0 = self.prev_guider_coo[0]
+                                    single_x0 = single0[0]
+                                    single_y0 = single0[1]
+
+                                    x_tmp = single_x0 - single_x
+                                    y_tmp = single_y0 - single_y
+
+                                    if numpy.abs(x_tmp) < 50 and numpy.abs(y_tmp) < 50:
+                                        dx_single = x_tmp
+                                        dy_single = y_tmp
+
+                            # jak wybralismy metode Multistar
+                            if method == "Multistar":
+                                if dx_multiStars != None:
+                                    dx = dx_multiStars
+                                    dy = dy_multiStars
+                                    txt = f"multistar\n dx={dx} dy={dy}"
+                                    self.auxGui.guider_tab.guiderView.updateCoo(x_matched, y_matched, color="cyan")
+                                else:
+                                    txt = "multistar failed"
+                                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+
+                            # jak wybralismy metode Singlestar
+                            elif method == "Single star":
+                                if dx_single != None:
+                                    dx = dx_single
+                                    dy = dy_single
+                                    txt = f"single star\n dx={dx} dy={dy}"
+                                    self.auxGui.guider_tab.guiderView.updateCoo([single_x], [single_y], color="magenta")
+                                else:
+                                    txt = "single star failed"
+                                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+
+                            # jak wybralismy Auto, to najpierw stara sie multistar a
+                            # jak sie nie uda to single star
+                            elif method == "Auto":
+                                if dx_multiStars != None:
+                                    dx = dx_multiStars
+                                    dy = dy_multiStars
+                                    txt = f"Auto (multistar)\n dx={dx} dy={dy}"
+                                    self.auxGui.guider_tab.guiderView.updateCoo(x_matched, y_matched, color="cyan")
+                                elif dx_single != None:
+                                    dx = dx_single
+                                    dy = dy_single
+                                    txt = f"Auto (single star)\n dx={dx} dy={dy}"
+                                    self.auxGui.guider_tab.guiderView.updateCoo([single_x], [single_y], color="magenta")
+                                else:
+                                    txt = "auto failed"
+                                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+
+                            # tutaj jest lista ostatnich 20 pomiarow, sluzaca
+                            # do liczenia kumulatywnego przesuniecia
+                            # jak teleskop zrobi slew to sie lista zeruje
+                            if dx != None:
+                                self.guider_passive_dx.append(dx)
+                                self.guider_passive_dy.append(dy)
+
+                            if len(self.guider_passive_dx) > 20:
+                                self.guider_passive_dx = self.guider_passive_dx[1:]
+                                self.guider_passive_dy = self.guider_passive_dy[1:]
+
+                            self.auxGui.guider_tab.guiderView.update_plot(self.guider_passive_dx, self.guider_passive_dy)
+
+                            # aktualny obrazek staje sie referencyjnym, chyba ze nie udalo znalez sie przesuniecia
+                            # wtedy 1 raz tego nie robi (steruje tym guider_failed)
+                            if (dx != None and dy != None) or self.guider_failed == 1:
+                                self.prev_guider_coo = coo
+                                self.prev_guider_adu = adu
+                                self.guider_failed = 0
+                            else:
+                                self.guider_failed = 1
+
+                # TODO ernest_nowy_tic COMENT robiąc w asyncio 'except Exception as e' samo łatwo jest zrobić niezamykający się task dlatego trzeba odfiltrować CONAJMNIEJ 'asyncio.CancelledError, asyncio.TimeoutError' błędy one muszą być rzucone. Robi się tak jak poniżej. Niewiem czy PyQT jakieś urzywa ale do asyncio to te 2
+                except (asyncio.CancelledError, asyncio.TimeoutError):
+                    raise
+                except Exception as e:
+                    pass
+                    # txt = f"GUIDER FAILED after {status}, {e}"
+                    # self.auxGui.guider_tab.guiderView.result_e.setText(txt)
 
     async def TOItimer(self):
         while True:
@@ -493,249 +742,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             elif self.tic_conn == False and self.comProblem == False:
                 self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
                 self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
-
-
-
-            # ############# GUIDER ################
-            # to jest brudny algorytm guidera
-            #
-
-            try:
-                guider_loop = int(self.auxGui.guider_tab.guiderView.guiderLoop_e.text())
-                method = self.auxGui.guider_tab.guiderView.method_s.currentText()
-
-                # guider robi sie w petli, co guider_loop robi sie ekspozycja
-                self.tmp_i = self.tmp_i + 1
-                if self.tmp_i > guider_loop:
-                    self.tmp_i = 0
-
-                # tu sie robie ekspozycja
-                if self.tmp_i == 1:
-                    exp = float(self.auxGui.guider_tab.guiderView.guiderExp_e.text())
-                    if self.auxGui.guider_tab.guiderView.guiderCameraOn_c.checkState():
-                        try:
-                            await self.guider.aput_startexposure(exp,True)
-                        except Exception as e:
-                            pass
-
-                # ######## Analiza obrazu guider
-                # poniewaz nie wiem ile sie czyta kamera, to analiza robi sie tuz przed nastepna ekspozycja
-                # nie ma na razie zabezpieczenia ze petla trwa krocej niz ekspozycja
-                if self.tmp_i == 0 and self.auxGui.guider_tab.guiderView.guiderCameraOn_c.checkState():
-                    self.guider_image = await self.guider.aget_imagearray()
-                    if self.guider_image:
-                        image = self.guider_image
-                        image = numpy.asarray(image)
-                        self.auxGui.guider_tab.guiderView.updateImage(image)   # wyswietla sie obrazek
-
-                        # tu licza sie podstawowe statystyki obrazka, potrzebne do dalszej analizy
-                        stats = FFS(image)
-                        th = float(self.auxGui.guider_tab.guiderView.treshold_s.value())
-                        fwhm = float(self.auxGui.guider_tab.guiderView.fwhm_s.value())
-
-                        # a tutaj znajdujemy gwiazdy, ale dla guidera to wychopdzi ledwo co...
-                        coo,adu = stats.find_stars(threshold=th,kernel_size=int(2*fwhm),fwhm=fwhm)
-                        #print(f"Guider found {len(coo)} stars")
-
-                        # a tutaj robimy bardziej przyzwoita fotometrie znalezionych gwiazd
-                        # bez tego nawet czesto nie znajdziemy najjasniejszej gwiazdy
-                        x_coo, y_coo = zip(*coo)
-                        adu = []
-                        for x,y in zip(x_coo,y_coo):
-                            aperture = image[int(y)-int(fwhm):int(y)+int(fwhm),int(x)-int(fwhm):int(x)+int(fwhm)]
-                            adu_tmp = numpy.sum(aperture)
-                            adu_tmp = adu_tmp - aperture.size * stats.median
-                            if adu_tmp <= 0: adu_tmp = 1
-                            adu.append(adu_tmp)
-
-                        indices = numpy.argsort(adu)[::-1]
-                        adu = numpy.array(adu)[indices]
-                        coo = coo[indices]
-
-                        coo = numpy.array(coo)
-                        adu = numpy.array(adu)
-                        # tutaj wybieramy tylko 10 najjasniejszych gwiazd i na nich dalej pracujemy
-                        coo = coo[:10]
-                        adu = adu[:10]
-
-                        if len(coo)>1:
-                            x_tmp,y_tmp=zip(*coo)
-                            # zaznaczamy 10 gwiazd na obrazku
-                            self.auxGui.guider_tab.guiderView.updateCoo(x_tmp,y_tmp,color="white")
-
-                        dx_multiStars, dy_multiStars = None, None
-                        dx_single, dy_single = None, None
-                        dx,dy = None,None
-
-                        # Algorytm multistars
-                        if method=="Auto" or method=="Multistar":
-                            if len(coo)>3 and len(self.prev_guider_coo)>3:
-                                x_coo, y_coo = zip(*coo)
-                                x_ref, y_ref = zip(*self.prev_guider_coo)
-                                xr = []
-                                yr = []
-                                # dla kazdej gwiazdy znajdujemy inne najblizsze gwiazdy
-                                for x,y in zip(x_coo,y_coo):
-                                    x_tmp = numpy.abs(x - x_coo)
-                                    y_tmp = numpy.abs(y - y_coo)
-                                    r_tmp = x_tmp**2 + y_tmp**2
-                                    i_tmp = numpy.argsort(r_tmp)
-                                    i1 = i_tmp[1]
-                                    i2 = i_tmp[2]
-                                    # dla kazdej gwiazdy liczymy taki indeks geometryczny
-                                    # uwzgledniajacy polozenie wzgledne
-                                    x_range = (x - x_coo[i1]) + (x - x_coo[i2])
-                                    y_range = (y - y_coo[i1]) + (y - y_coo[i2])
-                                    xr.append(x_range)
-                                    yr.append(y_range)
-
-                                xr0 = []
-                                yr0 = []
-                                # tu robimy to samo, ale dla obrazka referencyjnego (poprzedniego)
-                                for x,y in zip(x_ref,y_ref):
-                                    x_tmp = numpy.abs(x - x_ref)
-                                    y_tmp = numpy.abs(y - y_ref)
-                                    r_tmp = x_tmp**2 + y_tmp**2
-                                    i_tmp = numpy.argsort(r_tmp)
-                                    i1 = i_tmp[1]
-                                    i2 = i_tmp[2]
-                                    x_range = (x - x_ref[i1]) + (x - x_ref[i2])
-                                    y_range = (y - y_ref[i1]) + (y - y_ref[i2])
-                                    xr0.append(x_range)
-                                    yr0.append(y_range)
-
-                                xr,yr = numpy.array(xr),numpy.array(yr)
-                                xr0,yr0 = numpy.array(xr0),numpy.array(yr0)
-                                x_coo,y_coo = numpy.array(x_coo),numpy.array(y_coo)
-                                x_ref,y_ref = numpy.array(x_ref), numpy.array(y_ref)
-
-                                dx_tab = []
-                                dy_tab = []
-                                x_matched=[]
-                                y_matched=[]
-                                # A tutaj bedziemy porownywac te indeksy
-                                for i,tmp in enumerate(xr):
-                                    # sprawdzamy czy indeks geometryczny dla okazdej osi jest rozsadny
-                                    j_list = numpy.array([i for i in range(len(xr0))])
-                                    x_diff = numpy.abs(xr[i] - xr0)
-                                    y_diff = numpy.abs(yr[i] - yr0)
-                                    mk1 = x_diff < 3
-                                    mk2 = y_diff < 3
-                                    mk = [k and z for k,z in zip(mk1,mk2)]
-                                    tmp_rx0 = xr0[mk]
-                                    tmp_ry0 = yr0[mk]
-                                    j_list = j_list[mk]
-                                    prev_diff = 10000
-                                    # jak juz wybralismy gwiazdy z obrazka referencyjnego ktore
-                                    # moga byc nasza gwiazda, jezeli jest ich wiecej niz jedna,
-                                    # to wybieramy ta ktorej indeks geometryczny jest njbardziej zhblizony
-                                    if len(j_list)>0:
-                                        for j in j_list:
-                                            diff = x_diff[j]+y_diff[j]
-                                            if diff<prev_diff:
-                                                k = j
-                                                prev_diff = diff
-                                            # dla tak znalezionej gwiazdy liczymy roznice na
-                                            # obrazku i obrazku referencyjnym
-                                            dx = x_coo[i] - x_ref[k]
-                                            dy = y_coo[i] - y_ref[k]
-                                        x_matched.append(x_coo[i])
-                                        y_matched.append(y_coo[i])
-                                        dx_tab.append(dx)
-                                        dy_tab.append(dy)
-
-                                if len(dx_tab) > 0:
-                                    x_tmp = numpy.median(dx_tab)
-                                    y_tmp = numpy.median(dy_tab)
-                                    if numpy.abs(x_tmp) < 50 and numpy.abs(y_tmp) < 50: # dodatkowy warunek rozsadku
-                                        dx_multiStars = x_tmp
-                                        dy_multiStars = y_tmp
-
-                        # a tu po prostu porownujemy pozycje najjasniejszej gwiazdy
-                        if len(coo) > 1 and len(self.prev_guider_coo) > 1:
-                            if method=="Auto" or method=="Single star":
-
-                                single = coo[0]
-                                single_x = single[0]
-                                single_y = single[1]
-
-                                single0 = self.prev_guider_coo[0]
-                                single_x0 = single0[0]
-                                single_y0 = single0[1]
-
-                                x_tmp = single_x0 - single_x
-                                y_tmp = single_y0 - single_y
-
-                                if numpy.abs(x_tmp) < 50 and numpy.abs(y_tmp) < 50:
-                                    dx_single = x_tmp
-                                    dy_single = y_tmp
-
-                        # jak wybralismy metode Multistar
-                        if method=="Multistar":
-                            if dx_multiStars != None:
-                                dx = dx_multiStars
-                                dy = dy_multiStars
-                                txt=f"multistar\n dx={dx} dy={dy}"
-                                self.auxGui.guider_tab.guiderView.updateCoo(x_matched, y_matched, color="cyan")
-                            else:
-                                txt="multistar failed"
-                            self.auxGui.guider_tab.guiderView.result_e.setText(txt)
-
-                        # jak wybralismy metode Singlestar
-                        elif method=="Single star":
-                            if dx_single != None:
-                                dx = dx_single
-                                dy = dy_single
-                                txt=f"single star\n dx={dx} dy={dy}"
-                                self.auxGui.guider_tab.guiderView.updateCoo([single_x], [single_y], color="magenta")
-                            else:
-                                txt = "single star failed"
-                            self.auxGui.guider_tab.guiderView.result_e.setText(txt)
-
-                        # jak wybralismy Auto, to najpierw stara sie multistar a
-                        # jak sie nie uda to single star
-                        elif method=="Auto":
-                            if dx_multiStars != None:
-                                dx = dx_multiStars
-                                dy = dy_multiStars
-                                txt=f"Auto (multistar)\n dx={dx} dy={dy}"
-                                self.auxGui.guider_tab.guiderView.updateCoo(x_matched, y_matched, color="cyan")
-                            elif dx_single != None:
-                                dx = dx_single
-                                dy = dy_single
-                                txt=f"Auto (single star)\n dx={dx} dy={dy}"
-                                self.auxGui.guider_tab.guiderView.updateCoo([single_x], [single_y], color="magenta")
-                            else:
-                                txt = "auto failed"
-                            self.auxGui.guider_tab.guiderView.result_e.setText(txt)
-
-                        # tutaj jest lista ostatnich 20 pomiarow, sluzaca
-                        # do liczenia kumulatywnego przesuniecia
-                        # jak teleskop zrobi slew to sie lista zeruje
-                        if dx != None:
-                            self.guider_passive_dx.append(dx)
-                            self.guider_passive_dy.append(dy)
-
-                        if len(self.guider_passive_dx)>20:
-                            self.guider_passive_dx = self.guider_passive_dx[1:]
-                            self.guider_passive_dy = self.guider_passive_dy[1:]
-
-                        self.auxGui.guider_tab.guiderView.update_plot(self.guider_passive_dx,self.guider_passive_dy)
-
-                        # aktualny obrazek staje sie referencyjnym, chyba ze nie udalo znalez sie przesuniecia
-                        # wtedy 1 raz tego nie robi (steruje tym guider_failed)
-                        if (dx != None and dy != None) or self.guider_failed==1:
-                            self.prev_guider_coo = coo
-                            self.prev_guider_adu = adu
-                            self.guider_failed = 0
-                        else:
-                            self.guider_failed = 1
-
-            except Exception as e:
-                pass
-                #txt = f"GUIDER FAILED after {status}, {e}"
-                #self.auxGui.guider_tab.guiderView.result_e.setText(txt)
-
 
             #continue
 
@@ -2446,34 +2452,51 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def EmStop(self):
-        txt = f"REQUEST: EMERGENCY STOP"
-        await self.msg(txt, "red")
-        await self.user.aget_is_access()
-        await self.telescope.emergency_stop()
-        self.mntGui.domeAuto_c.setChecked(False)
-        await self.domeFollow()
+        # TODO ernest_nowy_tic COMENT podłączać metodę do przycisku można tylko jeden raz (chodzi o metodę .clicked.connect()) bo jak zrobi się to kilka razy to stare podłączenie się nie anuliują i są zdublowane, dlateg tutaj sprawdzam poprostu jaki teleskop jest wybrany i czy jest wogule i wysyłam naniego emergency stop
+        # check is any telescope selected
+        if self.telescope is not None:  # if telescope is selected, other component (e.g. dome ...) also. So no check
+            txt = f"REQUEST: EMERGENCY STOP"
+            await self.msg(txt, "red")
+
+            await self.user.aget_is_access()
+            await self.telescope.emergency_stop()
+            self.mntGui.domeAuto_c.setChecked(False)
+            await self.domeFollow()
+        else:
+            txt = f"REQUEST: emergency stop but no telescope is selected"
+            await self.msg(txt, "yellow")
 
     @qs.asyncSlot()
     async def shutdown(self):
-        if await self.user.aget_is_access():
-            txt = f"REQUEST: telescope shutdown"
-            await self.msg(txt, "green")
-            self.mntGui.domeAuto_c.setChecked(False)
-            await self.dome.aput_slewtoazimuth(180.)
-            await self.telescope.shutdown()
+        # TODO ernest_nowy_tic COMENT to samo co przy EmStop
+        if self.telescope is not None:  # if telescope is selected, other component (e.g. dome ...) also. So no check
+            if await self.user.aget_is_access():
+                txt = f"REQUEST: telescope shutdown"
+                await self.msg(txt, "green")
+                self.mntGui.domeAuto_c.setChecked(False)
+                await self.dome.aput_slewtoazimuth(180.)
+                await self.telescope.shutdown()
+            else:
+                txt = "WARNING: U don't have controll"
+                self.WarningWindow(txt)
         else:
-           txt = "WARNING: U don't have controll"
-           self.WarningWindow(txt)
+            txt = f"REQUEST: telescope shutdown but no telescope is selected"
+            await self.msg(txt, "yellow")
 
     @qs.asyncSlot()
     async def weatherStop(self):
-        if await self.user.aget_is_access():
-            txt = f"REQUEST: weather stop"
-            await self.msg(txt, "yellow")
-            await self.telescope.weather_stop()
+        # TODO ernest_nowy_tic COMENT to samo co przy EmStop
+        if self.telescope is not None:  # if telescope is selected, other component (e.g. dome ...) also. So no check
+            if await self.user.aget_is_access():
+                txt = f"REQUEST: weather stop"
+                await self.msg(txt, "yellow")
+                await self.telescope.weather_stop()
+            else:
+                txt = "WARNING: U don't have controll"
+                self.WarningWindow(txt)
         else:
-           txt = "WARNING: U don't have controll"
-           self.WarningWindow(txt)
+            txt = f"REQUEST: weather stop but no telescope is selected"
+            await self.msg(txt, "yellow")
 
     # #### USER #########
 
@@ -2530,6 +2553,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.auxGui.welcome_tab.hummidity_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
 
             self.obsGui.main_form.skyView.updateWind(self)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
         except Exception as e:
             logger.warning(f'TOI: updateWeather: {e}')
 
