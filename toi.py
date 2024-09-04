@@ -7,55 +7,40 @@
 import asyncio
 import functools
 import logging
-import datetime
-import signal
-#import requests
-import socket
-#import json
-import time
-import pwd
 import os
-import subprocess
+# import json
+import pwd
+import signal
+# import requests
+import socket
+import sys
 from pathlib import Path
 from typing import Optional
-
-from PyQt5.QtWidgets import QApplication
+import qasync as qs
+from PyQt5 import QtWidgets, QtCore, QtGui
 from obcom.comunication.base_client_api import BaseClientAPI
+from ocaboxapi import Observatory, Telescope, AccessGrantor, Dome, Mount, CoverCalibrator, Focuser, Camera, \
+    FilterWheel, Rotator, CCTV
 from ocaboxapi.ephemeris import Ephemeris
 from ocaboxapi.plan import ObservationPlan
-#from astropy.io import fits
-from pyaraucaria.dome_eq import dome_eq_azimuth
-
-from PyQt5 import QtWidgets, QtCore, QtGui
-
-import sys
-import qasync as qs
-
-#import paho.mqtt.client as mqtt
-
 from pyaraucaria.coordinates import *
-from pyaraucaria.airmass import airmass
-
-from ocaboxapi import ClientAPI, Observatory, Telescope, AccessGrantor, Dome, Mount, CoverCalibrator, Focuser, Camera, \
-    FilterWheel, Rotator, CCTV
-from ob.planrunner.cycle_time_calc.cycle_time_calc import CycleTimeCalc
-from serverish.messenger import Messenger, single_read, get_reader, get_journalreader, get_publisher
+# from astropy.io import fits
+from pyaraucaria.dome_eq import dome_eq_azimuth
+from serverish.messenger import Messenger, single_read, get_reader, get_journalreader
 from serverish.messenger.msg_journal_pub import MsgJournalPublisher, get_journalpublisher, JournalEntry
-from serverish.messenger.msg_journal_read import MsgJournalReader
 
-from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
-
-from obs_gui import ObsGui
 from aux_gui import AuxGui
-
-from toi_lib import *
-from mnt_gui import MntGui
-from plan_gui import PlanGui
-from instrument_gui import InstrumentGui
-from fits_save import *
-
+from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 from calcFocus import calc_focus as calFoc
 from ffs_lib.ffs import FFS
+from fits_save import *
+from instrument_gui import InstrumentGui
+from mnt_gui import MntGui
+from obs_gui import ObsGui
+from plan_gui import PlanGui
+from toi_lib import *
+
+# import paho.mqtt.client as mqtt
 #from starmatch_lib import StarMatch
 
 logging.basicConfig(level='INFO')
@@ -1414,6 +1399,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             ok_exp = False
             ok_name = False
             ok_seq = False
+            seq = ""
             name=self.instGui.ccd_tab.inst_object_e.text().strip()
             if len(name)>0:
                 ok_name=True
@@ -1476,6 +1462,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             ok_name = False
             ok_seq = False
             ok = True
+            seq = ""
 
             name=self.instGui.ccd_tab.inst_object_e.text().strip()
 
@@ -1993,6 +1980,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.mntDec_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
     async def radec_update(self, event):
+        # TODO ernest_nowy_tic COMENT bardzo nieładne zachowanie sie tu pojawia gdy nie można pobrać jenej z wartośc. Mamy 4 wartości ponirzej, funkcja jest callbackiem na subskrypcji (4 różnych subskrypcjach) załurzmy że subskrypcja na RA wywołuje callback (tą metodę) teoretycznie RA będzie do wzięcia OK ale pozostałe 3 wartości odświerzasz ręcznie i to może wypluć błąd (tak właśnie sike dzieje). Metoda się wykrzacza i w konsoli widzimy 'Traceback' z błędem. Może trzeba jakoś obsługiwać te błędy bo to nie ładnie żeby w konsoli pluło błędami. Do konsultacji MAREK-ERNEST
         self.mount_ra=await self.mount.aget_ra()
         self.mount_dec=await self.mount.aget_dec()
         self.mount_alt=await self.mount.aget_alt()
@@ -2181,19 +2169,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            await self.msg(f"TELEMETRY: shutter {txt}","black")
 
     async def domeStatus_update(self, event):
-           self.dome_status=await self.dome.aget_slewing()
-           if self.dome_status==False:
-              txt="STOPPED"
-              self.mntGui.domeStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-              self.mntGui.domeAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-           elif self.dome_status==True:
-                txt="MOVING"
-                self.mntGui.domeStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
-                self.mntGui.domeAz_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+        self.dome_status=await self.dome.aget_slewing()
+        if self.dome_status==False:
+            txt="STOPPED"
+            self.mntGui.domeStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            self.mntGui.domeAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        elif self.dome_status==True:
+            txt="MOVING"
+            self.mntGui.domeStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+            self.mntGui.domeAz_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
 
-           else: txt="UNKNOWN"
-           self.mntGui.domeStat_e.setText(txt)
-           await self.msg(f"TELEMETRY: dome {txt}","black")
+        else: txt="UNKNOWN"
+        self.mntGui.domeStat_e.setText(txt)
+        await self.msg(f"TELEMETRY: dome {txt}","black")
 
     async def domeAZ_update(self, event):
         self.dome_az = await self.dome.aget_az()
@@ -2762,7 +2750,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 # ############### ALL TELESCOPES TELEMETRY #########################
 
 
-class TelBasicState():
+class TelBasicState:
     def __init__(self, parent, tel):
         super().__init__()
 
