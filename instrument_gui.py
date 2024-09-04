@@ -47,6 +47,7 @@ class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
       @qs.asyncClose
       async def closeEvent(self, event):
           await self.stop_background_tasks()
+          await self.stop_background_methods()
           super().closeEvent(event)
 
 
@@ -276,6 +277,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
       @qs.asyncClose
       async def closeEvent(self, event):
           await self.stop_background_tasks()
+          await self.stop_background_methods()
           super().closeEvent(event)
           
 

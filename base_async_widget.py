@@ -184,7 +184,8 @@ class BaseAsyncWidget(ABC):
 
     async def stop_background_tasks(self, group: str = ""):
         await self._stop_background_tasks(group=group)
-        await self._stop_subscriptions()
+        if not group:
+            await self._stop_subscriptions()
 
     async def _stop_background_tasks(self, group: str = ""):
         if group:
