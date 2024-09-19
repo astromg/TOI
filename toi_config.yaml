@@ -1,0 +1,23 @@
+toi:
+  mark_saturated_stars: True
+
+wk06:
+  tel_directory: /data/fits/wk06/
+  tel_ob_list: /data/misc/objects_list/
+  flat_log_files: /Logs/wk06_flats_log.txt
+
+  showRotator: False
+
+zb08:
+  tel_directory: /data/fits/zb08/
+  tel_ob_list: /data/misc/objects_list/
+  flat_log_files: /Logs/zb08_flats_log.txt
+
+  showRotator: True
+
+jk15:
+  tel_directory: /data/fits/jk15/
+  tel_ob_list: /data/misc/objects_list/
+  flat_log_files: /Logs/jk15_flats_log.txt
+
+  showRotator: True

@@ -1,5 +1,7 @@
 STOP                        comment=cos tam
+WAIT wait_sunset=-4
 BELL                        comment="cos innego"
+STOP
 ZERO seq=15/Ic/0            comment='cos dupa'
 DARK seq=5/Ic/600           comment=( cos )
 STOP

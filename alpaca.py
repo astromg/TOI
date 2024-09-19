@@ -63,7 +63,7 @@ import requests
 # quest="http://192.168.7.110:11111/api/v1/camera/0/setccdtemperature"
 
 #quest="http://192.168.7.110:11111/api/v1/camera/1/description"
-quest="http://192.168.7.110:11111/api/v1/camera/1/name"
+quest="http://192.168.7.110:11111/api/v1/camera/0/numx"
 #quest="http://192.168.7.110:11111/api/v1/camera/1/electronsperadu"
 #quest="http://192.168.7.110:11111/api/v1/camera/1/exposuremax"
 #quest="http://192.168.7.110:11111/api/v1/camera/1/fullwellcapacity"

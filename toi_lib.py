@@ -374,6 +374,7 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
                 ok["seq"] = False
 
     if type == "FOCUS":
+
         try:
             ob["name"] = ll[1]
             ok["name"] = True

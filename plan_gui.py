@@ -22,9 +22,6 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib
 
-from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
-
-from ob.planrunner.cycle_time_calc.cycle_time_calc import CycleTimeCalc
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from pyaraucaria.coordinates import *
@@ -165,14 +162,12 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           #print("CTC: ", self.ctc.finnish_time_utc)
 
           self.check_next_i()
-          ob_date = str(ephem.Date(ephem.now())).split()[0]
           for i, tmp in enumerate(self.plan):
               #ob = ObsPlanParser.convert_from_string(self.plan[i]["block"])
               #print(self.ctc.calc_time(ob["subcommands"][0]))
               #print(self.ctc.time_list)
               #print("CTC: ", self.ctc.time_lenght_sec)
               #print("CTC: ", self.ctc.finnish_time_utc)
-
 
               if i == self.next_i or i == self.current_i:
                   ob_time = ephem.now()
@@ -195,6 +190,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   tmp_ok = True
               if self.next_i > -1 and i >= self.next_i:
                   tmp_ok = True
+
               if tmp_ok:
                   self.plan[i]["meta_plan_ut"] = str(ephem.Date(ob_time))
                   if "wait" in self.plan[i].keys():
@@ -203,8 +199,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                   if "wait_ut" in self.plan[i].keys():
                       if len(self.plan[i]["wait_ut"]) > 0:
-                          wait_ut = ephem.Date(ob_date+" "+self.plan[i]["wait_ut"])
-                          if ob_time < wait_ut:
+                          wait_ut = ephem.Date(str(ephem.Date(ob_time)).split()[0]+" "+self.plan[i]["wait_ut"])
+                          if ephem.Date(ob_time) < ephem.Date(wait_ut):
                               ob_time =  wait_ut
 
                   if "wait_sunset" in self.plan[i].keys():
@@ -697,7 +693,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
       def savePlan(self):
           self.File_dialog = QFileDialog()
-          self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
+          self.fileName = self.File_dialog.getSaveFileName(None,"Open file")[0]
           txt = ""
           for ob in self.plan:
               if ob["uid"] not in self.done:
@@ -1223,10 +1219,10 @@ class PlotWindow(QWidget):
                             self.axes.text(self.t, 3, f"WAIT {int(slotTime)}s", rotation=90, fontsize=fontsize)
                             self.t = self.t + ephem.second * slotTime
 
+
                     if "wait_ut" in self.parent.plan[i].keys():
                         if len(self.parent.plan[i]["wait_ut"]) > 0:
-                            ob_date = str(ephem.Date(ephem.now())).split()[0]
-                            wait_ut = ephem.Date(ob_date + " " + self.parent.plan[i]["wait_ut"])
+                            wait_ut = ephem.Date(str(ephem.Date(self.t)).split()[0] + " " + self.parent.plan[i]["wait_ut"])
                             if self.t < wait_ut:
                                 self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
                                                         alpha=0.5)
@@ -1502,8 +1498,18 @@ class EditWindow(QWidget):
       def type_changed(self):
           block = self.block_e.text()
           block = block.replace(block.split()[0],self.type_s.currentText())
+
+          if block.split()[0] == "FOCUS":
+              if "pos=" not in block:
+                  block = block + f" pos={self.parent.parent.cfg_focuser_defpos}"
+              if "seq=" in block:
+                  tmp = block.split("seq=")[0]+f" seq={self.parent.parent.cfg_focuser_seq} "+block.split("seq=")[1].split(" ",1)[1]
+                  block = tmp
+              else:
+                  block = block + f" seq={self.parent.parent.cfg_focuser_seq}"
+
           self.block_e.setText(block)
-          self.refresh()
+          #self.refresh()
 
       def update_tab(self):
 

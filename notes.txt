@@ -56,6 +56,8 @@
         #     self.mqtt_client.loop_start()
          # except Exception as e: pass
 
+    # def on_mqtt_connect(self, client, userdata, flags, rc):
+    #     if rc == 0: self.mqtt_client.subscribe((self.mqtt_topic_weather, 1))
 
 
     # def on_weather_message(self, client, userdata, message):

@@ -200,7 +200,6 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_gain_e.setReadOnly(True)
           self.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
           self.inst_setGain_e=QComboBox()
-          self.inst_setGain_e.addItems(self.parent.cfg_inst_gain)
           self.inst_setGain_p=QPushButton('Set')
           self.inst_setGain_p.clicked.connect(self.parent.ccd_setGain)
 
@@ -217,7 +216,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_read_e.setReadOnly(True)
           self.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
           self.inst_setRead_e=QComboBox()
-          self.inst_setRead_e.addItems(self.parent.cfg_inst_rm)
+          #self.inst_setRead_e.addItems(self.parent.cfg_inst_rm)
           self.inst_setRead_p=QPushButton('Set')
           self.inst_setRead_p.clicked.connect(self.parent.ccd_setReadMode)
 
@@ -233,7 +232,7 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.inst_ccdTemp_e=QLineEdit()
           self.inst_ccdTemp_e.setReadOnly(True)
           self.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-          self.inst_setTemp_e=QLineEdit(self.parent.cfg_inst_temp)
+          self.inst_setTemp_e=QLineEdit()
           self.inst_setTemp_p=QPushButton('Set')
           self.inst_setTemp_p.clicked.connect(self.parent.ccd_setTemp)
 

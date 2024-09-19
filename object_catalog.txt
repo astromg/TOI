@@ -59,3 +59,5 @@ SA104  12:42:21   -00:33:12   #  standard field mV between 10 and 15"
 SA110  18:42:45   +00:07:42   #  standard field mV between 10 and 14"
 SA113  21:41:00   +00:27:21   #  standard field mV between 10 and 14"
 SA114 22:41:37    +01:08:14   #  standard field mV between 9.5 and 12"
+
+Fairall9    01:23:45.76     -58:48:20.8089 # AGN V=13.83
