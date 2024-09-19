@@ -948,7 +948,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if d > 180:
                         d = d - 360.
                     d = numpy.abs(d)
-                    print(d)
                     if d > 5.:
                         await self.dome.aput_slewtoazimuth(az_m)
                         txt = "Dome AZ corrected"
