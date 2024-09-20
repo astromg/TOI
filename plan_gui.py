@@ -281,13 +281,55 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                           ob_time = ob_time + ephem.second * slotTime
 
 
+      def update_log_table(self):
+          if len(self.parent.ob_log)==0:
+              self.log_t.clearContents()
+          else:
+             # {'object_name': 'CR_Ser', 'uobi': 0, 'telescope': 'zb08', 'status': 'done', 'command_dict': {'command_name': 'OBJECT', 'args': ['CR_Ser', '18:10:02.13', '-13:32:45.5'], 'kwargs': {'seq': '2/B/12,2/V/3,2/Ic/1.8,2/g/7,2/r/1.5,2/i/1.4,2/z/5'}}, 'time': {'start_dt': '2024-09-20T01:11:08', 'end_dt': '2024-09-20T01:15:12', 'start_jd': 2460573.5494035487, 'end_jd': 2460573.5522267423, 'length_s': 243.923917}}
+             self.log_t.clearContents()
+
+             for i,tmp in enumerate(self.parent.ob_log):
+                 if self.log_t.rowCount() <= i: self.log_t.insertRow(i)
+                 if True:
+                     try:
+                        txt = self.parent.ob_log[i]["time"]["end_dt"]
+                        txt = txt.split("T")[1].split(":")[0]+":"+txt.split("T")[1].split(":")[1]
+                        txt=QTableWidgetItem(txt)
+                        txt.setBackground(QtGui.QColor(233, 233, 233))
+                        self.log_t.setItem(i,0,txt)
+                     except Exception as e:
+                         print("update_log_table Exception: ",e,self.parent.ob_log[i])
+                 if True:
+                     type = self.parent.ob_log[i]["command_dict"]["command_name"]
+                     if type != "OBJECT":
+                        txt = type + " " + self.parent.ob_log[i]["object_name"]
+                     else:
+                        txt = self.parent.ob_log[i]["object_name"]
+                     txt=QTableWidgetItem(txt)
+                     txt.setBackground(QtGui.QColor(233, 233, 233))
+                     self.log_t.setItem(i,1,txt)
+
+                 if True:
+                     txt = str(self.parent.ob_log[i]["uobi"])
+                     txt=QTableWidgetItem(txt)
+                     txt.setBackground(QtGui.QColor(233, 233, 233))
+                     self.log_t.setItem(i,2,txt)
+
+             self.log_t.scrollToBottom()
+             self.log_t.resizeColumnsToContents()
+             for col in range(2,self.log_t.columnCount()):
+                 self.log_t.horizontalHeader().setSectionResizeMode(col,QHeaderView.Stretch)
+
+
 
       def update_table(self):
           t0 = time.time()
           t1=0
+
           if len(self.plan)==0:
               self.plan_t.clearContents()
           else:
+             #print(self.parent.ob_log[-1])
              if self.i > len(self.plan)-1:
                  self.i = len(self.plan)-1
 
@@ -300,6 +342,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
              self.plan_t.clearContents()
              self.plan_t.blockSignals(True)
+
              for i,tmp in enumerate(self.plan):
                  if self.plan_t.rowCount() <= i: self.plan_t.insertRow(i)
 
@@ -758,6 +801,16 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.grid = QGridLayout()
 
           w=0
+          self.log_t=QTableWidget(0,3)
+          self.log_t.setHorizontalHeaderLabels(["UT","Object","cos"])
+          self.log_t.setSelectionMode(QAbstractItemView.NoSelection)
+          self.log_t.verticalHeader().hide()
+          self.log_t.setEditTriggers(QTableWidget.NoEditTriggers)
+          self.log_t.setStyleSheet("selection-background-color: white;")
+
+          self.grid.addWidget(self.log_t, w,0,5,5)
+          w=w+5
+
           self.stop_p=QPushButton('Stop')
           self.resume_p=QPushButton('Resume')
           self.start_p=QPushButton('Start')
