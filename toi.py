@@ -33,6 +33,7 @@ from pyaraucaria.dome_eq import dome_eq_azimuth
 from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
 
 from serverish.messenger import Messenger, single_read, get_reader, get_journalreader
+from serverish.messenger.msg_publisher import MsgPublisher, get_publisher
 from serverish.messenger.msg_journal_pub import MsgJournalPublisher, get_journalpublisher, JournalEntry
 
 from aux_gui import AuxGui
@@ -144,9 +145,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             except Exception as e:
                 logger.warning(f'{e}')
 
-
-
-
     # NATS weather
 
     async def nats_get_config(self):
@@ -200,6 +198,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.nats_journal_flats_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.flats')
         self.nats_journal_focus_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.focus')
         self.nats_journal_toi_msg = get_journalpublisher(f'tic.journal.{self.active_tel}.toi.signal')
+
+        self.nats_toi_ob_status = get_publisher(f'tic.status.{self.active_tel}.toi.ob')
 
         #subprocess.run(["aplay", self.script_location+"/sounds/spceflow.wav"])
         #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
@@ -1130,9 +1130,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 txt = self.ob_program
                 #tmp = ObsPlanParser.convert_from_string(self.ob_program)
-                self.planGui.ob_e.setText(txt)
-
                 # {'command_name': 'SEQUENCE', 'subcommands': [{'command_name': 'OBJECT', 'args': ['test'], 'kwargs': {'seq': '1/z/2.0', 'dome_follow': 'off'}}]}
+
+                try:
+                    s = self.nats_toi_ob_status
+                    status = {"ob_started":self.ob_started,"ob_done":self.ob_done,"ob_start_time":self.ob_start_time,"ob_expected_time":self.ob_expected_time,"ob_program":self.ob_program}
+                    await s.publish(status)
+                except Exception as e:
+                    print("nats_toi_ob_status publish:", e)
+
+
+                self.planGui.ob_e.setText(txt)
+                self.planGui.ob_e.setCursor(self.planGui.ob_e.textCursor().Start)
+
 
             elif info["name"] == "NIGHTPLAN" and info["done"]:
                 self.ob["done"] = True
