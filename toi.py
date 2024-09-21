@@ -455,6 +455,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.ob_start_time = status["ob_start_time"]
                 self.ob_expected_time = status["ob_expected_time"]
 
+                print(self.ob_started)
+
                 #DUPA
                 if status["ob_done"]:
                     txt = ""
@@ -817,6 +819,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             #DUPA
             if self.ob_started:
+                print("==========> JESTEM")
                 if True:
                     t = self.time - self.ob_start_time
                     p = t / self.ob_expected_time
