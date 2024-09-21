@@ -451,11 +451,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.ob', deliver_policy='last')
             async for status, meta in reader:
 
-                self.ob_started = status["ob_started"]
-                self.ob_start_time = status["ob_start_time"]
-                self.ob_expected_time = status["ob_expected_time"]
-
-                print(self.ob_started)
+                self.ob_started = bool(status["ob_started"])
+                self.ob_start_time = float(status["ob_start_time"])
+                self.ob_expected_time = float(status["ob_expected_time"])
 
                 #DUPA
                 if status["ob_done"]:
@@ -818,6 +816,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.time=time.perf_counter()
 
             #DUPA
+
+            print(self.ob_started, self.ob_start_time, self.ob_expected_time)
+
             if self.ob_started:
                 print("==========> JESTEM")
                 if True:
