@@ -451,17 +451,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.ob', deliver_policy='last')
             async for status, meta in reader:
 
+
                 self.ob_started = bool(status["ob_started"])
                 self.ob_start_time = float(status["ob_start_time"])
                 self.ob_expected_time = float(status["ob_expected_time"])
+                self.ob_done = bool(status["ob_done"])
 
                 #DUPA
-                if status["ob_done"]:
+                if self.ob_done:
                     txt = ""
                 else:
                     txt = status["ob_program"]
                 self.planGui.ob_e.setText(txt)
                 self.planGui.ob_e.setCursorPosition(0)
+
+                print(self.ob_started,self.ob_start_time,self.ob_expected_time,self.ob_done)
 
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
@@ -1186,10 +1190,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     await s.publish(data=status,timeout=10)
                 except Exception as e:
                     print("nats_toi_ob_status publish:", e)
-
-                #self.ob_expected_time = 0.1
-                #self.ob_start_time = 0
-                #self.planGui.ob_e.setText("")
 
             elif info["name"] == "SKYFLAT" and info["started"] and not info["done"]:  # SKYFLAT
                 await self.msg(f"PLAN: AUTO FLAT program started", "black")                       # SKYFLAT
