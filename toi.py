@@ -200,6 +200,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.nats_journal_toi_msg = get_journalpublisher(f'tic.journal.{self.active_tel}.toi.signal')
 
         self.nats_toi_ob_status = get_publisher(f'tic.status.{self.active_tel}.toi.ob')
+        #'tic.status.{self.active_tel}.toi.exp_status'
 
         #subprocess.run(["aplay", self.script_location+"/sounds/spceflow.wav"])
         #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
@@ -335,7 +336,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.planrunner = self.telescope.get_observation_plan()
         self.planrunner.add_info_callback('exec_json', self.PlanRun1)
         self.ephemeris = self.observatory_model.get_ephemeris()
-        self.ctc = self.telescope.get_cycle_time_calculator() # cycle time calculator
+        self.ctc = self.telescope.get_cycle_time_calculator(client_config_dict=self.client_cfg) # cycle time calculator
 
 
 
@@ -394,6 +395,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_log_focus_reader(), group="telescope_task")
         self.add_background_task(self.nats_log_toi_reader(), group="telescope_task")
         self.add_background_task(self.nats_log_loop(), group="telescope_task")
+        self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
 
         await self.run_background_tasks(group="telescope_task")
 
@@ -444,6 +446,30 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             r = d.message
             print("NATS TOI: ", r)
 
+    async def nats_toi_ob_status_reader(self):
+        try:
+            reader = get_reader(f'tic.status.{self.active_tel}.toi.ob', deliver_policy='last')
+            async for status, meta in reader:
+
+                self.ob_started = status["ob_started"]
+                self.ob_start_time = status["ob_start_time"]
+                self.ob_expected_time = status["ob_expected_time"]
+
+                #DUPA
+                if status["ob_done"]:
+                    txt = ""
+                else:
+                    txt = status["ob_program"]
+                self.planGui.ob_e.setText(txt)
+                self.planGui.ob_e.setCursorPosition(0)
+
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        #except Exception as e:
+        #    logger.warning(f'TOI: nats_toi_ob_status_reader: {e}')
+
+
+
     # NATS log plannera
     async def nats_log_loop(self):
         try:
@@ -455,8 +481,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.planGui.update_log_table()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
-        except Exception as e:
-            logger.warning(f'TOI: nats_log_loop: {e}')
+        #except Exception as e:
+        #    logger.warning(f'TOI: nats_log_loop: {e}')
 
 
     # ################### METODY POD SUBSKRYPCJE ##################
@@ -789,6 +815,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             self.time=time.perf_counter()
 
+            #DUPA
             if self.ob_started:
                 if True:
                     t = self.time - self.ob_start_time
@@ -874,7 +901,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         dt = self.time - self.ob["ob_start_time"]
                         if float(dt) > float(self.ob["wait"]):
                             self.ob["done"]=True
-                            self.planGui.done.append(self.ob["uid"])
+                            self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} {self.ob['wait']} s DONE","green")
                             self.planGui.current_i=-1
 
@@ -887,7 +914,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         req_ut = 3600*float(req_ut.split(":")[0])+60*float(req_ut.split(":")[1])+float(req_ut.split(":")[2])
                         if req_ut < ut :
                             self.ob["done"]=True
-                            self.planGui.done.append(self.ob["uid"])
+                            self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} UT {self.ob['wait_ut']} DONE","green")
                             self.planGui.current_i=-1
 
@@ -895,7 +922,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if self.ob["wait_sunrise"] != "":
                         if deg_to_decimal_deg(self.almanac["sun_alt"]) > float(self.ob["wait_sunrise"]):
                             self.ob["done"]=True
-                            self.planGui.done.append(self.ob["uid"])
+                            self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} DONE","green")
                             self.planGui.current_i=-1
 
@@ -903,7 +930,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if self.ob["wait_sunset"] != "":
                         if deg_to_decimal_deg(self.almanac["sun_alt"]) < float(self.ob["wait_sunset"]):
                             self.ob["done"]=True
-                            self.planGui.done.append(self.ob["uid"])
+                            self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} DONE","green")
                             self.planGui.current_i=-1
 
@@ -1135,19 +1162,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 try:
                     s = self.nats_toi_ob_status
                     status = {"ob_started":self.ob_started,"ob_done":self.ob_done,"ob_start_time":self.ob_start_time,"ob_expected_time":self.ob_expected_time,"ob_program":self.ob_program}
-                    await s.publish(status)
+                    await s.publish(data=status,timeout=10)
                 except Exception as e:
                     print("nats_toi_ob_status publish:", e)
 
-
-                self.planGui.ob_e.setText(txt)
-                self.planGui.ob_e.setCursor(self.planGui.ob_e.textCursor().Start)
-
-
             elif info["name"] == "NIGHTPLAN" and info["done"]:
                 self.ob["done"] = True
-                if "uid" in self.ob.keys():
-                    self.planGui.done.append(self.ob["uid"])
+                if "uobi" in self.ob.keys():
+                    self.planGui.done.append(self.ob["uobi"])
                 self.planGui.current_i = -1
                 self.dit_start = 0
                 self.instGui.ccd_tab.inst_DitProg_n.setFormat("IDLE")
@@ -1156,9 +1178,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.ob_done = True
                 #self.planrunner_running = False
                 #self.ob_time = 0
-                self.ob_expected_time = 0.1
-                self.ob_start_time = 0
-                self.planGui.ob_e.setText("")
+
+                try:
+                    s = self.nats_toi_ob_status
+                    status = {"ob_started":self.ob_started,"ob_done":self.ob_done,"ob_start_time":self.ob_start_time,"ob_expected_time":self.ob_expected_time,"ob_program":self.ob_program}
+                    await s.publish(data=status,timeout=10)
+                except Exception as e:
+                    print("nats_toi_ob_status publish:", e)
+
+                #self.ob_expected_time = 0.1
+                #self.ob_start_time = 0
+                #self.planGui.ob_e.setText("")
 
             elif info["name"] == "SKYFLAT" and info["started"] and not info["done"]:  # SKYFLAT
                 await self.msg(f"PLAN: AUTO FLAT program started", "black")                       # SKYFLAT
@@ -1279,8 +1309,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.ob["start_time"] = self.time
 
 
-                if "uid" in self.ob.keys():
-                    if self.ob["uid"] not in self.planGui.done:
+                if "uobi" in self.ob.keys():
+                    if self.ob["uobi"] not in self.planGui.done:
                         if "type" in self.ob.keys() and "name" in self.ob.keys():
                             self.planGui.current_i = self.planGui.next_i
 
@@ -1371,6 +1401,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 # except ValueError:
                                 #     self.ctc_time = 0.1
                                 #     print("CTC ERROR")
+
+                                # program = program + "obserwers='Julian Mickiewicz' uobi=int(2345) )     "
 
                                 await self.planrunner.aload_nightplan_string(program_name, string=program, overwrite=True, client_config_dict=self.client_cfg)
                                 await self.planrunner.arun_nightplan(program_name, step_id="00")

@@ -55,7 +55,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.prev_i=-1             # poprzednie podswietlenie
           self.next_i=0             # zmienna funkcjonalna, nastepny obiekt do obserwacji
           self.current_i=-1         # zmienna funckjonalna, ktore ob wlasnie sie wykonuje.
-          self.done=[]              # lista uuid wykonanych ob
+          self.done=[]              # lista uobi wykonanych ob
 
           self.updateUI()
           self.update_table()
@@ -81,7 +81,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              tmp_ob = self.plan[self.i].copy()
              i = self.i + 1
              self.plan.insert(i,tmp_ob)
-             self.plan[i]["uid"] = str(uuid.uuid4())[:8]
+             self.plan[i]["uobi"] = str(uuid.uuid4())[:8]
              self.update_table()
              self.repaint()
          else: print("no plan loaded") # ERROR MSG
@@ -124,8 +124,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           if self.next_i > len(self.plan)-1:
               self.next_i = -1
           else:
-              if "uid" in self.plan[self.next_i].keys():
-                  if self.plan[self.next_i]["uid"] in self.done:
+              if "uobi" in self.plan[self.next_i].keys():
+                  if self.plan[self.next_i]["uobi"] in self.done:
                       self.next_i = self.next_i + 1
                       self.check_next_i()
 
@@ -172,8 +172,10 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               if i == self.next_i or i == self.current_i:
                   ob_time = ephem.now()
 
-              if "uid" not in self.plan[i].keys():               # nadaje uuid jak nie ma
-                  self.plan[i]["uid"] = str(uuid.uuid4())[:8]
+              if "uobi" not in self.plan[i].keys():               # nadaje uobi jak nie ma
+                  self.plan[i]["uobi"] = str(uuid.uuid4())[:8]
+              if len(self.plan[i]["uobi"])<1:
+                  self.plan[i]["uobi"] = str(uuid.uuid4())[:8]
 
               if "ra" in self.plan[i].keys():                    # liczy aktualna wysokosc na horyzontem
                   ra=self.plan[i]["ra"]
@@ -272,7 +274,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                               pass
 
 
-                  if self.plan[i]["uid"] in self.done:
+                  if self.plan[i]["uobi"] in self.done:
                       ob_time = ob_time
                   else:
                       slotTime = 0
@@ -442,8 +444,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        #txt.setForeground(QtGui.QColor("red"))
                        self.plan_t.setItem(i,0,txt)
 
-                 if "uid" in self.plan[i].keys():
-                     if self.plan[i]["uid"] in self.done:
+                 if "uobi" in self.plan[i].keys():
+                     if self.plan[i]["uobi"] in self.done:
 
                          font=QtGui.QFont()
                          font.setPointSize(15)
@@ -739,7 +741,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.fileName = self.File_dialog.getSaveFileName(None,"Open file")[0]
           txt = ""
           for ob in self.plan:
-              if ob["uid"] not in self.done:
+              if ob["uobi"] not in self.done:
                   block = ob["block"]
                   if "\n" not in block:
                       block = block + "\n"
@@ -1000,7 +1002,7 @@ class TPGWindow(QWidget):
         else:
             wind = None
 
-        p = tpg(tel, date, wind=wind)
+        p = tpg(tel, date, wind=wind,done_uobi=[])
 
         tmp_plan=[]
         for blok in p.plan:
@@ -1362,17 +1364,6 @@ class PlotWindow(QWidget):
 
 
 
-            #    if "wait_ut" in self.parent.plan[i].keys():
-            #        pass
-            #         if ob_time < ephem.Date(ob_date + " " + self.plan[i]["wait_ut"]):
-            #             ob_time = ephem.Date(ob_date + " " + self.plan[i]["wait_ut"])
-            #     self.plan[i]["meta_plan_ut"] = str(ephem.Date(ob_time))
-
-            #     if self.plan[i]["uid"] in self.done:
-            #         ob_time = ob_time
-            #    else:
-
-
 
     def mkUI(self):
         grid = QGridLayout()
@@ -1643,7 +1634,10 @@ class EditWindow(QWidget):
           self.block_e=QLineEdit()
           i = self.parent.i
           ob = self.parent.plan[i]
-          self.block_e.setText(ob["block"])
+          txt = ob["block"]
+          if "uobi=" not in txt:
+              txt = txt + f" uobi={ob['uobi']}"
+          self.block_e.setText(txt)
           self.block_e.textChanged.connect(self.refresh)
 
           w=w+1

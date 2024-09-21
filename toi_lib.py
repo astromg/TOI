@@ -49,11 +49,11 @@ def seq_verification(seq,filter_list):
     return ok,err
 
 def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZERO","SKYFLAT","DOMEFLAT","FOCUS"],filter_list=["B","V","Ic"]):
-    ob = OrderedDict({"block":block,"ok":False,"type":"","name":"","ra":"","dec":"","seq":"","pos":"","wait":"","wait_ut":"","wait_sunset":"","wait_sunrise":"","slotTime":0,"comment":""})
-    ob_header = OrderedDict({"block":"","ok":"","type":"","name":"","ra":"","dec":"","seq":"seq=","pos":"pos=","wait":"wait=","wait_ut":"ut=","wait_sunset":"sunset=","wait_sunrise":"sunrise=","slotTime":"","comment":"comment="})
-    active = OrderedDict({"block":True,"ok":True,"type":True,"name":True,"ra":None,"dec":None,"seq":None,"pos":None,"wait":None,"wait_ut":None,"wait_sunset":None,"wait_sunrise":None,"slotTime":True,"comment":None})
-    ok = OrderedDict({"block":None,"ok":True,"type":None,"name":None,"ra":None,"dec":None,"seq":None,"pos":None,"wait":None,"wait_ut":None,"wait_sunset":None,"wait_sunrise":None,"slotTime":True,"comment":None})
-    options = OrderedDict({"block":None,"ok":None,"type":None,"name":None,"ra":None,"dec":None,"seq":None,"pos":None,"wait":None,"wait_ut":None,"wait_sunset":None,"wait_sunrise":None,"slotTime":None,"comment":None})
+    ob = OrderedDict({"block":block,"ok":False,"type":"","name":"","ra":"","dec":"","seq":"","pos":"","wait":"","wait_ut":"","wait_sunset":"","wait_sunrise":"","slotTime":0,"uobi":"","comment":""})
+    ob_header = OrderedDict({"block":"","ok":"","type":"","name":"","ra":"","dec":"","seq":"seq=","pos":"pos=","wait":"wait=","wait_ut":"ut=","wait_sunset":"sunset=","wait_sunrise":"sunrise=","slotTime":"","uobi":"uobi=","comment":"comment="})
+    active = OrderedDict({"block":True,"ok":True,"type":True,"name":True,"ra":None,"dec":None,"seq":None,"pos":None,"wait":None,"wait_ut":None,"wait_sunset":None,"wait_sunrise":None,"slotTime":True,"uobi":None,"comment":None})
+    ok = OrderedDict({"block":None,"ok":True,"type":None,"name":None,"ra":None,"dec":None,"seq":None,"pos":None,"wait":None,"wait_ut":None,"wait_sunset":None,"wait_sunrise":None,"slotTime":True,"uobi":None,"comment":None})
+    options = OrderedDict({"block":None,"ok":None,"type":None,"name":None,"ra":None,"dec":None,"seq":None,"pos":None,"wait":None,"wait_ut":None,"wait_sunset":None,"wait_sunrise":None,"slotTime":None,"uobi":None,"comment":None})
 
     err = block+"\n"
 
@@ -74,14 +74,14 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         ok["name"] = True
         active = OrderedDict(
             {"block": True, "ok":True, "type": True, "name": True, "ra": False, "dec": False, "seq": False, "pos": False, "wait": False,
-             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True, "comment": None})
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True,"uobi":None, "comment": None})
 
     if type == "BELL":
         ob["name"] = "BELL"
         ok["name"] = True
         active = OrderedDict(
             {"block": True, "ok":True, "type": True, "name": True, "ra": False, "dec": False, "seq": False, "pos": False, "wait": False,
-             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True, "comment": None})
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True,"uobi":None, "comment": None})
 
     if type == "WAIT":
 
@@ -89,7 +89,7 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         ok["name"] = True
         active = OrderedDict(
             {"block": True, "ok":True, "type": True, "name": True, "ra": False, "dec": False, "seq": False, "pos": False, "wait": None,
-             "wait_ut": None, "wait_sunset": None, "wait_sunrise": None, "slotTime": True, "comment": None})
+             "wait_ut": None, "wait_sunset": None, "wait_sunrise": None, "slotTime": True,"uobi":None, "comment": None})
 
         chx = True
         if "wait=" in block:
@@ -198,7 +198,7 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         ok["name"] = True
         active = OrderedDict(
             {"block": True, "ok":True, "type": True, "name": True, "ra": False, "dec": False, "seq": True, "pos": False, "wait": False,
-             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True, "comment": None})
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True,"uobi":None, "comment": None})
         if "seq=" in block:
             try:
                 tmp = block.split("seq=")[1].split()[0]
@@ -222,7 +222,7 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         ok["name"] = True
         active = OrderedDict(
             {"block": True, "ok":True, "type": True, "name": True, "ra": False, "dec": False, "seq": True, "pos": False, "wait": False,
-             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True, "comment": None})
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True,"uobi":None, "comment": None})
 
         if "seq=" in block:
             try:
@@ -248,7 +248,7 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
             ok["name"] = False
         active = OrderedDict(
             {"block": True, "ok":True, "type": True, "name": True, "ra": False, "dec": False, "seq": True, "pos": False, "wait": False,
-             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True, "comment": None})
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True,"uobi":None, "comment": None})
 
         if "seq=" in block:
             try:
@@ -274,7 +274,7 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
             ok["name"] = False
         active = OrderedDict(
             {"block": True, "ok":True, "type": True, "name": True, "ra": True, "dec": True, "seq": True, "pos": False, "wait": False,
-             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True, "comment": None})
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True,"uobi":None, "comment": None})
 
         try:
             ra = ll[2]
@@ -329,7 +329,7 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         active = OrderedDict(
             {"block": True, "ok":True, "type": True, "name": True, "ra": True, "dec": True, "seq": True, "pos": False,
              "wait": False,
-             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True, "comment": None})
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True,"uobi":None, "comment": None})
 
         try:
             ra = ll[2]
@@ -383,7 +383,7 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
         active = OrderedDict(
             {"block": True, "ok":True, "type": True, "name": True, "ra": True, "dec": True, "seq": True, "pos": True,
              "wait": False,
-             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True, "comment": None})
+             "wait_ut": False, "wait_sunset": False, "wait_sunrise": False, "slotTime": True,"uobi":None, "comment": None})
 
         try:
             ra = ll[2]
@@ -447,6 +447,17 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
             if not ok[key]:
                 ok["block"] = False
 
+
+    if "uobi=" in block:
+        try:
+            tmp = block.split("uobi=")[1].split()[0]
+            if "=" not in tmp:
+                ob["uobi"] = tmp
+                ok["uobi"] = True
+            else:
+                ok["uobi"] = False
+        except:
+            ok["uobi"] = False
 
     if "comment=" in block:
         try:
