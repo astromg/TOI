@@ -497,6 +497,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             r = get_reader(f'tic.status.{tel}.planner.command.log', deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in r:
                 self.ob_log.append(data)
+                if "uobi" in data.keys():
+                    if data["uobi"] not in self.planGui.done:
+                        self.planGui.done.append(data["uobi"])
                 self.planGui.update_log_table()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
@@ -1097,7 +1100,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if info["exp_started"]==True and info["exp_done"]==True and info["exp_saved"]==True:
                 if Path(self.cfg_tel_directory + "last_shoot.fits").is_file():
                     hdul = fits.open(self.cfg_tel_directory + "last_shoot.fits")
+                    t0 = time.time()
                     self.image = hdul[0].data
+                    t1 = time.time()
+                    print("IMAGE LOAD: ", t1-t0)
                     await self.new_fits()
                 else:
                     self.image = await self.ccd.aget_imagearray()
@@ -1191,8 +1197,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             elif info["name"] == "NIGHTPLAN" and info["done"]:
                 self.ob["done"] = True
-                if "uobi" in self.ob.keys():
-                    self.planGui.done.append(self.ob["uobi"])
+                #if "uobi" in self.ob.keys():
+                #    self.planGui.done.append(self.ob["uobi"])
                 self.planGui.current_i = -1
                 self.exp_prog_status["dit_start"] = 0
 
@@ -1518,15 +1524,24 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             image = numpy.asarray(image)
             #image = image.astype(numpy.uint16)
 
+            t0 = time.time()
             stats = FFS(image)
+            t1 = time.time()
+            print("IMAGE BASIC STATS: ", t1 - t0)
 
             coo=[]
             adu=[]
             fwhm_x,fwhm_y=0,0
             th = 20
-            coo,adu = stats.find_stars(threshold=th,kernel_size=9,fwhm=4)
+            t0 = time.time()
+            coo,adu = stats.find_stars(threshold=th,kernel_size=6,fwhm=4)
+            t1 = time.time()
+            print("FIND STARS: ", t1 - t0)
             if len(coo)>3:
+                t0 = time.time()
                 fwhm_x,fwhm_y = stats.fwhm(saturation=45000)
+                t1 = time.time()
+                print("FWHM: ", t1 - t0)
                 if fwhm_x != None and fwhm_y !=None:
                     fwhm = (fwhm_x+fwhm_y)/2.
                     coo, adu = stats.find_stars(threshold=th, kernel_size=9, fwhm=1.5*fwhm)

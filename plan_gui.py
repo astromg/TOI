@@ -1002,7 +1002,11 @@ class TPGWindow(QWidget):
         else:
             wind = None
 
-        p = tpg(tel, date, wind=wind,done_uobi=[])
+        if self.repeat_c.checkState():
+            uobi_done = self.parent.done
+        else:
+            uobi_done = []
+        p = tpg(tel, date, wind=wind,done_uobi=uobi_done)
 
         tmp_plan=[]
         for blok in p.plan:
@@ -1033,9 +1037,9 @@ class TPGWindow(QWidget):
         self.wind_e.setText(f"{self.parent.parent.telemetry_wind_direction:.0f}")
 
         self.repeat_c = QCheckBox("Dont repeat observed objects")
-        self.repeat_c.setChecked(False)
-        self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
-        #self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.repeat_c.setChecked(True)
+        #self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+        self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
 
 
         self.add_p = QPushButton('Generate Plan')
