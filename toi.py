@@ -475,7 +475,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.exp', deliver_policy='last')
             async for data, meta in reader:
                 self.exp_prog_status = data
-                print(self.exp_prog_status )
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
 
@@ -953,14 +952,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} DONE","green")
                             self.planGui.current_i=-1
-
-            # DUPA
-
-            # self.dit_start
-            # self.dit_exp
-            # self.ndit
-            # self.ndit_req
-            # self.plan_runner_status
 
 
             # obsluga wyswietlania poskow postepu ekspozycji
