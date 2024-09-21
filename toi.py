@@ -817,10 +817,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             #DUPA
 
-            print(self.ob_started, self.ob_start_time, self.ob_expected_time)
-
             if self.ob_started:
-                print("==========> JESTEM")
                 if True:
                     t = self.time - self.ob_start_time
                     p = t / self.ob_expected_time
