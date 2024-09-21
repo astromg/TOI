@@ -203,7 +203,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.nats_toi_exp_status = get_publisher(f'tic.status.{self.active_tel}.toi.exp')
 
         self.nats_pub_toi_status = get_publisher(f'tic.status.{self.active_tel}.toi.status')
-        #'tic.status.{self.active_tel}.toi.exp_status'
 
         #subprocess.run(["aplay", self.script_location+"/sounds/spceflow.wav"])
         #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
@@ -435,21 +434,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         async for data, meta in reader:
             d:JournalEntry = data
             r = d.message
-            print("NATS FLAT: ", r)
+            #print("NATS FLAT: ", r)
 
     async def nats_log_focus_reader(self):
         reader = get_journalreader(f'tic.journal.{self.active_tel}.log.focus', deliver_policy='last')
         async for data, meta in reader:
             d:JournalEntry = data
             r = d.message
-            print("NATS FOCUS: ", r)
+            #print("NATS FOCUS: ", r)
 
     async def nats_log_toi_reader(self):
         reader = get_journalreader(f'tic.journal.{self.active_tel}.toi.signal', deliver_policy='last')
         async for data, meta in reader:
             d:JournalEntry = data
             r = d.message
-            print("NATS TOI: ", r)
+            #print("NATS TOI: ", r)
 
     async def nats_toi_ob_status_reader(self):
         try:
@@ -3217,14 +3216,15 @@ async def run_qt_app():
 
     # TODO ernest_nowy_tic COMENT tutaj natsy powinny być uruchamiane przed API ocabox
     # Setup NATS Messenger:
-    logger.info(f"Try connect to nats ...")
+    #logger.info(f"Try connect to nats ...")
     msg = Messenger()
     nats_opener = await msg.open(host=nats_host, port=nats_port, wait=3)
     try:
         if nats_opener:
             await nats_opener  # waiting for connection to nats
         if msg.is_open:
-            logger.info(f"Connected witch NATS successfully")
+            pass
+            #logger.info(f"Connected witch NATS successfully")
         else:
             logger.error(f"Can't connect to NATS {nats_host}:{nats_port} Application stopped!")
             return
