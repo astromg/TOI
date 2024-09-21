@@ -818,6 +818,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.new_fits()
 
             self.time=time.perf_counter()
+            print(self.time,time.time())
+            self.time = time.time()
 
             #DUPA
 
