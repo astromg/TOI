@@ -200,6 +200,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.nats_journal_toi_msg = get_journalpublisher(f'tic.journal.{self.active_tel}.toi.signal')
 
         self.nats_toi_ob_status = get_publisher(f'tic.status.{self.active_tel}.toi.ob')
+        self.nats_toi_exp_status = get_publisher(f'tic.status.{self.active_tel}.toi.exp')
+
+        self.nats_pub_toi_status = get_publisher(f'tic.status.{self.active_tel}.toi.status')
         #'tic.status.{self.active_tel}.toi.exp_status'
 
         #subprocess.run(["aplay", self.script_location+"/sounds/spceflow.wav"])
@@ -396,6 +399,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_log_toi_reader(), group="telescope_task")
         self.add_background_task(self.nats_log_loop(), group="telescope_task")
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
+        self.add_background_task(self.nats_toi_status_reader(), group="telescope_task")
+        self.add_background_task(self.nats_toi_exp_status_reader(), group="telescope_task")
 
         await self.run_background_tasks(group="telescope_task")
 
@@ -450,28 +455,40 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             reader = get_reader(f'tic.status.{self.active_tel}.toi.ob', deliver_policy='last')
             async for status, meta in reader:
-
-
                 self.ob_started = bool(status["ob_started"])
                 self.ob_start_time = float(status["ob_start_time"])
                 self.ob_expected_time = float(status["ob_expected_time"])
                 self.ob_done = bool(status["ob_done"])
-
-                #DUPA
                 if self.ob_done:
                     txt = ""
                 else:
                     txt = status["ob_program"]
                 self.planGui.ob_e.setText(txt)
                 self.planGui.ob_e.setCursorPosition(0)
-
-                print(self.ob_started,self.ob_start_time,self.ob_expected_time,self.ob_done)
-
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         #except Exception as e:
         #    logger.warning(f'TOI: nats_toi_ob_status_reader: {e}')
 
+    async def nats_toi_exp_status_reader(self):
+        try:
+            reader = get_reader(f'tic.status.{self.active_tel}.toi.exp', deliver_policy='last')
+            async for data, meta in reader:
+                self.exp_prog_status = data
+                print(self.exp_prog_status )
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+
+
+    async def nats_toi_status_reader(self):
+        try:
+            reader = get_reader(f'tic.status.{self.active_tel}.toi.status', deliver_policy='last')
+            async for data, meta in reader:
+                if "dome_follow_switch" in data.keys():
+                    self.toi_status["dome_follow_switch"] = data["dome_follow_switch"]
+                    self.mntGui.domeAuto_c.setChecked(self.toi_status["dome_follow_switch"])
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
 
 
     # NATS log plannera
@@ -532,7 +549,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if self.tic_conn and self.tel_alpaca_conn:
 
                     self.mount_conn = True
-                    #self.mount_conn = await self.self.mount.aget_connected()
+                    #self.mount_conn = await self.mount.aget_connected()
                     self.dome_conn = True
                     if bool(self.cfg_showRotator):
                         self.rotator_conn = True
@@ -817,11 +834,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.flag_newimage = False
                     self.new_fits()
 
-            self.time=time.perf_counter()
-            print(self.time,time.time())
             self.time = time.time()
-
-            #DUPA
 
             if self.ob_started:
                 if True:
@@ -941,33 +954,45 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             await self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} DONE","green")
                             self.planGui.current_i=-1
 
-            if self.dit_start>0:
+            # DUPA
 
-                dt=self.time-self.dit_start
-                if dt>self.dit_exp:
-                    dt=self.dit_exp
-                    if self.plan_runner_status == "exposing":
+            # self.dit_start
+            # self.dit_exp
+            # self.ndit
+            # self.ndit_req
+            # self.plan_runner_status
+
+
+            # obsluga wyswietlania poskow postepu ekspozycji
+
+            if self.exp_prog_status["dit_start"]>0:
+
+                dt=self.time-self.exp_prog_status["dit_start"]
+                if dt>self.exp_prog_status["dit_exp"]:
+                    dt=self.exp_prog_status["dit_exp"]
+                    if self.exp_prog_status["plan_runner_status"] == "exposing":
                         txt = "reading: "
                 else:
-                    if self.plan_runner_status == "exposing":
+                    if self.exp_prog_status["plan_runner_status"] == "exposing":
                         txt = "exposing: "
-                if self.plan_runner_status=="exp done":
+                if self.exp_prog_status["plan_runner_status"]=="exp done":
                     txt="DONE "
-                if int(self.dit_exp)==0: p=100
-                else: p=int(100*(dt/self.dit_exp))
+                if int(self.exp_prog_status["dit_exp"])==0: p=100
+                else: p=int(100*(dt/self.exp_prog_status["dit_exp"]))
                 self.instGui.ccd_tab.inst_DitProg_n.setValue(p)
-                txt2=f"{int(dt)}/{int(self.dit_exp)}"
+                txt2=f"{int(dt)}/{int(self.exp_prog_status['dit_exp'])}"
 
-                p=int(100*(self.ndit/self.ndit_req))
+                p=int(100*(self.exp_prog_status["ndit"]/self.exp_prog_status["ndit_req"]))
                 self.instGui.ccd_tab.inst_NditProg_n.setValue(p)
-                txt=txt+f"{int(self.ndit)}/{int(self.ndit_req)}"
+                txt=txt+f"{int(self.exp_prog_status['ndit'])}/{int(self.exp_prog_status['ndit_req'])}"
 
                 self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt)
                 self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt2)
 
             else:
                 self.instGui.ccd_tab.inst_NditProg_n.setFormat("")
-                #self.instGui.ccd_tab.inst_DitProg_n.setFormat("")
+
+            # obsluga Almanacu
 
             self.ut = str(ephem.now())
             #print(self.ut)
@@ -1173,13 +1198,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 except Exception as e:
                     print("nats_toi_ob_status publish:", e)
 
+
             elif info["name"] == "NIGHTPLAN" and info["done"]:
                 self.ob["done"] = True
                 if "uobi" in self.ob.keys():
                     self.planGui.done.append(self.ob["uobi"])
                 self.planGui.current_i = -1
-                self.dit_start = 0
-                self.instGui.ccd_tab.inst_DitProg_n.setFormat("IDLE")
+                self.exp_prog_status["dit_start"] = 0
+
+                try:
+                    s = self.nats_toi_exp_status
+                    data = self.exp_prog_status
+                    await s.publish(data=data, timeout=10)
+                except Exception as e:
+                    print("nats_toi_ob_status publish:", e)
+
+                #self.instGui.ccd_tab.inst_DitProg_n.setFormat("IDLE")
                 await self.msg("PLAN: Plan finished", "black")
                 self.ob_started = False
                 self.ob_done = True
@@ -1202,26 +1236,50 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         if "exp_started" in info.keys() and "exp_done" in info.keys():
             if info["exp_started"] and not info["exp_done"]:
-                self.ndit=float(info["n_exp"])
-                self.ndit_req=float(info["exp_no"])
-                self.dit_exp=float(info["exp_time"])
-                self.dit_start=self.time
-                self.plan_runner_status="exposing"
-                await self.msg(f"PLAN: {self.dit_exp} [s] exposure started","black")
+                self.exp_prog_status["ndit"]=float(info["n_exp"])
+                self.exp_prog_status["ndit_req"]=float(info["exp_no"])
+                self.exp_prog_status["dit_exp"]=float(info["exp_time"])
+                self.exp_prog_status["dit_start"]=self.time
+                self.exp_prog_status["plan_runner_status"]="exposing"
+
+                try:
+                    s = self.nats_toi_exp_status
+                    data = self.exp_prog_status
+                    await s.publish(data=data, timeout=10)
+                except Exception as e:
+                    print("nats_toi_ob_status publish:", e)
+
+                await self.msg(f"PLAN: {self.exp_prog_status['dit_exp']} [s] exposure started","black")
 
             elif info["exp_done"] and info["exp_saved"]:
-                self.ndit=float(info["n_exp"])
-                self.plan_runner_status="exp done"
+                self.exp_prog_status["ndit"]=float(info["n_exp"])
+                self.exp_prog_status["plan_runner_status"]="exp done"
+
+                try:
+                    s = self.nats_toi_exp_status
+                    data = self.exp_prog_status
+                    await s.publish(data=data, timeout=10)
+                except Exception as e:
+                    print("nats_toi_ob_status publish:", e)
 
 
         if "auto_exp_start" in info.keys() and "auto_exp_finnished" in info.keys():    # SKYFLAT
             if info["auto_exp_start"] and not info["auto_exp_finnished"]:
-                self.ndit=0
-                self.ndit_req=float(info["exp_no"])
-                self.dit_exp=float(info["auto_exp_time"])
-                self.dit_start=self.time
-                self.plan_runner_status="exposing"
-                await self.msg(f"PLAN: {self.dit_exp} [s] test exposure started","black")
+                self.exp_prog_status["ndit"]=0
+                self.exp_prog_status["ndit_req"]=float(info["exp_no"])
+                self.exp_prog_status["dit_exp"]=float(info["auto_exp_time"])
+                self.exp_prog_status["dit_start"]=self.time
+                self.exp_prog_status["plan_runner_status"]="exposing"
+
+                try:
+                    s = self.nats_toi_exp_status
+                    data = self.exp_prog_status
+                    await s.publish(data=data, timeout=10)
+                except Exception as e:
+                    print("nats_toi_ob_status publish:", e)
+
+
+                await self.msg(f"PLAN: {self.exp_prog_status['dit_exp']} [s] test exposure started","black")
 
             elif info["auto_exp_finnished"]:
                 await self.msg(f"PLAN: test exposure done", "black")
@@ -1547,7 +1605,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def ccd_Snap(self):
         self.observer = self.auxGui.welcome_tab.observer_e.text()
         if await self.user.aget_is_access():
-            self.dit_start=0
+            self.exp_prog_status["dit_start"]=0
+
+            try:
+                s = self.nats_toi_exp_status
+                data = self.exp_prog_status
+                await s.publish(data=data, timeout=10)
+            except Exception as e:
+                print("nats_toi_ob_status publish:", e)
+
             ok_ndit = False
             ok_exp = False
             ok_name = False
@@ -1592,8 +1658,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 ok_seq = True
 
             if ok_name and ok_seq:
-                self.ndit=0
+                self.exp_prog_status["ndit"]=0
                 txt = f"SNAP {name} seq={seq} dome_follow=off \n"
+
+                try:
+                    s = self.nats_toi_exp_status
+                    data = self.exp_prog_status
+                    await s.publish(data=data, timeout=10)
+                except Exception as e:
+                    print("nats_toi_ob_status publish:", e)
 
             await self.planrunner.aload_nightplan_string('manual', string=txt, overwrite=True, client_config_dict=self.client_cfg)
             await self.planrunner.arun_nightplan('manual', step_id="00")
@@ -1614,7 +1687,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def ccd_startExp(self):
         if await self.user.aget_is_access():
-            self.dit_start=0
+            self.exp_prog_status["dit_start"]=0
+
+            try:
+                s = self.nats_toi_exp_status
+                data = self.exp_prog_status
+                await s.publish(data=data, timeout=10)
+            except Exception as e:
+                print("nats_toi_ob_status publish:", e)
+
             ok_ndit = False
             ok_exp = False
             ok_name = False
@@ -1675,7 +1756,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.instGui.ccd_tab.inst_Seq_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
 
             if ok_name and ok_seq:
-                self.ndit=0
+                self.exp_prog_status["ndit"]=0
+
+                try:
+                    s = self.nats_toi_exp_status
+                    data = self.exp_prog_status
+                    await s.publish(data=data, timeout=10)
+                except Exception as e:
+                    print("nats_toi_ob_status publish:", e)
+
 
                 if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==0:
                     txt = f"OBJECT {name} seq={seq} dome_follow=off \n"
@@ -1727,7 +1816,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def ccd_stopExp(self):
         if True:
             await self.takeControl()
-            self.dit_start=0
+            self.exp_prog_status["dit_start"]=0
+
+            try:
+                s = self.nats_toi_exp_status
+                data = self.exp_prog_status
+                await s.publish(data=data, timeout=10)
+            except Exception as e:
+                print("nats_toi_ob_status publish:", e)
+
             self.ob["run"]=False
             await self.planrunner.astop_nightplan()
             await self.ccd.aput_stopexposure()
@@ -2273,7 +2370,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def domeFollow(self):
         if await self.user.aget_is_access():
-            pass
+            self.toi_status["dome_follow_switch"] = self.mntGui.domeAuto_c.isChecked()
+            try:
+                s = self.nats_pub_toi_status
+                data = self.toi_status
+                await s.publish(data=data, timeout=10)
+            except Exception as e:
+                print("domeFollow NATS:", e)
         else:
             txt="WARNING: You don't have controll"
             self.WarningWindow(txt)
@@ -2743,6 +2846,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # a tu tworzymy konfiguracje teleskopow dla kazdego teleskopu wk06, zb08, jk15, etc.
         self.tel_cfg = {k:{} for k in nats_cfg.keys()}
+
+        self.toi_status = {}
+
         for k in self.tel_cfg.keys():
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["mount"]["min_alt"]
@@ -2866,13 +2972,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.telemetry_pressure = None
 
         # aux zmienne
+        self.exp_prog_status = {"plan_runner_status":"","ndit_req":1,"ndit":0,"dit_exp":0,"dit_start":0}
+
         self.fits_exec=False
-        self.dit_start=0
-        self.dit_exp=0
-        self.ndit=0
-        self.ndit_req=1
+        #self.dit_start=0
+        #self.dit_exp=0
+        #self.ndit=0
+        #self.ndit_req=1
         #self.plan_runner_origin=""
-        self.plan_runner_status=""
+        #self.plan_runner_status=""
         self.ob={"run":False,"done":False}
         self.autofocus_started=False
         self.last_focus_position=None
