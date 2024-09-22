@@ -31,6 +31,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.parent = parent
         self.setGeometry(self.parent.mnt_geometry[0],self.parent.mnt_geometry[1],self.parent.mnt_geometry[2],self.parent.mnt_geometry[3])
         self.updateUI()
+        self.show()
+        self.raise_()
 
     def updateNextRaDec(self):
         self.nextRa_e.setStyleSheet("background-color: white; color: black;")

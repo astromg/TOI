@@ -31,6 +31,8 @@ class AuxGui(QWidget):
                          self.parent.aux_geometry[3])
 
         self.updateUI()
+        self.show()
+        self.raise_()
 
     def updateUI(self):
 

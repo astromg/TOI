@@ -59,6 +59,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.updateUI()
           self.update_table()
+          self.show()
+          self.raise_()
 
       def plot_plan(self):
          if len(self.plan)>self.i:
@@ -163,11 +165,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.check_next_i()
           for i, tmp in enumerate(self.plan):
-              #ob = ObsPlanParser.convert_from_string(self.plan[i]["block"])
-              #print(self.ctc.calc_time(ob["subcommands"][0]))
-              #print(self.ctc.time_list)
-              #print("CTC: ", self.ctc.time_lenght_sec)
-              #print("CTC: ", self.ctc.finnish_time_utc)
 
               if i == self.next_i or i == self.current_i:
                   ob_time = ephem.now()
@@ -326,12 +323,10 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
       def update_table(self):
           t0 = time.time()
-          t1=0
 
           if len(self.plan)==0:
               self.plan_t.clearContents()
           else:
-             #print(self.parent.ob_log[-1])
              if self.i > len(self.plan)-1:
                  self.i = len(self.plan)-1
 
@@ -340,7 +335,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
              self.update_plan()
 
-             t1 = time.time() - t0
 
              self.plan_t.clearContents()
              self.plan_t.blockSignals(True)
@@ -371,8 +365,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        font=QtGui.QFont()
                        font.setPointSize(15)
                        txt=QTableWidgetItem("\u29D6")     # prosta klepsydra
-                       #txt = QTableWidgetItem("\u23F1")  # stoper
-                       #txt = QTableWidgetItem("\u23F3")  # klepsydra
                        txt.setFont(font)
                        txt.setTextAlignment(QtCore.Qt.AlignCenter)
                        txt.setForeground(QtGui.QColor("darkCyan"))
@@ -397,7 +389,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                        txt.setTextAlignment(QtCore.Qt.AlignCenter)
                        #txt.setForeground(QtGui.QColor("red"))
                        self.plan_t.setItem(i,0,txt)
-
 
                  if "meta_plan_alt" in self.plan[i].keys():
                      alt = float(self.plan[i]["meta_plan_alt"])
@@ -446,7 +437,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                  if "uobi" in self.plan[i].keys():
                      if self.plan[i]["uobi"] in self.done:
-
                          font=QtGui.QFont()
                          font.setPointSize(15)
                          txt=QTableWidgetItem("\u2713")
@@ -483,7 +473,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                              txt = "FOCUS "+ self.plan[i]["name"]
                          elif self.plan[i]["type"] == "WAIT":
                              txt = f'{self.plan[i]["block"].split()[1]} '
-
                          else:
                              txt = self.plan[i]["name"]
                      else:
@@ -527,19 +516,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                  self.plan_t.setItem(i,3,txt)
 
-
-
-                 #if i==self.prev_i:
-                    #self.plan_t.item(i,1).setBackground(QtGui.QColor(230, 236, 240))
-                    #self.plan_t.item(i,2).setBackground(QtGui.QColor(230, 236, 240))
-                    #self.plan_t.item(i, 3).setBackground(QtGui.QColor(230, 236, 240))
-                 #if i==self.i:
-                    #self.plan_t.item(i,1).setBackground(QtGui.QColor(125, 195, 227))
-                    #self.plan_t.item(i,2).setBackground(QtGui.QColor(125, 195, 227))
-                    #self.plan_t.item(i, 3).setBackground(QtGui.QColor(125, 195, 227))
-
-
-
              if self.prev_i >= 0 and self.prev_i < len(self.plan):
                  self.plan_t.item(self.prev_i,1).setBackground(QtGui.QColor(230, 236, 240))
                  self.plan_t.item(self.prev_i,2).setBackground(QtGui.QColor(230, 236, 240))
@@ -554,10 +530,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.plan_t.resizeColumnsToContents()
           self.plan_t.horizontalHeader().setStretchLastSection(True)
-          t2 = time.time() - t0
           self.parent.obsGui.main_form.skyView.updateRadar()
-          t3 = time.time() - t0
-          #print("time: ",t1,t2,t3)
           self.plan_t.blockSignals(False)
           self.plan_t.resizeColumnsToContents()
           for col in range(1,self.plan_t.columnCount()):
@@ -566,7 +539,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
       def setNext(self):
           self.next_i=self.i
           self.update_table()
-
 
       def import_to_manuall(self):                  # uzupelnia nazwe i wspolrzedne w oknie manual
 
@@ -592,9 +564,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       self.parent.instGui.ccd_tab.Select2_r.setChecked(True)
                       self.parent.instGui.ccd_tab.inst_Seq_e.setText(self.plan[self.i]["seq"])
                   if self.plan[self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
-
-
-
 
       def setSkip(self):
           if "skip" in self.plan[self.i].keys():          
@@ -751,7 +720,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   plik.write(txt)
               txt = f"TOI: plan saved to {self.fileName} file"
               self.parent.msg(txt, "black")
-
 
 
       def loadPlan(self):

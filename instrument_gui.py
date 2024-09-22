@@ -17,6 +17,8 @@ class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
           self.setStyleSheet("font-size: 11pt;")
           self.setGeometry(self.parent.instrument_geometry[0],self.parent.instrument_geometry[1],self.parent.instrument_geometry[2],self.parent.instrument_geometry[3])
           self.updateUI()
+          self.show()
+          self.raise_()
 
       def updateUI(self):
 
