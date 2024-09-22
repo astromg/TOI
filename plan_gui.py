@@ -305,7 +305,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
              #DUPA
              #self.update_plan()
-             print("PLAN GUI: ", len(self.plan), self.current_i, self.next_i)
 
              self.plan_t.clearContents()
              self.plan_t.blockSignals(True)
