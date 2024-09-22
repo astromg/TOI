@@ -15,6 +15,7 @@ import signal
 # import requests
 import socket
 import sys
+import uuid
 
 import numpy
 import yaml
@@ -179,6 +180,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.nats_journal_focus_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.focus')
         self.nats_journal_toi_msg = get_journalpublisher(f'tic.journal.{self.active_tel}.toi.signal')
 
+        self.nats_toi_plan_status = get_publisher(f'tic.status.{self.active_tel}.toi.plan')
         self.nats_toi_ob_status = get_publisher(f'tic.status.{self.active_tel}.toi.ob')
         self.nats_toi_exp_status = get_publisher(f'tic.status.{self.active_tel}.toi.exp')
 
@@ -345,6 +347,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_log_focus_reader(), group="telescope_task")
         self.add_background_task(self.nats_log_toi_reader(), group="telescope_task")
         self.add_background_task(self.nats_log_loop(), group="telescope_task")
+        self.add_background_task(self.nats_toi_plan_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_exp_status_reader(), group="telescope_task")
@@ -398,6 +401,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             r = d.message
             #print("NATS TOI: ", r)
 
+    async def nats_toi_plan_status_reader(self):
+        try:
+            reader = get_reader(f'tic.status.{self.active_tel}.toi.plan', deliver_policy='last')
+            async for data, meta in reader:
+                self.nats_plan_status = data
+                self.planGui.update_table()
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+
+
     async def nats_toi_ob_status_reader(self):
         try:
             reader = get_reader(f'tic.status.{self.active_tel}.toi.ob', deliver_policy='last')
@@ -416,6 +429,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             raise
         #except Exception as e:
         #    logger.warning(f'TOI: nats_toi_ob_status_reader: {e}')
+
 
     async def nats_toi_exp_status_reader(self):
         try:
@@ -446,8 +460,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             async for data, meta in r:
                 self.ob_log.append(data)
                 if "uobi" in data.keys():
-                    if data["uobi"] not in self.planGui.done:
+                    if data["uobi"] not in self.done:
                         self.planGui.done.append(data["uobi"])
+                        self.done_uobi.append(data["uobi"])
                 self.planGui.update_log_table()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
@@ -848,11 +863,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             # sterowanie wykonywaniem planu
 
-            if self.ob["done"] and self.planGui.next_i==-1:
+            # DUPA
+            #if self.ob["done"] and self.planGui.next_i==-1:
+            #    self.ob["run"]=False
+
+            if self.ob["done"] and self.next_i==-1:
                 self.ob["run"]=False
 
             if self.ob["run"] and self.ob["done"]:
-                if self.planGui.next_i > 0 and self.planGui.next_i < len(self.planGui.plan):
+                # DUPA
+                #if self.planGui.next_i > 0 and self.planGui.next_i < len(self.planGui.plan):
+                #    await self.plan_start()
+
+                if self.next_i > 0 and self.next_i < len(self.plan):
                     await self.plan_start()
 
             elif self.ob["run"] and "name" in self.ob.keys():
@@ -865,7 +888,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.ob["done"]=True
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} {self.ob['wait']} s DONE","green")
-                            self.planGui.current_i=-1
+
+                            # DUPA
+                            #self.planGui.current_i=-1
+
+                            self.current_i = -1
+                            self.update_plan()
+
 
                 if "wait_ut" in self.ob.keys():
                     if self.ob["wait_ut"] != "":
@@ -877,7 +906,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.ob["done"]=True
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} UT {self.ob['wait_ut']} DONE","green")
-                            self.planGui.current_i=-1
+
+                            #DUPA
+                            #self.planGui.current_i=-1
+
+                            self.current_i = -1
+                            self.update_plan()
 
                 if "wait_sunrise" in self.ob.keys():
                     if self.ob["wait_sunrise"] != "":
@@ -885,7 +919,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.ob["done"]=True
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} DONE","green")
-                            self.planGui.current_i=-1
+
+                            #DUPA
+                            #self.planGui.current_i=-1
+
+                            self.current_i = -1
+                            self.update_plan()
 
                 if "wait_sunset" in self.ob.keys():
                     if self.ob["wait_sunset"] != "":
@@ -893,7 +932,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.ob["done"]=True
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} DONE","green")
-                            self.planGui.current_i=-1
+
+                            #DUPA
+                            #self.planGui.current_i=-1
+
+                            self.current_i = -1
+                            self.update_plan()
 
 
             # obsluga wyswietlania paskow postepu ekspozycji
@@ -947,7 +991,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.ut_e.setText(str(ut))
             self.obsGui.main_form.skyView.updateAlmanac()
             #self.obsGui.main_form.skyView.updateRadar()
-            self.planGui.update_table()
+
+            #DUPA
+            #self.planGui.update_table()
+
+            try:
+                self.planGui.update_table()
+            except Exception as e:
+                print("EXCEPTION 5", e)
 
 
             # Mechanizm Dome Follow
@@ -1029,8 +1080,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.instGui.tab.setTabText(0,"\U0001F534 CCD")
 
 
-
-    # DUPA
     # ############ PLAN RUNNER START ##########################
 
     @qs.asyncSlot()
@@ -1038,19 +1087,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.observer = self.auxGui.welcome_tab.observer_e.text()
         if await self.user.aget_is_access():
 
+            self.exp_prog_status["ndit"] = 0
+            self.exp_prog_status["dit_start"] = 0
+
+            self.ob_program = self.ob_program + f' observers="{self.observer}"'
+
             await self.planrunner.aload_nightplan_string(self.program_name, string=self.ob_program, overwrite=True, client_config_dict=self.client_cfg)
             await self.planrunner.arun_nightplan(self.program_name, step_id="00")
 
             self.fits_exec = True
-
-            # try:
-            #     s = self.nats_toi_exp_status
-            #     data = self.exp_prog_status
-            #     await s.publish(data=data, timeout=10)
-            # except Exception as e:
-            #     print("ERROR planrunner_start:", e)
-
-
 
     # ############ PLAN RUNNER CALLBACK ##########################
 
@@ -1147,10 +1192,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 except Exception as e:
                     print("nats_toi_ob_status publish:", e)
 
-
             elif info["name"] == "NIGHTPLAN" and info["done"]:
                 self.ob["done"] = True
-                self.planGui.current_i = -1
+
+                #DUPA
+                #self.planGui.current_i = -1
+
+                self.current_i = -1
+                self.update_plan()
+
                 self.exp_prog_status["dit_start"] = 0
 
                 try:
@@ -1252,8 +1302,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def auto_focus(self):
         if await self.user.aget_is_access():
-            program=""
-
             ok = False
             v0 = float(self.auxGui.focus_tab.last_e.text())
             step = float(self.auxGui.focus_tab.steps_e.text())
@@ -1280,16 +1328,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 pos = f"{int(v0)}/{int(step)}"
                 program = f"FOCUS seq={seq} pos={pos}"
 
-                await self.planrunner.aload_nightplan_string('auto_focus', string=program, overwrite=True, client_config_dict=self.client_cfg)
-                await self.planrunner.arun_nightplan('auto_focus',step_id="00")
-
                 self.ob_program = program
                 self.program_name = "auto_focus"
-                self.fits_exec = True
                 self.autofocus_started=True
                 self.last_focus_position=float(self.mntGui.telFocus_e.text())
 
-                #self.plan_runner_origin="auto_focus"
+                self.planrunner_start()
 
 
         else:
@@ -1304,10 +1348,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if await self.user.aget_is_access():
 
             self.observer = self.auxGui.welcome_tab.observer_e.text()
-            program_name = "program"
 
-            if self.planGui.next_i > -1 and self.planGui.next_i < len(self.planGui.plan):
-                self.ob = self.planGui.plan[self.planGui.next_i]
+            #DUPA
+            #if self.planGui.next_i > -1 and self.planGui.next_i < len(self.planGui.plan):
+            #    self.ob = self.planGui.plan[self.planGui.next_i]
+
+            if self.next_i > -1 and self.next_i < len(self.plan):
+                self.ob = self.plan[self.next_i]
+
                 self.ob["done"]=False
                 self.ob["run"]=True
                 self.ob["start_time"] = self.time
@@ -1316,13 +1364,23 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if "uobi" in self.ob.keys():
                     if self.ob["uobi"] not in self.planGui.done:
                         if "type" in self.ob.keys() and "name" in self.ob.keys():
-                            self.planGui.current_i = self.planGui.next_i
+
+                            #DUPA
+                            #self.planGui.current_i = self.planGui.next_i
+
+                            self.current_i = self.next_i
+                            self.update_plan()
 
                             run_nightplan = False
                             if self.ob["type"] == "STOP":
                                 self.ob["done"]=False
                                 self.ob["run"]=False
-                                self.planGui.current_i = -1
+
+                                #DUPA
+                                #self.planGui.current_i = -1
+
+                                self.current_i = -1
+                                self.update_plan()
 
                             if self.ob["type"] == "BELL":
                                 await self.msg("INFO: BELL","black")
@@ -1332,7 +1390,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
                                 self.ob["done"]=True
                                 self.ob["run"]=True
-                                self.planGui.current_i = -1
+
+                                #DUPA
+                                #self.planGui.current_i = -1
+
+                                self.current_i = -1
+                                self.update_plan()
 
 
                             if self.ob["type"] == "WAIT":
@@ -1395,17 +1458,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     program = program.split("comment")[0]
 
                             if run_nightplan:
-                                # program = program + "obserwers='Julian Mickiewicz' uobi=int(2345) )     "
-
-                                await self.planrunner.aload_nightplan_string(program_name, string=program, overwrite=True, client_config_dict=self.client_cfg)
-                                await self.planrunner.arun_nightplan(program_name, step_id="00")
-
                                 self.ob_program = program
-                                self.program_name="program"
-                                self.fits_exec=True
+                                self.program_name="plan"
+                                self.planrunner_start()
 
                             self.next_ob()
-
                     else:
                         self.next_ob()
         else:
@@ -1414,8 +1471,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     def next_ob(self):
-        self.planGui.next_i = self.planGui.next_i + 1
-        self.planGui.update_table()
+
+        #DUPA
+        #self.planGui.next_i = self.planGui.next_i + 1
+
+        self.next_i = self.next_i + 1
+        self.update_plan()
+
+        #self.planGui.update_table()
 
     @qs.asyncSlot()
     async def resume_program(self):
@@ -1428,14 +1491,167 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.msg("REQUEST: program STOP ","yellow")
         self.ob["run"]=False
         await self.planrunner.astop_nightplan()
-        self.planGui.current_i = -1
-        self.planGui.update_table()
+
+        #DUPA
+        #self.planGui.current_i = -1
+
+        self.current_i = -1
+        self.update_plan()
+
+        #self.planGui.update_table()
 
         self.ob_started = False
         self.ob_done = True
         #self.ob_time = 0
         self.ob_expected_time = 0.1
         self.ob_start_time = 0
+
+
+    # ########### LOKALNA OBSLGA PLANU ##################
+
+    def upload_plan(self):
+        self.plan = self.planGui.plan
+        self.update_plan()
+
+    def update_plan1(self):
+        pass
+
+    @qs.asyncSlot()
+    async def update_plan(self):
+        if len(self.plan) == 0:
+            self.planGui.update_table()
+        else:
+            self.check_next_i()
+            for i, tmp in enumerate(self.plan):
+                if i == self.next_i or i == self.current_i:
+                    ob_time = ephem.now()
+                if "uobi" not in self.plan[i].keys():  # nadaje uobi jak nie ma
+                    self.plan[i]["uobi"] = str(uuid.uuid4())[:8]
+                if len(self.plan[i]["uobi"]) < 1:
+                    self.plan[i]["uobi"] = str(uuid.uuid4())[:8]
+                if "ra" in self.plan[i].keys():  # liczy aktualna wysokosc na horyzontem
+                    ra = self.plan[i]["ra"]
+                    dec = self.plan[i]["dec"]
+                    az, alt = RaDec2AltAz(self.observatory, ephem.now(), ra, dec)
+                    alt = f"{deg_to_decimal_deg(str(alt)):.1f}"
+                    az = f"{deg_to_decimal_deg(str(az)):.1f}"
+                    self.plan[i]["meta_alt"] = alt
+                    self.plan[i]["meta_az"] = az
+                # liczy planowana wysokosc nad horyzontem
+                tmp_ok = False
+                if self.current_i > -1 and i >= self.current_i:
+                    tmp_ok = True
+                if self.next_i > -1 and i >= self.next_i:
+                    tmp_ok = True
+                if tmp_ok:
+                    self.plan[i]["meta_plan_ut"] = str(ephem.Date(ob_time))
+                    if "wait" in self.plan[i].keys():
+                        if len(self.plan[i]["wait"]) > 0:
+                            ob_time = ob_time + ephem.second * float(self.plan[i]["wait"])
+                    if "wait_ut" in self.plan[i].keys():
+                        if len(self.plan[i]["wait_ut"]) > 0:
+                            wait_ut = ephem.Date(str(ephem.Date(ob_time)).split()[0] + " " + self.plan[i]["wait_ut"])
+                            if ephem.Date(ob_time) < ephem.Date(wait_ut):
+                                ob_time = wait_ut
+                    if "wait_sunset" in self.plan[i].keys():
+                        if len(self.plan[i]["wait_sunset"]) > 0:
+                            oca = ephem.Observer()
+                            oca.date = ephem.now()
+                            oca.lat = self.observatory[0]
+                            oca.lon = self.observatory[1]
+                            oca.elevation = float(self.observatory[2])
+                            oca.horizon = self.plan[i]["wait_sunset"]
+                            wait_ut = oca.next_setting(ephem.Sun(), use_center=True)
+                            if ob_time < wait_ut:
+                                ob_time = wait_ut
+                    if "wait_sunrise" in self.plan[i].keys():
+                        if len(self.plan[i]["wait_sunrise"]) > 0:
+                            oca = ephem.Observer()
+                            oca.date = ephem.now()
+                            oca.lat = self.observatory[0]
+                            oca.lon = self.observatory[1]
+                            oca.elevation = float(self.observatory[2])
+                            oca.horizon = self.plan[i]["wait_sunrise"]
+                            wait_ut = oca.next_rising(ephem.Sun(), use_center=True)
+                            if ob_time < wait_ut:
+                                ob_time = wait_ut
+                    if "ra" in self.plan[i].keys():
+                        ra = self.plan[i]["ra"]
+                        dec = self.plan[i]["dec"]
+                        az, alt = RaDec2AltAz(self.observatory, ob_time, ra, dec)
+                        alt = f"{deg_to_decimal_deg(str(alt)):.1f}"
+                        az = f"{deg_to_decimal_deg((str(az))):.1f}"
+                        self.plan[i]["meta_plan_alt"] = alt
+                        self.plan[i]["meta_plan_az"] = az
+
+                        self.oca_site.date = ob_time
+                        star = ephem.FixedBody()
+                        star._ra = str(ra)
+                        star._dec = str(dec)
+                        self.plan[i]["skip_alt"] = False
+                        if float(alt) < self.cfg_alt_limits["min"]:
+                            self.plan[i]["skip_alt"] = True
+                        else:
+                            self.oca_site.horizon = self.cfg_alt_limits["min"]
+                            try:
+                                t = self.oca_site.next_setting(star, use_center=True)
+                                if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
+                                    self.plan[i]["skip_alt"] = True
+                            except ephem.AlwaysUpError:
+                                pass
+
+                        if float(alt) > self.cfg_alt_limits["max"]:
+                            self.plan[i]["skip_alt"] = True
+                        else:
+                            self.oca_site.horizon = self.cfg_alt_limits["max"]
+                            try:
+                                t = self.oca_site.next_rising(star, use_center=True)
+                                if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
+                                    self.plan[i]["skip_alt"] = True
+                            except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
+                                pass
+                    if self.plan[i]["uobi"] in self.done_uobi:
+                        ob_time = ob_time
+                    else:
+                        if "slotTime" in self.plan[i].keys():
+                            slotTime = self.plan[i]["slotTime"]
+                            ob_time = ob_time + ephem.second * slotTime
+
+        try:
+            s = self.nats_toi_plan_status
+            status = {"current_i":self.current_i,"next_i":self.next_i,"plan":self.plan}
+            await s.publish(data=status,timeout=10)
+        except Exception as e:
+            print("EXCEPTION 15: ", e)
+
+            self.planGui.update_table()
+        #print(self.plan)
+        print(len(self.plan),self.current_i,self.next_i)
+
+    def check_next_i(self):                   # sprawdza czy nastepny obiekt nie zostal juz wykonany, albo skip
+        if self.next_i > len(self.plan)-1:
+            self.next_i = -1
+        else:
+            if "uobi" in self.plan[self.next_i].keys():
+                if self.plan[self.next_i]["uobi"] in self.done_uobi:
+                    self.next_i = self.next_i + 1
+                    self.check_next_i()
+
+            if "skip" in self.plan[self.next_i].keys():
+                if self.plan[self.next_i]["skip"]:
+                    self.next_i = self.next_i + 1
+                    self.check_next_i()
+
+            if "skip_alt" in self.plan[self.next_i].keys():
+                if self.plan[self.next_i]["skip_alt"]:
+                    self.next_i = self.next_i + 1
+                    self.check_next_i()
+
+            if "ok" in self.plan[self.next_i].keys():
+                if not self.plan[self.next_i]["ok"]:
+                    self.next_i = self.next_i + 1
+                    self.check_next_i()
+
 
 
     # ############ CCD ##################################
@@ -1568,10 +1784,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 ok_seq = True
 
             if ok_name and ok_seq:
-                self.exp_prog_status["ndit"]=0
-                self.exp_prog_status["dit_start"] = 0
-
-                self.ob_program = f"SNAP {name} seq={seq} dome_follow=off \n"
+                self.ob_program = f"SNAP {name} seq={seq} dome_follow=off "
                 self.program_name = "snap"
                 self.planrunner_start()
 
@@ -1583,18 +1796,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def ccd_startExp(self):
         if await self.user.aget_is_access():
-            self.exp_prog_status["dit_start"]=0
+            #self.exp_prog_status["dit_start"]=0
 
-            try:
-                s = self.nats_toi_exp_status
-                data = self.exp_prog_status
-                await s.publish(data=data, timeout=10)
-            except Exception as e:
-                print("nats_toi_ob_status publish:", e)
+            # try:
+            #     s = self.nats_toi_exp_status
+            #     data = self.exp_prog_status
+            #     await s.publish(data=data, timeout=10)
+            # except Exception as e:
+            #     print("nats_toi_ob_status publish:", e)
 
             ok_ndit = False
             ok_exp = False
-            ok_name = False
             ok_seq = False
             ok = True
             seq = ""
@@ -1652,34 +1864,33 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.instGui.ccd_tab.inst_Seq_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
 
             if ok_name and ok_seq:
-                self.exp_prog_status["ndit"]=0
+                #self.exp_prog_status["ndit"]=0
 
-                try:
-                    s = self.nats_toi_exp_status
-                    data = self.exp_prog_status
-                    await s.publish(data=data, timeout=10)
-                except Exception as e:
-                    print("nats_toi_ob_status publish:", e)
-
+                # try:
+                #     s = self.nats_toi_exp_status
+                #     data = self.exp_prog_status
+                #     await s.publish(data=data, timeout=10)
+                # except Exception as e:
+                #     print("nats_toi_ob_status publish:", e)
 
                 if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==0:
-                    txt = f"OBJECT {name} seq={seq} dome_follow=off \n"
+                    txt = f"OBJECT {name} seq={seq} dome_follow=off "
 
                 elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
-                    txt = f"DARK {name} seq={seq} \n"
+                    txt = f"DARK {name} seq={seq} "
 
                 elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==1:
-                    txt=f"ZERO {name} seq={seq}  \n"
+                    txt=f"ZERO {name} seq={seq}  "
 
                 elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==3:
-                    txt = f"SKYFLAT {name} seq={seq}   \n"
+                    txt = f"SKYFLAT {name} seq={seq}   "
                     if self.mount_motortatus: pass
                     else:
                         ok = False
                         self.WarningWindow("WARNING: Motors should be ON for SKYFLAT")
 
                 elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==4:
-                    txt=f"DOMEFLAT {name} seq={seq}   \n"
+                    txt=f"DOMEFLAT {name} seq={seq}  "
                     if self.mount_motortatus: pass
                     else:
                         ok = False
@@ -1688,18 +1899,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 else: await self.msg(f"WARNING: not implemented yet","yellow")
 
             if ok:
-                await self.planrunner.aload_nightplan_string('manual', string=txt, overwrite=True, client_config_dict=self.client_cfg)
-                await self.planrunner.arun_nightplan('manual', step_id="00")
-
                 self.ob_program = txt
                 self.program_name = "manual"
-                self.fits_exec = True
-
-
-
-
-
-
+                self.planrunner_start()
         else:
             txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
@@ -2800,6 +3002,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cfg_inst_subraster = []
 
         self.observatory = ["-24:35:24","-70:11:47","2800"]
+        self.oca_site = ephem.Observer()
+        self.oca_site.lat = self.observatory[0]
+        self.oca_site.lon = self.observatory[1]
+        self.oca_site.elevation = float(self.observatory[2])
 
 
         self.cwd = os.getcwd()
@@ -2851,6 +3057,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # aux zmienne
         self.exp_prog_status = {"plan_runner_status":"","ndit_req":1,"ndit":0,"dit_exp":0,"dit_start":0}
+        self.nats_plan_status = {"current_i":-1,"next_i":-1,"plan":[]}
 
         self.fits_exec=False
         self.ob={"run":False,"done":False}
@@ -2863,6 +3070,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ob_expected_time = 0.1
         self.ob_start_time = 0
 
+
+        # plan
+
+        self.plan = []
+        self.done_uobi = []
+        self.next_i = 0  # zmienna funkcjonalna, nastepny obiekt do obserwacji
+        self.current_i = -1  # zmienna funckjonalna, ktore ob wlasnie sie wykonuje.
 
         # obs model
         self.obs_tel_tic_names=["wk06","zb08","jk15"]  # wg25 is not working

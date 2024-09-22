@@ -79,16 +79,14 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
       def pocisniecie_copy(self):
-         if len(self.plan)>self.i:
-             tmp_ob = self.plan[self.i].copy()
+         if len(self.parent.plan)>self.i:
+             tmp_ob = self.parent.plan[self.i].copy()
              i = self.i + 1
-             self.plan.insert(i,tmp_ob)
-             self.plan[i]["uobi"] = str(uuid.uuid4())[:8]
-             self.update_table()
-             self.repaint()
+             self.parent.plan.insert(i,tmp_ob)
+             self.parent.plan[i]["uobi"] = str(uuid.uuid4())[:8]
+             self.parent.update_plan()
+             #self.repaint()
          else: print("no plan loaded") # ERROR MSG
-
-
 
       def pocisniecie_addOB(self):
           pass
@@ -97,20 +95,20 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           #self.edit_window.raise_()
 
       def pocisniecie_edit(self):
-         if len(self.plan)>self.i:
+         if len(self.parent.plan)>self.i:
             self.edit_window=EditWindow(self)
             self.edit_window.show()
             self.edit_window.raise_()
          else: print("no plan loaded") # ERROR MSG
 
       def pocisniecie_addStop(self):
-         if len(self.plan)>self.i:
+         if len(self.parent.plan)>self.i:
              #print("ide ***************")
              ob = {"name": "STOP"}
              ob["type"] = "STOP"
              ob["block"] = "STOP"
-             self.plan.insert(self.i+1,ob)
-             self.update_table()
+             self.parent.plan.insert(self.i+1,ob)
+             self.parent.update_plan()
          else: pass
 
       def pocisniecie_addBell(self):
@@ -118,8 +116,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              ob = {"name": "BELL"}
              ob["type"] = "BELL"
              ob["block"] = "BELL"
-             self.plan.insert(self.i+1,ob)
-             self.update_table()
+             self.parent.plan.insert(self.i+1,ob)
+             self.parent.update_plan()
          else: pass
 
       def check_next_i(self):                   # sprawdza czy nastepny obiekt nie zostal juz wykonany, albo skip
@@ -280,49 +278,21 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                           ob_time = ob_time + ephem.second * slotTime
 
 
-      def update_log_table(self):
-          if len(self.parent.ob_log)==0:
-              self.log_t.clearContents()
-          else:
-             # {'object_name': 'CR_Ser', 'uobi': 0, 'telescope': 'zb08', 'status': 'done', 'command_dict': {'command_name': 'OBJECT', 'args': ['CR_Ser', '18:10:02.13', '-13:32:45.5'], 'kwargs': {'seq': '2/B/12,2/V/3,2/Ic/1.8,2/g/7,2/r/1.5,2/i/1.4,2/z/5'}}, 'time': {'start_dt': '2024-09-20T01:11:08', 'end_dt': '2024-09-20T01:15:12', 'start_jd': 2460573.5494035487, 'end_jd': 2460573.5522267423, 'length_s': 243.923917}}
-             self.log_t.clearContents()
-
-             for i,tmp in enumerate(self.parent.ob_log):
-                 if self.log_t.rowCount() <= i: self.log_t.insertRow(i)
-                 if True:
-                     try:
-                        txt = self.parent.ob_log[i]["time"]["end_dt"]
-                        txt = txt.split("T")[1].split(":")[0]+":"+txt.split("T")[1].split(":")[1]
-                        txt=QTableWidgetItem(txt)
-                        txt.setBackground(QtGui.QColor(233, 233, 233))
-                        self.log_t.setItem(i,0,txt)
-                     except Exception as e:
-                         print("update_log_table Exception: ",e,self.parent.ob_log[i])
-                 if True:
-                     type = self.parent.ob_log[i]["command_dict"]["command_name"]
-                     if type != "OBJECT":
-                        txt = type + " " + self.parent.ob_log[i]["object_name"]
-                     else:
-                        txt = self.parent.ob_log[i]["object_name"]
-                     txt=QTableWidgetItem(txt)
-                     txt.setBackground(QtGui.QColor(233, 233, 233))
-                     self.log_t.setItem(i,1,txt)
-
-                 if True:
-                     txt = str(self.parent.ob_log[i]["uobi"])
-                     txt=QTableWidgetItem(txt)
-                     txt.setBackground(QtGui.QColor(233, 233, 233))
-                     self.log_t.setItem(i,2,txt)
-
-             self.log_t.scrollToBottom()
-             self.log_t.resizeColumnsToContents()
-             for col in range(2,self.log_t.columnCount()):
-                 self.log_t.horizontalHeader().setSectionResizeMode(col,QHeaderView.Stretch)
-
 
 
       def update_table(self):
-          t0 = time.time()
+
+          # DUPA
+          # KONIECZNIE DODAC ZAKAZ DOTYKANIA GUZIKOW
+
+          if self.parent.acces:
+              self.plan = self.parent.plan
+              self.current_i = self.parent.current_i
+              self.next_i = self.parent.next_i
+          else:
+              self.plan = self.parent.nats_plan_status["plan"]
+              self.current_i = self.parent.nats_plan_status["current_i"]
+              self.next_i = self.parent.nats_plan_status["next_i"]
 
           if len(self.plan)==0:
               self.plan_t.clearContents()
@@ -333,8 +303,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              if self.prev_i > len(self.plan)-1:
                  self.prev_i = len(self.plan)-1
 
-             self.update_plan()
-
+             #DUPA
+             #self.update_plan()
+             print("PLAN GUI: ", len(self.plan), self.current_i, self.next_i)
 
              self.plan_t.clearContents()
              self.plan_t.blockSignals(True)
@@ -536,44 +507,90 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           for col in range(1,self.plan_t.columnCount()):
               self.plan_t.horizontalHeader().setSectionResizeMode(col,QHeaderView.Stretch)
 
+
+      def update_log_table(self):
+          if len(self.parent.ob_log)==0:
+              self.log_t.clearContents()
+          else:
+             # {'object_name': 'CR_Ser', 'uobi': 0, 'telescope': 'zb08', 'status': 'done', 'command_dict': {'command_name': 'OBJECT', 'args': ['CR_Ser', '18:10:02.13', '-13:32:45.5'], 'kwargs': {'seq': '2/B/12,2/V/3,2/Ic/1.8,2/g/7,2/r/1.5,2/i/1.4,2/z/5'}}, 'time': {'start_dt': '2024-09-20T01:11:08', 'end_dt': '2024-09-20T01:15:12', 'start_jd': 2460573.5494035487, 'end_jd': 2460573.5522267423, 'length_s': 243.923917}}
+             self.log_t.clearContents()
+
+             for i,tmp in enumerate(self.parent.ob_log):
+                 if self.log_t.rowCount() <= i: self.log_t.insertRow(i)
+                 if True:
+                     try:
+                        txt = self.parent.ob_log[i]["time"]["end_dt"]
+                        txt = txt.split("T")[1].split(":")[0]+":"+txt.split("T")[1].split(":")[1]
+                        txt=QTableWidgetItem(txt)
+                        txt.setBackground(QtGui.QColor(233, 233, 233))
+                        self.log_t.setItem(i,0,txt)
+                     except Exception as e:
+                         print("update_log_table Exception: ",e,self.parent.ob_log[i])
+                 if True:
+                     type = self.parent.ob_log[i]["command_dict"]["command_name"]
+                     if type != "OBJECT":
+                        txt = type + " " + self.parent.ob_log[i]["object_name"]
+                     else:
+                        txt = self.parent.ob_log[i]["object_name"]
+                     txt=QTableWidgetItem(txt)
+                     txt.setBackground(QtGui.QColor(233, 233, 233))
+                     self.log_t.setItem(i,1,txt)
+
+                 if True:
+                     txt = str(self.parent.ob_log[i]["uobi"])
+                     txt=QTableWidgetItem(txt)
+                     txt.setBackground(QtGui.QColor(233, 233, 233))
+                     self.log_t.setItem(i,2,txt)
+
+             self.log_t.scrollToBottom()
+             self.log_t.resizeColumnsToContents()
+             for col in range(2,self.log_t.columnCount()):
+                 self.log_t.horizontalHeader().setSectionResizeMode(col,QHeaderView.Stretch)
+
+
+
+
       def setNext(self):
           self.next_i=self.i
-          self.update_table()
+          #DUPA
+          self.parent.next_i = self.i
+          self.parent.update_plan()
+          #self.update_table()
 
       def import_to_manuall(self):                  # uzupelnia nazwe i wspolrzedne w oknie manual
 
-          if self.plan[self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
-          elif self.plan[self.i]["type"] == "ZERO": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
-          elif self.plan[self.i]["type"] == "DARK": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(2)
-          elif self.plan[self.i]["type"] == "SKYFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(3)
-          elif self.plan[self.i]["type"] == "DOMEFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(4)
+          if self.parent.plan[self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
+          elif self.parent.plan[self.i]["type"] == "ZERO": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
+          elif self.parent.plan[self.i]["type"] == "DARK": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(2)
+          elif self.parent.plan[self.i]["type"] == "SKYFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(3)
+          elif self.parent.plan[self.i]["type"] == "DOMEFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(4)
 
-          if "type" in self.plan[self.i].keys():
-              if self.plan[self.i]["type"] in ["OBJECT","DARK","ZERO","SKYFLAT","DOMEFLAT"]:
-                  if "ra" in self.plan[self.i].keys() and "dec" in self.plan[self.i].keys():
+          if "type" in self.parent.plan[self.i].keys():
+              if self.parent.plan[self.i]["type"] in ["OBJECT","DARK","ZERO","SKYFLAT","DOMEFLAT"]:
+                  if "ra" in self.parent.plan[self.i].keys() and "dec" in self.parent.plan[self.i].keys():
                       self.parent.mntGui.setEq_r.setChecked(True)
                       self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ra"])
                       self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["dec"])
                       self.parent.mntGui.updateNextRaDec()
-                      if "name" in self.plan[self.i].keys():
+                      if "name" in self.parent.plan[self.i].keys():
                           self.parent.mntGui.target_e.setText(self.plan[self.i]["name"])
                           self.parent.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
-                  if "name" in self.plan[self.i].keys():
+                  if "name" in self.parent.plan[self.i].keys():
                       self.parent.instGui.ccd_tab.inst_object_e.setText(self.plan[self.i]["name"])
-                  if "seq" in self.plan[self.i].keys():
+                  if "seq" in self.parent.plan[self.i].keys():
                       self.parent.instGui.ccd_tab.Select2_r.setChecked(True)
                       self.parent.instGui.ccd_tab.inst_Seq_e.setText(self.plan[self.i]["seq"])
-                  if self.plan[self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
+                  if self.parent.plan[self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
 
       def setSkip(self):
-          if "skip" in self.plan[self.i].keys():          
-             if self.plan[self.i]["skip"]:
-                 self.plan[self.i]["skip"]=False
+          if "skip" in self.parent.plan[self.i].keys():
+             if self.parent.plan[self.i]["skip"]:
+                 self.parent.plan[self.i]["skip"]=False
              else:
-                 self.plan[self.i]["skip"] = True
+                 self.parent.plan[self.i]["skip"] = True
           else:
-              self.plan[self.i]["skip"]=True
-          self.update_table()
+              self.parent.plan[self.i]["skip"]=True
+          self.parent.update_plan()
 
       def pocisniecie_headera(self,index):
           if index == 3:
@@ -615,95 +632,94 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.repaint()
 
       def pocisniecie_delAll(self):
-          if self.current_i >= 0:
-              ob_tmp = self.plan[self.current_i]
-              self.plan = []
-              self.plan.append(ob_tmp)
+          if self.parent.current_i >= 0:
+              ob_tmp = self.parent.plan[self.parent.current_i]
+              self.parent.plan = []
+              self.parent.plan.append(ob_tmp)
           else:
-              self.plan = []
+              self.parent.plan = []
           self.i = -1
           self.prev_i = -1
-          self.next_i = -1
-          self.update_table()
+          self.parent.next_i = -1
+          self.parent.update_plan()
 
       def pocisniecie_del(self):
-          if self.i != self.current_i and self.i < len(self.plan):
-              if self.i < self.current_i: self.current_i = self.current_i - 1
-              if self.i < self.next_i: self.next_i = self.next_i - 1
-              if self.i == len(self.plan)-1:
-                  self.plan.pop(self.i)
+          if self.i != self.parent.current_i and self.i < len(self.parent.plan):
+              if self.i < self.parent.current_i: self.parent.current_i = self.parent.current_i - 1
+              if self.i < self.parent.next_i: self.parent.next_i = self.parent.next_i - 1
+              if self.i == len(self.parent.plan)-1:
+                  self.parent.plan.pop(self.i)
                   self.i = self.i - 1
               else:
-                  self.plan.pop(self.i)
-              self.update_table()
-              self.repaint()
+                  self.parent.plan.pop(self.i)
+              self.parent.update_plan()
 
       def pocisniecie_first(self):
-          if self.i != self.current_i:
-              self.plan.insert(0,self.plan[self.i])
-              self.plan.pop(self.i+1)
-              if self.i > self.current_i and self.current_i>-1:
-                  self.current_i = self.current_i + 1
-                  self.next_i = self.next_i + 1
-                  self.check_next_i()
+          if self.i != self.parent.current_i:
+              self.parent.plan.insert(0,self.parent.plan[self.i])
+              self.parent.plan.pop(self.i+1)
+              if self.i > self.parent.current_i and self.parent.current_i>-1:
+                  self.parent.current_i = self.parent.current_i + 1
+                  self.parent.next_i = self.parent.next_i + 1
+                  self.parent.check_next_i()
               self.i=self.i+1
-              if self.i+1>len(self.plan): self.i=self.i-1
-              self.update_table()
+              if self.i+1>len(self.parent.plan): self.i=self.i-1
+              self.parent.update_plan()
               #self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
-              self.repaint()
+              #self.repaint()
 
       def pocisniecie_last(self):
-          if self.i != self.current_i:
-              self.plan.append(self.plan[self.i])
-              self.plan.pop(self.i)
-              if self.i < self.current_i and self.current_i>-1:
-                  self.current_i = self.current_i - 1
-                  self.next_i = self.next_i - 1
-                  self.check_next_i()
-              self.update_table()
+          if self.i != self.parent.current_i:
+              self.parent.plan.append(self.parent.plan[self.i])
+              self.parent.plan.pop(self.i)
+              if self.i < self.parent.current_i and self.parent.current_i>-1:
+                  self.parent.current_i = self.parent.current_i - 1
+                  self.parent.next_i = self.parent.next_i - 1
+                  self.parent.check_next_i()
+              self.parent.update_plan()
               #self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
-              self.repaint()
+              #self.repaint()
 
       def pocisniecie_up(self):
-          if self.i != self.current_i:
-              if self.i - 1 == self.current_i:
-                  self.current_i = self.current_i + 1
-                  self.next_i = self.next_i + 1
+          if self.i != self.parent.current_i:
+              if self.i - 1 == self.parent.current_i:
+                  self.parent.current_i = self.parent.current_i + 1
+                  self.parent.next_i = self.parent.next_i + 1
               if self.i==0:
-                  self.plan.append(self.plan[0])
-                  self.plan.pop(0)
-                  self.i=len(self.plan)-1
+                  self.parent.plan.append(self.parent.plan[0])
+                  self.parent.plan.pop(0)
+                  self.i=len(self.parent.plan)-1
               else:
-                  self.plan[self.i],self.plan[self.i-1]=self.plan[self.i-1],self.plan[self.i]
+                  self.parent.plan[self.i],self.parent.plan[self.i-1]=self.parent.plan[self.i-1],self.parent.plan[self.i]
                   self.i=self.i-1
-              self.update_table()
+              self.parent.update_plan()
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
-              self.repaint()
+              #self.repaint()
 
       def pocisniecie_down(self):
-          if self.i != self.current_i:
-              if self.i + 1 == self.current_i:
-                  self.current_i = self.current_i -1
-                  self.next_i = self.next_i - 1
-              if self.i==len(self.plan)-1:
-                  self.plan.insert(0,self.plan[self.i])
-                  self.plan.pop(len(self.plan)-1)
+          if self.i != self.parent.current_i:
+              if self.i + 1 == self.parent.current_i:
+                  self.parent.current_i = self.parent.current_i -1
+                  self.parent.next_i = self.parent.next_i - 1
+              if self.i==len(self.parent.plan)-1:
+                  self.parent.plan.insert(0,self.parent.plan[self.i])
+                  self.parent.plan.pop(len(self.parent.plan)-1)
                   self.i=0
               else:
-                  self.plan[self.i],self.plan[self.i+1]=self.plan[self.i+1],self.plan[self.i]
+                  self.parent.plan[self.i],self.parent.plan[self.i+1]=self.parent.plan[self.i+1],self.parent.plan[self.i]
                   self.i=self.i+1
-              self.update_table()
+              self.parent.update_plan()
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
-              self.repaint()
+              #self.repaint()
 
 
       def pocisniecie_swap(self):
-          if self.i != self.current_i and self.prev_i != self.current_i:
-              self.plan[self.i],self.plan[self.prev_i]=self.plan[self.prev_i],self.plan[self.i]
-              self.update_table()
+          if self.i != self.parent.current_i and self.prev_i != self.parent.current_i:
+              self.parent.plan[self.i],self.parent.plan[self.prev_i]=self.parent.plan[self.prev_i],self.parent.plan[self.i]
+              self.parent.update_plan()
               self.i,self.prev_i=self.prev_i,self.i
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
-              self.repaint()
+              #self.repaint()
 
       def savePlan(self):
           self.File_dialog = QFileDialog()
@@ -753,9 +769,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                ob,ok,tmp1,tmp2,tmp3 = ob_parser(line,overhed=self.parent.overhed,filter_list=self.parent.filter_list)
                                tmp_plan.append(ob)
                      self.plan[self.i+1:self.i+1] = tmp_plan
+          self.parent.upload_plan()
           self.update_table()          
 
-        
           
         # =================== OKNO GLOWNE ====================================
       def updateUI(self):
@@ -982,6 +998,7 @@ class TPGWindow(QWidget):
                                                                  filter_list=self.parent.parent.filter_list)
             tmp_plan.append(ob)
         self.parent.plan[self.parent.i + 1:self.parent.i + 1] = tmp_plan
+        self.parent.parent.upload_plan()
         self.parent.update_table()
 
         self.close()
@@ -1595,7 +1612,7 @@ class EditWindow(QWidget):
 
       def change_plan(self):
           ob = {key: value for key,value in self.ob.items() if self.active.get(key)}
-          self.parent.plan[self.parent.i] = ob
+          self.parent.parent.plan[self.parent.i] = ob
           txt = f"TOI: plan {self.ob['name']} changed "
           self.parent.parent.msg(txt, "black")
           self.close()
@@ -1605,7 +1622,7 @@ class EditWindow(QWidget):
           w=0
           self.block_e=QLineEdit()
           i = self.parent.i
-          ob = self.parent.plan[i]
+          ob = self.parent.parent.plan[i]
           txt = ob["block"]
           if "uobi=" not in txt:
               txt = txt + f" uobi={ob['uobi']}"
