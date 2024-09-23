@@ -16,6 +16,7 @@ import signal
 import socket
 import sys
 import uuid
+import copy
 
 import numpy
 import yaml
@@ -113,21 +114,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_weather_loop())
 
 
-        self.oca_telemetry={}
-        self.add_tel_telemetry("wk06")
-        self.add_tel_telemetry("zb08")
-
-        self.add_background_task(self.oca_telemetry_reader())
+        #DUPA
+        for t in self.oca_tel_state.keys():
+            self.add_background_task(self.oca_telemetry_program_reader(t))
+            for k in self.oca_tel_state[t].keys():
+                self.add_background_task(self.oca_telemetry_reader(t,k))
 
         self.obsGui.main_form.update_table()
 
-    def add_tel_telemetry(self,tel):
-        self.oca_telemetry[tel] = {
-            "name": tel,
-            "dome_shutter": None,
-            "dome_slewing": None
-        }
-
+        #self.observatory_model.is_tic_server_available(request_timeout=self.time+10)
+        #self.telescope.is_telescope_alpaca_server_available(request_timeout=self.time+10)
 
     async def nats_get_config(self):
         observatory_config = {}
@@ -137,17 +133,27 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning('Getting observatory config from NATS failed')
 
-    async def oca_telemetry_reader(self):
-        for t in self.oca_telemetry.keys():
-            #print(t)
-            #tel = self.oca_telemetry[t]["name"]
-            try:
-                r = get_reader(f'tic.status.wk06.mount.tracking', deliver_policy='last')
-                async for data, meta in r:
-                    txt = data
-                    print("STATUSY TIC ",txt)
-            except Exception as e:
-                logger.warning(f'{e}')
+    #DUPA
+    async def oca_telemetry_reader(self,tel,key):
+        try:
+            r = get_reader(f'tic.status.{tel}{self.oca_tel_state[tel][key]["pms_topic"]}', deliver_policy='last')
+            async for data, meta in r:
+                txt = data["measurements"][f"{tel}{self.oca_tel_state[tel][key]['pms_topic']}"]
+                #print("NATS STATUS: ", tel, key, txt)
+                self.oca_tel_state[tel][key]["val"] = txt
+                #print(self.oca_tel_state[tel][key]["val"])
+                self.update_oca()
+        except Exception as e:
+            logger.warning(f'{e}')
+
+    async def oca_telemetry_program_reader(self,tel):
+        try:
+            reader = get_reader(f'tic.status.{tel}.toi.ob', deliver_policy='last')
+            async for status, meta in reader:
+                self.ob_prog_status[tel] = status
+                self.update_oca()
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
 
     # NATS weather
     async def nats_weather_loop(self):
@@ -306,6 +312,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.run_method_in_background(self.dome.asubscribe_dome_fans_running(self.Ventilators_update),
                                             group="subscribe")
 
+        await self.run_method_in_background(self.mount.asubscribe_connected(self.mountCon_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_ra(self.radec_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_dec(self.radec_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_az(self.radec_update), group="subscribe")
@@ -863,17 +870,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             # sterowanie wykonywaniem planu
 
-            # DUPA
-            #if self.ob["done"] and self.planGui.next_i==-1:
-            #    self.ob["run"]=False
-
             if self.ob["done"] and self.next_i==-1:
                 self.ob["run"]=False
 
             if self.ob["run"] and self.ob["done"]:
-                # DUPA
-                #if self.planGui.next_i > 0 and self.planGui.next_i < len(self.planGui.plan):
-                #    await self.plan_start()
 
                 if self.next_i > 0 and self.next_i < len(self.plan):
                     await self.plan_start()
@@ -888,9 +888,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.ob["done"]=True
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} {self.ob['wait']} s DONE","green")
-
-                            # DUPA
-                            #self.planGui.current_i=-1
 
                             self.current_i = -1
                             self.update_plan()
@@ -907,9 +904,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} UT {self.ob['wait_ut']} DONE","green")
 
-                            #DUPA
-                            #self.planGui.current_i=-1
-
                             self.current_i = -1
                             self.update_plan()
 
@@ -920,9 +914,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} DONE","green")
 
-                            #DUPA
-                            #self.planGui.current_i=-1
-
                             self.current_i = -1
                             self.update_plan()
 
@@ -932,9 +923,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.ob["done"]=True
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} DONE","green")
-
-                            #DUPA
-                            #self.planGui.current_i=-1
 
                             self.current_i = -1
                             self.update_plan()
@@ -992,8 +980,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.skyView.updateAlmanac()
             #self.obsGui.main_form.skyView.updateRadar()
 
-            #DUPA
-            #self.planGui.update_table()
 
             try:
                 self.planGui.update_table()
@@ -1035,12 +1021,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
                 self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
 
-            if self.mount_conn == True:                                       # bo moze przyjmowac jeszcze False i "unknown"
-                self.mntGui.mntConn2_l.setText("\U0001F7E2")
-                self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
-            else:
-                self.mntGui.mntConn2_l.setText("\U0001F534")
-                self.mntGui.mntConn1_l.setStyleSheet("color: rgb(150,0,0);")
+            #if self.mount_conn == True:                                       # bo moze przyjmowac jeszcze False i "unknown"
+            #    self.mntGui.mntConn2_l.setText("\U0001F7E2")
+            #    self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
+            #else:
+            #    self.mntGui.mntConn2_l.setText("\U0001F534")
+            #    self.mntGui.mntConn1_l.setStyleSheet("color: rgb(150,0,0);")
 
             if self.dome_conn == True:
                 self.mntGui.domeConn2_l.setText("\U0001F7E2")
@@ -1175,6 +1161,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.ctc.set_start_rmode(self.ccd_readoutmode)
                 self.ctc.set_telescope_start_az_alt(az=self.mount_az, alt=self.mount_alt)
                 try:
+                    #print("=============================")
+                    #print(self.ob_program, self.ccd_readoutmode)
                     self.ctc_time = self.ctc.calc_time(self.ob_program)
                     self.ob_expected_time = self.ctc_time
                 except ValueError:
@@ -1194,9 +1182,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             elif info["name"] == "NIGHTPLAN" and info["done"]:
                 self.ob["done"] = True
-
-                #DUPA
-                #self.planGui.current_i = -1
 
                 self.current_i = -1
                 self.update_plan()
@@ -1221,7 +1206,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 except Exception as e:
                     print("nats_toi_ob_status publish:", e)
 
-            elif info["name"] == "SKYFLAT" and info["started"] and not info["done"]:  # SKYFLAT Mirek
+            elif info["name"] == "SKYFLAT" and info["started"] and not info["done"]:  # SKYFLAT
                 await self.msg(f"PLAN: AUTO FLAT program started", "black")                       # SKYFLAT
 
             elif info["name"] == "SKYFLAT" and info["done"]:
@@ -1349,10 +1334,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             self.observer = self.auxGui.welcome_tab.observer_e.text()
 
-            #DUPA
-            #if self.planGui.next_i > -1 and self.planGui.next_i < len(self.planGui.plan):
-            #    self.ob = self.planGui.plan[self.planGui.next_i]
-
             if self.next_i > -1 and self.next_i < len(self.plan):
                 self.ob = self.plan[self.next_i]
 
@@ -1365,9 +1346,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if self.ob["uobi"] not in self.planGui.done:
                         if "type" in self.ob.keys() and "name" in self.ob.keys():
 
-                            #DUPA
-                            #self.planGui.current_i = self.planGui.next_i
-
                             self.current_i = self.next_i
                             self.update_plan()
 
@@ -1375,9 +1353,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if self.ob["type"] == "STOP":
                                 self.ob["done"]=False
                                 self.ob["run"]=False
-
-                                #DUPA
-                                #self.planGui.current_i = -1
 
                                 self.current_i = -1
                                 self.update_plan()
@@ -1390,9 +1365,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
                                 self.ob["done"]=True
                                 self.ob["run"]=True
-
-                                #DUPA
-                                #self.planGui.current_i = -1
 
                                 self.current_i = -1
                                 self.update_plan()
@@ -1472,9 +1444,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     def next_ob(self):
 
-        #DUPA
-        #self.planGui.next_i = self.planGui.next_i + 1
-
         self.next_i = self.next_i + 1
         self.update_plan()
 
@@ -1491,9 +1460,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.msg("REQUEST: program STOP ","yellow")
         self.ob["run"]=False
         await self.planrunner.astop_nightplan()
-
-        #DUPA
-        #self.planGui.current_i = -1
 
         self.current_i = -1
         self.update_plan()
@@ -2271,14 +2237,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def mountCon_update(self, event):
-        pass
-        #self.mount_con=self.mount.connected
-        #if self.mount_con:
-        #   self.mntGui.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/green.png').scaled(20, 20))
-        #   self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
-        #else:
-        #   self.mntGUI.mntConn2_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
 
+        self.mount_con=self.mount.aget_connected()
+        if self.mount_con:
+            self.mntGui.mntConn2_l.setText("\U0001F7E2")
+            self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
+        else:
+            self.mntGui.mntConn2_l.setText("\U0001F534")
+            self.mntGui.mntConn1_l.setStyleSheet("color: rgb(150,0,0);")
 
     async def mount_update(self, event):
         self.mount_slewing = await self.mount.aget_slewing()
@@ -2824,8 +2790,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         try: await self.user.aput_break_control()
         except Exception as e: pass
-        try: await self.user.aput_take_control(12*3600)
-        except Exception as e: pass
+        try:
+            await self.user.aput_take_control(12*3600)
+            self.plan = self.planGui.plan
+            self.update_plan()
+        except Exception as e:
+            pass
         await self.msg(txt,"green")
 
     async def user_update(self, event):
@@ -2918,8 +2888,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             log = log + "\n" + txt + "\n"
             log_file.write(log)
 
+    def update_oca(self):
+        #DUPA
+        self.obsGui.main_form.update_table()
+
+
+
     def variables_init(self):
 
+        # lokalna konfiguracja toi
         with open('./toi_config.yaml', 'r') as cfg_file:
             self.local_cfg = yaml.safe_load(cfg_file)
 
@@ -2990,9 +2967,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             #print(self.tel_cfg)
 
-        # Lokalna konfiguracja toi
+        # statusty wszystkich teleskopow
 
+        # DUPA
+        templeate = {
+            "mount_motor":{"val":None, "pms_topic":".mount.motorstatus"},
+            "mount_tracking": {"val": None, "pms_topic": ".mount.tracking"},
+            "mount_slewing": {"val": None, "pms_topic": ".mount.slewing"},
+            "dome_shutterstatus": {"val": None, "pms_topic": ".dome.shutterstatus"},
+            "dome_slewing": {"val": None, "pms_topic": ".dome.slewing"},
+            "fw_position": {"val": None, "pms_topic": ".filterwheel.position"},
+            "ccd_state": {"val": None, "pms_topic": ".camera.camerastate"},
 
+        }
+
+        self.oca_tel_state = {k:copy.deepcopy(templeate) for k in self.local_cfg["toi"]["telescopes"]}
 
         self.cfg_showRotator = True   # potrzebne do pierwszego wyswietlenia
 
@@ -3057,7 +3046,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # aux zmienne
         self.exp_prog_status = {"plan_runner_status":"","ndit_req":1,"ndit":0,"dit_exp":0,"dit_start":0}
+
+        templeate = {"ob_started":False,"ob_done":False,"ob_expected_time":0.01,"ob_start_time":0,"ob_program":None}
+        self.ob_prog_status = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
+
         self.nats_plan_status = {"current_i":-1,"next_i":-1,"plan":[]}
+
+
 
         self.fits_exec=False
         self.ob={"run":False,"done":False}
@@ -3168,132 +3163,8 @@ class TelBasicState:
         self.state={}
         self.state["name"]=tel
 
-    async def dome_update(self,tmp):
-        # if self.parent.active_tel != None and self.parent.active_tel != "sim":
-        #     await self.parent.domeShutterStatus_update(None)
-        #     await self.parent.domeStatus_update(None)
-
-        state="unknown"
-        rgb = (0, 0, 0)
-        shutter=self.dome.shutterstatus
-        moving=self.dome.slewing
-
-        if shutter == None and moving == None :
-            state = "SHUTTER and STATUS ERROR"
-            rgb = (150, 0, 0)
-
-        elif shutter == None:
-            state = "SHUTTER ERROR"
-            rgb = (150, 0, 0)
-
-        elif moving == None :
-            state = "DOME STATUS ERROR"
-            rgb = (150, 0, 0)
-
-        else:
-            if moving:
-                state = "MOVING"
-                rgb = (255, 160, 0)
-            elif shutter==0:
-                state="OPEN"
-                rgb = (0, 150, 0)
-            elif shutter==1:
-                state = "CLOSED"
-                rgb = (0, 0, 0)
-            elif shutter==2:
-                state = "OPENING"
-                rgb = (255, 160, 0)
-            elif shutter==3:
-                state = "CLOSING"
-                rgb = (255, 160, 0)
-            else:
-                state = "SHUTTER ERROR"
-                rgb = (150, 0, 0)
-
-        self.state["dome"]=state
-        self.state["dome_rgb"]=rgb
-        self.parent.obsGui.main_form.update_table()
-
-    async def mount_update(self,tmp):
-        # if self.parent.active_tel != None and self.parent.active_tel != "sim":
-        #     await self.parent.mount_update(None)
-        #     await self.parent.mountMotors_update(None)
-
-        slewing=bool(self.mount.slewing)
-        tracking=bool(self.mount.tracking)
-        motors = await self.mount.aget_motorstatus()
-        state="--"
-        if motors=="false":
-            state="MOTORS OFF"
-            rgb = (0, 0, 0)
-        elif slewing:
-            state="SLEWING"
-            rgb = (255, 160, 0)
-        elif tracking:
-            state="TRACKING"
-            rgb = (0, 150, 0)
-        else:
-            state="IDLE"
-            rgb = (0, 0, 0)
-        self.state["mount"]=state
-        self.state["mount_rgb"]=rgb
-        self.parent.obsGui.main_form.update_table()
-
-    async def instrument_update(self,tmp):
-        # if self.parent.active_tel != None and self.parent.active_tel != "sim":
-        #     await self.parent.ccd_update(None)
-        #     await self.parent.filter_update(None)
 
 
-        pos = self.fw.position
-        if pos != None:
-            pos = int(pos)
-            if pos < len(self.filter_list):
-                filtr = self.filter_list[pos]
-            else: filtr = "??"
-        else: filtr = "??"
-        try:
-            temp = float(self.ccd.ccdtemperature)
-        except TypeError: temp=None
-        st = self.ccd.camerastate
-
-        if st != None:
-            if st==0 and temp > self.cfg_inst_defSetUp["temp"]:
-                state="WARM"
-                rgb=(0, 0, 0)
-            elif st==0:
-                state="IDLE"
-                rgb=(0, 0, 0)
-            elif st==1:
-                state="WAITING"
-                rgb=(0, 0, 0)
-            elif st==2:
-                state="EXP " +filtr
-                rgb=(0, 150, 0)
-            elif st==3:
-                state="READING"
-                rgb=(0, 150, 0)
-            elif st==4:
-                state="DOWNLOADING"
-                rgb=(0, 150, 0)
-            else:
-                state="ERROR"
-                rgb=(150,0,0)
-        else:
-                state="CAMERA STATUS ERROR"
-                rgb=(150,0,0)
-
-        self.state["instrument"]=state
-        self.state["instrument_rgb"]=rgb
-        self.parent.obsGui.main_form.update_table()
-
-
-    async def program_update(self,tmp):
-        state = "--"
-        rgb=(0,0,0)
-        self.state["program"]=state
-        self.state["program_rgb"]=rgb
-        self.parent.obsGui.main_form.update_table()
 
 
 async def run_qt_app():

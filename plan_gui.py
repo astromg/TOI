@@ -34,7 +34,7 @@ from telescope_plan_generator import telescope_plan_generator as tpg
 
 class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
-      def __init__(self, parent, loop: QEventLoop = None, client_api=None):
+    def __init__(self, parent, loop: QEventLoop = None, client_api=None):
           super().__init__(loop=loop, client_api=client_api)
           self.subscriber_delay = 1
           self.subscriber_time_of_data_tolerance = 0.5
@@ -62,65 +62,88 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.show()
           self.raise_()
 
-      def plot_plan(self):
+    def plot_plan(self):
          if len(self.plan)>self.i:
             self.plot_window=PlotWindow(self)
             self.plot_window.show()
             self.plot_window.raise_()
          else: print("no plan loaded") # ERROR MSG
 
-      def plot_phase(self):
+    def plot_phase(self):
             self.phase_window=PhaseWindow(self)
             self.phase_window.show()
             self.phase_window.raise_()
 
-      def run_tpg(self):
-          self.tpg_window = TPGWindow(self)
+    def run_tpg(self):
+        if self.parent.acces:
+            self.tpg_window = TPGWindow(self)
+        else:
+            txt="WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
 
+    def pocisniecie_copy(self):
+        if self.parent.acces:
+             if len(self.parent.plan)>self.i:
+                 tmp_ob = self.parent.plan[self.i].copy()
+                 i = self.i + 1
+                 self.parent.plan.insert(i,tmp_ob)
+                 self.parent.plan[i]["uobi"] = str(uuid.uuid4())[:8]
+                 self.parent.update_plan()
+                 #self.repaint()
+             else: print("no plan loaded") # ERROR MSG
+        else:
+            txt="WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
 
-      def pocisniecie_copy(self):
-         if len(self.parent.plan)>self.i:
-             tmp_ob = self.parent.plan[self.i].copy()
-             i = self.i + 1
-             self.parent.plan.insert(i,tmp_ob)
-             self.parent.plan[i]["uobi"] = str(uuid.uuid4())[:8]
-             self.parent.update_plan()
-             #self.repaint()
-         else: print("no plan loaded") # ERROR MSG
-
-      def pocisniecie_addOB(self):
+    def pocisniecie_addOB(self):
           pass
           #self.edit_window=AddWindow(self)
           #self.edit_window.show()
           #self.edit_window.raise_()
 
-      def pocisniecie_edit(self):
-         if len(self.parent.plan)>self.i:
-            self.edit_window=EditWindow(self)
-            self.edit_window.show()
-            self.edit_window.raise_()
-         else: print("no plan loaded") # ERROR MSG
+    def pocisniecie_edit(self):
+        if self.parent.acces:
+             if len(self.parent.plan)>self.i:
+                self.edit_window=EditWindow(self)
+                self.edit_window.show()
+                self.edit_window.raise_()
+             else: print("no plan loaded") # ERROR MSG
 
-      def pocisniecie_addStop(self):
-         if len(self.parent.plan)>self.i:
-             #print("ide ***************")
-             ob = {"name": "STOP"}
-             ob["type"] = "STOP"
-             ob["block"] = "STOP"
-             self.parent.plan.insert(self.i+1,ob)
-             self.parent.update_plan()
-         else: pass
+        else:
+            txt="WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
 
-      def pocisniecie_addBell(self):
-         if len(self.plan)>self.i:
-             ob = {"name": "BELL"}
-             ob["type"] = "BELL"
-             ob["block"] = "BELL"
-             self.parent.plan.insert(self.i+1,ob)
-             self.parent.update_plan()
-         else: pass
+    def pocisniecie_addStop(self):
+        if self.parent.acces:
 
-      def check_next_i(self):                   # sprawdza czy nastepny obiekt nie zostal juz wykonany, albo skip
+            if len(self.parent.plan)>self.i:
+                 #print("ide ***************")
+                 ob = {"name": "STOP"}
+                 ob["type"] = "STOP"
+                 ob["block"] = "STOP"
+                 self.parent.plan.insert(self.i+1,ob)
+                 self.parent.update_plan()
+            else: pass
+
+        else:
+            txt="WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
+
+    def pocisniecie_addBell(self):
+        if self.parent.acces:
+             if len(self.plan)>self.i:
+                 ob = {"name": "BELL"}
+                 ob["type"] = "BELL"
+                 ob["block"] = "BELL"
+                 self.parent.plan.insert(self.i+1,ob)
+                 self.parent.update_plan()
+             else: pass
+
+        else:
+            txt="WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
+
+    def check_next_i(self):                   # sprawdza czy nastepny obiekt nie zostal juz wykonany, albo skip
           if self.next_i > len(self.plan)-1:
               self.next_i = -1
           else:
@@ -145,7 +168,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       self.check_next_i()
 
 
-      def update_plan(self):                                     # przelicza czasu planow, etc.
+    def update_plan(self):                                     # przelicza czasu planow, etc.
 
           #self.ctc = CycleTimeCalc(self.parent.telescope.id)   # telescope time calculator
           #self.ctc.set_start_rmode(self.parent.ccd_readoutmode)
@@ -280,7 +303,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
 
-      def update_table(self):
+    def update_table(self):
 
           # DUPA
           # KONIECZNIE DODAC ZAKAZ DOTYKANIA GUZIKOW
@@ -289,10 +312,16 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.plan = self.parent.plan
               self.current_i = self.parent.current_i
               self.next_i = self.parent.next_i
+
+              self.plan_t.setStyleSheet("")
           else:
               self.plan = self.parent.nats_plan_status["plan"]
               self.current_i = self.parent.nats_plan_status["current_i"]
               self.next_i = self.parent.nats_plan_status["next_i"]
+
+              self.plan_t.setStyleSheet("background-color: #F0F0F0;")
+
+
 
           if len(self.plan)==0:
               self.plan_t.clearContents()
@@ -507,7 +536,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.plan_t.horizontalHeader().setSectionResizeMode(col,QHeaderView.Stretch)
 
 
-      def update_log_table(self):
+    def update_log_table(self):
           if len(self.parent.ob_log)==0:
               self.log_t.clearContents()
           else:
@@ -549,14 +578,19 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
 
-      def setNext(self):
-          self.next_i=self.i
-          #DUPA
-          self.parent.next_i = self.i
-          self.parent.update_plan()
-          #self.update_table()
+    def setNext(self):
+        if self.parent.acces:
 
-      def import_to_manuall(self):                  # uzupelnia nazwe i wspolrzedne w oknie manual
+            self.next_i = self.i
+            self.parent.next_i = self.i
+            self.parent.update_plan()
+
+        else:
+            txt="WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
+
+
+    def import_to_manuall(self):                  # uzupelnia nazwe i wspolrzedne w oknie manual
 
           if self.parent.plan[self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
           elif self.parent.plan[self.i]["type"] == "ZERO": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
@@ -581,17 +615,26 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       self.parent.instGui.ccd_tab.inst_Seq_e.setText(self.plan[self.i]["seq"])
                   if self.parent.plan[self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
 
-      def setSkip(self):
-          if "skip" in self.parent.plan[self.i].keys():
-             if self.parent.plan[self.i]["skip"]:
-                 self.parent.plan[self.i]["skip"]=False
-             else:
-                 self.parent.plan[self.i]["skip"] = True
-          else:
-              self.parent.plan[self.i]["skip"]=True
-          self.parent.update_plan()
+    def setSkip(self):
+        if self.parent.acces:
 
-      def pocisniecie_headera(self,index):
+            if "skip" in self.parent.plan[self.i].keys():
+                if self.parent.plan[self.i]["skip"]:
+                    self.parent.plan[self.i]["skip"] = False
+                else:
+                    self.parent.plan[self.i]["skip"] = True
+            else:
+                self.parent.plan[self.i]["skip"] = True
+            self.parent.update_plan()
+
+        else:
+            txt = "WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
+
+
+
+
+    def pocisniecie_headera(self,index):
           if index == 3:
               if self.show_seq:
                   self.table_header[3] = "Comment"
@@ -624,37 +667,51 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           self.update_table()
 
-      def pocisniecie_tabelki(self,i,j):
+    def pocisniecie_tabelki(self,i,j):
           self.prev_i=self.i
           self.i=i
           self.update_table()
           self.repaint()
 
-      def pocisniecie_delAll(self):
-          if self.parent.current_i >= 0:
-              ob_tmp = self.parent.plan[self.parent.current_i]
-              self.parent.plan = []
-              self.parent.plan.append(ob_tmp)
-          else:
-              self.parent.plan = []
-          self.i = -1
-          self.prev_i = -1
-          self.parent.next_i = -1
-          self.parent.update_plan()
+    def pocisniecie_delAll(self):
+        if self.parent.acces:
 
-      def pocisniecie_del(self):
-          if self.i != self.parent.current_i and self.i < len(self.parent.plan):
-              if self.i < self.parent.current_i: self.parent.current_i = self.parent.current_i - 1
-              if self.i < self.parent.next_i: self.parent.next_i = self.parent.next_i - 1
-              if self.i == len(self.parent.plan)-1:
-                  self.parent.plan.pop(self.i)
-                  self.i = self.i - 1
-              else:
-                  self.parent.plan.pop(self.i)
-              self.parent.update_plan()
+            if self.parent.current_i >= 0:
+                ob_tmp = self.parent.plan[self.parent.current_i]
+                self.parent.plan = []
+                self.parent.plan.append(ob_tmp)
+            else:
+                self.parent.plan = []
+            self.i = -1
+            self.prev_i = -1
+            self.parent.next_i = -1
+            self.parent.update_plan()
 
-      def pocisniecie_first(self):
-          if self.i != self.parent.current_i:
+        else:
+            txt = "WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
+
+
+    def pocisniecie_del(self):
+        if self.parent.acces:
+              if self.i != self.parent.current_i and self.i < len(self.parent.plan):
+                  if self.i < self.parent.current_i: self.parent.current_i = self.parent.current_i - 1
+                  if self.i < self.parent.next_i: self.parent.next_i = self.parent.next_i - 1
+                  if self.i == len(self.parent.plan)-1:
+                      self.parent.plan.pop(self.i)
+                      self.i = self.i - 1
+                  else:
+                      self.parent.plan.pop(self.i)
+                  self.parent.update_plan()
+
+        else:
+            txt = "WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
+
+    def pocisniecie_first(self):
+        if self.parent.acces:
+
+            if self.i != self.parent.current_i:
               self.parent.plan.insert(0,self.parent.plan[self.i])
               self.parent.plan.pop(self.i+1)
               if self.i > self.parent.current_i and self.parent.current_i>-1:
@@ -667,7 +724,13 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               #self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               #self.repaint()
 
-      def pocisniecie_last(self):
+        else:
+            txt = "WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
+
+
+    def pocisniecie_last(self):
+        if self.parent.acces:
           if self.i != self.parent.current_i:
               self.parent.plan.append(self.parent.plan[self.i])
               self.parent.plan.pop(self.i)
@@ -678,8 +741,12 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.parent.update_plan()
               #self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               #self.repaint()
+        else:
+            txt = "WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
 
-      def pocisniecie_up(self):
+    def pocisniecie_up(self):
+        if self.parent.acces:
           if self.i != self.parent.current_i:
               if self.i - 1 == self.parent.current_i:
                   self.parent.current_i = self.parent.current_i + 1
@@ -694,9 +761,15 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.parent.update_plan()
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               #self.repaint()
+        else:
+            txt = "WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
 
-      def pocisniecie_down(self):
-          if self.i != self.parent.current_i:
+
+    def pocisniecie_down(self):
+        if self.parent.acces:
+
+            if self.i != self.parent.current_i:
               if self.i + 1 == self.parent.current_i:
                   self.parent.current_i = self.parent.current_i -1
                   self.parent.next_i = self.parent.next_i - 1
@@ -711,16 +784,23 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               #self.repaint()
 
+        else:
+            txt = "WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
 
-      def pocisniecie_swap(self):
+    def pocisniecie_swap(self):
+        if self.parent.acces:
           if self.i != self.parent.current_i and self.prev_i != self.parent.current_i:
               self.parent.plan[self.i],self.parent.plan[self.prev_i]=self.parent.plan[self.prev_i],self.parent.plan[self.i]
               self.parent.update_plan()
               self.i,self.prev_i=self.prev_i,self.i
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               #self.repaint()
+        else:
+            txt = "WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
 
-      def savePlan(self):
+    def savePlan(self):
           self.File_dialog = QFileDialog()
           self.fileName = self.File_dialog.getSaveFileName(None,"Open file")[0]
           txt = ""
@@ -737,43 +817,45 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.parent.msg(txt, "black")
 
 
-      def loadPlan(self):
-
+    def loadPlan(self):
+        if self.parent.acces:
           # ob["name","block","type","ra","dec","seq","pos","comment","ok"]
           # ob["wait","wait_ut","wait_sunset","wait_sunrise"]
           # [meta_alt,meta_az,meta_plan_ut,meta_plan_alt,meta_plan_az,skip,skip_alt]
 
-          if self.parent.active_tel == None:
-              self.parent.WarningWindow("WARNING: Ok, but first select the telescope!")
-              return
-          self.File_dialog = QFileDialog()
-          self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
+              if self.parent.active_tel == None:
+                  self.parent.WarningWindow("WARNING: Ok, but first select the telescope!")
+                  return
+              self.File_dialog = QFileDialog()
+              self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
 
-          if self.fileName:
-              #self.plan = []
-              #self.done = []
-              #self.i = 0
-              #self.prev_i = -1
-              #self.next_i = 0
-              #self.current_i = -1
+              if self.fileName:
+                  #self.plan = []
+                  #self.done = []
+                  #self.i = 0
+                  #self.prev_i = -1
+                  #self.next_i = 0
+                  #self.current_i = -1
 
-              with open(self.fileName, "r") as plik:
-                 if plik != None:
-                     tmp_plan = []
-                     for line in plik:
-                        if len(line.strip())>0:
-                           if line.strip()[0]!="#":
-                               if "TEL: zb08" in line: pass  # wprowadzic do planow jako obowiazek?
+                  with open(self.fileName, "r") as plik:
+                     if plik != None:
+                         tmp_plan = []
+                         for line in plik:
+                            if len(line.strip())>0:
+                               if line.strip()[0]!="#":
+                                   if "TEL: zb08" in line: pass  # wprowadzic do planow jako obowiazek?
 
-                               ob,ok,tmp1,tmp2,tmp3 = ob_parser(line,overhed=self.parent.overhed,filter_list=self.parent.filter_list)
-                               tmp_plan.append(ob)
-                     self.plan[self.i+1:self.i+1] = tmp_plan
-          self.parent.upload_plan()
-          self.update_table()          
-
+                                   ob,ok,tmp1,tmp2,tmp3 = ob_parser(line,overhed=self.parent.overhed,filter_list=self.parent.filter_list)
+                                   tmp_plan.append(ob)
+                         self.plan[self.i+1:self.i+1] = tmp_plan
+              self.parent.upload_plan()
+              self.update_table()
+        else:
+              txt = "WARNING: U don't have controll"
+              self.parent.WarningWindow(txt)
           
         # =================== OKNO GLOWNE ====================================
-      def updateUI(self):
+    def updateUI(self):
 
           txt = " Plan Manager"
           if self.parent.active_tel != None:
@@ -818,10 +900,11 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           w=w+1
           self.plan_t=QTableWidget(0,4)
+          self.plan_t.setStyleSheet("selection-background-color: green; background-color: #F0F0F0;")
           self.plan_t.setHorizontalHeaderLabels(self.table_header)
           self.plan_t.setSelectionMode(QAbstractItemView.NoSelection)
           self.plan_t.verticalHeader().hide()
-          self.plan_t.setStyleSheet("selection-background-color: green;")
+
 
           self.grid.addWidget(self.plan_t, w,0,7,5)
           
@@ -948,11 +1031,11 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           del tmp
           
-      async def on_start_app(self):
+    async def on_start_app(self):
           await self.run_background_tasks()
 
-      @qs.asyncClose
-      async def closeEvent(self, event):
+    @qs.asyncClose
+    async def closeEvent(self, event):
           await self.stop_background_tasks()
           await self.stop_background_methods()
           super().closeEvent(event)
@@ -1077,6 +1160,7 @@ class PhaseWindow(QWidget):
 
         self.f_path = self.parent.parent.cfg_tel_directory+"processed-ofp/targets/"+self.name.lower()
         self.filters = os.listdir(self.f_path)
+        print(self.filters)
         self.file_s.addItems(self.filters)
 
     def refresh(self):
@@ -1497,7 +1581,7 @@ class AddWindow(QWidget):
 # #############################################
 
 class EditWindow(QWidget):
-      def __init__(self, parent):
+    def __init__(self, parent):
           super(EditWindow, self).__init__()
           self.setWindowTitle("EDIT WINDOW")
           self.parent=parent
@@ -1508,7 +1592,7 @@ class EditWindow(QWidget):
           self.close_p.clicked.connect(lambda: self.close())
           self.change_p.clicked.connect(self.change_plan)
 
-      def refresh(self):
+    def refresh(self):
           self.tab_t.disconnect()
           self.type_s.disconnect()
           self.block_e.disconnect()
@@ -1527,7 +1611,7 @@ class EditWindow(QWidget):
           self.block_e.textChanged.connect(self.refresh)
 
 
-      def type_changed(self):
+    def type_changed(self):
           block = self.block_e.text()
           block = block.replace(block.split()[0],self.type_s.currentText())
 
@@ -1543,7 +1627,7 @@ class EditWindow(QWidget):
           self.block_e.setText(block)
           #self.refresh()
 
-      def update_tab(self):
+    def update_tab(self):
 
           self.type_s.setCurrentText(self.ob["type"])
 
@@ -1579,7 +1663,7 @@ class EditWindow(QWidget):
           self.tab_t.resizeColumnsToContents()
           self.tab_t.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
-      def table_changed(self,x=None,y=None):
+    def table_changed(self,x=None,y=None):
           if self.tab_t.rowCount()>0:
               txt = self.type_s.currentText()+" "
               i=-1
@@ -1609,14 +1693,14 @@ class EditWindow(QWidget):
               self.block_e.setText("")
               self.block_e.setText(txt)
 
-      def change_plan(self):
+    def change_plan(self):
           ob = {key: value for key,value in self.ob.items() if self.active.get(key)}
           self.parent.parent.plan[self.parent.i] = ob
           txt = f"TOI: plan {self.ob['name']} changed "
           self.parent.parent.msg(txt, "black")
           self.close()
 
-      def mkUI(self):
+    def mkUI(self):
           grid = QGridLayout()
           w=0
           self.block_e=QLineEdit()

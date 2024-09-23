@@ -1,4 +1,5 @@
 toi:
+  telescopes: ["wk06","zb08","jk15"]
   mark_saturated_stars: True
   log_display_h: 8
 

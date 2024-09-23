@@ -54,106 +54,91 @@ class MainForm(QWidget):
 
     def update_table(self):
 
-        translate_tel_names = {"wk06": "WK-06", "zb08": "ZB-08", "jk15": "JK-15", "sim": "SIM"}
+        i = -1
+        for t in self.parent.local_cfg["toi"]["telescopes"]:
+            i = i + 1
 
-        for i, tel in enumerate(self.parent.obs_tel_tic_names):
-            try:
-                state = self.parent.tel[tel].state["name"]
-                txt = translate_tel_names[state]
-                item = QTableWidgetItem(txt)
-                item.setTextAlignment(QtCore.Qt.AlignHCenter)
-                item.setTextAlignment(QtCore.Qt.AlignVCenter)
-                self.obs_t.setItem(i, 0, item)
+            # TELESKOPY
+            txt = t
+            item = QTableWidgetItem(txt)
+            item.setTextAlignment(QtCore.Qt.AlignHCenter)
+            item.setTextAlignment(QtCore.Qt.AlignVCenter)
+            self.obs_t.setItem(i, 0, item)
 
-                item = QTableWidgetItem(" -- ")
-                if "dome" in self.parent.tel[tel].state.keys():
-                    state = self.parent.tel[tel].state["dome"]
-                    rgb = self.parent.tel[tel].state["dome_rgb"]
-                    item = QTableWidgetItem(state)
-                    item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
-                item.setTextAlignment(QtCore.Qt.AlignHCenter)
-                item.setTextAlignment(QtCore.Qt.AlignVCenter)
-                self.obs_t.setItem(i, 1, item)
+            # DOME
+            state, rgb = "--", (0, 0, 0)
+            shutter = self.parent.oca_tel_state[t]["dome_shutterstatus"]["val"]
+            moving = self.parent.oca_tel_state[t]["dome_slewing"]["val"]
 
-                item = QTableWidgetItem(" -- ")
-                if "mount" in self.parent.tel[tel].state.keys():
-                    state = self.parent.tel[tel].state["mount"]
-                    rgb = self.parent.tel[tel].state["mount_rgb"]
-                    item = QTableWidgetItem(state)
-                    item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
-                item.setTextAlignment(QtCore.Qt.AlignHCenter)
-                item.setTextAlignment(QtCore.Qt.AlignVCenter)
-                self.obs_t.setItem(i, 2, item)
+            if shutter != None or moving != None:
+                if shutter == None and moving == None : state,rgb = "SHUTTER and STATUS ERROR",(150, 0, 0)
+                elif shutter == None: state,rgb = "SHUTTER ERROR",(150, 0, 0)
+                elif moving == None : state,rgb = "DOME STATUS ERROR",(150, 0, 0)
+                else:
+                    if moving: state,rgb = "MOVING",(255, 160, 0)
+                    elif shutter==0: state,rgb = "OPEN",(0, 150, 0)
+                    elif shutter==1: state,rgb = "CLOSED",(0, 0, 0)
+                    elif shutter==2: state,rgb = "OPENING",(255, 160, 0)
+                    elif shutter==3: state,rgb = "CLOSING",(255, 160, 0)
+                    else: state,rgb = "SHUTTER ERROR",(150, 0, 0)
 
-                item = QTableWidgetItem(" -- ")
-                if "instrument" in self.parent.tel[tel].state.keys():
-                    state = self.parent.tel[tel].state["instrument"]
-                    rgb = self.parent.tel[tel].state["instrument_rgb"]
-                    item = QTableWidgetItem(state)
-                    item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
-                item.setTextAlignment(QtCore.Qt.AlignHCenter)
-                item.setTextAlignment(QtCore.Qt.AlignVCenter)
-                self.obs_t.setItem(i, 3, item)
+            item = QTableWidgetItem(state)
+            item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
+            item.setTextAlignment(QtCore.Qt.AlignHCenter)
+            item.setTextAlignment(QtCore.Qt.AlignVCenter)
+            self.obs_t.setItem(i, 1, item)
 
-                item = QTableWidgetItem(" -- ")
-                if "program" in self.parent.tel[tel].state.keys():
-                    state = self.parent.tel[tel].state["program"]
-                    rgb = self.parent.tel[tel].state["program_rgb"]
-                    item = QTableWidgetItem(state)
-                    item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
-                item.setTextAlignment(QtCore.Qt.AlignHCenter)
-                item.setTextAlignment(QtCore.Qt.AlignVCenter)
-                self.obs_t.setItem(i, 4, item)
-            except KeyError:
-                pass
+            # MOUNT
+            state, rgb = "--", (0, 0, 0)
+            slewing = self.parent.oca_tel_state[t]["mount_slewing"]["val"]
+            tracking = self.parent.oca_tel_state[t]["mount_tracking"]["val"]
+            motors = self.parent.oca_tel_state[t]["mount_motor"]["val"]
 
-            # item = QTableWidgetItem(" -- ")
-            # if "mount" in self.parent.tel[tel].state.keys():
-            # state = self.parent.tel[tel].state["mount"]
-            # if state == "Motors off":
-            # item = QTableWidgetItem("Motors OFF")
-            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
-            # elif state == "IDLE":
-            # item = QTableWidgetItem("IDLE")
-            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
-            # elif state == "Tracking":
-            # item = QTableWidgetItem("Tracking")
-            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 150, 0)))
-            # elif state == "Slewing":
-            # item = QTableWidgetItem("Slewing")
-            # item.setForeground(QtGui.QBrush(QtGui.QColor(255, 160, 0)))
-            # else:
-            # item = QTableWidgetItem("unknown")
-            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
-            # item.setTextAlignment(QtCore.Qt.AlignHCenter)
-            # item.setTextAlignment(QtCore.Qt.AlignVCenter)
-            # self.obs_t.setItem(i, 2, item)
+            if slewing != None or tracking != None:
+                if motors == "false": state,rgb = "MOTORS OFF", (0, 0, 0)
+                elif slewing: state,rgb = "SLEWING", (255, 160, 0)
+                elif tracking: state,rgb = "TRACKING",(0, 150, 0)
+                else: state,rgb = "IDLE",(0, 0, 0)
 
-            # item = QTableWidgetItem(" -- ")
-            # if "instrument" in self.parent.tel[tel].state.keys():
-            # state = self.parent.tel[tel].state["instrument"]
-            # if state == "warm":
-            # item = QTableWidgetItem("warm")
-            # item.setForeground(QtGui.QBrush(QtGui.QColor(150, 0, 0)))
-            # elif state == "IDLE":
-            # item = QTableWidgetItem("IDLE")
-            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
-            # elif "exposing" in state:
-            # item = QTableWidgetItem(state)
-            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 150, 0)))
-            # else:
-            # item = QTableWidgetItem("unknown")
-            # item.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
-            # item.setTextAlignment(QtCore.Qt.AlignHCenter)
-            # item.setTextAlignment(QtCore.Qt.AlignVCenter)
-            # self.obs_t.setItem(i, 3, item)
+            item = QTableWidgetItem(state)
+            item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
+            item.setTextAlignment(QtCore.Qt.AlignHCenter)
+            item.setTextAlignment(QtCore.Qt.AlignVCenter)
+            self.obs_t.setItem(i, 2, item)
 
-        # for i, txt in enumerate(self.parent.obs_tel_in_table):
-        # txt = self.parent.obs_program_in_table[i]
-        # item = QTableWidgetItem(txt)
-        # item.setTextAlignment(QtCore.Qt.AlignHCenter)
-        # item.setTextAlignment(QtCore.Qt.AlignVCenter)
-        # self.obs_t.setItem(i, 4, item)
+            # CCD
+            state, rgb = "--", (0, 0, 0)
+            filtr = "--"
+            pos = self.parent.oca_tel_state[t]["fw_position"]["val"]
+            ccd =  self.parent.oca_tel_state[t]["ccd_state"]["val"]
+
+            if pos != None:
+                filtr = self.parent.tel_cfg[t]["filter_list_names"][pos]
+
+            if ccd != None :
+                state = filtr + f" {ccd}"
+
+            item = QTableWidgetItem(state)
+            item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
+            item.setTextAlignment(QtCore.Qt.AlignHCenter)
+            item.setTextAlignment(QtCore.Qt.AlignVCenter)
+            self.obs_t.setItem(i, 3, item)
+
+            # PROGRAM
+            state, rgb = "--", (0, 0, 0)
+            #templeate = {"ob_started": False, "ob_done": False, "ob_expected_time": 0.01, "ob_start_time": 0,"ob_program": None}
+            started = self.parent.ob_prog_status[t]["ob_started"]
+            done = self.parent.ob_prog_status[t]["ob_done"]
+            program = self.parent.ob_prog_status[t]["ob_program"]
+            if started and not done:
+                state = f"{program.split()[1]}"
+
+            item = QTableWidgetItem(state)
+            item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
+            item.setTextAlignment(QtCore.Qt.AlignHCenter)
+            item.setTextAlignment(QtCore.Qt.AlignVCenter)
+            self.obs_t.setItem(i, 4, item)
+
 
     def msg(self, txt, color):
         c = QtCore.Qt.black
