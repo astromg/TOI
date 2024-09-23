@@ -116,7 +116,12 @@ class MainForm(QWidget):
                 filtr = self.parent.tel_cfg[t]["filter_list_names"][pos]
 
             if ccd != None :
-                state = filtr + f" {ccd}"
+                if ccd == 2:
+                    state,rgb = f"EXP [{filtr}]", (0, 150, 0)
+                elif ccd == 0:
+                    state,rgb = f"IDLE [{filtr}]", (0, 0, 0)
+                else:
+                    state, rgb = f"NO IDEA [{filtr}]", (0, 0, 0)
 
             item = QTableWidgetItem(state)
             item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
@@ -131,7 +136,7 @@ class MainForm(QWidget):
             done = self.parent.ob_prog_status[t]["ob_done"]
             program = self.parent.ob_prog_status[t]["ob_program"]
             if started and not done:
-                state = f"{program.split()[1]}"
+                state,rgb = f"{program.split()[1]}", (0, 150, 0)
 
             item = QTableWidgetItem(state)
             item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
