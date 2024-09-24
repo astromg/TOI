@@ -136,7 +136,10 @@ class MainForm(QWidget):
             done = self.parent.ob_prog_status[t]["ob_done"]
             program = self.parent.ob_prog_status[t]["ob_program"]
             if started and not done:
-                state,rgb = f"{program.split()[1]}", (0, 150, 0)
+                if "OBJECT" in program:
+                    state,rgb = f"{program.split()[1]} {program.split()[2]}", (0, 150, 0)
+                else:
+                    state, rgb = f"{program.split()[0]} {program.split()[1]}", (0, 150, 0)
 
             item = QTableWidgetItem(state)
             item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))

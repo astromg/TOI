@@ -1,0 +1,12 @@
+
+STOP                        comment=cos tam
+ZERO seq=15/V/0            comment='cos2'
+DARK seq=5/V/600
+BELL
+STOP
+DARK seq=5/V/600
+STOP
+
+
+
+
