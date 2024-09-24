@@ -67,6 +67,7 @@ from scipy.ndimage.filters import maximum_filter
 class FFS:
 
     def __init__(self,image,gain=1.,rn_noise=0.):
+
         self.image = numpy.transpose(image)
         self.gain = float(gain)
         self.rn_noise = float(rn_noise)
@@ -83,7 +84,6 @@ class FFS:
         return kernel / numpy.sum(kernel)
 
     def find_stars(self,threshold=5.,method="sigma quantile",kernel_size=30,fwhm=10):
-
         self.coo=[]
         self.adu=[]
         self.threshold = float(threshold)

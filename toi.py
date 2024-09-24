@@ -114,7 +114,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_weather_loop())
 
 
-        #DUPA
         for t in self.oca_tel_state.keys():
             self.add_background_task(self.oca_telemetry_program_reader(t))
             for k in self.oca_tel_state[t].keys():
@@ -133,15 +132,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning('Getting observatory config from NATS failed')
 
-    #DUPA
     async def oca_telemetry_reader(self,tel,key):
         try:
             r = get_reader(f'tic.status.{tel}{self.oca_tel_state[tel][key]["pms_topic"]}', deliver_policy='last')
             async for data, meta in r:
                 txt = data["measurements"][f"{tel}{self.oca_tel_state[tel][key]['pms_topic']}"]
-                #print("NATS STATUS: ", tel, key, txt)
                 self.oca_tel_state[tel][key]["val"] = txt
-                #print(self.oca_tel_state[tel][key]["val"])
                 self.update_oca()
         except Exception as e:
             logger.warning(f'{e}')
@@ -353,7 +349,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_log_flat_reader(), group="telescope_task")
         self.add_background_task(self.nats_log_focus_reader(), group="telescope_task")
         self.add_background_task(self.nats_log_toi_reader(), group="telescope_task")
-        self.add_background_task(self.nats_log_loop(), group="telescope_task")
+        self.add_background_task(self.nats_log_loop_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_plan_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_status_reader(), group="telescope_task")
@@ -459,7 +455,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     # NATS log plannera
-    async def nats_log_loop(self):
+    async def nats_log_loop_reader(self):
         try:
             tel = self.active_tel
             time = datetime.datetime.now() - datetime.timedelta(hours=int(self.local_cfg["toi"]["log_display_h"]))
@@ -467,12 +463,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             async for data, meta in r:
                 self.ob_log.append(data)
                 if "uobi" in data.keys():
-                    if data["uobi"] not in self.done:
-                        self.planGui.done.append(data["uobi"])
+                    if data["uobi"] not in self.done_uobi:
+                        #self.planGui.done.append(data["uobi"])
                         self.done_uobi.append(data["uobi"])
                 self.planGui.update_log_table()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
+        except Exception as e:
+            print(f'EXCEPTION 3: {e}')
         #except Exception as e:
         #    logger.warning(f'TOI: nats_log_loop: {e}')
 
@@ -783,6 +781,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         while True:
             await asyncio.sleep(1)
             #print("* PING")
+            #print(self.planrunner.is_nightplan_running(self.program_name))
 
             self.tic_conn = await self.observatory_model.is_tic_server_available()
 
@@ -803,41 +802,43 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.flag_newimage = False
                     self.new_fits()
 
+
             self.time = time.time()
 
-            if self.ob_started:
-                if True:
-                    t = self.time - self.ob_start_time
-                    p = t / self.ob_expected_time
-                    txt = f"{int(t)}/{int(self.ob_expected_time)}"
-                    self.planGui.ob_Prog_n.setValue(int(100*p))
-                    self.planGui.ob_Prog_n.setFormat(txt)
+            try:
+                if self.ob_started:
+                    if True:
+                        t = self.time - self.ob_start_time
+                        p = t / self.ob_expected_time
+                        txt = f"{int(t)}/{int(self.ob_expected_time)}"
+                        self.planGui.ob_Prog_n.setValue(int(100*p))
+                        self.planGui.ob_Prog_n.setFormat(txt)
 
-                    if p > 1.1:
-                        RED_PROGBAR_STYLE = """
-                        QProgressBar{
-                            border: 2px solid grey;
-                            border-radius: 5px;
-                            text-align: center
-                        }
+                        if p > 1.1:
+                            RED_PROGBAR_STYLE = """
+                            QProgressBar{
+                                border: 2px solid grey;
+                                border-radius: 5px;
+                                text-align: center
+                            }
+    
+                            QProgressBar::chunk {
+                                background-color: red;
+                                width: 10px;
+                                margin: 1px;
+                            }
+                            """
+                            self.planGui.ob_Prog_n.setStyleSheet(RED_PROGBAR_STYLE)
+                        else:
+                            self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
 
-                        QProgressBar::chunk {
-                            background-color: red;
-                            width: 10px;
-                            margin: 1px;
-                        }
-                        """
-                        self.planGui.ob_Prog_n.setStyleSheet(RED_PROGBAR_STYLE)
-                    else:
-                        self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
+                elif self.ob_done:
+                    self.planGui.ob_Prog_n.setValue(100)
+                    self.planGui.ob_Prog_n.setFormat("DONE")
+                    self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
 
-            elif self.ob_done:
-                self.planGui.ob_Prog_n.setValue(100)
-                self.planGui.ob_Prog_n.setFormat("DONE")
-                self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
-
-
-
+            except Exception as e:
+                print("EXCEPTION 6", e)
 
             if self.ob["run"] and "name" in self.ob.keys():
                 txt = self.ob["name"]
@@ -930,32 +931,35 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             # obsluga wyswietlania paskow postepu ekspozycji
 
-            if self.exp_prog_status["dit_start"]>0:
+            try:
+                if self.exp_prog_status["dit_start"]>0:
 
-                dt=self.time-self.exp_prog_status["dit_start"]
-                if dt>self.exp_prog_status["dit_exp"]:
-                    dt=self.exp_prog_status["dit_exp"]
-                    if self.exp_prog_status["plan_runner_status"] == "exposing":
-                        txt = "reading: "
+                    dt=self.time-self.exp_prog_status["dit_start"]
+                    if dt>self.exp_prog_status["dit_exp"]:
+                        dt=self.exp_prog_status["dit_exp"]
+                        if self.exp_prog_status["plan_runner_status"] == "exposing":
+                            txt = "reading: "
+                    else:
+                        if self.exp_prog_status["plan_runner_status"] == "exposing":
+                            txt = "exposing: "
+                    if self.exp_prog_status["plan_runner_status"]=="exp done":
+                        txt="DONE "
+                    if int(self.exp_prog_status["dit_exp"])==0: p=100
+                    else: p=int(100*(dt/self.exp_prog_status["dit_exp"]))
+                    self.instGui.ccd_tab.inst_DitProg_n.setValue(p)
+                    txt2=f"{int(dt)}/{int(self.exp_prog_status['dit_exp'])}"
+
+                    p=int(100*(self.exp_prog_status["ndit"]/self.exp_prog_status["ndit_req"]))
+                    self.instGui.ccd_tab.inst_NditProg_n.setValue(p)
+                    txt=txt+f"{int(self.exp_prog_status['ndit'])}/{int(self.exp_prog_status['ndit_req'])}"
+
+                    self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt)
+                    self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt2)
+
                 else:
-                    if self.exp_prog_status["plan_runner_status"] == "exposing":
-                        txt = "exposing: "
-                if self.exp_prog_status["plan_runner_status"]=="exp done":
-                    txt="DONE "
-                if int(self.exp_prog_status["dit_exp"])==0: p=100
-                else: p=int(100*(dt/self.exp_prog_status["dit_exp"]))
-                self.instGui.ccd_tab.inst_DitProg_n.setValue(p)
-                txt2=f"{int(dt)}/{int(self.exp_prog_status['dit_exp'])}"
-
-                p=int(100*(self.exp_prog_status["ndit"]/self.exp_prog_status["ndit_req"]))
-                self.instGui.ccd_tab.inst_NditProg_n.setValue(p)
-                txt=txt+f"{int(self.exp_prog_status['ndit'])}/{int(self.exp_prog_status['ndit_req'])}"
-
-                self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt)
-                self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt2)
-
-            else:
-                self.instGui.ccd_tab.inst_NditProg_n.setFormat("")
+                    self.instGui.ccd_tab.inst_NditProg_n.setFormat("")
+            except Exception as e:
+                print("Exception 8", e)
 
             # obsluga Almanacu
 
@@ -1087,67 +1091,74 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def PlanRun1(self,info):
+        try:
 
-
-        if "exp_started" in info.keys() and "exp_done" in info.keys() and "exp_saved" in info.keys():
-            if info["exp_started"]==True and info["exp_done"]==True and info["exp_saved"]==True:
-                if Path(self.cfg_tel_directory + "last_shoot.fits").is_file():
-                    hdul = fits.open(self.cfg_tel_directory + "last_shoot.fits")
-                    self.image = hdul[0].data
-                    await self.new_fits()
-                else:
-                    self.image = await self.ccd.aget_imagearray()
-                    await self.new_fits()
-
-        # AUTOFOCUS
-        if self.autofocus_started:
-            if "id" in info.keys():
-                if info["id"]=="auto_focus" and info["started"]==True and info["done"]==True:
-                    self.autofocus_started=False
-                    await self.msg("PLAN: Auto-focus sequence finished","black")
-                    max_sharpness_focus, calc_metadata = calFoc.calculate(self.cfg_tel_directory+"focus/actual",method=self.focus_method)
-                    coef = calc_metadata["poly_coef"]
-                    focus_list_ret = calc_metadata["focus_values"]
-                    sharpness_list_ret = calc_metadata["sharpness_values"]
-                    status = calc_metadata["status"]
-
-                    fit_x = numpy.linspace(min(focus_list_ret), max(focus_list_ret), 100)
-                    if len(coef)>3:
-                        fit_y = coef[0]* fit_x**4 + coef[1]*fit_x**3 + coef[2]*fit_x**2 +  coef[3]*fit_x + coef[4]
-                    elif len(coef)>1:
-                        fit_y = coef[0]* fit_x**2 + coef[1]*fit_x + coef[2]
-
-                    self.auxGui.focus_tab.x=focus_list_ret
-                    self.auxGui.focus_tab.y=sharpness_list_ret
-                    self.auxGui.focus_tab.fit_x=fit_x
-                    self.auxGui.focus_tab.fit_y=fit_y
-                    if status == "ok":
-                        self.auxGui.focus_tab.result_e.setText(f"{int(max_sharpness_focus)}")
-                        self.auxGui.focus_tab.max_sharp=max_sharpness_focus
-                        await self.focus.aput_move(int(max_sharpness_focus))
-                        await self.msg(f"PLAN: focus set to {int(max_sharpness_focus)}","black")
-                        if self.filter != None and self.telemetry_temp != None:
-                            txt = f"{self.ut} {self.telemetry_temp:.2f} {self.filter} {int(max_sharpness_focus)} \n"
-                            with open(self.cfg_focus_record_file,"a+") as plik:
-                                plik.seek(0)
-                                plik.write(txt)
-                            w: MsgJournalPublisher = self.nats_journal_focus_writter
-                            await w.log('INFO', txt)
+            #DUPA
+            #print("=======================")
+            #print(info)
+            #print("=======================")
+            if "exp_started" in info.keys() and "exp_done" in info.keys() and "exp_saved" in info.keys():
+                if info["exp_started"]==True and info["exp_done"]==True and info["exp_saved"]==True:
+                    if Path(self.cfg_tel_directory + "last_shoot.fits").is_file():
+                        hdul = fits.open(self.cfg_tel_directory + "last_shoot.fits")
+                        self.image = hdul[0].data
+                        await self.new_fits()
                     else:
-                        await self.focus.aput_move(int(self.last_focus_position))
-                        await self.msg(f"PLAN: focusing FAILED. Focus set to previous value {int(self.last_focus_position)}", "red")
-                        self.auxGui.focus_tab.result_e.setText(status)
-                        self.auxGui.focus_tab.max_sharp=None
-                    self.auxGui.focus_tab.update()
-                    self.auxGui.tabWidget.setCurrentIndex(2)
+                        self.image = await self.ccd.aget_imagearray()
+                        await self.new_fits()
+
+            # AUTOFOCUS
+            if self.autofocus_started:
+                if "id" in info.keys():
+                    if info["id"]=="auto_focus" and info["started"]==True and info["done"]==True:
+                        self.autofocus_started=False
+                        await self.msg("PLAN: Auto-focus sequence finished","black")
+                        max_sharpness_focus, calc_metadata = calFoc.calculate(self.cfg_tel_directory+"focus/actual",method=self.focus_method)
+                        coef = calc_metadata["poly_coef"]
+                        focus_list_ret = calc_metadata["focus_values"]
+                        sharpness_list_ret = calc_metadata["sharpness_values"]
+                        status = calc_metadata["status"]
+
+                        fit_x = numpy.linspace(min(focus_list_ret), max(focus_list_ret), 100)
+                        if len(coef)>3:
+                            fit_y = coef[0]* fit_x**4 + coef[1]*fit_x**3 + coef[2]*fit_x**2 +  coef[3]*fit_x + coef[4]
+                        elif len(coef)>1:
+                            fit_y = coef[0]* fit_x**2 + coef[1]*fit_x + coef[2]
+
+                        self.auxGui.focus_tab.x=focus_list_ret
+                        self.auxGui.focus_tab.y=sharpness_list_ret
+                        self.auxGui.focus_tab.fit_x=fit_x
+                        self.auxGui.focus_tab.fit_y=fit_y
+                        if status == "ok":
+                            self.auxGui.focus_tab.result_e.setText(f"{int(max_sharpness_focus)}")
+                            self.auxGui.focus_tab.max_sharp=max_sharpness_focus
+                            await self.focus.aput_move(int(max_sharpness_focus))
+                            await self.msg(f"PLAN: focus set to {int(max_sharpness_focus)}","black")
+                            if self.filter != None and self.telemetry_temp != None:
+                                txt = f"{self.ut} {self.telemetry_temp:.2f} {self.filter} {int(max_sharpness_focus)} \n"
+                                with open(self.cfg_focus_record_file,"a+") as plik:
+                                    plik.seek(0)
+                                    plik.write(txt)
+                                w: MsgJournalPublisher = self.nats_journal_focus_writter
+                                await w.log('INFO', txt)
+                        else:
+                            await self.focus.aput_move(int(self.last_focus_position))
+                            await self.msg(f"PLAN: focusing FAILED. Focus set to previous value {int(self.last_focus_position)}", "red")
+                            self.auxGui.focus_tab.result_e.setText(status)
+                            self.auxGui.focus_tab.max_sharp=None
+                        self.auxGui.focus_tab.update()
+                        self.auxGui.tabWidget.setCurrentIndex(2)
 
 
-        # NORMAL PLAN
-        if "id" in info.keys():  # to jest tylko do wyswietlania w oknie loga planu
-            self.program_id = info["id"]
-            ut=str(self.almanac["ut"]).split()[1].split(":")[0]+":"+str(self.almanac["ut"]).split()[1].split(":")[1]
-            txt = f"--------  {ut}  --------  {self.program_id}  --------\n {info}\n"
-            self.planGui.prog_call_e.append(txt)
+            # NORMAL PLAN
+            if "id" in info.keys():  # to jest tylko do wyswietlania w oknie loga planu
+                self.program_id = info["id"]
+                ut=str(self.almanac["ut"]).split()[1].split(":")[0]+":"+str(self.almanac["ut"]).split()[1].split(":")[1]
+                txt = f"--------  {ut}  --------  {self.program_id}  --------\n {info}\n"
+                self.planGui.prog_call_e.append(txt)
+
+        except Exception as e:
+            print("EXCEPTION 37", e)
 
         # TO JEST CZESC KTORA SPRAWDZA CZY PLANRUNNER DZIALA
         if "name" in info.keys() and "started" in info.keys() and "done" in info.keys():
@@ -1165,6 +1176,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     #print(self.ob_program, self.ccd_readoutmode)
                     self.ctc_time = self.ctc.calc_time(self.ob_program)
                     self.ob_expected_time = self.ctc_time
+                    if self.ob_expected_time == 0:
+                        self.ob_expected_time = 0.1
                 except ValueError:
                     self.ob_expected_time = 0.1
                     print("CTC ERROR")
@@ -1633,14 +1646,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             image = self.image
             image = numpy.asarray(image) # Mirek ?
 
+            scale = 1
+            fwhm = 4
+            kernel_size = 6
+            saturation = 45000
+            if self.image.shape[0] > 4000 or self.image.shape[1] > 4000:
+                image = image.reshape(self.image.shape[0]//2,2,self.image.shape[1]//2,2).mean(axis=(1,3))
+                fwhm = 2
+                kernel_size = 6
+                saturation = 45000
+                scale = 2
+
             stats = FFS(image)
-            coo=[]
-            adu=[]
             fwhm_x,fwhm_y=0,0
             th = 20
-            coo,adu = stats.find_stars(threshold=th,kernel_size=6,fwhm=4)
+            t0 = time.time()
+            coo,adu = stats.find_stars(threshold=th,kernel_size=kernel_size,fwhm=fwhm)
+            t1 = time.time()
+            print("TIME: ", t1-t0)
             if len(coo)>3:
-                fwhm_x,fwhm_y = stats.fwhm(saturation=45000)
+                fwhm_x,fwhm_y = stats.fwhm(saturation=saturation)
                 if fwhm_x != None and fwhm_y !=None:
                     fwhm = (fwhm_x+fwhm_y)/2.
                     coo, adu = stats.find_stars(threshold=th, kernel_size=9, fwhm=1.5*fwhm)
@@ -1667,6 +1692,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 txt = txt + f"stars max ADU:".ljust(17)+f"{ok_adu[0]}".ljust(9)
             if fwhm_x == None or fwhm_y == None:
                 fwhm_x,fwhm_y=0,0
+            fwhm_x, fwhm_y = scale * fwhm_x, scale * fwhm_y
             txt = txt + f"FWHM X/Y:".ljust(13)+f"{float(fwhm_x):.1f}/{float(fwhm_y):.1f}\n"
 
             txt = txt + f"min ADU:".ljust(17)  +f"{stats.min:.0f}".ljust(9)
@@ -2238,7 +2264,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def mountCon_update(self, event):
 
-        self.mount_con=self.mount.aget_connected()
+        self.mount_con = await self.mount.aget_connected()
         if self.mount_con:
             self.mntGui.mntConn2_l.setText("\U0001F7E2")
             self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
@@ -2889,7 +2915,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             log_file.write(log)
 
     def update_oca(self):
-        #DUPA
         self.obsGui.main_form.update_table()
 
 
@@ -2969,7 +2994,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # statusty wszystkich teleskopow
 
-        # DUPA
         templeate = {
             "mount_motor":{"val":None, "pms_topic":".mount.motorstatus"},
             "mount_tracking": {"val": None, "pms_topic": ".mount.tracking"},
@@ -3047,7 +3071,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # aux zmienne
         self.exp_prog_status = {"plan_runner_status":"","ndit_req":1,"ndit":0,"dit_exp":0,"dit_start":0}
 
-        templeate = {"ob_started":False,"ob_done":False,"ob_expected_time":0.01,"ob_start_time":0,"ob_program":None}
+        templeate = {"ob_started":False,"ob_done":False,"ob_expected_time":0.1,"ob_start_time":0,"ob_program":None}
         self.ob_prog_status = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
 
         self.nats_plan_status = {"current_i":-1,"next_i":-1,"plan":[]}
