@@ -444,15 +444,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                          txt.setForeground(QtGui.QColor("green"))
                          self.plan_t.setItem(i,0,txt)
 
-                 if i==self.current_i:          # aktualnie robiony
-                    font=QtGui.QFont()
-                    font.setPointSize(20)
-                    txt=QTableWidgetItem("\u21BB")
-                    txt.setFont(font)
-                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                    txt.setForeground(QtGui.QColor("blue"))
-                    self.plan_t.setItem(i,0,txt)
-
                  if i==self.next_i: #and self.current_i<0:    # nastepmy
                     font=QtGui.QFont()
                     font.setPointSize(25)
@@ -460,6 +451,15 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     txt.setFont(font)
                     txt.setTextAlignment(QtCore.Qt.AlignCenter)
                     txt.setForeground(QtGui.QColor("blue"))
+                    self.plan_t.setItem(i,0,txt)
+
+                 if i==self.current_i:          # aktualnie robiony
+                    font=QtGui.QFont()
+                    font.setPointSize(20)
+                    txt=QTableWidgetItem("\u21BB")
+                    txt.setFont(font)
+                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
+                    txt.setForeground(QtGui.QColor("green"))
                     self.plan_t.setItem(i,0,txt)
 
                  # 1 KOLUMNA
@@ -844,7 +844,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                             if len(line.strip())>0:
                                if line.strip()[0]!="#":
                                    if "TEL: zb08" in line: pass  # wprowadzic do planow jako obowiazek?
-
+                                   line = line.strip()
                                    ob,ok,tmp1,tmp2,tmp3 = ob_parser(line,overhed=self.parent.overhed,filter_list=self.parent.filter_list)
                                    tmp_plan.append(ob)
                          self.plan[self.i+1:self.i+1] = tmp_plan

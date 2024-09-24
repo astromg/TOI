@@ -1,5 +1,8 @@
 
 WAIT wait=5
 WAIT wait=2
-WAIT wait=300
+WAIT wait=10
+WAIT wait=3
+WAIT wait=7
+STOP
 

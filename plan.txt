@@ -1,8 +1,9 @@
 
 STOP                        comment=cos tam
 BELL                        comment="cos innego"
-ZERO seq=15/Ic/0            comment='cos dupa'
-DARK seq=5/Ic/600           comment=( cos )
+ZERO seq=1/Ic/0            comment='cos2'
+DARK seq=1/Ic/5
+ZERO seq=1/Ic/0
 STOP
 
 

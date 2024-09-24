@@ -890,8 +890,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} {self.ob['wait']} s DONE","green")
 
+                            self.next_i = self.current_i
+                            self.plan.pop(self.current_i)
                             self.current_i = -1
                             self.update_plan()
+                            await self.plan_start()
 
 
                 if "wait_ut" in self.ob.keys():
@@ -905,8 +908,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} UT {self.ob['wait_ut']} DONE","green")
 
+                            self.next_i = self.current_i
+                            self.plan.pop(self.current_i)
                             self.current_i = -1
                             self.update_plan()
+                            await self.plan_start()
 
                 if "wait_sunrise" in self.ob.keys():
                     if self.ob["wait_sunrise"] != "":
@@ -915,8 +921,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} DONE","green")
 
+                            self.next_i = self.current_i
+                            self.plan.pop(self.current_i)
                             self.current_i = -1
                             self.update_plan()
+                            await self.plan_start()
 
                 if "wait_sunset" in self.ob.keys():
                     if self.ob["wait_sunset"] != "":
@@ -925,8 +934,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.planGui.done.append(self.ob["uobi"])
                             await self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} DONE","green")
 
+                            self.next_i = self.current_i
+                            self.plan.pop(self.current_i)
                             self.current_i = -1
                             self.update_plan()
+                            await self.plan_start()
 
 
             # obsluga wyswietlania paskow postepu ekspozycji
@@ -1093,10 +1105,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def PlanRun1(self,info):
         try:
 
-            #DUPA
-            #print("=======================")
-            #print(info)
-            #print("=======================")
+
             if "exp_started" in info.keys() and "exp_done" in info.keys() and "exp_saved" in info.keys():
                 if info["exp_started"]==True and info["exp_done"]==True and info["exp_saved"]==True:
                     if Path(self.cfg_tel_directory + "last_shoot.fits").is_file():
@@ -1196,6 +1205,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             elif info["name"] == "NIGHTPLAN" and info["done"]:
                 self.ob["done"] = True
 
+                self.next_i = self.current_i
+                self.plan.pop(self.current_i)
                 self.current_i = -1
                 self.update_plan()
 
@@ -1324,7 +1335,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 seq = f"{int(number)}/"+str(self.curent_filter)+"/"+str(exp)
                 pos = f"{int(v0)}/{int(step)}"
-                program = f"FOCUS seq={seq} pos={pos}"
+                uobi = str(uuid.uuid4())[:8]
+                program = f"FOCUS seq={seq} pos={pos} uobi={uobi}"
 
                 self.ob_program = program
                 self.program_name = "auto_focus"
@@ -1367,6 +1379,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob["done"]=False
                                 self.ob["run"]=False
 
+                                self.next_i = self.current_i
+                                self.plan.pop(self.current_i)
                                 self.current_i = -1
                                 self.update_plan()
 
@@ -1379,6 +1393,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob["done"]=True
                                 self.ob["run"]=True
 
+                                self.next_i = self.current_i
+                                self.plan.pop(self.current_i)
                                 self.current_i = -1
                                 self.update_plan()
 
@@ -1443,6 +1459,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     program = program.split("comment")[0]
 
                             if run_nightplan:
+                                if "uobi=" not in program:
+                                    program = program + f' uobi={self.ob["uobi"]}'
                                 self.ob_program = program
                                 self.program_name="plan"
                                 self.planrunner_start()
@@ -1457,7 +1475,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     def next_ob(self):
 
-        self.next_i = self.next_i + 1
+        #self.next_i = self.next_i + 1
         self.update_plan()
 
         #self.planGui.update_table()
@@ -1492,8 +1510,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.plan = self.planGui.plan
         self.update_plan()
 
-    def update_plan1(self):
-        pass
 
     @qs.asyncSlot()
     async def update_plan(self):
@@ -1776,7 +1792,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 ok_seq = True
 
             if ok_name and ok_seq:
-                self.ob_program = f"SNAP {name} seq={seq} dome_follow=off "
+                uobi = str(uuid.uuid4())[:8]
+                self.ob_program = f"SNAP {name} seq={seq} dome_follow=off uobi={uobi}"
                 self.program_name = "snap"
                 self.planrunner_start()
 
@@ -1891,7 +1908,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 else: await self.msg(f"WARNING: not implemented yet","yellow")
 
             if ok:
-                self.ob_program = txt
+                uobi = str(uuid.uuid4())[:8]
+                self.ob_program = txt + f' uobi={uobi}'
                 self.program_name = "manual"
                 self.planrunner_start()
         else:

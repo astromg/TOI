@@ -235,7 +235,7 @@ class FocusGui(QWidget):
             if "focus_def_pos" in self.parent.tel_cfg[self.parent.active_tel].keys():
                 self.last_e.setText(str(self.parent.tel_cfg[self.parent.active_tel]["focus_def_pos"]))
             self.range_e.setText("8")
-        
+
 
     def mkUI(self):
 
