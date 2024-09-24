@@ -64,11 +64,7 @@ class AuxGui(QWidget):
 
         self.focus_tab = FocusGui(self.parent)
         self.tabWidget.addTab(self.focus_tab, "Focus")
-
-        # Sorry I'm commenting it out temporarly
-        # Because weather is generating errors constantly
-        # We took over your develomnet branch, but we can switch to mster
-        # when you synchronize.... (mikolaj)
+        self.focus_tab.updateUI()
 
         self.guider_tab = GuiderGui(self.parent)
         self.tabWidget.addTab(self.guider_tab, "Guider")
@@ -232,6 +228,15 @@ class FocusGui(QWidget):
         self.canvas.draw()
         self.show()
 
+    def updateUI(self):
+        if self.parent.active_tel != None:
+            if "focus_def_step" in self.parent.tel_cfg[self.parent.active_tel].keys():
+                self.steps_e.setText(str(self.parent.tel_cfg[self.parent.active_tel]["focus_def_step"]))
+            if "focus_def_pos" in self.parent.tel_cfg[self.parent.active_tel].keys():
+                self.last_e.setText(str(self.parent.tel_cfg[self.parent.active_tel]["focus_def_pos"]))
+            self.range_e.setText("8")
+        
+
     def mkUI(self):
 
         grid = QGridLayout()
@@ -244,11 +249,9 @@ class FocusGui(QWidget):
         w = w + 1
         self.last_l = QLabel("Central Value:")
         self.last_e = QLineEdit()
-        self.last_e.setText("15350")
 
         self.range_l = QLabel("Steps No.:")
         self.range_e = QLineEdit()
-        self.range_e.setText("8")
 
         grid.addWidget(self.last_l, w, 0)
         grid.addWidget(self.last_e, w, 1)
@@ -258,7 +261,6 @@ class FocusGui(QWidget):
         w = w + 1
         self.steps_l = QLabel("Step:")
         self.steps_e = QLineEdit()
-        self.steps_e.setText("50")
 
         self.method_l = QLabel("Method:")
         self.method_s = QComboBox()
