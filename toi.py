@@ -52,7 +52,8 @@ from toi_lib import *
 # import paho.mqtt.client as mqtt
 #from starmatch_lib import StarMatch
 
-logging.basicConfig(level='INFO')
+# level ustawic w settings
+logging.basicConfig(level='INFO') # DEBUG, INFO, WARNING, ERROR
 logger = logging.getLogger(__name__)
 
 
@@ -876,7 +877,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if self.ob["run"] and self.ob["done"]:
 
-                if self.next_i > 0 and self.next_i < len(self.plan):
+                if self.next_i >= 0 and self.next_i < len(self.plan):
                     await self.plan_start()
 
             elif self.ob["run"] and "name" in self.ob.keys():
@@ -1094,6 +1095,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             self.ob_program = self.ob_program + f' observers="{self.observer}"'
 
+            #print("PLAN RUNNER", self.ob_program, self.program_name)
             await self.planrunner.aload_nightplan_string(self.program_name, string=self.ob_program, overwrite=True, client_config_dict=self.client_cfg)
             await self.planrunner.arun_nightplan(self.program_name, step_id="00")
 
@@ -1356,7 +1358,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def plan_start(self):
         if await self.user.aget_is_access():
-
             self.observer = self.auxGui.welcome_tab.observer_e.text()
 
             if self.next_i > -1 and self.next_i < len(self.plan):
@@ -1379,7 +1380,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob["done"]=False
                                 self.ob["run"]=False
 
-                                self.next_i = self.current_i
+                                self.next_i = self.current_i + 1
                                 self.plan.pop(self.current_i)
                                 self.current_i = -1
                                 self.update_plan()
@@ -1421,12 +1422,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                             if self.ob["type"] == "ZERO" and "block" in self.ob.keys():
                                 run_nightplan = True
-                                program_name = "zero"
+                                program_name = "plan"
                                 program = self.ob["block"]
 
                             if self.ob["type"] == "DARK" and "block" in self.ob.keys():
                                 run_nightplan = True
-                                program_name = "dark"
+                                program_name = "plan"
                                 program = self.ob["block"]
 
                             if self.ob["type"] == "DOMEFLAT" and "block" in self.ob.keys():
@@ -1443,17 +1444,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 run_nightplan = True
                                 program_name = "auto_focus"
                                 program = self.ob["block"]
-                                #if "comment" in program:
-                                #    program = program.split("comment")[0]
 
                                 self.focus_method = "rms_quad"
                                 self.autofocus_started = True
                                 self.last_focus_position = float(self.mntGui.telFocus_e.text())
 
-
                             if self.ob["type"] == "OBJECT" and "block" in self.ob.keys():
                                 run_nightplan = True
-                                program_name = "object"
+                                program_name = "plan"
                                 program = self.ob["block"]
                                 if "comment" in program:
                                     program = program.split("comment")[0]
@@ -1462,7 +1460,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 if "uobi=" not in program:
                                     program = program + f' uobi={self.ob["uobi"]}'
                                 self.ob_program = program
-                                self.program_name="plan"
+                                self.program_name=program_name
                                 self.planrunner_start()
 
                             self.next_ob()

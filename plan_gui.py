@@ -1696,6 +1696,7 @@ class EditWindow(QWidget):
     def change_plan(self):
           ob = {key: value for key,value in self.ob.items() if self.active.get(key)}
           self.parent.parent.plan[self.parent.i] = ob
+          self.parent.parent.update_plan()
           txt = f"TOI: plan {self.ob['name']} changed "
           self.parent.parent.msg(txt, "black")
           self.close()
