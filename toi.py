@@ -204,6 +204,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.flat_record={}
         self.flat_record["go"] = False
 
+        self.ob_log = []
+
         #self.almanac = Almanac(self.observatory)
 
         # TELESCOPE CONFIGURATION HARDCODED
@@ -1085,6 +1087,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     # ############ PLAN RUNNER START ##########################
 
+
     @qs.asyncSlot()
     async def planrunner_start(self):
         self.observer = self.auxGui.welcome_tab.observer_e.text()
@@ -1093,9 +1096,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.exp_prog_status["ndit"] = 0
             self.exp_prog_status["dit_start"] = 0
 
-            self.ob_program = self.ob_program + f' observers="{self.observer}"'
 
-            #print("PLAN RUNNER", self.ob_program, self.program_name)
+            #self.ob_program = self.ob_program + f' observers="{self.observer}"' # zle sie parsuje naraz comment i observers
+
+            print("PLAN RUNNER: ", self.ob_program)
             await self.planrunner.aload_nightplan_string(self.program_name, string=self.ob_program, overwrite=True, client_config_dict=self.client_cfg)
             await self.planrunner.arun_nightplan(self.program_name, step_id="00")
 
@@ -1381,7 +1385,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob["run"]=False
 
                                 self.next_i = self.current_i + 1
-                                self.plan.pop(self.current_i)
+                                #self.plan.pop(self.current_i)
                                 self.current_i = -1
                                 self.update_plan()
 
@@ -1627,21 +1631,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else:
             if "uobi" in self.plan[self.next_i].keys():
                 if self.plan[self.next_i]["uobi"] in self.done_uobi:
+                    print("DUPA 1")
                     self.next_i = self.next_i + 1
                     self.check_next_i()
 
             if "skip" in self.plan[self.next_i].keys():
                 if self.plan[self.next_i]["skip"]:
+                    print("DUPA 2")
                     self.next_i = self.next_i + 1
                     self.check_next_i()
 
             if "skip_alt" in self.plan[self.next_i].keys():
                 if self.plan[self.next_i]["skip_alt"]:
+                    print("DUPA 3")
                     self.next_i = self.next_i + 1
                     self.check_next_i()
 
             if "ok" in self.plan[self.next_i].keys():
                 if not self.plan[self.next_i]["ok"]:
+                    print("DUPA 4")
                     self.next_i = self.next_i + 1
                     self.check_next_i()
 

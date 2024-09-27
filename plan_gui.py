@@ -78,7 +78,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         if self.parent.acces:
             self.tpg_window = TPGWindow(self)
         else:
-            txt="WARNING: U don't have controll"
+            txt="WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
     def pocisniecie_copy(self):
@@ -143,162 +143,163 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             txt="WARNING: U don't have controll"
             self.parent.WarningWindow(txt)
 
-    def check_next_i(self):                   # sprawdza czy nastepny obiekt nie zostal juz wykonany, albo skip
-          if self.next_i > len(self.plan)-1:
-              self.next_i = -1
-          else:
-              if "uobi" in self.plan[self.next_i].keys():
-                  if self.plan[self.next_i]["uobi"] in self.done:
-                      self.next_i = self.next_i + 1
-                      self.check_next_i()
-
-              if "skip" in self.plan[self.next_i].keys():
-                  if self.plan[self.next_i]["skip"]:
-                      self.next_i = self.next_i + 1
-                      self.check_next_i()
-
-              if "skip_alt" in self.plan[self.next_i].keys():
-                  if self.plan[self.next_i]["skip_alt"]:
-                      self.next_i = self.next_i + 1
-                      self.check_next_i()
-
-              if "ok" in self.plan[self.next_i].keys():
-                  if not self.plan[self.next_i]["ok"]:
-                      self.next_i = self.next_i + 1
-                      self.check_next_i()
-
-
-    def update_plan(self):                                     # przelicza czasu planow, etc.
-
-          #self.ctc = CycleTimeCalc(self.parent.telescope.id)   # telescope time calculator
-          #self.ctc.set_start_rmode(self.parent.ccd_readoutmode)
-          #self.ctc.set_telescope_start_az_alt()
-          #self.ctc.set_start_time()
-          #self.ctc.set_alt_limit(15)
-          #self.ctc.set_skipping(True)
-          #print(self.parent.telescope.id,self.parent.ccd_readoutmode)
+    # def check_next_i(self):                   # sprawdza czy nastepny obiekt nie zostal juz wykonany, albo skip
+    #       if self.next_i > len(self.plan)-1:
+    #           self.next_i = -1
+    #       else:
+    #           if "uobi" in self.plan[self.next_i].keys():
+    #               if self.plan[self.next_i]["uobi"] in self.done:
+    #                   self.next_i = self.next_i + 1
+    #                   self.check_next_i()
+    #
+    #           if "skip" in self.plan[self.next_i].keys():
+    #               if self.plan[self.next_i]["skip"]:
+    #                   self.next_i = self.next_i + 1
+    #                   self.check_next_i()
+    #
+    #           if "skip_alt" in self.plan[self.next_i].keys():
+    #               if self.plan[self.next_i]["skip_alt"]:
+    #                   self.next_i = self.next_i + 1
+    #                   self.check_next_i()
+    #
+    #           if "ok" in self.plan[self.next_i].keys():
+    #               if not self.plan[self.next_i]["ok"]:
+    #                   self.next_i = self.next_i + 1
+    #                   self.check_next_i()
 
 
-          #print(self.ctc.calc_time({'command_name': 'OBJECT', 'args': ['FF_Aql'], 'kwargs': {'seq': '2/Ic/60,2/V/70'}}))
-          #print(self.ctc.calc_time({'command_name': 'OBJECT', 'args': ['FF_Aql'], 'kwargs': {'seq': '2/Ic/60,2/V/70'}}))
-          #print("CTC: ", self.ctc.time_lenght_sec)
-          #print("CTC: ", self.ctc.finnish_time_utc)
-
-          self.check_next_i()
-          for i, tmp in enumerate(self.plan):
-
-              if i == self.next_i or i == self.current_i:
-                  ob_time = ephem.now()
-
-              if "uobi" not in self.plan[i].keys():               # nadaje uobi jak nie ma
-                  self.plan[i]["uobi"] = str(uuid.uuid4())[:8]
-              if len(self.plan[i]["uobi"])<1:
-                  self.plan[i]["uobi"] = str(uuid.uuid4())[:8]
-
-              if "ra" in self.plan[i].keys():                    # liczy aktualna wysokosc na horyzontem
-                  ra=self.plan[i]["ra"]
-                  dec=self.plan[i]["dec"]
-                  az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)
-                  alt=f"{deg_to_decimal_deg(str(alt)):.1f}"
-                  az=f"{deg_to_decimal_deg(str(az)):.1f}"
-                  self.plan[i]["meta_alt"]=alt
-                  self.plan[i]["meta_az"]=az
-
-              # liczy planowana wysokosc nad horyzontem
-              tmp_ok = False
-              if self.current_i > -1 and i >= self.current_i:
-                  tmp_ok = True
-              if self.next_i > -1 and i >= self.next_i:
-                  tmp_ok = True
-
-              if tmp_ok:
-                  self.plan[i]["meta_plan_ut"] = str(ephem.Date(ob_time))
-                  if "wait" in self.plan[i].keys():
-                      if len(self.plan[i]["wait"])>0:
-                        ob_time =  ob_time + ephem.second * float(self.plan[i]["wait"])
-
-                  if "wait_ut" in self.plan[i].keys():
-                      if len(self.plan[i]["wait_ut"]) > 0:
-                          wait_ut = ephem.Date(str(ephem.Date(ob_time)).split()[0]+" "+self.plan[i]["wait_ut"])
-                          if ephem.Date(ob_time) < ephem.Date(wait_ut):
-                              ob_time =  wait_ut
-
-                  if "wait_sunset" in self.plan[i].keys():
-                      if len(self.plan[i]["wait_sunset"]) > 0:
-                          oca = ephem.Observer()
-                          oca.date = ephem.now()
-                          oca.lat = self.parent.observatory[0]
-                          oca.lon = self.parent.observatory[1]
-                          oca.elevation = float(self.parent.observatory[2])
-                          oca.horizon = self.plan[i]["wait_sunset"]
-                          wait_ut =  oca.next_setting(ephem.Sun(), use_center=True)
-                          if ob_time < wait_ut:
-                              ob_time =  wait_ut
-
-
-                  if "wait_sunrise" in self.plan[i].keys():
-                      if len(self.plan[i]["wait_sunrise"]) > 0:
-                          oca = ephem.Observer()
-                          oca.date = ephem.now()
-                          oca.lat = self.parent.observatory[0]
-                          oca.lon = self.parent.observatory[1]
-                          oca.elevation = float(self.parent.observatory[2])
-                          oca.horizon = self.plan[i]["wait_sunrise"]
-                          wait_ut = oca.next_rising(ephem.Sun(), use_center=True)
-                          if ob_time < wait_ut:
-                              ob_time =  wait_ut
-
-                  if "ra" in self.plan[i].keys():
-                      ra = self.plan[i]["ra"]
-                      dec = self.plan[i]["dec"]
-                      az, alt = RaDec2AltAz(self.parent.observatory, ob_time, ra, dec)
-                      alt = f"{deg_to_decimal_deg(str(alt)):.1f}"
-                      az = f"{deg_to_decimal_deg((str(az))):.1f}"
-                      self.plan[i]["meta_plan_alt"] = alt
-                      self.plan[i]["meta_plan_az"] = az
-
-                      self.oca = ephem.Observer()
-                      self.oca.lat = self.parent.observatory[0]
-                      self.oca.lon = self.parent.observatory[1]
-                      self.oca.elevation = float(self.parent.observatory[2])
-                      self.oca.date = ob_time
-
-                      star = ephem.FixedBody()
-                      star._ra = str(ra)
-                      star._dec = str(dec)
-
-                      self.plan[i]["skip_alt"] = False
-
-                      if float(alt) < self.parent.cfg_alt_limits["min"]:
-                          self.plan[i]["skip_alt"] = True
-                      else:
-                          self.oca.horizon = self.parent.cfg_alt_limits["min"]
-                          try:
-                              t = self.oca.next_setting(star, use_center=True)
-                              if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
-                                  self.plan[i]["skip_alt"] = True
-                          except ephem.AlwaysUpError:
-                              pass
-
-                      if float(alt) > self.parent.cfg_alt_limits["max"]:
-                          self.plan[i]["skip_alt"] = True
-                      else:
-                          self.oca.horizon =  self.parent.cfg_alt_limits["max"]
-                          try:
-                              t = self.oca.next_rising(star, use_center=True)
-                              if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
-                                  self.plan[i]["skip_alt"] = True
-                          except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
-                              pass
-
-
-                  if self.plan[i]["uobi"] in self.done:
-                      ob_time = ob_time
-                  else:
-                      slotTime = 0
-                      if "slotTime" in self.plan[i].keys():
-                          slotTime = self.plan[i]["slotTime"]
-                          ob_time = ob_time + ephem.second * slotTime
+    # def update_plan(self):                                     # przelicza czasu planow, etc.
+    #
+    #       print("DZIALAM A NIE POWINIENEM: PLAN_GUI")
+    #       #self.ctc = CycleTimeCalc(self.parent.telescope.id)   # telescope time calculator
+    #       #self.ctc.set_start_rmode(self.parent.ccd_readoutmode)
+    #       #self.ctc.set_telescope_start_az_alt()
+    #       #self.ctc.set_start_time()
+    #       #self.ctc.set_alt_limit(15)
+    #       #self.ctc.set_skipping(True)
+    #       #print(self.parent.telescope.id,self.parent.ccd_readoutmode)
+    #
+    #
+    #       #print(self.ctc.calc_time({'command_name': 'OBJECT', 'args': ['FF_Aql'], 'kwargs': {'seq': '2/Ic/60,2/V/70'}}))
+    #       #print(self.ctc.calc_time({'command_name': 'OBJECT', 'args': ['FF_Aql'], 'kwargs': {'seq': '2/Ic/60,2/V/70'}}))
+    #       #print("CTC: ", self.ctc.time_lenght_sec)
+    #       #print("CTC: ", self.ctc.finnish_time_utc)
+    #
+    #       #self.check_next_i()
+    #       for i, tmp in enumerate(self.plan):
+    #
+    #           if i == self.next_i or i == self.current_i:
+    #               ob_time = ephem.now()
+    #
+    #           if "uobi" not in self.plan[i].keys():               # nadaje uobi jak nie ma
+    #               self.plan[i]["uobi"] = str(uuid.uuid4())[:8]
+    #           if len(self.plan[i]["uobi"])<1:
+    #               self.plan[i]["uobi"] = str(uuid.uuid4())[:8]
+    #
+    #           if "ra" in self.plan[i].keys():                    # liczy aktualna wysokosc na horyzontem
+    #               ra=self.plan[i]["ra"]
+    #               dec=self.plan[i]["dec"]
+    #               az,alt = RaDec2AltAz(self.parent.observatory,ephem.now(),ra,dec)
+    #               alt=f"{deg_to_decimal_deg(str(alt)):.1f}"
+    #               az=f"{deg_to_decimal_deg(str(az)):.1f}"
+    #               self.plan[i]["meta_alt"]=alt
+    #               self.plan[i]["meta_az"]=az
+    #
+    #           # liczy planowana wysokosc nad horyzontem
+    #           tmp_ok = False
+    #           if self.current_i > -1 and i >= self.current_i:
+    #               tmp_ok = True
+    #           if self.next_i > -1 and i >= self.next_i:
+    #               tmp_ok = True
+    #
+    #           if tmp_ok:
+    #               self.plan[i]["meta_plan_ut"] = str(ephem.Date(ob_time))
+    #               if "wait" in self.plan[i].keys():
+    #                   if len(self.plan[i]["wait"])>0:
+    #                     ob_time =  ob_time + ephem.second * float(self.plan[i]["wait"])
+    #
+    #               if "wait_ut" in self.plan[i].keys():
+    #                   if len(self.plan[i]["wait_ut"]) > 0:
+    #                       wait_ut = ephem.Date(str(ephem.Date(ob_time)).split()[0]+" "+self.plan[i]["wait_ut"])
+    #                       if ephem.Date(ob_time) < ephem.Date(wait_ut):
+    #                           ob_time =  wait_ut
+    #
+    #               if "wait_sunset" in self.plan[i].keys():
+    #                   if len(self.plan[i]["wait_sunset"]) > 0:
+    #                       oca = ephem.Observer()
+    #                       oca.date = ephem.now()
+    #                       oca.lat = self.parent.observatory[0]
+    #                       oca.lon = self.parent.observatory[1]
+    #                       oca.elevation = float(self.parent.observatory[2])
+    #                       oca.horizon = self.plan[i]["wait_sunset"]
+    #                       wait_ut =  oca.next_setting(ephem.Sun(), use_center=True)
+    #                       if ob_time < wait_ut:
+    #                           ob_time =  wait_ut
+    #
+    #
+    #               if "wait_sunrise" in self.plan[i].keys():
+    #                   if len(self.plan[i]["wait_sunrise"]) > 0:
+    #                       oca = ephem.Observer()
+    #                       oca.date = ephem.now()
+    #                       oca.lat = self.parent.observatory[0]
+    #                       oca.lon = self.parent.observatory[1]
+    #                       oca.elevation = float(self.parent.observatory[2])
+    #                       oca.horizon = self.plan[i]["wait_sunrise"]
+    #                       wait_ut = oca.next_rising(ephem.Sun(), use_center=True)
+    #                       if ob_time < wait_ut:
+    #                           ob_time =  wait_ut
+    #
+    #               if "ra" in self.plan[i].keys():
+    #                   ra = self.plan[i]["ra"]
+    #                   dec = self.plan[i]["dec"]
+    #                   az, alt = RaDec2AltAz(self.parent.observatory, ob_time, ra, dec)
+    #                   alt = f"{deg_to_decimal_deg(str(alt)):.1f}"
+    #                   az = f"{deg_to_decimal_deg((str(az))):.1f}"
+    #                   self.plan[i]["meta_plan_alt"] = alt
+    #                   self.plan[i]["meta_plan_az"] = az
+    #
+    #                   self.oca = ephem.Observer()
+    #                   self.oca.lat = self.parent.observatory[0]
+    #                   self.oca.lon = self.parent.observatory[1]
+    #                   self.oca.elevation = float(self.parent.observatory[2])
+    #                   self.oca.date = ob_time
+    #
+    #                   star = ephem.FixedBody()
+    #                   star._ra = str(ra)
+    #                   star._dec = str(dec)
+    #
+    #                   self.plan[i]["skip_alt"] = False
+    #
+    #                   if float(alt) < self.parent.cfg_alt_limits["min"]:
+    #                       self.plan[i]["skip_alt"] = True
+    #                   else:
+    #                       self.oca.horizon = self.parent.cfg_alt_limits["min"]
+    #                       try:
+    #                           t = self.oca.next_setting(star, use_center=True)
+    #                           if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
+    #                               self.plan[i]["skip_alt"] = True
+    #                       except ephem.AlwaysUpError:
+    #                           pass
+    #
+    #                   if float(alt) > self.parent.cfg_alt_limits["max"]:
+    #                       self.plan[i]["skip_alt"] = True
+    #                   else:
+    #                       self.oca.horizon =  self.parent.cfg_alt_limits["max"]
+    #                       try:
+    #                           t = self.oca.next_rising(star, use_center=True)
+    #                           if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
+    #                               self.plan[i]["skip_alt"] = True
+    #                       except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
+    #                           pass
+    #
+    #
+    #               if self.plan[i]["uobi"] in self.done:
+    #                   ob_time = ob_time
+    #               else:
+    #                   slotTime = 0
+    #                   if "slotTime" in self.plan[i].keys():
+    #                       slotTime = self.plan[i]["slotTime"]
+    #                       ob_time = ob_time + ephem.second * slotTime
 
 
 
@@ -581,7 +582,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     def setNext(self):
         if self.parent.acces:
 
-            self.next_i = self.i
+            #self.next_i = self.i
             self.parent.next_i = self.i
             self.parent.update_plan()
 
