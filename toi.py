@@ -1629,11 +1629,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.next_i > len(self.plan)-1:
             self.next_i = -1
         else:
-            if "uobi" in self.plan[self.next_i].keys():
-                if self.plan[self.next_i]["uobi"] in self.done_uobi:
-                    print("DUPA 1")
-                    self.next_i = self.next_i + 1
-                    self.check_next_i()
+            # to jest wylaczone, bo logowane sa tez niewykonane uobi. Do tego unikanie powinno byc tylko przez tpg.
+            #
+            # if "uobi" in self.plan[self.next_i].keys():
+            #     if self.plan[self.next_i]["uobi"] in self.done_uobi:
+            #         print("DUPA 1")
+            #         self.next_i = self.next_i + 1
+            #         self.check_next_i()
 
             if "skip" in self.plan[self.next_i].keys():
                 if self.plan[self.next_i]["skip"]:
