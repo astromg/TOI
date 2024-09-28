@@ -1130,9 +1130,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             await self.msg(f"PLAN: focus set to {int(max_sharpness_focus)}","black")
                             if self.filter != None and self.telemetry_temp != None:
                                 txt = f"{self.ut} {self.telemetry_temp:.2f} {self.filter} {int(max_sharpness_focus)} \n"
-                                with open(self.cfg_focus_record_file,"a+") as plik:
-                                    plik.seek(0)
-                                    plik.write(txt)
+                                #with open(self.cfg_focus_record_file,"a+") as plik:
+                                #    plik.seek(0)
+                                #    plik.write(txt)
                                 w: MsgJournalPublisher = self.nats_journal_focus_writter
                                 await w.log('INFO', txt)
                         else:
