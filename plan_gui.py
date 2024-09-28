@@ -1161,7 +1161,7 @@ class PhaseWindow(QWidget):
 
         self.f_path = self.parent.parent.cfg_tel_directory+"processed-ofp/targets/"+self.name.lower()
         self.filters = os.listdir(self.f_path)
-        print(self.filters)
+        #print(self.filters)
         self.file_s.addItems(self.filters)
 
     def refresh(self):

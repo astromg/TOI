@@ -50,7 +50,7 @@ class MainForm(QWidget):
         i = self.obs_t.currentRow()
         self.parent.active_tel_i = i
         self.parent.active_tel = self.parent.obs_tel_tic_names[i]
-        await self.parent.teleskop_switched()
+        await self.parent.telescope_switched()
 
     def update_table(self):
 
@@ -137,9 +137,12 @@ class MainForm(QWidget):
             program = self.parent.ob_prog_status[t]["ob_program"]
             if started and not done:
                 if "OBJECT" in program:
-                    state,rgb = f"{program.split()[1]} {program.split()[2]}", (0, 150, 0)
+                    state,rgb = f"{program.split()[1]}", (0, 150, 0)
                 else:
-                    state, rgb = f"{program.split()[0]} {program.split()[1]}", (0, 150, 0)
+                    if len(program.split())>1:
+                        state, rgb = f"{program.split()[0]} {program.split()[1]}", (0, 150, 0)
+                    else:
+                        state, rgb = f"{program.split()[0]}", (0, 0, 0)
 
             item = QTableWidgetItem(state)
             item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
