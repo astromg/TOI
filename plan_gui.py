@@ -175,8 +175,10 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              self.plan_t.clearContents()
              self.plan_t.blockSignals(True)
 
+
              for i,tmp in enumerate(self.plan):
-                 if self.plan_t.rowCount() <= i: self.plan_t.insertRow(i)
+                 if self.plan_t.rowCount() <= i:
+                     self.plan_t.insertRow(i)
 
 
                      # UWAGA - ponizsza metoda zostaje zachowana jako przyklad problemu.
@@ -195,7 +197,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
                  # IKONKI
-
                  if "type" in self.plan[i].keys():    # wait
                     if self.plan[i]["type"]=="WAIT":
                        font=QtGui.QFont()
