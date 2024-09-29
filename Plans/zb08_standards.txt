@@ -1,0 +1,12 @@
+ STOP
+ OBJECT TPHE  00:30:16   -46:27:55  seq=1/B/10,1/V/5,1/Ic/6.7    comment=" standard field "
+ OBJECT SA92  00:56:08   +01:04:29  seq=1/B/10,1/V/5,1/Ic/6.7    comment=" standard field "
+ OBJECT SA95  03:53:04   +00:03:12  seq=1/B/10,1/V/5,1/Ic/6.7    comment=" standard field "
+ OBJECT SA98  06:52:05   -00:19:18  seq=1/B/10,1/V/5,1/Ic/3.3    comment=" standard field "
+ OBJECT RU149  07:24:14  -00:31:41  seq=1/B/10,1/V/5,1/Ic/6.7    comment=" standard field "
+ OBJECT RU152  07:29:56  -02:05:39  seq=1/B/10,1/V/5,1/Ic/6.7    comment=" standard field "
+ OBJECT SA104  12:42:21  -00:33:12  seq=1/B/10,1/V/5,1/Ic/6.7    comment=" standard field "
+ OBJECT SA110  18:42:45  +00:07:42  seq=1/B/10,1/V/5,1/Ic/6.7    comment=" standard field "
+ OBJECT SA113  21:41:00  +00:27:21  seq=1/B/10,1/V/5,1/Ic/6.7    comment=" standard field "
+ OBJECT SA114 22:41:37   +01:08:14  seq=1/B/10,1/V/5,1/Ic/6.7    comment=" standard field "
+ STOP

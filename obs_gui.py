@@ -23,6 +23,11 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.setCentralWidget(self.main_form)
         self.move(self.parent.obs_window_geometry[0], self.parent.obs_window_geometry[1])
         self.resize(self.parent.obs_window_geometry[2], self.parent.obs_window_geometry[3])
+        self.main_form.shutdown_p.clicked.connect(self.parent.shutdown)
+        self.main_form.weatherStop_p.clicked.connect(self.parent.weatherStop)
+        self.main_form.EmStop_p.clicked.connect(self.parent.EmStop)
+        self.show()
+        self.raise_()
 
     async def on_start_app(self):
         await self.run_background_tasks()
@@ -113,7 +118,7 @@ class MainForm(QWidget):
             ccd =  self.parent.oca_tel_state[t]["ccd_state"]["val"]
 
             if pos != None:
-                filtr = self.parent.tel_cfg[t]["filter_list_names"][pos]
+                filtr = self.parent.nats_cfg[t]["filter_list_names"][pos]
 
             if ccd != None :
                 if ccd == 2:

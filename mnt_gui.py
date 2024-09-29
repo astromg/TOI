@@ -9,11 +9,12 @@ import time
 from typing import Tuple
 
 import qasync as qs
-from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QSpinBox, QGridLayout, QFrame, QComboBox, QRadioButton
+from PyQt5.QtWidgets import QCompleter, QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QSpinBox, QGridLayout, QFrame, QComboBox, QRadioButton
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
+
+from PyQt5 import QtWidgets, QtCore, QtGui
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from toi_lib import *
@@ -246,12 +247,12 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         ###################################################
 
         self.mntRa_l = QLabel("TELESCOPE RA [h]:")
-        self.mntRa_e = QLineEdit("00:00:00")
+        self.mntRa_e = QLineEdit()
         self.mntRa_e.setReadOnly(True)
         self.mntRa_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
         self.mntDec_l = QLabel("TELESCOPE DEC [d]:")
-        self.mntDec_e = QLineEdit("00:00:00")
+        self.mntDec_e = QLineEdit()
         self.mntDec_e.setReadOnly(True)
         self.mntDec_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
@@ -690,6 +691,16 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.nextDec_e.textChanged.connect(self.updateNextRaDec)
         self.nextAlt_e.textChanged.connect(self.updateNextRaDec)
         self.nextAz_e.textChanged.connect(self.updateNextRaDec)
+
+        if self.parent.filter_list != None:
+            self.telFilter_s.addItems(self.parent.filter_list)
+
+        if self.parent.catalog_file:
+            self.catalog = readCatalog(self.parent.catalog_file)
+            completer = QCompleter(self.catalog)
+            completer.setFilterMode(QtCore.Qt.MatchContains)
+            completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+            self.target_e.setCompleter(completer)
 
 
         del tmp

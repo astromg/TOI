@@ -41,6 +41,14 @@ class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
           self.tab.addTab(self.ccd_tab,"\U0001F534 CCD")
 
           self.layout.addWidget(self.tab,0,0)
+
+          if self.parent.cfg_inst_temp != None:
+              self.ccd_tab.inst_setTemp_e.setText(str(self.parent.cfg_inst_temp))
+          if self.parent.cfg_inst_gain != None:
+              self.ccd_tab.inst_setGain_e.addItems(self.parent.cfg_inst_gain)
+          if self.parent.cfg_inst_rm != None:
+              self.ccd_tab.inst_setRead_e.addItems(self.parent.cfg_inst_rm)
+
           del tmp
 
       async def on_start_app(self):
