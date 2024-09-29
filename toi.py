@@ -1598,27 +1598,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         star._ra = str(ra)
                         star._dec = str(dec)
                         self.plan[i]["skip_alt"] = False
-                        # if float(alt) < self.cfg_alt_limits["min"]:
-                        #     self.plan[i]["skip_alt"] = True
-                        # else:
-                        #     self.oca_site.horizon = self.cfg_alt_limits["min"]
-                        #     try:
-                        #         t = self.oca_site.next_setting(star, use_center=True)
-                        #         if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
-                        #             self.plan[i]["skip_alt"] = True
-                        #     except ephem.AlwaysUpError:
-                        #         pass
-                        #
-                        # if float(alt) > self.cfg_alt_limits["max"] + 1:
-                        #     self.plan[i]["skip_alt"] = True
-                        # else:
-                        #     self.oca_site.horizon = self.cfg_alt_limits["max"]
-                        #     try:
-                        #         t = self.oca_site.next_rising(star, use_center=True)
-                        #         if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
-                        #             self.plan[i]["skip_alt"] = True
-                        #     except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
-                        #         pass
+                        if float(alt) < self.cfg_alt_limits["min"] or float(alt) > self.cfg_alt_limits["max"]:
+                            self.plan[i]["skip_alt"] = True
+                        else:
+                            self.oca_site.horizon = self.cfg_alt_limits["min"]
+                            try:
+                                t = self.oca_site.next_setting(star, use_center=True)
+                                if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
+                                    self.plan[i]["skip_alt"] = True
+                            except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
+                                    pass
+
+                            self.oca_site.horizon = self.cfg_alt_limits["max"]
+                            try:
+                                t = self.oca_site.next_rising(star, use_center=True)
+                                if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
+                                    self.plan[i]["skip_alt"] = True
+                            except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
+                                pass
+
                     if self.plan[i]["uobi"] in self.done_uobi:
                         ob_time = ob_time
                     else:
