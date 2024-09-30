@@ -241,8 +241,6 @@ self.ob_program
 
 
 
-
-
 self.parent.mnt_trac
 self.parent.mnt_park
 self.parent.mnt_slewing
