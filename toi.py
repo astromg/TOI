@@ -1483,7 +1483,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 #self.program_name=program_name
                                 self.planrunner_start()
 
-                            print("PLAN START: ", self.ob[self.active_tel])
                             self.next_ob()
                     else:
                         self.next_ob()
