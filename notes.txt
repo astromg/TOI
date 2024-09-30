@@ -215,6 +215,33 @@ print(r.text)
 
 
 
+self.ob[tel] = {"run":False,"done":False,"uobi":None,"origin":None}
+
+            +
+            start_time
+            type
+            name
+            block
+            slot_time
+            seq
+            ra
+            dec
+            wait
+            wait_ut
+            wait_sunrise
+            wait_sunset
+
+
+
+self.ob_started
+self.ob_done
+self.ob_start_time
+self.ob_expected_time
+self.ob_program
+
+
+
+
 
 self.parent.mnt_trac
 self.parent.mnt_park

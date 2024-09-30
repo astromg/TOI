@@ -19,6 +19,7 @@ import uuid
 import copy
 from xmlrpc.client import ResponseError
 
+import ephem
 import numpy
 import yaml
 from pathlib import Path
@@ -375,21 +376,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         async for data, meta in reader:
             d:JournalEntry = data
             r = d.message
-            #print("NATS FLAT: ", r)
 
     async def nats_log_focus_reader(self):
         reader = get_journalreader(f'tic.journal.{self.active_tel}.log.focus', deliver_policy='last')
         async for data, meta in reader:
             d:JournalEntry = data
             r = d.message
-            #print("NATS FOCUS: ", r)
 
     async def nats_log_toi_reader(self):
         reader = get_journalreader(f'tic.journal.{self.active_tel}.toi.signal', deliver_policy='last')
         async for data, meta in reader:
             d:JournalEntry = data
             r = d.message
-            #print("NATS TOI: ", r)
 
     async def nats_toi_plan_status_reader(self):
         try:
@@ -448,7 +446,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
-            print(f'EXCEPTION 3: {e}')
+            logger.warning(f'TOI: EXCEPTION 3: {e}')
         #except Exception as e:
         #    logger.warning(f'TOI: nats_log_loop: {e}')
 
@@ -463,7 +461,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
-            print(f'EXCEPTION 4: {e}')
+            logger.warning(f'TOI: EXCEPTION 4: {e}')
         #except Exception as e:
         #    logger.warning(f'TOI: nats_log_loop: {e}')
 
@@ -604,7 +602,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     else:
                         self.instGui.ccd_tab.inst_NditProg_n.setFormat("")
             except Exception as e:
-                print("Exception 8", e)
+                logger.warning(f'TOI: EXCEPTION 8: {e}')
 
             # obsluga wyswietlania paska postepu OB
 
@@ -652,42 +650,41 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
 
             except Exception as e:
-                print("EXCEPTION 6", e)
-
+                logger.warning(f'TOI: EXCEPTION 6: {e}')
             await asyncio.sleep(1)
 
 
     async def nikomu_niepotrzeba_petla_ustawiajaca_pierdoly(self):
         while True:
             await asyncio.sleep(1)
-            if self.ob["run"] and "name" in self.ob.keys():
+            if self.ob[self.active_tel]["run"] and "name" in self.ob[self.active_tel].keys():
                 txt = self.ob["name"]
 
-                if "type" in self.ob.keys():
-                    if self.ob["type"] == "OBJECT":
+                if "type" in self.ob[self.active_tel].keys():
+                    if self.ob[self.active_tel]["type"] == "OBJECT":
                         self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
-                    elif self.ob["type"] == "ZERO":
+                    elif self.ob[self.active_tel]["type"] == "ZERO":
                         self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
-                    elif self.ob["type"] == "DARK":
+                    elif self.ob[self.active_tel]["type"] == "DARK":
                         self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(2)
-                    elif self.ob["type"] == "SKYFLAT":
+                    elif self.ob[self.active_tel]["type"] == "SKYFLAT":
                         self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(3)
-                    elif self.ob["type"] == "DOMEFLAT":
+                    elif self.ob[self.active_tel]["type"] == "DOMEFLAT":
                         self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(4)
 
-                if "seq" in self.ob.keys():
+                if "seq" in self.ob[self.active_tel].keys():
                     self.instGui.ccd_tab.Select2_r.setChecked(True)
-                    self.instGui.ccd_tab.inst_Seq_e.setText(self.ob["seq"])
-                if "ra" in self.ob.keys() and "dec" in self.ob.keys():
+                    self.instGui.ccd_tab.inst_Seq_e.setText(self.ob[self.active_tel]["seq"])
+                if "ra" in self.ob[self.active_tel].keys() and "dec" in self.ob[self.active_tel].keys():
                     self.mntGui.setEq_r.setChecked(True)
-                    self.mntGui.nextRa_e.setText(self.ob["ra"])
-                    self.mntGui.nextDec_e.setText(self.ob["dec"])
+                    self.mntGui.nextRa_e.setText(self.ob[self.active_tel]["ra"])
+                    self.mntGui.nextDec_e.setText(self.ob[self.active_tel]["dec"])
                     self.mntGui.updateNextRaDec()
-                    if "name" in self.ob.keys():
-                        self.mntGui.target_e.setText(self.ob["name"])
+                    if "name" in self.ob[self.active_tel].keys():
+                        self.mntGui.target_e.setText(self.ob[self.active_tel]["name"])
                         self.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
-                if "name" in self.ob.keys():
-                    self.instGui.ccd_tab.inst_object_e.setText(self.ob["name"])
+                if "name" in self.ob[self.active_tel].keys():
+                    self.instGui.ccd_tab.inst_object_e.setText(self.ob[self.active_tel]["name"])
 
 
     # STAGE2
@@ -716,7 +713,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         if d > 180:
                             d = d - 360.
                         d = numpy.abs(d)
-                        #print(d)
                         if d > 5.:
                             await self.dome.aput_slewtoazimuth(az_m)
                             txt = "Dome AZ corrected"
@@ -735,78 +731,87 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             # sterowanie wykonywaniem planu
 
-            if self.ob["done"] and self.next_i == -1:
-                self.ob["run"] = False
+            try:
 
-            if self.ob["run"] and self.ob["done"]:
+                if self.telescope:
 
-                if self.next_i >= 0 and self.next_i < len(self.plan):
-                    await self.plan_start()
+                    if self.ob[self.active_tel]["done"] and self.next_i == -1:
+                        self.ob[self.active_tel]["run"] = False
 
-            elif self.ob["run"] and "name" in self.ob.keys():
+                    if self.ob[self.active_tel]["run"] and self.ob[self.active_tel]["done"]:
 
-                if "wait" in self.ob.keys() and "ob_start_time" in self.ob.keys():
-                    if self.ob["wait"] != "":
-                        dt = self.time - self.ob["ob_start_time"]
-                        if float(dt) > float(self.ob["wait"]):
-                            self.ob["done"] = True
-                            self.planGui.done.append(self.ob["uobi"])
-                            await self.msg(f"PLAN: {self.ob['name']} {self.ob['wait']} s DONE", "green")
-
-                            self.next_i = self.current_i
-                            self.plan.pop(self.current_i)
-                            self.current_i = -1
-                            self.update_plan()
+                        if self.next_i >= 0 and self.next_i < len(self.plan):
                             await self.plan_start()
 
-                if "wait_ut" in self.ob.keys():
-                    if self.ob["wait_ut"] != "":
-                        req_ut = str(self.ob["wait_ut"])
-                        ut = str(self.almanac["ut"]).split()[1]
-                        ut = 3600 * float(ut.split(":")[0]) + 60 * float(ut.split(":")[1]) + float(ut.split(":")[2])
-                        req_ut = 3600 * float(req_ut.split(":")[0]) + 60 * float(req_ut.split(":")[1]) + float(
-                            req_ut.split(":")[2])
-                        if req_ut < ut:
-                            self.ob["done"] = True
-                            self.planGui.done.append(self.ob["uobi"])
-                            await self.msg(f"PLAN: {self.ob['name']} UT {self.ob['wait_ut']} DONE", "green")
+                    elif self.ob[self.active_tel]["run"] and "name" in self.ob[self.active_tel].keys():
 
-                            self.next_i = self.current_i
-                            self.plan.pop(self.current_i)
-                            self.current_i = -1
-                            self.update_plan()
-                            await self.plan_start()
+                        if "wait" in self.ob[self.active_tel].keys() and "start_time" in self.ob[self.active_tel].keys():
+                            if self.ob[self.active_tel]["wait"] != "":
+                                dt = self.time - self.ob[self.active_tel]["start_time"]
+                                if float(dt) > float(self.ob[self.active_tel]["wait"]):
+                                    self.ob[self.active_tel]["done"] = True
+                                    self.planGui.done.append(self.ob[self.active_tel]["uobi"])
+                                    await self.msg(f"PLAN: {self.ob[self.active_tel]['name']} {self.ob[self.active_tel]['wait']} s DONE", "green")
 
-                if "wait_sunrise" in self.ob.keys():
-                    if self.ob["wait_sunrise"] != "":
-                        if deg_to_decimal_deg(self.almanac["sun_alt"]) > float(self.ob["wait_sunrise"]):
-                            self.ob["done"] = True
-                            self.planGui.done.append(self.ob["uobi"])
-                            await self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} DONE", "green")
+                                    self.next_i = self.current_i
+                                    self.plan.pop(self.current_i)
+                                    self.current_i = -1
+                                    self.update_plan()
+                                    await self.plan_start()
 
-                            self.next_i = self.current_i
-                            self.plan.pop(self.current_i)
-                            self.current_i = -1
-                            self.update_plan()
-                            await self.plan_start()
+                        if "wait_ut" in self.ob[self.active_tel].keys():
+                            if self.ob[self.active_tel]["wait_ut"] != "":
+                                req_ut = str(self.ob[self.active_tel]["wait_ut"])
+                                ut = str(self.almanac["ut"]).split()[1]
+                                ut = 3600 * float(ut.split(":")[0]) + 60 * float(ut.split(":")[1]) + float(ut.split(":")[2])
+                                req_ut = 3600 * float(req_ut.split(":")[0]) + 60 * float(req_ut.split(":")[1]) + float(
+                                    req_ut.split(":")[2])
+                                if req_ut < ut:
+                                    self.ob[self.active_tel]["done"] = True
+                                    self.planGui.done.append(self.ob[self.active_tel]["uobi"])
+                                    await self.msg(f"PLAN: {self.ob[self.active_tel]['name']} UT {self.ob[self.active_tel]['wait_ut']} DONE", "green")
 
-                if "wait_sunset" in self.ob.keys():
-                    if self.ob["wait_sunset"] != "":
-                        if deg_to_decimal_deg(self.almanac["sun_alt"]) < float(self.ob["wait_sunset"]):
-                            self.ob["done"] = True
-                            self.planGui.done.append(self.ob["uobi"])
-                            await self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} DONE", "green")
+                                    self.next_i = self.current_i
+                                    self.plan.pop(self.current_i)
+                                    self.current_i = -1
+                                    self.update_plan()
+                                    await self.plan_start()
 
-                            self.next_i = self.current_i
-                            self.plan.pop(self.current_i)
-                            self.current_i = -1
-                            self.update_plan()
-                            await self.plan_start()
+                        if "wait_sunrise" in self.ob[self.active_tel].keys():
+                            if self.ob[self.active_tel]["wait_sunrise"] != "":
+                                if deg_to_decimal_deg(self.almanac["sun_alt"]) > float(self.ob[self.active_tel]["wait_sunrise"]):
+                                    self.ob[self.active_tel]["done"] = True
+                                    self.planGui.done.append(self.ob[self.active_tel]["uobi"])
+                                    await self.msg(f"PLAN: {self.ob[self.active_tel]['name']} sunrise {self.ob[self.active_tel]['wait_sunrise']} DONE", "green")
+
+                                    self.next_i = self.current_i
+                                    self.plan.pop(self.current_i)
+                                    self.current_i = -1
+                                    self.update_plan()
+                                    await self.plan_start()
+
+                        if "wait_sunset" in self.ob[self.active_tel].keys():
+                            if self.ob[self.active_tel]["wait_sunset"] != "":
+                                if deg_to_decimal_deg(self.almanac["sun_alt"]) < float(self.ob[self.active_tel]["wait_sunset"]):
+                                    self.ob[self.active_tel]["done"] = True
+                                    self.planGui.done.append(self.ob[self.active_tel]["uobi"])
+                                    await self.msg(f"PLAN: {self.ob[self.active_tel]['name']} sunset {self.ob[self.active_tel]['wait_sunset']} DONE", "green")
+
+                                    self.next_i = self.current_i
+                                    self.plan.pop(self.current_i)
+                                    self.current_i = -1
+                                    self.update_plan()
+                                    await self.plan_start()
+
+            except Exception as e:
+                logger.warning(f'TOI: EXCEPTION 98: {e}')
+
+
 
             try:
                 self.planGui.update_table()
             except Exception as e:
-                print("EXCEPTION 5", e)
+                logger.warning(f'TOI: EXCEPTION 5: {e}')
 
 
 
@@ -854,7 +859,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                             # a tutaj znajdujemy gwiazdy, ale dla guidera to wychopdzi ledwo co...
                             coo, adu = stats.find_stars(threshold=th, kernel_size=int(2 * fwhm), fwhm=fwhm)
-                            # print(f"Guider found {len(coo)} stars")
 
                             # a tutaj robimy bardziej przyzwoita fotometrie znalezionych gwiazd
                             # bez tego nawet czesto nie znajdziemy najjasniejszej gwiazdy
@@ -1077,9 +1081,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             #self.ob_program = self.ob_program + f' observers="{self.observer}"' # zle sie parsuje naraz comment i observers
 
-            #print("PLAN RUNNER: ", self.ob_program)
-            await self.planrunner.aload_nightplan_string(self.program_name, string=self.ob_program, overwrite=True, client_config_dict=self.client_cfg)
-            await self.planrunner.arun_nightplan(self.program_name, step_id="00")
+            program = self.ob_program
+            program_name = self.program_name
+
+            #program = self.ob["block"]
+            #program_name = self.ob["program_name"]
+
+            await self.planrunner.aload_nightplan_string(program_name, string=program, overwrite=True, client_config_dict=self.client_cfg)
+            await self.planrunner.arun_nightplan(program_name, step_id="00")
 
             self.fits_exec = True
 
@@ -1145,7 +1154,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.planGui.prog_call_e.append(txt)
 
         except Exception as e:
-            print("EXCEPTION 37", e)
+            logger.warning(f'TOI: EXCEPTION 37: {e}')
 
         # TO JEST CZESC KTORA SPRAWDZA CZY PLANRUNNER DZIALA
         if "name" in info.keys() and "started" in info.keys() and "done" in info.keys():
@@ -1161,8 +1170,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.ctc.set_start_rmode(self.ccd_readoutmode)
                 self.ctc.set_telescope_start_az_alt(az=self.mount_az, alt=self.mount_alt)
                 try:
-                    #print("=============================")
-                    #print(self.ob_program, self.ccd_readoutmode)
+
                     self.ctc_time = self.ctc.calc_time(self.ob_program)
 
                     # STAGE2
@@ -1174,7 +1182,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.ob_expected_time = 0.1
                 except ValueError:
                     self.ob_expected_time = 0.1
-                    print("CTC ERROR")
+                    logger.warning(f'TOI: EXCEPTION 44: {e}')
 
                 txt = self.ob_program
 
@@ -1186,10 +1194,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     status = {"ob_started":self.ob_started,"ob_done":self.ob_done,"ob_start_time":self.ob_start_time,"ob_expected_time":self.ob_expected_time,"ob_program":self.ob_program}
                     await s.publish(data=status,timeout=10)
                 except Exception as e:
-                    print("nats_toi_ob_status publish:", e)
+                    logger.warning(f'TOI: EXCEPTION 45: {e}')
 
             elif info["name"] == "NIGHTPLAN" and info["done"]:
-                self.ob["done"] = True
+                self.ob[self.active_tel]["done"] = True
 
                 if "plan" in self.program_name:             # ma to wykonac tylko jak obsluguje plan
                     self.next_i = self.current_i
@@ -1204,7 +1212,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     data = self.exp_prog_status
                     await s.publish(data=data, timeout=10)
                 except Exception as e:
-                    print("nats_toi_ob_status publish:", e)
+                    logger.warning(f'TOI: EXCEPTION 46: {e}')
 
                 await self.msg("PLAN: Plan finished", "black")
                 self.ob_started = False
@@ -1215,7 +1223,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     status = {"ob_started":self.ob_started,"ob_done":self.ob_done,"ob_start_time":self.ob_start_time,"ob_expected_time":self.ob_expected_time,"ob_program":self.ob_program}
                     await s.publish(data=status,timeout=10)
                 except Exception as e:
-                    print("nats_toi_ob_status publish:", e)
+                    logger.warning(f'TOI: EXCEPTION 47: {e}')
 
             elif info["name"] == "SKYFLAT" and info["started"] and not info["done"]:  # SKYFLAT
                 await self.msg(f"PLAN: AUTO FLAT program started", "black")                       # SKYFLAT
@@ -1237,7 +1245,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     data = self.exp_prog_status
                     await s.publish(data=data, timeout=10)
                 except Exception as e:
-                    print("nats_toi_ob_status publish:", e)
+                    logger.warning(f'TOI: EXCEPTION 48: {e}')
 
                 await self.msg(f"PLAN: {self.exp_prog_status['dit_exp']} [s] exposure started","black")
 
@@ -1250,7 +1258,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     data = self.exp_prog_status
                     await s.publish(data=data, timeout=10)
                 except Exception as e:
-                    print("nats_toi_ob_status publish:", e)
+                    logger.warning(f'TOI: EXCEPTION 49: {e}')
 
 
         if "auto_exp_start" in info.keys() and "auto_exp_finnished" in info.keys():    # SKYFLAT
@@ -1266,7 +1274,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     data = self.exp_prog_status
                     await s.publish(data=data, timeout=10)
                 except Exception as e:
-                    print("nats_toi_ob_status publish:", e)
+                    logger.warning(f'TOI: EXCEPTION 50: {e}')
 
 
                 await self.msg(f"PLAN: {self.exp_prog_status['dit_exp']} [s] test exposure started","black")
@@ -1331,6 +1339,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 uobi = str(uuid.uuid4())[:8]
                 program = f"FOCUS seq={seq} pos={pos} uobi={uobi}"
 
+
                 self.ob_program = program
                 self.program_name = "auto_focus"
                 self.autofocus_started=True
@@ -1355,24 +1364,24 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.observer = self.auxGui.welcome_tab.observer_e.text()
 
             if self.next_i > -1 and self.next_i < len(self.plan):
-                self.ob = self.plan[self.next_i]
+                self.ob[self.active_tel] = self.plan[self.next_i]
 
-                self.ob["done"]=False
-                self.ob["run"]=True
-                self.ob["start_time"] = self.time
+                self.ob[self.active_tel]["done"]=False
+                self.ob[self.active_tel]["run"]=True
+                self.ob[self.active_tel]["start_time"] = self.time
 
 
-                if "uobi" in self.ob.keys():
-                    if self.ob["uobi"] not in self.planGui.done:
-                        if "type" in self.ob.keys() and "name" in self.ob.keys():
+                if "uobi" in self.ob[self.active_tel].keys():
+                    if self.ob[self.active_tel]["uobi"] not in self.planGui.done:
+                        if "type" in self.ob[self.active_tel].keys() and "name" in self.ob[self.active_tel].keys():
 
                             self.current_i = self.next_i
                             self.update_plan()
 
                             run_nightplan = False
-                            if self.ob["type"] == "STOP":
-                                self.ob["done"]=False
-                                self.ob["run"]=False
+                            if self.ob[self.active_tel]["type"] == "STOP":
+                                self.ob[self.active_tel]["done"]=False
+                                self.ob[self.active_tel]["run"]=False
 
                                 self.next_i = self.current_i + 1
                                 #self.plan.pop(self.current_i)
@@ -1380,23 +1389,24 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.update_plan()
 
                                 try:
+                                    #DUPA
                                     s = self.nats_toi_ob_status
                                     status = {"ob_started": True, "ob_done": False,
                                               "ob_start_time": self.time,
                                               "ob_expected_time": 0.1, "ob_program": "STOP"}
                                     await s.publish(data=status, timeout=10)
                                 except Exception as e:
-                                    print("nats_toi_ob_status publish:", e)
+                                    logger.warning(f'TOI: EXCEPTION 51: {e}')
 
 
-                            if self.ob["type"] == "BELL":
+                            if self.ob[self.active_tel]["type"] == "BELL":
                                 await self.msg("INFO: BELL","black")
                                 #w = self.nats_journal_toi_msg
                                 #txt = f"BELL by {self.myself}"
                                 #await w.log('INFO', txt)
                                 #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
-                                self.ob["done"]=True
-                                self.ob["run"]=True
+                                self.ob[self.active_tel]["done"]=True
+                                self.ob[self.active_tel]["run"]=True
 
                                 self.next_i = self.current_i
                                 self.plan.pop(self.current_i)
@@ -1404,65 +1414,65 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.update_plan()
 
 
-                            if self.ob["type"] == "WAIT":
-                                if "wait" in self.ob.keys():
-                                    self.ob["ob_start_time"] = self.time
-                                    self.ob["done"]=False
-                                    self.ob["run"]=True
-                                    await self.msg(f"PLAN: {self.ob['name']} {self.ob['wait']} s. start","black")
-                                if "wait_ut" in self.ob.keys():
-                                    self.ob["done"]=False
-                                    self.ob["run"]=True
-                                    await self.msg(f"PLAN: {self.ob['name']} UT {self.ob['wait_ut']} start","black")
-                                if "wait_sunset" in self.ob.keys():
-                                    self.ob["done"]=False
-                                    self.ob["run"]=True
-                                    await self.msg(f"PLAN: {self.ob['name']} sunset {self.ob['wait_sunset']} start","black")
-                                if "wait_sunrise" in self.ob.keys():
-                                    self.ob["done"]=False
-                                    self.ob["run"]=True
-                                    await self.msg(f"PLAN: {self.ob['name']} sunrise {self.ob['wait_sunrise']} start","black")
+                            if self.ob[self.active_tel]["type"] == "WAIT":
+                                if "wait" in self.ob[self.active_tel].keys():
+                                    self.ob[self.active_tel]["start_time"] = self.time
+                                    self.ob[self.active_tel]["done"]=False
+                                    self.ob[self.active_tel]["run"]=True
+                                    await self.msg(f"PLAN: {self.ob[self.active_tel]['name']} {self.ob[self.active_tel]['wait']} s. start","black")
+                                if "wait_ut" in self.ob[self.active_tel].keys():
+                                    self.ob[self.active_tel]["done"]=False
+                                    self.ob[self.active_tel]["run"]=True
+                                    await self.msg(f"PLAN: {self.ob[self.active_tel]['name']} UT {self.ob[self.active_tel]['wait_ut']} start","black")
+                                if "wait_sunset" in self.ob[self.active_tel].keys():
+                                    self.ob[self.active_tel]["done"]=False
+                                    self.ob[self.active_tel]["run"]=True
+                                    await self.msg(f"PLAN: {self.ob[self.active_tel]['name']} sunset {self.ob[self.active_tel]['wait_sunset']} start","black")
+                                if "wait_sunrise" in self.ob[self.active_tel].keys():
+                                    self.ob[self.active_tel]["done"]=False
+                                    self.ob[self.active_tel]["run"]=True
+                                    await self.msg(f"PLAN: {self.ob[self.active_tel]['name']} sunrise {self.ob[self.active_tel]['wait_sunrise']} start","black")
 
 
-                            if self.ob["type"] == "ZERO" and "block" in self.ob.keys():
+                            if self.ob[self.active_tel]["type"] == "ZERO" and "block" in self.ob[self.active_tel].keys():
                                 run_nightplan = True
                                 program_name = "plan"
-                                program = self.ob["block"]
+                                program = self.ob[self.active_tel]["block"]
 
-                            if self.ob["type"] == "DARK" and "block" in self.ob.keys():
+                            if self.ob[self.active_tel]["type"] == "DARK" and "block" in self.ob[self.active_tel].keys():
                                 run_nightplan = True
                                 program_name = "plan"
-                                program = self.ob["block"]
+                                program = self.ob[self.active_tel]["block"]
 
-                            if self.ob["type"] == "DOMEFLAT" and "block" in self.ob.keys():
+                            if self.ob[self.active_tel]["type"] == "DOMEFLAT" and "block" in self.ob[self.active_tel].keys():
                                 run_nightplan = True
                                 program_name = "plan_domeflat"
-                                program = self.ob["block"]
+                                program = self.ob[self.active_tel]["block"]
 
-                            if self.ob["type"] == "SKYFLAT" and "block" in self.ob.keys():
+                            if self.ob[self.active_tel]["type"] == "SKYFLAT" and "block" in self.ob[self.active_tel].keys():
                                 run_nightplan = True
                                 program_name = "plan_skyflat"
-                                program = self.ob["block"]
+                                program = self.ob[self.active_tel]["block"]
 
-                            if self.ob["type"] == "FOCUS" and "block" in self.ob.keys():
+                            if self.ob[self.active_tel]["type"] == "FOCUS" and "block" in self.ob[self.active_tel].keys():
                                 run_nightplan = True
                                 program_name = "plan_auto_focus"
-                                program = self.ob["block"]
+                                program = self.ob[self.active_tel]["block"]
 
                                 self.focus_method = "rms_quad"
                                 self.autofocus_started = True
                                 self.last_focus_position = float(self.mntGui.telFocus_e.text())
 
-                            if self.ob["type"] == "OBJECT" and "block" in self.ob.keys():
+                            if self.ob[self.active_tel]["type"] == "OBJECT" and "block" in self.ob[self.active_tel].keys():
                                 run_nightplan = True
                                 program_name = "plan"
-                                program = self.ob["block"]
+                                program = self.ob[self.active_tel]["block"]
                                 if "comment" in program:
                                     program = program.split("comment")[0]
 
                             if run_nightplan:
                                 if "uobi=" not in program:
-                                    program = program + f' uobi={self.ob["uobi"]}'
+                                    program = program + f' uobi={self.ob[self.active_tel]["uobi"]}'
                                 self.ob_program = program
                                 self.program_name=program_name
                                 self.planrunner_start()
@@ -1498,7 +1508,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def stop_program(self):
         await self.takeControl()
         await self.msg("REQUEST: program STOP ","yellow")
-        self.ob["run"]=False
+        self.ob[self.active_tel]["run"]=False
         await self.planrunner.astop_nightplan()
 
         self.current_i = -1
@@ -1601,21 +1611,27 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         if float(alt) < self.cfg_alt_limits["min"] or float(alt) > self.cfg_alt_limits["max"]:
                             self.plan[i]["skip_alt"] = True
                         else:
-                            self.oca_site.horizon = self.cfg_alt_limits["min"]
-                            try:
-                                t = self.oca_site.next_setting(star, use_center=True)
-                                if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
-                                    self.plan[i]["skip_alt"] = True
-                            except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
-                                    pass
+                            self.plan[i]["skip_alt"] = False
 
-                            self.oca_site.horizon = self.cfg_alt_limits["max"]
-                            try:
-                                t = self.oca_site.next_rising(star, use_center=True)
-                                if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
-                                    self.plan[i]["skip_alt"] = True
-                            except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
-                                pass
+                        self.oca_site.horizon = str(self.cfg_alt_limits["min"])
+                        try:
+                            t = self.oca_site.next_setting(star, use_center=True)
+                            if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
+                                #self.plan[i]["skip_alt"] = True
+                                print("nisko", self.plan[i]["name"])
+                                print(self.plan[i]["slotTime"])
+                        except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
+                            pass
+
+                        self.oca_site.horizon = str(self.cfg_alt_limits["max"] + 1)
+                        try:
+                            t = self.oca_site.next_rising(star, use_center=True)
+                            if t < ob_time + ephem.second * self.plan[i]["slotTime"]:
+                                self.plan[i]["skip_alt"] = True
+                                print("wysoko", self.plan[i]["name"])
+                                print(self.plan[i]["slotTime"])
+                        except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
+                            pass
 
                     if self.plan[i]["uobi"] in self.done_uobi:
                         ob_time = ob_time
@@ -1629,7 +1645,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             status = {"current_i":self.current_i,"next_i":self.next_i,"plan":self.plan}
             await s.publish(data=status,timeout=10)
         except Exception as e:
-            print("EXCEPTION 15: ", e)
+            logger.warning(f'TOI: EXCEPTION 15: {e}')
 
             self.planGui.update_table()
         #print(self.plan)
@@ -1695,7 +1711,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             t0 = time.time()
             coo,adu = stats.find_stars(threshold=th,kernel_size=kernel_size,fwhm=fwhm)
             t1 = time.time()
-            #print("TIME: ", t1-t0)
             if len(coo)>3:
                 fwhm_x,fwhm_y = stats.fwhm(saturation=saturation)
                 if fwhm_x != None and fwhm_y !=None:
@@ -1738,7 +1753,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.auxGui.fits_tab.fitsView.update(image,sat_coo,ok_coo)
 
             self.auxGui.tabWidget.setCurrentIndex(4)
-            #print(self.fits_data)
 
             # To jest logowanie flatow, pozniej to ogarnac
 
@@ -1951,9 +1965,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 data = self.exp_prog_status
                 await s.publish(data=data, timeout=10)
             except Exception as e:
-                print("nats_toi_ob_status publish:", e)
+                logger.warning(f'TOI: EXCEPTION 40: {e}')
 
-            self.ob["run"]=False
+            self.ob[self.active_tel]["run"]=False
             await self.planrunner.astop_nightplan()
             await self.ccd.aput_stopexposure()
             await self.msg(f"REQUEST: exposure STOP","yellow")
@@ -2529,7 +2543,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 data = self.toi_status
                 await s.publish(data=data, timeout=10)
             except Exception as e:
-                print("domeFollow NATS:", e)
+                logger.warning(f'TOI: EXCEPTION 41: {e}')
         else:
             txt="WARNING: You don't have controll"
             self.WarningWindow(txt)
@@ -2899,9 +2913,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # STAGE2
         # jakos trzeba sprawdzac czy mamy kontrole nad wszystkimi teleskopami
         self.TICuser=self.user.current_user
-        #print(self.user.current_user)
         self.acces=bool(await self.user.aget_is_access())
-        #print("wladza ", self.acces)
         txt=str(self.TICuser["name"])
         self.obsGui.main_form.control_e.setText(txt)
         if self.acces:
@@ -2994,6 +3006,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     def update_oca(self):
         self.obsGui.main_form.update_table()
 
+
+    # STAGE2-DONE
+    def reset_ob(self):
+        templeate = {"run":False,"done":False,"uobi":None,"origin":None}
+        self.ob = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
 
     # STAGE2
     # tutaj trzeba bedzie obsluzyc wieloteleskiopowosc
@@ -3169,15 +3186,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         templeate = {"ob_started":False,"ob_done":False,"ob_expected_time":0.1,"ob_start_time":0,"ob_program":None}
         self.ob_prog_status = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
 
-        self.nats_plan_status = {"current_i":-1,"next_i":-1,"plan":[]}
+        # STAGE 2
+        self.reset_ob()
 
+        self.nats_plan_status = {"current_i":-1,"next_i":-1,"plan":[]}
 
         self.nats_exp_prog_status = {}  # ten sluzy tylko do czytania z nats
         self.nats_ob_progress = {}      # ten sluzy tylko do czytania z nats
 
-
         self.fits_exec=False
-        self.ob={"run":False,"done":False}
+
         self.autofocus_started=False
         self.last_focus_position=None
         self.acces=True
