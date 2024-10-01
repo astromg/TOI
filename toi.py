@@ -122,14 +122,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.update_table()
 
         # publishery natsow
+        # NATS WRITER
         for k in self.local_cfg["toi"]["telescopes"]:
             self.nats_toi_plan_status[k] = get_publisher(f'tic.status.{k}.toi.plan')
             self.nats_toi_ob_status[k] = get_publisher(f'tic.status.{k}.toi.ob')
             self.nats_toi_exp_status[k] = get_publisher(f'tic.status.{k}.toi.exp')
 
+            self.nats_toi_focus_status[k] = get_publisher(f'tic.status.{k}.toi.focus')
+
             self.nats_pub_toi_status[k] = get_publisher(f'tic.status.{k}.toi.status')
-
-
 
     async def oca_telemetry_reader(self,tel,key):
         try:
@@ -184,8 +185,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def telescope_switched(self):
 
+        self.telescope_switch_status["plan"] = False
         # self.nats_journal_flats_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.flats')
-        # self.nats_journal_focus_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.focus')
         # self.nats_journal_toi_msg = get_journalpublisher(f'tic.journal.{self.active_tel}.toi.signal')
 
 
@@ -352,6 +353,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_exp_status_reader(), group="telescope_task")
+        self.add_background_task(self.nats_toi_focus_status_reader(), group="telescope_task")
 
         await self.run_background_tasks(group="telescope_task")
 
@@ -417,6 +419,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
 
+    async def nats_toi_focus_status_reader(self):
+        try:
+            reader = get_reader(f'tic.status.{self.active_tel}.toi.focus', deliver_policy='last')
+            async for data, meta in reader:
+                self.nats_focus_status = data
+                #print(self.nats_focus_status)
+                self.update_focus_window()
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
 
     async def nats_toi_status_reader(self):
         try:
@@ -463,6 +474,36 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             logger.warning(f'TOI: EXCEPTION 4: {e}')
         #except Exception as e:
         #    logger.warning(f'TOI: nats_log_loop: {e}')
+
+    def update_focus_window(self):
+        if "max_sharpness_focus" in self.nats_focus_status.keys() and "status" in self.nats_focus_status.keys():
+            status = self.nats_focus_status["status"]
+            if status == "ok":
+                self.auxGui.focus_tab.result_e.setText(f"{int(self.nats_focus_status['max_sharpness_focus'])}")
+                self.auxGui.focus_tab.max_sharp = self.nats_focus_status["max_sharpness_focus"]
+            else:
+                self.auxGui.focus_tab.result_e.setText(status)
+                self.auxGui.focus_tab.max_sharp = None
+
+
+        if "coef" in self.nats_focus_status.keys() and "sharpness_values" in self.nats_focus_status.keys() and "focus_values" in self.nats_focus_status.keys():
+            coef = self.nats_focus_status["coef"]
+            focus_values = self.nats_focus_status["focus_values"]
+            sharpness_values = self.nats_focus_status["sharpness_values"]
+
+            fit_x = numpy.linspace(min(focus_values), max(focus_values), 100)
+            if len(coef) > 3:
+                fit_y = coef[0] * fit_x ** 4 + coef[1] * fit_x ** 3 + coef[2] * fit_x ** 2 + coef[3] * fit_x + coef[4]
+            elif len(coef) > 1:
+                fit_y = coef[0] * fit_x ** 2 + coef[1] * fit_x + coef[2]
+
+            self.auxGui.focus_tab.fit_x = fit_x
+            self.auxGui.focus_tab.fit_y = fit_y
+            self.auxGui.focus_tab.x = focus_values
+            self.auxGui.focus_tab.y = sharpness_values
+
+        self.auxGui.focus_tab.update()
+        self.auxGui.tabWidget.setCurrentIndex(2)
 
 
     # ################### METODY POD SUBSKRYPCJE ##################
@@ -728,14 +769,30 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def TOItimer(self):
         while True:
 
+            for t in self.acces_grantors.keys():
+                acces = await self.acces_grantors[t].aget_is_access()
+                name = await self.acces_grantors[t].aget_current_user()
+                self.tel_users[t] = name["name"]
+                self.tel_acces[t] = acces
+            self.update_oca()
+
             await asyncio.sleep(1)
-            # print("* PING")
+
+            print("* PING")
             # print(self.planrunner.is_nightplan_running(self.program_name))
 
             # sterowanie wykonywaniem planu
             for tel in self.local_cfg["toi"]["telescopes"]:
 
                 try:
+
+                    try:
+                        #DUPA3
+                        print(f"{tel} OB: run/done {self.ob[tel]['run']}/{self.ob[tel]['done']}")
+                        pr = self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"])
+                        print(f"{tel} PR: {pr}")
+                    except:
+                        pass
 
                     if self.telescope:
                         if "continue_plan" in self.ob[tel].keys() and "done" in self.ob[tel].keys() and "origin" in self.ob[tel].keys():
@@ -805,9 +862,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 logger.warning(f'TOI: EXCEPTION 5: {e}')
 
 
-
-    # STAGE2
-    # na tym etapie tego nie ruszamy
     async def guider_loop(self):
         while True:
             await asyncio.sleep(1)
@@ -1094,63 +1148,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         for t in self.local_cfg["toi"]["telescopes"]:
             if t==tel:
 
-                try:
-
-                    # STAGE 2
-                    # AUTOFOCUS to jest na razie zbyt skomplikowane i i tak wymaga raczej slania tego po natsach
-
-                    # AUTOFOCUS
-                    if self.autofocus_started:
-                        if "id" in info.keys():
-                            if "auto_focus" in info["id"] and info["started"]==True and info["done"]==True:
-                                self.autofocus_started=False
-                                await self.msg("PLAN: Auto-focus sequence finished","black")
-                                max_sharpness_focus, calc_metadata = calFoc.calculate(self.cfg_tel_directory+"focus/actual",method=self.focus_method)
-                                coef = calc_metadata["poly_coef"]
-                                focus_list_ret = calc_metadata["focus_values"]
-                                sharpness_list_ret = calc_metadata["sharpness_values"]
-                                status = calc_metadata["status"]
-
-                                fit_x = numpy.linspace(min(focus_list_ret), max(focus_list_ret), 100)
-                                if len(coef)>3:
-                                    fit_y = coef[0]* fit_x**4 + coef[1]*fit_x**3 + coef[2]*fit_x**2 +  coef[3]*fit_x + coef[4]
-                                elif len(coef)>1:
-                                    fit_y = coef[0]* fit_x**2 + coef[1]*fit_x + coef[2]
-
-                                self.auxGui.focus_tab.x=focus_list_ret
-                                self.auxGui.focus_tab.y=sharpness_list_ret
-                                self.auxGui.focus_tab.fit_x=fit_x
-                                self.auxGui.focus_tab.fit_y=fit_y
-                                if status == "ok":
-                                    self.auxGui.focus_tab.result_e.setText(f"{int(max_sharpness_focus)}")
-                                    self.auxGui.focus_tab.max_sharp=max_sharpness_focus
-                                    await self.focus.aput_move(int(max_sharpness_focus))
-                                    await self.msg(f"PLAN: focus set to {int(max_sharpness_focus)}","black")
-                                    # if self.filter != None and self.telemetry_temp != None:
-                                    #     txt = f"{self.ut} {self.telemetry_temp:.2f} {self.filter} {int(max_sharpness_focus)} \n"
-                                    #     w: MsgJournalPublisher = self.nats_journal_focus_writter
-                                    #     await w.log('INFO', txt)
-                                else:
-                                    await self.focus.aput_move(int(self.last_focus_position))
-                                    await self.msg(f"PLAN: focusing FAILED. Focus set to previous value {int(self.last_focus_position)}", "red")
-                                    self.auxGui.focus_tab.result_e.setText(status)
-                                    self.auxGui.focus_tab.max_sharp=None
-                                self.auxGui.focus_tab.update()
-                                self.auxGui.tabWidget.setCurrentIndex(2)
-
-
-
-
-                except Exception as e:
-                    logger.warning(f'TOI: EXCEPTION 37: {e}')
-
-                # TO JEST CZESC KTORA SPRAWDZA CZY PLANRUNNER DZIALA
-
                 # NORMAL PLAN
 
                 if "name" in info.keys() and "started" in info.keys() and "done" in info.keys():
                     if info["name"] == "NIGHTPLAN" and info["started"] and not info["done"]:
                         await self.msg("PLAN: Plan started","black")
+                        #DUPA2
                         self.ob[tel]["run"] = True     # to swiadczy o tym czy planrunner dziala
                         self.ob[tel]["done"] = False
                         self.ob_start_time = self.time
@@ -1296,6 +1299,41 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 #         self.flat_record["type"] = "skyflat"
 
 
+
+                try:
+
+                    # AUTOFOCUS
+
+                    if self.autofocus_started[tel]:
+                        if "id" in info.keys():
+                            if "auto_focus" in info["id"] and info["started"]==True and info["done"]==True:
+                                self.autofocus_started[tel]=False
+                                await self.msg("PLAN: Auto-focus sequence finished","black")
+                                max_sharpness_focus, calc_metadata = calFoc.calculate(self.local_cfg[self.active_tel]["tel_directory"]+"focus/actual",method=self.focus_method)
+
+                                try:
+                                    s = self.nats_toi_focus_status[tel]
+                                    data = {}
+                                    data["coef"] = list(calc_metadata["coef"])
+                                    data["focus_values"] = list(calc_metadata["focus_values"])
+                                    data["sharpness_values"] = list(calc_metadata["sharpness_values"])
+                                    data["max_sharpness_focus"] = float(max_sharpness_focus)
+                                    data["status"] = str(calc_metadata["status"])
+                                    await s.publish(data=data, timeout=10)
+                                except Exception as e:
+                                    logger.warning(f'TOI: EXCEPTION 42: {e}')
+
+                                if calc_metadata["status"] == "ok":
+                                    await self.tel_focusers[tel].aput_move(int(max_sharpness_focus))
+                                    await self.msg(f"PLAN: focus set to {int(max_sharpness_focus)}","black")
+                                else:
+                                    await self.msg(f"PLAN: focusing FAILED. Focus set to previous value {int(self.last_focus_position[tel])}", "red")
+
+                except Exception as e:
+                    logger.warning(f'TOI: EXCEPTION 37: {e}')
+
+
+
     # ############ AUTO FOCUS ##########################
 
     # STAGE2
@@ -1332,16 +1370,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 uobi = str(uuid.uuid4())[:8]
                 program = f"FOCUS seq={seq} pos={pos} uobi={uobi}"
 
-
                 self.ob[self.active_tel]["block"] = program
                 self.ob[self.active_tel]["origin"] = "auto_focus"
-                #DUPA
-                #self.program_name = "auto_focus"
-                self.autofocus_started=True
-                self.last_focus_position=float(self.mntGui.telFocus_e.text())
-
-                self.planrunner_start()
-
+                self.autofocus_started[self.active_tel]=True
+                tmp = await self.tel_focusers[self.active_tel].aget_position()
+                self.last_focus_position[self.active_tel] = float(tmp)
+                self.planrunner_start(self.active_tel)
 
         else:
             txt="WARNING: U don't have controll"
@@ -1350,7 +1384,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     # ############ PLAN ##########################
 
-    # STAGE2
     # to ustawia wszytskie potrzebne parametry dla planrunnera i wywoluje planrunner_start
     # dodac obluge wieloteleskoowosci
     @qs.asyncSlot()
@@ -1385,7 +1418,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.update_plan(tel)
 
                                 try:
-                                    #DUPA
                                     s = self.nats_toi_ob_status
                                     status = {"ob_started": True, "ob_done": False,
                                               "ob_start_time": self.time,
@@ -1459,8 +1491,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 program = self.ob[tel]["block"]
 
                                 self.focus_method = "rms_quad"
-                                self.autofocus_started = True
-                                self.last_focus_position = float(self.mntGui.telFocus_e.text())
+                                self.autofocus_started[tel] = True
+                                focus = await self.tel_focusers[tel].aget_position()
+                                self.last_focus_position[tel] = float(focus)
 
                             if self.ob[tel]["type"] == "OBJECT" and "block" in self.ob[tel].keys():
                                 run_nightplan = True
@@ -1518,21 +1551,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ob[self.active_tel]["slot_time"] = None
         self.ob[self.active_tel]["start_time"] = None
 
-        self.current_i[tel] = -1
+        self.current_i[self.active_tel] = -1
         self.update_plan(self.active_tel)
 
     # ########### LOKALNA OBSLGA PLANU ##################
 
-    # STAGE2
-    # tutaj ostroznie z nadpisywaniem planu jak sie Gui jeszcze nie zaktualizowalo
     def upload_plan(self):
+        self.planGui.update_table()
         self.plan[self.active_tel] = self.planGui.plan
         self.next_i[self.active_tel] = self.planGui.next_i
         self.update_plan(self.active_tel)
 
 
-    # STAGE2
-    # dodac tylko obsluge planow dla kazdego teleskopu
     @qs.asyncSlot()
     async def update_plan(self,tel):
             if self.plan[tel] != None:
@@ -1653,8 +1683,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.planGui.update_table()
                 print(tel, len(self.plan[tel]),self.current_i[tel],self.next_i[tel])
 
-    # STAGE2
-    # dodac tylko obsluge wieloteleskopowosci
     def check_next_i(self,tel):
         if self.next_i[tel] > len(self.plan[tel])-1:
             self.next_i[tel] = -1
@@ -1958,7 +1986,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 logger.warning(f'TOI: EXCEPTION 40: {e}')
 
             self.ob[self.active_tel]["run"]=False
-            await self.planrunners[self.active_tel].astop_nightplan()
+            try:
+                await self.planrunners[self.active_tel].astop_nightplan()
+            except:
+                pass
             await self.ccd.aput_stopexposure()
             await self.msg(f"REQUEST: exposure STOP","yellow")
 
@@ -2838,16 +2869,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.telescope is not None:
             txt = f"REQUEST: EMERGENCY STOP"
             await self.msg(txt, "red")
-
             await self.user.aget_is_access()
-            await self.telescope.emergency_stop()
             self.mntGui.domeAuto_c.setChecked(False)
+            await self.tic_telescopes[self.active_tel].emergency_stop()
             await self.domeFollow() #
         else:
             txt = f"REQUEST: emergency stop but no telescope is selected"
             await self.msg(txt, "yellow")
 
-    # STAGE2
     @qs.asyncSlot()
     async def shutdown(self):
         if self.telescope is not None:
@@ -2855,9 +2884,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 txt = f"REQUEST: telescope shutdown"
                 await self.msg(txt, "green")
                 self.mntGui.domeAuto_c.setChecked(False)
-                await self.domeFollow()  #
                 await self.dome.aput_slewtoazimuth(180.)
-                await self.telescope.shutdown()
+                await self.tic_telescopes[self.active_tel].shutdown()
             else:
                 txt = "WARNING: U don't have controll"
                 self.WarningWindow(txt)
@@ -2871,7 +2899,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if await self.user.aget_is_access():
                 txt = f"REQUEST: weather stop"
                 await self.msg(txt, "yellow")
-                await self.telescope.weather_stop()
+                await self.tic_telescopes[self.active_tel].weather_stop()
             else:
                 txt = "WARNING: U don't have controll"
                 self.WarningWindow(txt)
@@ -2890,10 +2918,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e: pass
         try:
             await self.user.aput_take_control(12*3600)
-            # STAGE2
-            # ostroznie z tym wczytywaniem planu
-            # nie wiem dokladnie czemu, ale nadpisuje plan z innego teleskopu
-            # ale moze tylko jak sie za szybko to zrobi po zmianie teleskopu
             self.upload_plan()
             self.update_plan(self.active_tel)
         except Exception as e:
@@ -2902,6 +2926,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def user_update(self, event):
         # STAGE2
+        # to jakos zupelnie nie idzie
         # jakos trzeba sprawdzac czy mamy kontrole nad wszystkimi teleskopami
         self.TICuser=self.user.current_user
         self.acces=bool(await self.user.aget_is_access())
@@ -3176,11 +3201,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.nats_exp_prog_status = {}  # ten sluzy tylko do czytania z nats
         self.nats_ob_progress = {}      # ten sluzy tylko do czytania z nats
+        self.nats_focus_status = {}     #  tak samo
 
         self.fits_exec=False
 
-        self.autofocus_started=False
-        self.last_focus_position=None
+        self.autofocus_started={k:False for k in self.local_cfg["toi"]["telescopes"]}
+        self.last_focus_position={k:None for k in self.local_cfg["toi"]["telescopes"]}
         self.acces=True
 
 
@@ -3259,14 +3285,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.tmp_i = 1
 
+
+        self.telescope_switch_status = {"plan":None}
+
         self.nats_toi_plan_status = {}
         self.nats_toi_ob_status = {}
         self.nats_toi_exp_status = {}
+
+        self.nats_toi_focus_status = {}
+
 
         self.nats_pub_toi_status = {}
 
         self.planrunners = {}
         self.tic_telescopes = {k:self.observatory_model.get_telescope(k) for k in self.local_cfg["toi"]["telescopes"]}
+
+        self.acces_grantors = {k:self.tic_telescopes[k].get_access_grantor() for k in self.local_cfg["toi"]["telescopes"]}
+        self.tel_users = {k: None for k in self.local_cfg["toi"]["telescopes"]}
+        self.tel_acces = {k: None for k in self.local_cfg["toi"]["telescopes"]}
+
+        self.tel_focusers = {k:self.tic_telescopes[k].get_focuser() for k in self.local_cfg["toi"]["telescopes"]}
 
     async def on_start_app(self):    # rozczlonkowac ta metoda i wlozyc wszystko do run_qt_app
         #await self.nats_get_config()

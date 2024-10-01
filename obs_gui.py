@@ -65,7 +65,17 @@ class MainForm(QWidget):
 
             # TELESKOPY
             txt = t
-            item = QTableWidgetItem(txt)
+
+            acces = self.parent.tel_acces[t]
+            if acces:
+                #txt = txt +  "\U0001F513"
+                txt = txt + " \u2328" # klawiatura
+                #txt = txt + " \u2301" #   blyskawica
+                #txt = txt + " \u2713" # check ok
+                item = QTableWidgetItem(txt)
+                item.setForeground(QtGui.QColor("green"))
+            else:
+                item = QTableWidgetItem(txt)
             item.setTextAlignment(QtCore.Qt.AlignHCenter)
             item.setTextAlignment(QtCore.Qt.AlignVCenter)
             self.obs_t.setItem(i, 0, item)
@@ -136,6 +146,7 @@ class MainForm(QWidget):
 
             # PROGRAM
             state, rgb = "--", (0, 0, 0)
+            #print(t,self.parent.ob_prog_status[t])
             #templeate = {"ob_started": False, "ob_done": False, "ob_expected_time": 0.01, "ob_start_time": 0,"ob_program": None}
             started = self.parent.ob_prog_status[t]["ob_started"]
             done = self.parent.ob_prog_status[t]["ob_done"]

@@ -102,16 +102,12 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           #self.edit_window.raise_()
 
     def pocisniecie_edit(self):
-        if self.parent.acces:
-             if len(self.parent.plan[self.parent.active_tel])>self.i:
-                self.edit_window=EditWindow(self)
-                self.edit_window.show()
-                self.edit_window.raise_()
-             else: print("no plan loaded") # ERROR MSG
+        if len(self.plan)>self.i:
+            self.edit_window=EditWindow(self)
+            self.edit_window.show()
+            self.edit_window.raise_()
+        else: print("no plan loaded") # ERROR MSG
 
-        else:
-            txt="WARNING: U don't have controll"
-            self.parent.WarningWindow(txt)
 
     def pocisniecie_addStop(self):
         if self.parent.acces:
@@ -152,8 +148,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.plan_t.clearContents()
         else:
             try:
-
-                if self.parent.acces:
+                if self.parent.tel_acces[self.parent.active_tel] and self.parent.telescope_switch_status["plan"]:
                     self.plan = self.parent.plan[self.parent.active_tel]
                     self.current_i = self.parent.current_i[self.parent.active_tel]
                     self.next_i = self.parent.next_i[self.parent.active_tel]
@@ -178,9 +173,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                          if self.prev_i > len(self.plan)-1:
                              self.prev_i = len(self.plan)-1
-
-                         #DUPA
-                         #self.update_plan()
 
                          self.plan_t.clearContents()
                          self.plan_t.blockSignals(True)
@@ -384,6 +376,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                           self.plan_t.horizontalHeader().setSectionResizeMode(col,QHeaderView.Stretch)
             except Exception as e:
                 print(f"TOI plan GUI: EXCEPTION 103 {e}")
+
+        self.parent.telescope_switch_status["plan"] = True
 
 
     def update_log_table(self):
@@ -682,13 +676,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
 
               if self.fileName:
-                  #self.plan = []
-                  #self.done = []
-                  #self.i = 0
-                  #self.prev_i = -1
-                  #self.next_i = 0
-                  #self.current_i = -1
-
                   with open(self.fileName, "r") as plik:
                      if plik != None:
                          tmp_plan = []
@@ -934,9 +921,9 @@ class TPGWindow(QWidget):
             ob, ok, tmp1, tmp2, tmp3 = ob_parser(blok, overhed=self.parent.parent.overhed,
                                                                  filter_list=self.parent.parent.filter_list)
             tmp_plan.append(ob)
-        self.parent.plan[self.parent.active_tel][self.parent.i + 1:self.parent.i + 1] = tmp_plan
+        self.parent.plan[self.parent.i + 1:self.parent.i + 1] = tmp_plan
         self.parent.parent.upload_plan()
-        self.parent.update_plan(self.parent.active_tel)
+        self.parent.parent.update_plan(self.parent.parent.active_tel)
 
         self.close()
 
@@ -1165,55 +1152,55 @@ class PlotWindow(QWidget):
 
         # Rysowanie
 
-        if len(self.parent.plan[self.parent.active_tel])>0:
+        if len(self.parent.plan)>0:
             if self.t_now > self.t0:
                 self.t = self.t_now
             else:
                 self.t = self.t0
             color = ["c","m"]
             j=0
-            for i, tmp in enumerate(self.parent.plan[self.parent.active_tel]):
+            for i, tmp in enumerate(self.parent.plan):
                 fontsize = 9
                 if j==len(color): j=0
                 tmp_ok = False
-                if self.parent.current_i[self.parent.active_tel] > -1 and i >= self.parent.current_i[self.parent.active_tel]: tmp_ok = True
-                if i >= self.parent.next_i[self.parent.active_tel]: tmp_ok = True
-                if 'skip' in self.parent.plan[self.parent.active_tel][i].keys():
-                    if self.parent.plan[self.parent.active_tel][i]['skip']:
+                if self.parent.current_i > -1 and i >= self.parent.current_i: tmp_ok = True
+                if i >= self.parent.next_i: tmp_ok = True
+                if 'skip' in self.parent.plan[i].keys():
+                    if self.parent.plan[i]['skip']:
                         tmp_ok = False
-                if 'skip_alt' in self.parent.plan[self.parent.active_tel][i].keys():
-                    if self.parent.plan[self.parent.active_tel][i]['skip_alt']:
+                if 'skip_alt' in self.parent.plan[i].keys():
+                    if self.parent.plan[i]['skip_alt']:
                         tmp_ok = False
-                if 'ok' in self.parent.plan[self.parent.active_tel][i].keys():
-                    if not self.parent.plan[self.parent.active_tel][i]['ok']:
+                if 'ok' in self.parent.plan[i].keys():
+                    if not self.parent.plan[i]['ok']:
                         tmp_ok = False
 
                 if tmp_ok:
-                    if 'type' in self.parent.plan[self.parent.active_tel][i].keys():
-                        if self.parent.plan[self.parent.active_tel][i]["type"] == "STOP":
+                    if 'type' in self.parent.plan[i].keys():
+                        if self.parent.plan[i]["type"] == "STOP":
                             self.axes.axvline(x=self.t, color="red",alpha=0.5)
                             self.axes.text(self.t,2,"STOP",rotation=90,fontsize=fontsize)
 
-                    if "wait" in self.parent.plan[self.parent.active_tel][i].keys():
-                        if len(self.parent.plan[self.parent.active_tel][i]["wait"]) > 0:
-                            slotTime = float(self.parent.plan[self.parent.active_tel][i]["wait"])
+                    if "wait" in self.parent.plan[i].keys():
+                        if len(self.parent.plan[i]["wait"]) > 0:
+                            slotTime = float(self.parent.plan[i]["wait"])
                             self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
                             self.axes.text(self.t, 3, f"WAIT {int(slotTime)}s", rotation=90, fontsize=fontsize)
                             self.t = self.t + ephem.second * slotTime
 
 
-                    if "wait_ut" in self.parent.plan[self.parent.active_tel][i].keys():
-                        if len(self.parent.plan[self.parent.active_tel][i]["wait_ut"]) > 0:
-                            wait_ut = ephem.Date(str(ephem.Date(self.t)).split()[0] + " " + self.parent.plan[self.parent.active_tel][i]["wait_ut"])
+                    if "wait_ut" in self.parent.plan[i].keys():
+                        if len(self.parent.plan[i]["wait_ut"]) > 0:
+                            wait_ut = ephem.Date(str(ephem.Date(self.t)).split()[0] + " " + self.parent.plan[i]["wait_ut"])
                             if self.t < wait_ut:
                                 self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
                                                         alpha=0.5)
                                 self.axes.text(self.t, 3, f"WAIT UT {wait_ut}", rotation=90, fontsize=fontsize)
                                 self.t = wait_ut
 
-                    if "wait_sunset" in self.parent.plan[self.parent.active_tel][i].keys():
-                        if len(self.parent.plan[self.parent.active_tel][i]["wait_sunset"]) > 0:
-                            self.oca.horizon = self.parent.plan[self.parent.active_tel][i]["wait_sunset"]
+                    if "wait_sunset" in self.parent.plan[i].keys():
+                        if len(self.parent.plan[i]["wait_sunset"]) > 0:
+                            self.oca.horizon = self.parent.plan[i]["wait_sunset"]
                             wait_ut = self.oca.next_setting(ephem.Sun(), use_center=True)
                             if self.t < wait_ut:
                                 self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
@@ -1221,9 +1208,9 @@ class PlotWindow(QWidget):
                                 self.axes.text(self.t, 3, f"WAIT SUNSET {wait_ut}", rotation=90, fontsize=fontsize)
                                 self.t = wait_ut
 
-                    if "wait_sunrise" in self.parent.plan[self.parent.active_tel][i].keys():
-                        if len(self.parent.plan[self.parent.active_tel][i]["wait_sunrise"]) > 0:
-                            self.oca.horizon = self.parent.plan[self.parent.active_tel][i]["wait_sunrise"]
+                    if "wait_sunrise" in self.parent.plan[i].keys():
+                        if len(self.parent.plan[i]["wait_sunrise"]) > 0:
+                            self.oca.horizon = self.parent.plan[i]["wait_sunrise"]
                             wait_ut = self.oca.next_rising(ephem.Sun(), use_center=True)
                             if self.t < wait_ut:
                                 self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
@@ -1231,8 +1218,8 @@ class PlotWindow(QWidget):
                                 self.axes.text(self.t, 3, f"WAIT SUNRISE {wait_ut}", rotation=90, fontsize=fontsize)
                                 self.t = wait_ut
 
-                    if "seq" in self.parent.plan[self.parent.active_tel][i].keys():
-                        seq = self.parent.plan[self.parent.active_tel][i]["seq"]
+                    if "seq" in self.parent.plan[i].keys():
+                        seq = self.parent.plan[i]["seq"]
                         slotTime = calc_slot_time(seq,self.parent.parent.overhed)
 
                         if slotTime < 60:
@@ -1244,9 +1231,9 @@ class PlotWindow(QWidget):
                         else:
                             fontsize = 9
 
-                        if "ra" in self.parent.plan[self.parent.active_tel][i].keys():
-                            ra = self.parent.plan[self.parent.active_tel][i]["ra"]
-                            dec = self.parent.plan[self.parent.active_tel][i]["dec"]
+                        if "ra" in self.parent.plan[i].keys():
+                            ra = self.parent.plan[i]["ra"]
+                            dec = self.parent.plan[i]["dec"]
                             t_tab = []
                             alt_tab = []
                             t = self.t
@@ -1257,7 +1244,7 @@ class PlotWindow(QWidget):
                                 t = t + 10*ephem.second
                             #print(alt_tab,t_tab)
                             self.axes.plot(t_tab,alt_tab,color=color[j])
-                            self.axes.text(self.t, 93, f"{self.parent.plan[self.parent.active_tel][i]['name']}", color=color[j], rotation=90, fontsize=fontsize)
+                            self.axes.text(self.t, 93, f"{self.parent.plan[i]['name']}", color=color[j], rotation=90, fontsize=fontsize)
                             j=j+1
 
                         self.t = self.t + ephem.second * slotTime
@@ -1549,19 +1536,22 @@ class EditWindow(QWidget):
               self.block_e.setText(txt)
 
     def change_plan(self):
-          ob = {key: value for key,value in self.ob.items() if self.active.get(key)}
-          self.parent.parent.plan[self.parent.i] = ob
-          self.parent.parent.update_plan(self.parent.active_tel)
-          txt = f"TOI: plan {self.ob['name']} changed "
-          self.parent.parent.msg(txt, "black")
-          self.close()
+        if self.parent.parent.tel_acces[self.parent.parent.active_tel]:
+            ob = {key: value for key,value in self.ob.items() if self.active.get(key)}
+            self.parent.plan[self.parent.i] = ob
+            self.parent.parent.upload_plan()
+            self.parent.parent.update_plan(self.parent.parent.active_tel)
+            self.close()
+        else:
+            txt="WARNING: U don't have controll"
+            self.parent.parent.WarningWindow(txt)
 
     def mkUI(self):
           grid = QGridLayout()
           w=0
           self.block_e=QLineEdit()
           i = self.parent.i
-          ob = self.parent.parent.plan[i]
+          ob = self.parent.plan[i]
           txt = ob["block"]
           if "uobi=" not in txt:
               txt = txt + f" uobi={ob['uobi']}"

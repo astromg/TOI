@@ -2,6 +2,7 @@
 
 import os
 import numpy
+from scipy.optimize import curve_fit
 
 from astropy.io import fits
 
@@ -45,6 +46,12 @@ def calculate(fits_path, focus_keyword="FOCUS", focus_list=None, crop=10, method
             raise TypeError(f"if focus_list is provided, FITS files must be provided as a list")
         elif len(lista) != len(focus_list):
             raise ValueError(f"focus_list and fits_files_list must have same length")
+
+
+    # ##### RMS with quadratic fit ######
+    if method == "mod_gauss":
+        print("kuku")
+
 
     # ##### RMS with quadratic fit ######
     if method == "rms_quad":
@@ -130,11 +137,13 @@ def calculate(fits_path, focus_keyword="FOCUS", focus_list=None, crop=10, method
         status = "wrong range"
     else : status = "ok"
 
-    calc_metadata = {"status":status,"poly_coef": coef,"focus_values": focus_list_ret, "sharpness_values": sharpness_list_ret}
+    calc_metadata = {"status":status,"coef": coef,"focus_values": focus_list_ret, "sharpness_values": sharpness_list_ret}
 
     return max_sharpness_focus, calc_metadata
 
 
+    def mod_gauss(x,A,mu,sigma,beta):
+        return A * numpy.exp(-numpy.abs((x-mu)/sigma)**beta)
 
 
 
