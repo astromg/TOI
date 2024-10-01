@@ -131,6 +131,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.nats_toi_focus_status[k] = get_publisher(f'tic.status.{k}.toi.focus')
 
             self.nats_pub_toi_status[k] = get_publisher(f'tic.status.{k}.toi.status')
+            self.nats_pub_toi_message[k] = get_publisher(f'tic.status.{k}.toi.message')
 
     async def oca_telemetry_reader(self,tel,key):
         try:
@@ -1413,7 +1414,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob[tel]["continue_plan"] = False
 
                                 self.next_i[tel] = self.current_i[tel] + 1
-                                #self.plan[tel].pop(self.current_i[tel])
                                 self.current_i[tel] = -1
                                 self.update_plan(tel)
 
@@ -1426,13 +1426,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 51: {e}')
 
+                                try:
+                                    s = self.nats_pub_toi_message[tel]
+                                    data = {"tel":tel,"info":"STOP"}
+                                    await s.publish(data=data, timeout=10)
+                                except Exception as e:
+                                    logger.warning(f'TOI: EXCEPTION 45: {e}')
+
 
                             if self.ob[tel]["type"] == "BELL":
                                 await self.msg("INFO: BELL","black")
-                                #w = self.nats_journal_toi_msg
-                                #txt = f"BELL by {self.myself}"
-                                #await w.log('INFO', txt)
+
+                                try:
+                                    s = self.nats_pub_toi_message[tel]
+                                    data = {"tel":tel,"info":"BELL"}
+                                    await s.publish(data=data, timeout=10)
+                                except Exception as e:
+                                    logger.warning(f'TOI: EXCEPTION 45: {e}')
+
                                 #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
+
                                 self.ob[tel]["done"]=True
                                 self.ob[tel]["run"]=True
                                 self.ob[tel]["origin"] = "plan"
@@ -3296,6 +3309,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         self.nats_pub_toi_status = {}
+        self.nats_pub_toi_message = {}
 
         self.planrunners = {}
         self.tic_telescopes = {k:self.observatory_model.get_telescope(k) for k in self.local_cfg["toi"]["telescopes"]}
