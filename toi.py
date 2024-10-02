@@ -649,11 +649,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             try:
                 if "ob_started" in self.nats_ob_progress.keys() and "ob_expected_time" in self.nats_ob_progress.keys():
-                    if self.nats_ob_progress["ob_start_time"] and self.nats_ob_progress["ob_expected_time"]:
+                    #if self.nats_ob_progress["ob_start_time"] and self.nats_ob_progress["ob_expected_time"]:
+                    if True:
                         ob_started = bool(self.nats_ob_progress["ob_started"])
                         ob_done = bool(self.nats_ob_progress["ob_done"])
-                        ob_start_time = float(self.nats_ob_progress["ob_start_time"])
-                        ob_expected_time = float(self.nats_ob_progress["ob_expected_time"])
+                        ob_start_time = self.nats_ob_progress["ob_start_time"]
+                        ob_expected_time = self.nats_ob_progress["ob_expected_time"]
                         program = self.nats_ob_progress["ob_program"]
 
                         if ob_started:
@@ -661,40 +662,48 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.planGui.ob_e.setText(program)
                                 self.planGui.ob_e.setCursorPosition(0)
 
-                                t = self.time - ob_start_time
-                                p = t / ob_expected_time
-                                txt = f"{int(t)}/{int(ob_expected_time)}"
-                                self.planGui.ob_Prog_n.setValue(int(100 * p))
-                                self.planGui.ob_Prog_n.setFormat(txt)
+                                if ob_expected_time == None or ob_start_time == None:
+                                    self.planGui.ob_Prog_n.setValue(0)
+                                    self.planGui.ob_Prog_n.setFormat("")
 
-                                if p > 1.1:
-                                    RED_PROGBAR_STYLE = """
-                                    QProgressBar{
-                                        border: 2px solid grey;
-                                        border-radius: 5px;
-                                        text-align: center
-                                    }
-        
-                                    QProgressBar::chunk {
-                                        background-color: red;
-                                        width: 10px;
-                                        margin: 1px;
-                                    }
-                                    """
-                                    self.planGui.ob_Prog_n.setStyleSheet(RED_PROGBAR_STYLE)
                                 else:
-                                    self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
+                                    t = self.time - float(ob_start_time)
+                                    p = t / float(ob_expected_time)
+                                    txt = f"{int(t)}/{int(ob_expected_time)}"
+                                    self.planGui.ob_Prog_n.setValue(int(100 * p))
+                                    self.planGui.ob_Prog_n.setFormat(txt)
+
+                                    if p > 1.1:
+                                        RED_PROGBAR_STYLE = """
+                                        QProgressBar{
+                                            border: 2px solid grey;
+                                            border-radius: 5px;
+                                            text-align: center
+                                        }
+            
+                                        QProgressBar::chunk {
+                                            background-color: red;
+                                            width: 10px;
+                                            margin: 1px;
+                                        }
+                                        """
+                                        self.planGui.ob_Prog_n.setStyleSheet(RED_PROGBAR_STYLE)
+                                    else:
+                                        self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
 
                         elif ob_done:
                             self.planGui.ob_e.setText("")
                             self.planGui.ob_Prog_n.setValue(100)
                             self.planGui.ob_Prog_n.setFormat(f"DONE")
                             self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
-                    else:
-                        self.planGui.ob_e.setText("")
-                        self.planGui.ob_Prog_n.setValue(0)
-                        self.planGui.ob_Prog_n.setFormat("")
-                        self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
+
+                        #DUPA4
+                        else:
+                            self.planGui.ob_e.setText("")
+                            self.planGui.ob_Prog_n.setValue(0)
+                            self.planGui.ob_Prog_n.setFormat(f"")
+                            self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
+
 
             except Exception as e:
                 logger.warning(f'TOI: EXCEPTION 6: {e}')
@@ -1418,10 +1427,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.update_plan(tel)
 
                                 try:
-                                    s = self.nats_toi_ob_status
+                                    s = self.nats_toi_ob_status[tel]
                                     status = {"ob_started": True, "ob_done": False,
                                               "ob_start_time": self.time,
-                                              "ob_expected_time": 0.1, "ob_program": "STOP"}
+                                              "ob_expected_time": None, "ob_program": "STOP"}
                                     await s.publish(data=status, timeout=10)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 51: {e}')
@@ -1477,6 +1486,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     await self.msg(f"PLAN: {self.ob[tel]['name']} sunrise {self.ob[tel]['wait_sunrise']} start","black")
                                 self.ob[tel]["continue_plan"] = True
                                 self.ob[tel]["origin"] = "plan"
+
+                                try:
+                                    s = self.nats_toi_ob_status[tel]
+                                    status = {"ob_started": True, "ob_done": False,
+                                              "ob_start_time": self.time,
+                                              "ob_expected_time": None, "ob_program": "WAIT"}
+                                    await s.publish(data=status, timeout=10)
+                                except Exception as e:
+                                    logger.warning(f'TOI: EXCEPTION 51: {e}')
+
 
                             if self.ob[tel]["type"] == "ZERO" and "block" in self.ob[tel].keys():
                                 run_nightplan = True
@@ -1553,9 +1572,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def stop_program(self):
+        #DUPA4
         await self.takeControl()
         await self.msg("REQUEST: program STOP ","yellow")
-        await self.planrunners[self.active_tel].astop_nightplan()
+        try:
+            await self.planrunners[self.active_tel].astop_nightplan()
+        except KeyError:
+            pass
+
 
         self.ob[self.active_tel]["done"] = False
         self.ob[self.active_tel]["run"] = False
@@ -1566,6 +1590,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.current_i[self.active_tel] = -1
         self.update_plan(self.active_tel)
+
+        try:
+            s = self.nats_toi_ob_status[self.active_tel]
+            status = {"ob_started": False, "ob_done": False,
+                      "ob_start_time": None,
+                      "ob_expected_time": None, "ob_program": "STOPPED"}
+            await s.publish(data=status, timeout=10)
+        except Exception as e:
+            logger.warning(f'TOI: EXCEPTION 56: {e}')
 
     # ########### LOKALNA OBSLGA PLANU ##################
 
@@ -3204,7 +3237,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # aux zmienne
         self.exp_prog_status = {"plan_runner_status":"","ndit_req":1,"ndit":0,"dit_exp":0,"dit_start":0}
 
-        templeate = {"ob_started":False,"ob_done":False,"ob_expected_time":0.1,"ob_start_time":0,"ob_program":None}
+        templeate = {"ob_started":False,"ob_done":False,"ob_expected_time":None,"ob_start_time":None,"ob_program":None}
         self.ob_prog_status = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
 
         # STAGE 2

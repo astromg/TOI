@@ -993,10 +993,10 @@ class PhaseWindow(QWidget):
 
 
     def get_object(self):
-        self.name = self.parent.plan[self.parent.active_tel][self.parent.i]["name"]
+        self.name = self.parent.plan[self.parent.i]["name"]
 
-        if "meta_plan_ut" in self.parent.plan[self.parent.active_tel][self.parent.i].keys():
-            self.ut = self.parent.plan[self.parent.active_tel][self.parent.i]["meta_plan_ut"]
+        if "meta_plan_ut" in self.parent.plan[self.parent.i].keys():
+            self.ut = self.parent.plan[self.parent.i]["meta_plan_ut"]
         else:
             self.ut = self.parent.parent.almanac['ut']
 
@@ -1015,6 +1015,7 @@ class PhaseWindow(QWidget):
             t = ephem.julian_date(s)
             mag = []
             jd = []
+            print(file)
             with open(file, "r") as plik:
                 if plik != None:
                     for line in plik:
@@ -1025,6 +1026,7 @@ class PhaseWindow(QWidget):
                             except ValueError:
                                 pass
             if len(mag) == len(jd) and len(jd)>0:
+                print(mag,jd)
                 if self.phase_c.isChecked():
                     objects = []
                     periods = []
