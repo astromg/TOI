@@ -425,7 +425,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.focus', deliver_policy='last')
             async for data, meta in reader:
                 self.nats_focus_status = data
-                #print(self.nats_focus_status)
                 self.update_focus_window()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
@@ -486,22 +485,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.auxGui.focus_tab.result_e.setText(status)
                 self.auxGui.focus_tab.max_sharp = None
 
-
-        if "coef" in self.nats_focus_status.keys() and "sharpness_values" in self.nats_focus_status.keys() and "focus_values" in self.nats_focus_status.keys():
-            coef = self.nats_focus_status["coef"]
+        if  "sharpness_values" in self.nats_focus_status.keys() and "focus_values" in self.nats_focus_status.keys():
+            print("hop")
             focus_values = self.nats_focus_status["focus_values"]
             sharpness_values = self.nats_focus_status["sharpness_values"]
-
-            fit_x = numpy.linspace(min(focus_values), max(focus_values), 100)
-            if len(coef) > 3:
-                fit_y = coef[0] * fit_x ** 4 + coef[1] * fit_x ** 3 + coef[2] * fit_x ** 2 + coef[3] * fit_x + coef[4]
-            elif len(coef) > 1:
-                fit_y = coef[0] * fit_x ** 2 + coef[1] * fit_x + coef[2]
+            fit_x = self.nats_focus_status["fit_x"]
+            fit_y = self.nats_focus_status["fit_y"]
 
             self.auxGui.focus_tab.fit_x = fit_x
             self.auxGui.focus_tab.fit_y = fit_y
             self.auxGui.focus_tab.x = focus_values
             self.auxGui.focus_tab.y = sharpness_values
+
+            if "fwhm" in self.nats_focus_status.keys():
+                self.auxGui.focus_tab.fwhm = self.nats_focus_status["fwhm"]
+
 
         self.auxGui.focus_tab.update()
         self.auxGui.tabWidget.setCurrentIndex(2)
@@ -797,10 +795,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 try:
 
                     try:
-                        #DUPA3
-                        print(f"{tel} OB: run/done {self.ob[tel]['run']}/{self.ob[tel]['done']}")
-                        pr = self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"])
-                        print(f"{tel} PR: {pr}")
+                        if self.ob[tel]['run'] != self.planrunners[tel].is_nightplan_running(self.ob[tel]['origin']):
+                            print(f"{tel} OB(run)/PR: {self.ob[tel]['run']} / {self.planrunners[tel].is_nightplan_running(self.ob[tel]['origin'])}")
+                            #DUPA3
                     except:
                         pass
 
@@ -1320,7 +1317,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.autofocus_started[tel]=False
                                 await self.msg("PLAN: Auto-focus sequence finished","black")
                                 max_sharpness_focus, calc_metadata = calFoc.calculate(self.local_cfg[self.active_tel]["tel_directory"]+"focus/actual",method=self.focus_method)
-
                                 try:
                                     s = self.nats_toi_focus_status[tel]
                                     data = {}
@@ -1328,7 +1324,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     data["focus_values"] = list(calc_metadata["focus_values"])
                                     data["sharpness_values"] = list(calc_metadata["sharpness_values"])
                                     data["max_sharpness_focus"] = float(max_sharpness_focus)
+                                    data["fit_x"] = list(calc_metadata["fit_x"])
+                                    data["fit_y"] = list(calc_metadata["fit_y"])
                                     data["status"] = str(calc_metadata["status"])
+                                    if len(self.fwhm_list[self.active_tel]) > 0:
+                                        data["fwhm"] = list(self.fwhm_list[self.active_tel])
                                     await s.publish(data=data, timeout=10)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 42: {e}')
@@ -1368,6 +1368,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if number > 4:
                     ok = True
                 else: self.WarningWindow("WARNING: Not enough STEPS number")
+            elif method == "LORENTZIAN":
+                self.focus_method = "lorentzian"
+                if number > 4:
+                    ok = True
+                else: self.WarningWindow("WARNING: Not enough STEPS number")
+
 
             if ok:
                 exp=self.instGui.ccd_tab.inst_Dit_e.text()
@@ -1383,6 +1389,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.ob[self.active_tel]["block"] = program
                 self.ob[self.active_tel]["origin"] = "auto_focus"
                 self.autofocus_started[self.active_tel]=True
+                self.fwhm_list[self.active_tel] = []
                 tmp = await self.tel_focusers[self.active_tel].aget_position()
                 self.last_focus_position[self.active_tel] = float(tmp)
                 self.planrunner_start(self.active_tel)
@@ -1522,8 +1529,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 program_name = "plan_auto_focus"
                                 program = self.ob[tel]["block"]
 
-                                self.focus_method = "rms_quad"
+                                self.focus_method = "lorentzian"
                                 self.autofocus_started[tel] = True
+                                self.fwhm_list[tel] = []
                                 focus = await self.tel_focusers[tel].aget_position()
                                 self.last_focus_position[tel] = float(focus)
 
@@ -1816,6 +1824,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if fwhm_x == None or fwhm_y == None:
                 fwhm_x,fwhm_y=0,0
             fwhm_x, fwhm_y = scale * fwhm_x, scale * fwhm_y
+
+            if self.autofocus_started[self.active_tel]:
+                self.fwhm_list[self.active_tel].append(max(float(fwhm_x), float(fwhm_y)))
+
             txt = txt + f"FWHM X/Y:".ljust(13)+f"{float(fwhm_x):.1f}/{float(fwhm_y):.1f}\n"
 
             txt = txt + f"min ADU:".ljust(17)  +f"{stats.min:.0f}".ljust(9)
@@ -3253,6 +3265,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.autofocus_started={k:False for k in self.local_cfg["toi"]["telescopes"]}
         self.last_focus_position={k:None for k in self.local_cfg["toi"]["telescopes"]}
+        self.fwhm_list = {k:[] for k in self.local_cfg["toi"]["telescopes"]}
+
         self.acces=True
 
 

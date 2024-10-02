@@ -1,5 +1,13 @@
 <h4>Whats New?</h4>
 
+--- 02.10.2024 --- <br>
+
+TOI can operate multiple telescopes (planrunners) from one app. Telescope PLANS are now synchronized between
+TOI instances on different computers (via NATS). Autofocus now is calculated based on the Lorentzian profile by default.
+All telescopes statuses are now displayed in the main telescope selection window.
+OB slot time is calculated with CycleTimeCalculator partly. Executed OB's are now removed from the PLAN and reported in the LOG window.
+Multiple bugs were fixed, including major tpg WAIT bug and ToiTimer loop failure. Finally, configuration is set up with NATS configuration and local toi_config.yaml file.
+<br><br>
 --- 05.05.2024 --- <br> TPG integrated into TOI.
 <br><br>
 --- 19.04.2024 --- <br> Support for wk06 added. (Edit OB) pushbutton works now. (Copy OB) pushbutton added.

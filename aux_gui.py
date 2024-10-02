@@ -211,6 +211,7 @@ class FocusGui(QWidget):
         self.y = []
         self.fit_x = []
         self.fit_y = []
+        self.fwhm = []
         self.max_sharp = None
         self.update()
 
@@ -222,9 +223,18 @@ class FocusGui(QWidget):
             self.axes.plot(self.fit_x, self.fit_y)
         if self.max_sharp:
             self.axes.axvline(x=self.max_sharp, color="red", alpha=1)
-        self.axes.set_ylim(self.axes.get_ylim()[::-1])
+
+        #print(len(self.fwhm),len(self.x))
+        if len(self.fwhm)>0 and  len(self.fwhm)==len(self.x):
+            self.axes2 = self.axes.twinx()
+            print("=============== FWHM ==============")
+            print(self.fwhm)
+            self.axes2.plot(self.x, self.fwhm, "g.")
+            self.axes2.set_ylabel("fwhm")
+        #self.axes.set_ylim(self.axes.get_ylim()[::-1])
         self.axes.set_xlabel("focus encoder position")
         self.axes.set_ylabel("sharpness")
+        self.fig.tight_layout()
         self.canvas.draw()
         self.show()
 
@@ -264,7 +274,7 @@ class FocusGui(QWidget):
 
         self.method_l = QLabel("Method:")
         self.method_s = QComboBox()
-        self.method_s.addItems(["RMS_QUAD", "RMS"])
+        self.method_s.addItems(["RMS_QUAD","RMS","LORENTZIAN"])
 
         grid.addWidget(self.steps_l, w, 0)
         grid.addWidget(self.steps_e, w, 1)
