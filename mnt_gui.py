@@ -673,7 +673,7 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         w = w + 1
         self.testowyPocisk_p = QPushButton('Update')
-        self.testowyPocisk_p.clicked.connect(self.parent.force_update)
+        #self.testowyPocisk_p.clicked.connect(self.parent.force_update)
         self.grid.addWidget(self.testowyPocisk_p, w, 0,1,2)
 
         self.config_p = QPushButton("\u2699")

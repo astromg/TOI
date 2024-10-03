@@ -78,7 +78,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ephemeris: Optional[Ephemeris] = None
         self.app = app
 
-
         self.local_cfg = local_cfg
 
         self.setWindowTitle("Telescope Operator Interface")
@@ -90,10 +89,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.observatory_model = observatory_model
 
         self.variables_init()
-
-
-
-
 
         # window generation
 
@@ -114,15 +109,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.nats_weather_loop())
 
+
         for t in self.oca_tel_state.keys():   # statusy wszystkich teleskopow
             self.add_background_task(self.oca_telemetry_program_reader(t))
             for k in self.oca_tel_state[t].keys():
                 self.add_background_task(self.oca_telemetry_reader(t,k))
 
-        self.obsGui.main_form.update_table()
 
+        self.obsGui.main_form.update_table()
         # publishery natsow
         # NATS WRITER
+
         for k in self.local_cfg["toi"]["telescopes"]:
             self.nats_toi_plan_status[k] = get_publisher(f'tic.status.{k}.toi.plan')
             self.nats_toi_ob_status[k] = get_publisher(f'tic.status.{k}.toi.ob')
@@ -140,8 +137,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 txt = data["measurements"][f"{tel}{self.oca_tel_state[tel][key]['pms_topic']}"]
                 self.oca_tel_state[tel][key]["val"] = txt
                 self.update_oca()
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
         except Exception as e:
-            logger.warning(f'{e}')
+            logger.warning(f'EXCEPTION 100: {e}')
 
     async def oca_telemetry_program_reader(self,tel):
         try:
@@ -151,6 +150,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.update_oca()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 101: {e}')
 
     # NATS weather
     async def nats_weather_loop(self):
@@ -164,48 +165,45 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.telemetry_humidity = weather["humidity"]
                 self.telemetry_pressure = weather["pressure_Pa"]
                 self.updateWeather()
-        # TODO ernest_nowy_tic COMENT bez odfiltrowania tych błędów nie zamkniemy taska !!!
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
-            logger.warning(f'TOI: nats_weather_loop: {e}')
+            logger.warning(f'EXCEPTION 102: {e}')
 
 
     async def tic_con_loop(self):
         while True:
-            self.tic_con = await self.observatory_model.is_tic_server_available()
-            if self.tic_con == True:
-                self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
-                self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: green;")
-            else:
-                self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
-                self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
-            await asyncio.sleep(3)
-
+            try:
+                self.tic_con = await self.observatory_model.is_tic_server_available()
+                if self.tic_con == True:
+                    self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
+                    self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: green;")
+                else:
+                    self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
+                    self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
+                await asyncio.sleep(3)
+            except (asyncio.CancelledError, asyncio.TimeoutError):
+                raise
+            except Exception as e:
+                logger.warning(f'EXCEPTION 103: {e}')
 
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def telescope_switched(self):
 
         self.telescope_switch_status["plan"] = False
-        # self.nats_journal_flats_writter = get_journalpublisher(f'tic.journal.{self.active_tel}.log.flats')
-        # self.nats_journal_toi_msg = get_journalpublisher(f'tic.journal.{self.active_tel}.toi.signal')
 
-
-        #subprocess.run(["aplay", self.script_location+"/sounds/spceflow.wav"])
-        #subprocess.run(["aplay", self.script_location+"/sounds/romulan_alarm.wav"])
-
-        self.tmp = 0
-
+        # to sa zmienne dla guidera
         self.pulseRa = 0
         self.pulseDec = 0
-
         self.guider_passive_dx = []
         self.guider_passive_dy = []
         self.guider_failed = 1
 
+        # DUPA1
         self.flat_record={}
         self.flat_record["go"] = False
 
+        # tez trzeba resetowac, bo jest tylko wyslwietlany
         self.ob_log = []
 
         # TELESCOPE CONFIGURATION HARDCODED
@@ -236,45 +234,31 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.catalog_file = self.local_cfg[self.active_tel]["object_catalog"]
 
-
         if self.active_tel == "wk06":
-
             self.cfg_inst_obstype = ["Science", "Zero", "Dark", "Sky Flat", "Dome Flat"]
             self.cfg_inst_mode = ["Normal", "Sky", "JitterBox", "JitterRandom"]
             self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
             self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
-
             self.cfg_inst_defSetUp = {"gain": "x4", "rm": "1MHz","bin":"1x1", "temp":-58}
 
-
         elif self.active_tel == "zb08":
-
             self.cfg_inst_obstype =  ["Science","Zero","Dark","Sky Flat","Dome Flat"]
             self.cfg_inst_mode =  ["Normal", "Sky", "JitterBox", "JitterRandom"]
             self.cfg_inst_bins = ["1x1","2x2","1x2","2x1"]
             self.cfg_inst_subraster = ["No","Subraster1","Subraster2","Subraster3"]
-
             self.cfg_inst_defSetUp = {"gain": "x4", "rm": "1MHz","bin":"1x1", "temp":-58}
 
-
         elif self.active_tel == "jk15":
-
-            #self.cfg_alt_limits = {"min":0,"max":80,"low":35}
-
             self.cfg_inst_obstype = ["Science", "Zero", "Dark", "Sky Flat", "Dome Flat"]
             self.cfg_inst_mode = ["Normal", "Sky", "JitterBox", "JitterRandom"]
             self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
             self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
-
             self.cfg_inst_defSetUp = {"gain": "Gain 2750", "rm": "1MHz","bin":"2x2", "temp":-20}
 
+        # obsluga subskrypcji
 
-        # if not none, it means we switch telescope, otherwise we select first time
         if self.telescope is not None:
-            # stop method starting subscription if not finished yet, just fo case
             await self.stop_background_methods(group="subscribe")
-            # warning this need time to stop, is important only if all application close if we switch to
-            # other tel don't worry
             self.telescope.unsubscribe_all_component()
             self.telescope.unwatch_all_component()
             await self.stop_background_tasks(group="telescope_task")
@@ -293,7 +277,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cctv = self.telescope.get_cctv()
         self.ephemeris = self.observatory_model.get_ephemeris()
         self.ctc = self.telescope.get_cycle_time_calculator(client_config_dict=self.client_cfg) # cycle time calculator
-
 
         # ---------------------- run subscriptions from ocabox ----------------------
         await self.run_method_in_background(self.ephemeris.asubscribe_utc(self.ephem_update,time_of_data_tolerance=0.25),group="subscribe")
@@ -343,9 +326,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.run_method_in_background(self.ccd.asubscribe_imageready(self.ccd_imageready), group="subscribe")
 
         # background task specific for selected telescope
-        self.add_background_task(self.nats_log_flat_reader(), group="telescope_task")
-        self.add_background_task(self.nats_log_focus_reader(), group="telescope_task")
-        self.add_background_task(self.nats_log_toi_reader(), group="telescope_task")
+        # self.add_background_task(self.nats_log_flat_reader(), group="telescope_task")
+        # self.add_background_task(self.nats_log_focus_reader(), group="telescope_task")
+        # self.add_background_task(self.nats_log_toi_reader(), group="telescope_task")
 
         self.add_background_task(self.nats_log_loop_reader(), group="telescope_task")
         self.add_background_task(self.nats_downloader_reader(), group="telescope_task")
@@ -358,38 +341,41 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         await self.run_background_tasks(group="telescope_task")
 
-        self.mntGui.updateUI()
-        self.auxGui.updateUI()
-        self.planGui.updateUI()
-        self.instGui.updateUI()
+        try:
+            self.mntGui.updateUI()
+            self.auxGui.updateUI()
+            self.planGui.updateUI()
+            self.instGui.updateUI()
 
-        if not bool(self.cfg_showRotator):
-            self.mntGui.comRotator1_l.setText("\u2B24")
-            self.mntGui.comRotator1_l.setStyleSheet("color: rgb(190,190,190);")
-            self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
+            if not bool(self.cfg_showRotator):
+                self.mntGui.comRotator1_l.setText("\u2B24")
+                self.mntGui.comRotator1_l.setStyleSheet("color: rgb(190,190,190);")
+                self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
 
 
-        self.updateWeather()
+            self.updateWeather()
+        except Exception as e:
+            logger.warning(f'EXCEPTION 0: {e}')
 
     # ################### METODY POD NATS READERY ##################
 
-    async def nats_log_flat_reader(self):
-        reader = get_journalreader(f'tic.journal.{self.active_tel}.log.flats', deliver_policy='last')
-        async for data, meta in reader:
-            d:JournalEntry = data
-            r = d.message
-
-    async def nats_log_focus_reader(self):
-        reader = get_journalreader(f'tic.journal.{self.active_tel}.log.focus', deliver_policy='last')
-        async for data, meta in reader:
-            d:JournalEntry = data
-            r = d.message
-
-    async def nats_log_toi_reader(self):
-        reader = get_journalreader(f'tic.journal.{self.active_tel}.toi.signal', deliver_policy='last')
-        async for data, meta in reader:
-            d:JournalEntry = data
-            r = d.message
+    # async def nats_log_flat_reader(self):
+    #     reader = get_journalreader(f'tic.journal.{self.active_tel}.log.flats', deliver_policy='last')
+    #     async for data, meta in reader:
+    #         d:JournalEntry = data
+    #         r = d.message
+    #
+    # async def nats_log_focus_reader(self):
+    #     reader = get_journalreader(f'tic.journal.{self.active_tel}.log.focus', deliver_policy='last')
+    #     async for data, meta in reader:
+    #         d:JournalEntry = data
+    #         r = d.message
+    #
+    # async def nats_log_toi_reader(self):
+    #     reader = get_journalreader(f'tic.journal.{self.active_tel}.toi.signal', deliver_policy='last')
+    #     async for data, meta in reader:
+    #         d:JournalEntry = data
+    #         r = d.message
 
     async def nats_toi_plan_status_reader(self):
         try:
@@ -399,6 +385,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.planGui.update_table()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 104: {e}')
 
 
     async def nats_toi_ob_status_reader(self):
@@ -408,8 +396,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.nats_ob_progress = status
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
-        #except Exception as e:
-        #    logger.warning(f'TOI: nats_toi_ob_status_reader: {e}')
+        except Exception as e:
+            logger.warning(f'EXCEPTION 105: {e}')
 
 
     async def nats_toi_exp_status_reader(self):
@@ -419,6 +407,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.nats_exp_prog_status = data
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 106: {e}')
 
     async def nats_toi_focus_status_reader(self):
         try:
@@ -428,6 +418,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.update_focus_window()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 107: {e}')
 
     async def nats_toi_status_reader(self):
         try:
@@ -438,9 +430,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.mntGui.domeAuto_c.setChecked(self.toi_status["dome_follow_switch"])
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 108: {e}')
 
-
-    # NATS log plannera
     async def nats_log_loop_reader(self):
         try:
             tel = self.active_tel
@@ -457,10 +449,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             raise
         except Exception as e:
             logger.warning(f'TOI: EXCEPTION 3: {e}')
-        #except Exception as e:
-        #    logger.warning(f'TOI: nats_log_loop: {e}')
+        except Exception as e:
+            logger.warning(f'EXCEPTION 109: {e}')
 
-    # NATS log plannera
     async def nats_downloader_reader(self):
         try:
             tel = self.active_tel
@@ -472,142 +463,102 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             raise
         except Exception as e:
             logger.warning(f'TOI: EXCEPTION 4: {e}')
-        #except Exception as e:
-        #    logger.warning(f'TOI: nats_log_loop: {e}')
-
-    def update_focus_window(self):
-        if "max_sharpness_focus" in self.nats_focus_status.keys() and "status" in self.nats_focus_status.keys():
-            status = self.nats_focus_status["status"]
-            if status == "ok":
-                self.auxGui.focus_tab.result_e.setText(f"{int(self.nats_focus_status['max_sharpness_focus'])}")
-                self.auxGui.focus_tab.max_sharp = self.nats_focus_status["max_sharpness_focus"]
-            else:
-                self.auxGui.focus_tab.result_e.setText(status)
-                self.auxGui.focus_tab.max_sharp = None
-
-        if  "sharpness_values" in self.nats_focus_status.keys() and "focus_values" in self.nats_focus_status.keys():
-            print("hop")
-            focus_values = self.nats_focus_status["focus_values"]
-            sharpness_values = self.nats_focus_status["sharpness_values"]
-            fit_x = self.nats_focus_status["fit_x"]
-            fit_y = self.nats_focus_status["fit_y"]
-
-            self.auxGui.focus_tab.fit_x = fit_x
-            self.auxGui.focus_tab.fit_y = fit_y
-            self.auxGui.focus_tab.x = focus_values
-            self.auxGui.focus_tab.y = sharpness_values
-
-            if "fwhm" in self.nats_focus_status.keys():
-                self.auxGui.focus_tab.fwhm = self.nats_focus_status["fwhm"]
+        except Exception as e:
+            logger.warning(f'EXCEPTION 110: {e}')
 
 
-        self.auxGui.focus_tab.update()
-        self.auxGui.tabWidget.setCurrentIndex(2)
 
 
     # ################### METODY POD SUBSKRYPCJE ##################
-
-    @qs.asyncSlot()
-    async def force_update(self):
-        await self.user_update(None)
-        await self.mountMotors_update(None)
-        await self.filter_update(None)
-        await self.focus_update(None)
-        await self.domeAZ_update(None)
-        await self.domeStatus_update(None)
-        await self.domeShutterStatus_update(None)
-        await self.radec_update(None)
-        await self.covers_update(None)
-        await self.mirrorFans_update(None)
-        await self.ccd_update(None)
-        #await self.ccd_bin_update(None)
-        await self.ccd_rm_update(None)
-        await self.ccd_gain_update(None)
-        #await self.ccd_temp_update(None)
-        await self.ccd_cooler_update(None)
-        #await self.msg("REQUEST: UPDATE DONE", "green")
-
 
     # tu sa wszystkie loop-y
 
     async def alpaca_con_loop(self):
         while True:
-            if self.telescope is not None:
-                if self.tic_con:
-                    tmp = await self.telescope.is_telescope_alpaca_server_available()
-                    self.tel_alpaca_con = bool(tmp["alpaca"])
+            try:
+                if self.telescope is not None:
+                    if self.tic_con:
+                        tmp = await self.telescope.is_telescope_alpaca_server_available()
+                        self.tel_alpaca_con = bool(tmp["alpaca"])
+            except Exception as e:
+                logger.warning(f'EXCEPTION 0: {e}')
             await asyncio.sleep(3)
 
     async def almanac_loop(self):
         while True:
             # obsluga Almanacu
+            try:
+                self.time = time.time()
+                self.ut = str(ephem.now())
+                self.almanac = Almanac(self.observatory)
+                self.obsGui.main_form.ojd_e.setText(f"{self.almanac['jd']:.6f}")
+                self.obsGui.main_form.sid_e.setText(str(self.almanac["sid"]).split(".")[0])
+                date=str(self.almanac["ut"]).split()[0]
+                self.date=date.split("/")[2]+"/"+date.split("/")[1]+"/"+date.split("/")[0]
+                ut=str(self.almanac["ut"]).split()[1]
 
-            self.time = time.time()
+                self.obsGui.main_form.date_e.setText(str(self.date))
+                self.obsGui.main_form.ut_e.setText(str(ut))
+                self.obsGui.main_form.skyView.updateAlmanac()
+                #self.obsGui.main_form.skyView.updateRadar()
 
-            self.ut = str(ephem.now())
-            self.almanac = Almanac(self.observatory)
-            self.obsGui.main_form.ojd_e.setText(f"{self.almanac['jd']:.6f}")
-            self.obsGui.main_form.sid_e.setText(str(self.almanac["sid"]).split(".")[0])
-            date=str(self.almanac["ut"]).split()[0]
-            self.date=date.split("/")[2]+"/"+date.split("/")[1]+"/"+date.split("/")[0]
-            ut=str(self.almanac["ut"]).split()[1]
-
-            self.obsGui.main_form.date_e.setText(str(self.date))
-            self.obsGui.main_form.ut_e.setText(str(ut))
-            self.obsGui.main_form.skyView.updateAlmanac()
-            #self.obsGui.main_form.skyView.updateRadar()
-
+            except Exception as e:
+                logger.warning(f'EXCEPTION 1: {e}')
             await asyncio.sleep(1)
 
     async def tel_con_loop(self):
         while True:
-            if self.telescope is not None:
-                if  bool(self.cfg_showRotator):
-                    if self.rotator_con and self.tel_alpaca_con:
-                        self.mntGui.comRotator1_l.setText("\U0001F7E2")
-                        self.mntGui.telRotator1_l.setStyleSheet("color: rgb(0,150,0);")
+            try:
+                if self.telescope is not None:
+                    if  bool(self.cfg_showRotator):
+                        if self.rotator_con and self.tel_alpaca_con:
+                            self.mntGui.comRotator1_l.setText("\U0001F7E2")
+                            self.mntGui.telRotator1_l.setStyleSheet("color: rgb(0,150,0);")
+                        else:
+                            self.mntGui.comRotator1_l.setText("\U0001F534")
+                            self.mntGui.telRotator1_l.setStyleSheet("color: rgb(150,0,0);")
                     else:
-                        self.mntGui.comRotator1_l.setText("\U0001F534")
-                        self.mntGui.telRotator1_l.setStyleSheet("color: rgb(150,0,0);")
-                else:
-                    self.mntGui.comRotator1_l.setText("\u2B24")
-                    self.mntGui.comRotator1_l.setStyleSheet("color: rgb(190,190,190);")
-                    self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
+                        self.mntGui.comRotator1_l.setText("\u2B24")
+                        self.mntGui.comRotator1_l.setStyleSheet("color: rgb(190,190,190);")
+                        self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
 
-                if self.mount_con and self.tel_alpaca_con:
-                   self.mntGui.mntConn2_l.setText("\U0001F7E2")
-                   self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
-                else:
-                   self.mntGui.mntConn2_l.setText("\U0001F534")
-                   self.mntGui.mntConn1_l.setStyleSheet("color: rgb(150,0,0);")
+                    if self.mount_con and self.tel_alpaca_con:
+                       self.mntGui.mntConn2_l.setText("\U0001F7E2")
+                       self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
+                    else:
+                       self.mntGui.mntConn2_l.setText("\U0001F534")
+                       self.mntGui.mntConn1_l.setStyleSheet("color: rgb(150,0,0);")
 
-                if self.dome_con and self.tel_alpaca_con:
-                    self.mntGui.domeConn2_l.setText("\U0001F7E2")
-                    self.mntGui.domeConn1_l.setStyleSheet("color: rgb(0,150,0);")
-                else:
-                    self.mntGui.domeConn2_l.setText("\U0001F534")
-                    self.mntGui.domeConn1_l.setStyleSheet("color: rgb(150,0,0);")
+                    if self.dome_con and self.tel_alpaca_con:
+                        self.mntGui.domeConn2_l.setText("\U0001F7E2")
+                        self.mntGui.domeConn1_l.setStyleSheet("color: rgb(0,150,0);")
+                    else:
+                        self.mntGui.domeConn2_l.setText("\U0001F534")
+                        self.mntGui.domeConn1_l.setStyleSheet("color: rgb(150,0,0);")
 
-                if self.fw_con and self.tel_alpaca_con:
-                    self.mntGui.comFilter_l.setText("\U0001F7E2")
-                    self.mntGui.telFilter_l.setStyleSheet("color: rgb(0,150,0);")
-                else:
-                    self.mntGui.comFilter_l.setText("\U0001F534")
-                    self.mntGui.telFilter_l.setStyleSheet("color: rgb(150,0,0);")
+                    if self.fw_con and self.tel_alpaca_con:
+                        self.mntGui.comFilter_l.setText("\U0001F7E2")
+                        self.mntGui.telFilter_l.setStyleSheet("color: rgb(0,150,0);")
+                    else:
+                        self.mntGui.comFilter_l.setText("\U0001F534")
+                        self.mntGui.telFilter_l.setStyleSheet("color: rgb(150,0,0);")
 
-                if self.focus_con and self.tel_alpaca_con:
-                    self.mntGui.focusConn_l.setText("\U0001F7E2")
-                    self.mntGui.telFocus_l.setStyleSheet("color: rgb(0,150,0);")
-                else:
-                    self.mntGui.focusConn_l.setText("\U0001F534")
-                    self.mntGui.telFocus_l.setStyleSheet("color: rgb(150,0,0);")
+                    if self.focus_con and self.tel_alpaca_con:
+                        self.mntGui.focusConn_l.setText("\U0001F7E2")
+                        self.mntGui.telFocus_l.setStyleSheet("color: rgb(0,150,0);")
+                    else:
+                        self.mntGui.focusConn_l.setText("\U0001F534")
+                        self.mntGui.telFocus_l.setStyleSheet("color: rgb(150,0,0);")
 
-                if self.inst_con and self.tel_alpaca_con:
-                    self.instGui.tab.setTabText(0,"\U0001F7E2 CCD")
-                else:
-                    self.instGui.tab.setTabText(0,"\U0001F534 CCD")
+                    if self.inst_con and self.tel_alpaca_con:
+                        self.instGui.tab.setTabText(0,"\U0001F7E2 CCD")
+                    else:
+                        self.instGui.tab.setTabText(0,"\U0001F534 CCD")
 
+            except Exception as e:
+                logger.warning(f'EXCEPTION 2: {e}')
             await asyncio.sleep(3)
+
 
     async def tel_progress_loop(self):
         while True:
@@ -641,7 +592,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     else:
                         self.instGui.ccd_tab.inst_NditProg_n.setFormat("")
             except Exception as e:
-                logger.warning(f'TOI: EXCEPTION 8: {e}')
+                logger.warning(f'TOI: EXCEPTION 3: {e}')
 
             # obsluga wyswietlania paska postepu OB
 
@@ -704,95 +655,119 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
             except Exception as e:
-                logger.warning(f'TOI: EXCEPTION 6: {e}')
+                logger.warning(f'TOI: EXCEPTION 4: {e}')
             await asyncio.sleep(1)
 
 
     async def nikomu_niepotrzeba_petla_ustawiajaca_pierdoly(self):
         while True:
-            await asyncio.sleep(1)
-            if self.ob[self.active_tel]["run"] and "name" in self.ob[self.active_tel].keys():
-                txt = self.ob["name"]
+            try:
+                if self.ob[self.active_tel]["run"] and "name" in self.ob[self.active_tel].keys():
+                    txt = self.ob["name"]
 
-                if "type" in self.ob[self.active_tel].keys():
-                    if self.ob[self.active_tel]["type"] == "OBJECT":
-                        self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
-                    elif self.ob[self.active_tel]["type"] == "ZERO":
-                        self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
-                    elif self.ob[self.active_tel]["type"] == "DARK":
-                        self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(2)
-                    elif self.ob[self.active_tel]["type"] == "SKYFLAT":
-                        self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(3)
-                    elif self.ob[self.active_tel]["type"] == "DOMEFLAT":
-                        self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(4)
+                    if "type" in self.ob[self.active_tel].keys():
+                        if self.ob[self.active_tel]["type"] == "OBJECT":
+                            self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
+                        elif self.ob[self.active_tel]["type"] == "ZERO":
+                            self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
+                        elif self.ob[self.active_tel]["type"] == "DARK":
+                            self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(2)
+                        elif self.ob[self.active_tel]["type"] == "SKYFLAT":
+                            self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(3)
+                        elif self.ob[self.active_tel]["type"] == "DOMEFLAT":
+                            self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(4)
 
-                if "seq" in self.ob[self.active_tel].keys():
-                    self.instGui.ccd_tab.Select2_r.setChecked(True)
-                    self.instGui.ccd_tab.inst_Seq_e.setText(self.ob[self.active_tel]["seq"])
-                if "ra" in self.ob[self.active_tel].keys() and "dec" in self.ob[self.active_tel].keys():
-                    self.mntGui.setEq_r.setChecked(True)
-                    self.mntGui.nextRa_e.setText(self.ob[self.active_tel]["ra"])
-                    self.mntGui.nextDec_e.setText(self.ob[self.active_tel]["dec"])
-                    self.mntGui.updateNextRaDec()
+                    if "seq" in self.ob[self.active_tel].keys():
+                        self.instGui.ccd_tab.Select2_r.setChecked(True)
+                        self.instGui.ccd_tab.inst_Seq_e.setText(self.ob[self.active_tel]["seq"])
+                    if "ra" in self.ob[self.active_tel].keys() and "dec" in self.ob[self.active_tel].keys():
+                        self.mntGui.setEq_r.setChecked(True)
+                        self.mntGui.nextRa_e.setText(self.ob[self.active_tel]["ra"])
+                        self.mntGui.nextDec_e.setText(self.ob[self.active_tel]["dec"])
+                        self.mntGui.updateNextRaDec()
+                        if "name" in self.ob[self.active_tel].keys():
+                            self.mntGui.target_e.setText(self.ob[self.active_tel]["name"])
+                            self.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
                     if "name" in self.ob[self.active_tel].keys():
-                        self.mntGui.target_e.setText(self.ob[self.active_tel]["name"])
-                        self.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
-                if "name" in self.ob[self.active_tel].keys():
-                    self.instGui.ccd_tab.inst_object_e.setText(self.ob[self.active_tel]["name"])
+                        self.instGui.ccd_tab.inst_object_e.setText(self.ob[self.active_tel]["name"])
+            except Exception as e:
+                logger.warning(f'TOI: EXCEPTION 5: {e}')
+            await asyncio.sleep(1)
 
 
     # STAGE2
     # to na razie jest wylaczone
     async def dome_follow_loop(self):
         while True:
+            try:
+                # Mechanizm Dome Follow
+                if False:
+                    if self.mntGui.domeAuto_c.isChecked() and self.tel_acces[self.active_tel]:
+                        if self.dome_status == False and self.ob[self.active_tel]["run"] == False:
+                            az_d = self.dome_az
+                            az_m = self.mount_az
+                            if az_m != None:
+                                az_m = float(az_m)
+                                if self.active_tel == "wk06":
+                                    if self.mount_ra and self.mount_dec:
+                                        side_of_pier = await self.mount.aget_sideofpier()
+                                        dome_eq_az, info_dict = dome_eq_azimuth(
+                                            ra=self.mount_ra, dec=self.mount_dec, r_dome=2050, spx=-110, spy=-110,
+                                            gem=670, side_of_pier=side_of_pier, latitude=-24.598056,
+                                            longitude=-70.196389, elevation=2817
+                                    )
+                                    az_m = dome_eq_az
+                            d = az_d - az_m
+                            if d > 180:
+                                d = d - 360.
+                            d = numpy.abs(d)
+                            if d > 5.:
+                                await self.dome.aput_slewtoazimuth(az_m)
+                                txt = "Dome AZ corrected"
+                            await self.msg(txt, "black")
+            except Exception as e:
+                logger.warning(f'TOI: EXCEPTION 6: {e}')
             await asyncio.sleep(1)
-            # Mechanizm Dome Follow
-            if False:
-                if self.mntGui.domeAuto_c.isChecked() and await self.user.aget_is_access():
-                    if self.dome_status == False and self.ob[self.active_tel]["run"] == False:
-                        az_d = self.dome_az
-                        az_m = self.mount_az
-                        if az_m != None:
-                            az_m = float(az_m)
-                            if self.active_tel == "wk06":
-                                if self.mount_ra and self.mount_dec:
-                                    side_of_pier = await self.mount.aget_sideofpier()
-                                    dome_eq_az, info_dict = dome_eq_azimuth(
-                                        ra=self.mount_ra, dec=self.mount_dec, r_dome=2050, spx=-110, spy=-110,
-                                        gem=670, side_of_pier=side_of_pier, latitude=-24.598056,
-                                        longitude=-70.196389, elevation=2817
-                                )
-                                az_m = dome_eq_az
-                        d = az_d - az_m
-                        if d > 180:
-                            d = d - 360.
-                        d = numpy.abs(d)
-                        if d > 5.:
-                            await self.dome.aput_slewtoazimuth(az_m)
-                            txt = "Dome AZ corrected"
-                        await self.msg(txt, "black")
-
 
     # STAGE 2
     async def TOItimer(self):
         while True:
+            try:
 
-            for t in self.acces_grantors.keys():
-                acces = await self.acces_grantors[t].aget_is_access()
-                name = await self.acces_grantors[t].aget_current_user()
-                self.tel_users[t] = name["name"]
-                self.tel_acces[t] = acces
-            self.update_oca()
+                # DUPA1
+                print("********* PING **************")
 
-            await asyncio.sleep(1)
+                for tel in self.acces_grantors.keys():
 
-            print("* PING")
-            # print(self.planrunner.is_nightplan_running(self.program_name))
+                    print(tel)
+                    print(len(self.plan[tel]), self.current_i[tel], self.next_i[tel])
+                    print(self.ob[tel])
+
+                    acces = await self.acces_grantors[tel].aget_is_access()
+                    name = await self.acces_grantors[tel].aget_current_user()
+                    self.tel_users[tel] = name["name"]
+                    self.tel_acces[tel] = acces
+                    if self.active_tel:
+                        if tel == self.active_tel:
+                            txt = self.tel_users[tel]
+                            self.obsGui.main_form.control_e.setText(txt)
+                            if self.tel_acces[tel]:
+                                self.obsGui.main_form.control_e.setStyleSheet(
+                                    "background-color: rgb(233, 233, 233); color: rgb(0,150,0);")
+                            elif self.tel_users[tel] == self.myself:
+                                self.obsGui.main_form.control_e.setStyleSheet(
+                                    "background-color: rgb(233, 233, 233); color: rgb(150,0,0);")
+                            else:
+                                self.obsGui.main_form.control_e.setStyleSheet(
+                                    "background-color: rgb(233, 233, 233); color: black;")
+                self.update_oca()
+
+            except Exception as e:
+                logger.warning(f'TOI: EXCEPTION 7: {e}')
 
             # sterowanie wykonywaniem planu
-            for tel in self.local_cfg["toi"]["telescopes"]:
-
-                try:
+            try:
+                for tel in self.local_cfg["toi"]["telescopes"]:
 
                     try:
                         if self.ob[tel]['run'] != self.planrunners[tel].is_nightplan_running(self.ob[tel]['origin']):
@@ -801,7 +776,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     except:
                         pass
 
-                    if self.telescope:
+                    if self.telescope and self.tel_acces[tel]:
                         if "continue_plan" in self.ob[tel].keys() and "done" in self.ob[tel].keys() and "origin" in self.ob[tel].keys():
 
                             if self.ob[tel]["done"] and "plan" in self.ob[tel]["origin"] and self.ob[tel]["continue_plan"]:
@@ -859,14 +834,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                             self.current_i[tel] = -1
                                             self.update_plan(tel)
 
-                except Exception as e:
-                    logger.warning(f'TOI: EXCEPTION 98: {e}')
+            except Exception as e:
+                logger.warning(f'TOI: EXCEPTION 8: {e}')
 
             try:
-
                 self.planGui.update_table()
             except Exception as e:
-                logger.warning(f'TOI: EXCEPTION 5: {e}')
+                logger.warning(f'TOI: EXCEPTION 9: {e}')
+
+            await asyncio.sleep(1)
 
 
     async def guider_loop(self):
@@ -875,245 +851,246 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             # ############# GUIDER ################
             # to jest brudny algorytm guidera
             #
-            if self.telescope is not None:  # if telescope is selected, other component (e.g. dome ...) also. So no check
-                try:
-                    guider_loop = int(self.auxGui.guider_tab.guiderView.guiderLoop_e.text())
-                    method = self.auxGui.guider_tab.guiderView.method_s.currentText()
+            try:
 
-                    # guider robi sie w petli, co guider_loop robi sie ekspozycja
-                    self.tmp_i = self.tmp_i + 1
-                    if self.tmp_i > guider_loop:
-                        self.tmp_i = 0
+                if self.telescope is not None:  # if telescope is selected, other component (e.g. dome ...) also. So no check
+                        guider_loop = int(self.auxGui.guider_tab.guiderView.guiderLoop_e.text())
+                        method = self.auxGui.guider_tab.guiderView.method_s.currentText()
 
-                    # tu sie robie ekspozycja
-                    if self.tmp_i == 1:
-                        exp = float(self.auxGui.guider_tab.guiderView.guiderExp_e.text())
-                        if self.auxGui.guider_tab.guiderView.guiderCameraOn_c.checkState():
-                            try:
-                                await self.guider.aput_startexposure(exp, True)
-                            except Exception as e:
-                                pass
+                        # guider robi sie w petli, co guider_loop robi sie ekspozycja
+                        self.tmp_i = self.tmp_i + 1
+                        if self.tmp_i > guider_loop:
+                            self.tmp_i = 0
 
-                    # ######## Analiza obrazu guider
-                    # poniewaz nie wiem ile sie czyta kamera, to analiza robi sie tuz przed nastepna ekspozycja
-                    # nie ma na razie zabezpieczenia ze petla trwa krocej niz ekspozycja
-                    if self.tmp_i == 0 and self.auxGui.guider_tab.guiderView.guiderCameraOn_c.checkState():
-                        self.guider_image = await self.guider.aget_imagearray()
-                        if self.guider_image:
-                            image = self.guider_image
-                            image = numpy.asarray(image)
-                            self.auxGui.guider_tab.guiderView.updateImage(image)  # wyswietla sie obrazek
+                        # tu sie robie ekspozycja
+                        if self.tmp_i == 1:
+                            exp = float(self.auxGui.guider_tab.guiderView.guiderExp_e.text())
+                            if self.auxGui.guider_tab.guiderView.guiderCameraOn_c.checkState():
+                                try:
+                                    await self.guider.aput_startexposure(exp, True)
+                                except Exception as e:
+                                    pass
 
-                            # tu licza sie podstawowe statystyki obrazka, potrzebne do dalszej analizy
-                            stats = FFS(image)
-                            th = float(self.auxGui.guider_tab.guiderView.treshold_s.value())
-                            fwhm = float(self.auxGui.guider_tab.guiderView.fwhm_s.value())
+                        # ######## Analiza obrazu guider
+                        # poniewaz nie wiem ile sie czyta kamera, to analiza robi sie tuz przed nastepna ekspozycja
+                        # nie ma na razie zabezpieczenia ze petla trwa krocej niz ekspozycja
+                        if self.tmp_i == 0 and self.auxGui.guider_tab.guiderView.guiderCameraOn_c.checkState():
+                            self.guider_image = await self.guider.aget_imagearray()
+                            if self.guider_image:
+                                image = self.guider_image
+                                image = numpy.asarray(image)
+                                self.auxGui.guider_tab.guiderView.updateImage(image)  # wyswietla sie obrazek
 
-                            # a tutaj znajdujemy gwiazdy, ale dla guidera to wychopdzi ledwo co...
-                            coo, adu = stats.find_stars(threshold=th, kernel_size=int(2 * fwhm), fwhm=fwhm)
+                                # tu licza sie podstawowe statystyki obrazka, potrzebne do dalszej analizy
+                                stats = FFS(image)
+                                th = float(self.auxGui.guider_tab.guiderView.treshold_s.value())
+                                fwhm = float(self.auxGui.guider_tab.guiderView.fwhm_s.value())
 
-                            # a tutaj robimy bardziej przyzwoita fotometrie znalezionych gwiazd
-                            # bez tego nawet czesto nie znajdziemy najjasniejszej gwiazdy
-                            x_coo, y_coo = zip(*coo)
-                            adu = []
-                            for x, y in zip(x_coo, y_coo):
-                                aperture = image[int(y) - int(fwhm):int(y) + int(fwhm),
-                                           int(x) - int(fwhm):int(x) + int(fwhm)]
-                                adu_tmp = numpy.sum(aperture)
-                                adu_tmp = adu_tmp - aperture.size * stats.median
-                                if adu_tmp <= 0: adu_tmp = 1
-                                adu.append(adu_tmp)
+                                # a tutaj znajdujemy gwiazdy, ale dla guidera to wychopdzi ledwo co...
+                                coo, adu = stats.find_stars(threshold=th, kernel_size=int(2 * fwhm), fwhm=fwhm)
 
-                            indices = numpy.argsort(adu)[::-1]
-                            adu = numpy.array(adu)[indices]
-                            coo = coo[indices]
+                                # a tutaj robimy bardziej przyzwoita fotometrie znalezionych gwiazd
+                                # bez tego nawet czesto nie znajdziemy najjasniejszej gwiazdy
+                                x_coo, y_coo = zip(*coo)
+                                adu = []
+                                for x, y in zip(x_coo, y_coo):
+                                    aperture = image[int(y) - int(fwhm):int(y) + int(fwhm),
+                                               int(x) - int(fwhm):int(x) + int(fwhm)]
+                                    adu_tmp = numpy.sum(aperture)
+                                    adu_tmp = adu_tmp - aperture.size * stats.median
+                                    if adu_tmp <= 0: adu_tmp = 1
+                                    adu.append(adu_tmp)
 
-                            coo = numpy.array(coo)
-                            adu = numpy.array(adu)
-                            # tutaj wybieramy tylko 10 najjasniejszych gwiazd i na nich dalej pracujemy
-                            coo = coo[:10]
-                            adu = adu[:10]
+                                indices = numpy.argsort(adu)[::-1]
+                                adu = numpy.array(adu)[indices]
+                                coo = coo[indices]
 
-                            if len(coo) > 1:
-                                x_tmp, y_tmp = zip(*coo)
-                                # zaznaczamy 10 gwiazd na obrazku
-                                self.auxGui.guider_tab.guiderView.updateCoo(x_tmp, y_tmp, color="white")
+                                coo = numpy.array(coo)
+                                adu = numpy.array(adu)
+                                # tutaj wybieramy tylko 10 najjasniejszych gwiazd i na nich dalej pracujemy
+                                coo = coo[:10]
+                                adu = adu[:10]
 
-                            dx_multiStars, dy_multiStars = None, None
-                            dx_single, dy_single = None, None
-                            dx, dy = None, None
+                                if len(coo) > 1:
+                                    x_tmp, y_tmp = zip(*coo)
+                                    # zaznaczamy 10 gwiazd na obrazku
+                                    self.auxGui.guider_tab.guiderView.updateCoo(x_tmp, y_tmp, color="white")
 
-                            # Algorytm multistars
-                            if method == "Auto" or method == "Multistar":
-                                if len(coo) > 3 and len(self.prev_guider_coo) > 3:
-                                    x_coo, y_coo = zip(*coo)
-                                    x_ref, y_ref = zip(*self.prev_guider_coo)
-                                    xr = []
-                                    yr = []
-                                    # dla kazdej gwiazdy znajdujemy inne najblizsze gwiazdy
-                                    for x, y in zip(x_coo, y_coo):
-                                        x_tmp = numpy.abs(x - x_coo)
-                                        y_tmp = numpy.abs(y - y_coo)
-                                        r_tmp = x_tmp ** 2 + y_tmp ** 2
-                                        i_tmp = numpy.argsort(r_tmp)
-                                        i1 = i_tmp[1]
-                                        i2 = i_tmp[2]
-                                        # dla kazdej gwiazdy liczymy taki indeks geometryczny
-                                        # uwzgledniajacy polozenie wzgledne
-                                        x_range = (x - x_coo[i1]) + (x - x_coo[i2])
-                                        y_range = (y - y_coo[i1]) + (y - y_coo[i2])
-                                        xr.append(x_range)
-                                        yr.append(y_range)
+                                dx_multiStars, dy_multiStars = None, None
+                                dx_single, dy_single = None, None
+                                dx, dy = None, None
 
-                                    xr0 = []
-                                    yr0 = []
-                                    # tu robimy to samo, ale dla obrazka referencyjnego (poprzedniego)
-                                    for x, y in zip(x_ref, y_ref):
-                                        x_tmp = numpy.abs(x - x_ref)
-                                        y_tmp = numpy.abs(y - y_ref)
-                                        r_tmp = x_tmp ** 2 + y_tmp ** 2
-                                        i_tmp = numpy.argsort(r_tmp)
-                                        i1 = i_tmp[1]
-                                        i2 = i_tmp[2]
-                                        x_range = (x - x_ref[i1]) + (x - x_ref[i2])
-                                        y_range = (y - y_ref[i1]) + (y - y_ref[i2])
-                                        xr0.append(x_range)
-                                        yr0.append(y_range)
+                                # Algorytm multistars
+                                if method == "Auto" or method == "Multistar":
+                                    if len(coo) > 3 and len(self.prev_guider_coo) > 3:
+                                        x_coo, y_coo = zip(*coo)
+                                        x_ref, y_ref = zip(*self.prev_guider_coo)
+                                        xr = []
+                                        yr = []
+                                        # dla kazdej gwiazdy znajdujemy inne najblizsze gwiazdy
+                                        for x, y in zip(x_coo, y_coo):
+                                            x_tmp = numpy.abs(x - x_coo)
+                                            y_tmp = numpy.abs(y - y_coo)
+                                            r_tmp = x_tmp ** 2 + y_tmp ** 2
+                                            i_tmp = numpy.argsort(r_tmp)
+                                            i1 = i_tmp[1]
+                                            i2 = i_tmp[2]
+                                            # dla kazdej gwiazdy liczymy taki indeks geometryczny
+                                            # uwzgledniajacy polozenie wzgledne
+                                            x_range = (x - x_coo[i1]) + (x - x_coo[i2])
+                                            y_range = (y - y_coo[i1]) + (y - y_coo[i2])
+                                            xr.append(x_range)
+                                            yr.append(y_range)
 
-                                    xr, yr = numpy.array(xr), numpy.array(yr)
-                                    xr0, yr0 = numpy.array(xr0), numpy.array(yr0)
-                                    x_coo, y_coo = numpy.array(x_coo), numpy.array(y_coo)
-                                    x_ref, y_ref = numpy.array(x_ref), numpy.array(y_ref)
+                                        xr0 = []
+                                        yr0 = []
+                                        # tu robimy to samo, ale dla obrazka referencyjnego (poprzedniego)
+                                        for x, y in zip(x_ref, y_ref):
+                                            x_tmp = numpy.abs(x - x_ref)
+                                            y_tmp = numpy.abs(y - y_ref)
+                                            r_tmp = x_tmp ** 2 + y_tmp ** 2
+                                            i_tmp = numpy.argsort(r_tmp)
+                                            i1 = i_tmp[1]
+                                            i2 = i_tmp[2]
+                                            x_range = (x - x_ref[i1]) + (x - x_ref[i2])
+                                            y_range = (y - y_ref[i1]) + (y - y_ref[i2])
+                                            xr0.append(x_range)
+                                            yr0.append(y_range)
 
-                                    dx_tab = []
-                                    dy_tab = []
-                                    x_matched = []
-                                    y_matched = []
-                                    # A tutaj bedziemy porownywac te indeksy
-                                    for i, tmp in enumerate(xr):
-                                        # sprawdzamy czy indeks geometryczny dla okazdej osi jest rozsadny
-                                        j_list = numpy.array([i for i in range(len(xr0))])
-                                        x_diff = numpy.abs(xr[i] - xr0)
-                                        y_diff = numpy.abs(yr[i] - yr0)
-                                        mk1 = x_diff < 3
-                                        mk2 = y_diff < 3
-                                        mk = [k and z for k, z in zip(mk1, mk2)]
-                                        tmp_rx0 = xr0[mk]
-                                        tmp_ry0 = yr0[mk]
-                                        j_list = j_list[mk]
-                                        prev_diff = 10000
-                                        # jak juz wybralismy gwiazdy z obrazka referencyjnego ktore
-                                        # moga byc nasza gwiazda, jezeli jest ich wiecej niz jedna,
-                                        # to wybieramy ta ktorej indeks geometryczny jest njbardziej zhblizony
-                                        if len(j_list) > 0:
-                                            for j in j_list:
-                                                diff = x_diff[j] + y_diff[j]
-                                                if diff < prev_diff:
-                                                    k = j
-                                                    prev_diff = diff
-                                                # dla tak znalezionej gwiazdy liczymy roznice na
-                                                # obrazku i obrazku referencyjnym
-                                                dx = x_coo[i] - x_ref[k]
-                                                dy = y_coo[i] - y_ref[k]
-                                            x_matched.append(x_coo[i])
-                                            y_matched.append(y_coo[i])
-                                            dx_tab.append(dx)
-                                            dy_tab.append(dy)
+                                        xr, yr = numpy.array(xr), numpy.array(yr)
+                                        xr0, yr0 = numpy.array(xr0), numpy.array(yr0)
+                                        x_coo, y_coo = numpy.array(x_coo), numpy.array(y_coo)
+                                        x_ref, y_ref = numpy.array(x_ref), numpy.array(y_ref)
 
-                                    if len(dx_tab) > 0:
-                                        x_tmp = numpy.median(dx_tab)
-                                        y_tmp = numpy.median(dy_tab)
-                                        if numpy.abs(x_tmp) < 50 and numpy.abs(y_tmp) < 50:  # dodatkowy warunek rozsadku
-                                            dx_multiStars = x_tmp
-                                            dy_multiStars = y_tmp
+                                        dx_tab = []
+                                        dy_tab = []
+                                        x_matched = []
+                                        y_matched = []
+                                        # A tutaj bedziemy porownywac te indeksy
+                                        for i, tmp in enumerate(xr):
+                                            # sprawdzamy czy indeks geometryczny dla okazdej osi jest rozsadny
+                                            j_list = numpy.array([i for i in range(len(xr0))])
+                                            x_diff = numpy.abs(xr[i] - xr0)
+                                            y_diff = numpy.abs(yr[i] - yr0)
+                                            mk1 = x_diff < 3
+                                            mk2 = y_diff < 3
+                                            mk = [k and z for k, z in zip(mk1, mk2)]
+                                            tmp_rx0 = xr0[mk]
+                                            tmp_ry0 = yr0[mk]
+                                            j_list = j_list[mk]
+                                            prev_diff = 10000
+                                            # jak juz wybralismy gwiazdy z obrazka referencyjnego ktore
+                                            # moga byc nasza gwiazda, jezeli jest ich wiecej niz jedna,
+                                            # to wybieramy ta ktorej indeks geometryczny jest njbardziej zhblizony
+                                            if len(j_list) > 0:
+                                                for j in j_list:
+                                                    diff = x_diff[j] + y_diff[j]
+                                                    if diff < prev_diff:
+                                                        k = j
+                                                        prev_diff = diff
+                                                    # dla tak znalezionej gwiazdy liczymy roznice na
+                                                    # obrazku i obrazku referencyjnym
+                                                    dx = x_coo[i] - x_ref[k]
+                                                    dy = y_coo[i] - y_ref[k]
+                                                x_matched.append(x_coo[i])
+                                                y_matched.append(y_coo[i])
+                                                dx_tab.append(dx)
+                                                dy_tab.append(dy)
 
-                            # a tu po prostu porownujemy pozycje najjasniejszej gwiazdy
-                            if len(coo) > 1 and len(self.prev_guider_coo) > 1:
-                                if method == "Auto" or method == "Single star":
+                                        if len(dx_tab) > 0:
+                                            x_tmp = numpy.median(dx_tab)
+                                            y_tmp = numpy.median(dy_tab)
+                                            if numpy.abs(x_tmp) < 50 and numpy.abs(y_tmp) < 50:  # dodatkowy warunek rozsadku
+                                                dx_multiStars = x_tmp
+                                                dy_multiStars = y_tmp
 
-                                    single = coo[0]
-                                    single_x = single[0]
-                                    single_y = single[1]
+                                # a tu po prostu porownujemy pozycje najjasniejszej gwiazdy
+                                if len(coo) > 1 and len(self.prev_guider_coo) > 1:
+                                    if method == "Auto" or method == "Single star":
 
-                                    single0 = self.prev_guider_coo[0]
-                                    single_x0 = single0[0]
-                                    single_y0 = single0[1]
+                                        single = coo[0]
+                                        single_x = single[0]
+                                        single_y = single[1]
 
-                                    x_tmp = single_x0 - single_x
-                                    y_tmp = single_y0 - single_y
+                                        single0 = self.prev_guider_coo[0]
+                                        single_x0 = single0[0]
+                                        single_y0 = single0[1]
 
-                                    if numpy.abs(x_tmp) < 50 and numpy.abs(y_tmp) < 50:
-                                        dx_single = x_tmp
-                                        dy_single = y_tmp
+                                        x_tmp = single_x0 - single_x
+                                        y_tmp = single_y0 - single_y
 
-                            # jak wybralismy metode Multistar
-                            if method == "Multistar":
-                                if dx_multiStars != None:
-                                    dx = dx_multiStars
-                                    dy = dy_multiStars
-                                    txt = f"multistar\n dx={dx} dy={dy}"
-                                    self.auxGui.guider_tab.guiderView.updateCoo(x_matched, y_matched, color="cyan")
+                                        if numpy.abs(x_tmp) < 50 and numpy.abs(y_tmp) < 50:
+                                            dx_single = x_tmp
+                                            dy_single = y_tmp
+
+                                # jak wybralismy metode Multistar
+                                if method == "Multistar":
+                                    if dx_multiStars != None:
+                                        dx = dx_multiStars
+                                        dy = dy_multiStars
+                                        txt = f"multistar\n dx={dx} dy={dy}"
+                                        self.auxGui.guider_tab.guiderView.updateCoo(x_matched, y_matched, color="cyan")
+                                    else:
+                                        txt = "multistar failed"
+                                    self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+
+                                # jak wybralismy metode Singlestar
+                                elif method == "Single star":
+                                    if dx_single != None:
+                                        dx = dx_single
+                                        dy = dy_single
+                                        txt = f"single star\n dx={dx} dy={dy}"
+                                        self.auxGui.guider_tab.guiderView.updateCoo([single_x], [single_y], color="magenta")
+                                    else:
+                                        txt = "single star failed"
+                                    self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+
+                                # jak wybralismy Auto, to najpierw stara sie multistar a
+                                # jak sie nie uda to single star
+                                elif method == "Auto":
+                                    if dx_multiStars != None:
+                                        dx = dx_multiStars
+                                        dy = dy_multiStars
+                                        txt = f"Auto (multistar)\n dx={dx} dy={dy}"
+                                        self.auxGui.guider_tab.guiderView.updateCoo(x_matched, y_matched, color="cyan")
+                                    elif dx_single != None:
+                                        dx = dx_single
+                                        dy = dy_single
+                                        txt = f"Auto (single star)\n dx={dx} dy={dy}"
+                                        self.auxGui.guider_tab.guiderView.updateCoo([single_x], [single_y], color="magenta")
+                                    else:
+                                        txt = "auto failed"
+                                    self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+
+                                # tutaj jest lista ostatnich 20 pomiarow, sluzaca
+                                # do liczenia kumulatywnego przesuniecia
+                                # jak teleskop zrobi slew to sie lista zeruje
+                                if dx != None:
+                                    self.guider_passive_dx.append(dx)
+                                    self.guider_passive_dy.append(dy)
+
+                                if len(self.guider_passive_dx) > 20:
+                                    self.guider_passive_dx = self.guider_passive_dx[1:]
+                                    self.guider_passive_dy = self.guider_passive_dy[1:]
+
+                                self.auxGui.guider_tab.guiderView.update_plot(self.guider_passive_dx, self.guider_passive_dy)
+
+                                # aktualny obrazek staje sie referencyjnym, chyba ze nie udalo znalez sie przesuniecia
+                                # wtedy 1 raz tego nie robi (steruje tym guider_failed)
+                                if (dx != None and dy != None) or self.guider_failed == 1:
+                                    self.prev_guider_coo = coo
+                                    self.prev_guider_adu = adu
+                                    self.guider_failed = 0
                                 else:
-                                    txt = "multistar failed"
-                                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+                                    self.guider_failed = 1
 
-                            # jak wybralismy metode Singlestar
-                            elif method == "Single star":
-                                if dx_single != None:
-                                    dx = dx_single
-                                    dy = dy_single
-                                    txt = f"single star\n dx={dx} dy={dy}"
-                                    self.auxGui.guider_tab.guiderView.updateCoo([single_x], [single_y], color="magenta")
-                                else:
-                                    txt = "single star failed"
-                                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
-
-                            # jak wybralismy Auto, to najpierw stara sie multistar a
-                            # jak sie nie uda to single star
-                            elif method == "Auto":
-                                if dx_multiStars != None:
-                                    dx = dx_multiStars
-                                    dy = dy_multiStars
-                                    txt = f"Auto (multistar)\n dx={dx} dy={dy}"
-                                    self.auxGui.guider_tab.guiderView.updateCoo(x_matched, y_matched, color="cyan")
-                                elif dx_single != None:
-                                    dx = dx_single
-                                    dy = dy_single
-                                    txt = f"Auto (single star)\n dx={dx} dy={dy}"
-                                    self.auxGui.guider_tab.guiderView.updateCoo([single_x], [single_y], color="magenta")
-                                else:
-                                    txt = "auto failed"
-                                self.auxGui.guider_tab.guiderView.result_e.setText(txt)
-
-                            # tutaj jest lista ostatnich 20 pomiarow, sluzaca
-                            # do liczenia kumulatywnego przesuniecia
-                            # jak teleskop zrobi slew to sie lista zeruje
-                            if dx != None:
-                                self.guider_passive_dx.append(dx)
-                                self.guider_passive_dy.append(dy)
-
-                            if len(self.guider_passive_dx) > 20:
-                                self.guider_passive_dx = self.guider_passive_dx[1:]
-                                self.guider_passive_dy = self.guider_passive_dy[1:]
-
-                            self.auxGui.guider_tab.guiderView.update_plot(self.guider_passive_dx, self.guider_passive_dy)
-
-                            # aktualny obrazek staje sie referencyjnym, chyba ze nie udalo znalez sie przesuniecia
-                            # wtedy 1 raz tego nie robi (steruje tym guider_failed)
-                            if (dx != None and dy != None) or self.guider_failed == 1:
-                                self.prev_guider_coo = coo
-                                self.prev_guider_adu = adu
-                                self.guider_failed = 0
-                            else:
-                                self.guider_failed = 1
-
-                # TODO ernest_nowy_tic COMENT robiąc w asyncio 'except Exception as e' samo łatwo jest zrobić niezamykający się task dlatego trzeba odfiltrować CONAJMNIEJ 'asyncio.CancelledError, asyncio.TimeoutError' błędy one muszą być rzucone. Robi się tak jak poniżej. Niewiem czy PyQT jakieś urzywa ale do asyncio to te 2
-                except (asyncio.CancelledError, asyncio.TimeoutError):
-                    raise
-                except Exception as e:
-                    pass
-                    # txt = f"GUIDER FAILED after {status}, {e}"
-                    # self.auxGui.guider_tab.guiderView.result_e.setText(txt)
+            # TODO ernest_nowy_tic COMENT robiąc w asyncio 'except Exception as e' samo łatwo jest zrobić niezamykający się task
+            #  dlatego trzeba odfiltrować CONAJMNIEJ 'asyncio.CancelledError, asyncio.TimeoutError' błędy one muszą być rzucone.
+            #  Robi się tak jak poniżej. Niewiem czy PyQT jakieś urzywa ale do asyncio to te 2
+            except (asyncio.CancelledError, asyncio.TimeoutError):
+                raise
+            except Exception as e:
+                logger.warning(f'TOI: EXCEPTION 10: {e}')
 
 
 
@@ -1123,27 +1100,32 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def planrunner_start(self,tel):
-        self.observer = self.auxGui.welcome_tab.observer_e.text()
-        if await self.user.aget_is_access():
+        try:
+            #self.observer = self.auxGui.welcome_tab.observer_e.text()
+            if self.tel_acces[tel]:
+                if self.active_tel not in self.planrunners.keys():
+                    self.planrunners[tel] = self.tic_telescopes[tel].get_observation_plan()
+                    tmp = self.planrunners[tel]
+                    self.planrunners[tel].add_info_callback('exec_json', lambda info: self.PlanRunFeedback(tmp, info))
+                self.exp_prog_status["ndit"] = 0
+                self.exp_prog_status["dit_start"] = 0
 
-            if self.active_tel not in self.planrunners.keys():
-                self.planrunners[tel] = self.tic_telescopes[tel].get_observation_plan()
-                tmp = self.planrunners[tel]
-                self.planrunners[tel].add_info_callback('exec_json', lambda info: self.PlanRunFeedback(tmp, info))
+                #self.ob_program = self.ob_program + f' observers="{self.observer}"' # zle sie parsuje naraz comment i observers
+                program = self.ob[tel]["block"]
+                program_name = self.ob[tel]["origin"]
 
-            self.exp_prog_status["ndit"] = 0
-            self.exp_prog_status["dit_start"] = 0
+                #DUPA1
+                print("======================================")
+                print(f"TEL: {tel}")
+                print(f"PROGRAM RUNNER: {program}")
+                print("======================================")
 
 
-            #self.ob_program = self.ob_program + f' observers="{self.observer}"' # zle sie parsuje naraz comment i observers
-
-            program = self.ob[tel]["block"]
-            program_name = self.ob[tel]["origin"]
-
-            await self.planrunners[tel].aload_nightplan_string(program_name, string=program, overwrite=True, client_config_dict=self.client_cfg)
-            await self.planrunners[tel].arun_nightplan(program_name, step_id="00")
-
-            self.fits_exec = True
+                await self.planrunners[tel].aload_nightplan_string(program_name, string=program, overwrite=True, client_config_dict=self.client_cfg)
+                await self.planrunners[tel].arun_nightplan(program_name, step_id="00")
+                #self.fits_exec = True
+        except Exception as e:
+            logger.warning(f'TOI: EXCEPTION 11: {e}')
 
     # ############ PLAN RUNNER CALLBACK ##########################
 
@@ -1316,7 +1298,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if "auto_focus" in info["id"] and info["started"]==True and info["done"]==True:
                                 self.autofocus_started[tel]=False
                                 await self.msg("PLAN: Auto-focus sequence finished","black")
-                                max_sharpness_focus, calc_metadata = calFoc.calculate(self.local_cfg[self.active_tel]["tel_directory"]+"focus/actual",method=self.focus_method)
+                                max_sharpness_focus, calc_metadata = calFoc.calculate(self.local_cfg[tel]["tel_directory"]+"focus/actual",method=self.focus_method)
                                 try:
                                     s = self.nats_toi_focus_status[tel]
                                     data = {}
@@ -1327,8 +1309,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     data["fit_x"] = list(calc_metadata["fit_x"])
                                     data["fit_y"] = list(calc_metadata["fit_y"])
                                     data["status"] = str(calc_metadata["status"])
-                                    if len(self.fwhm_list[self.active_tel]) > 0:
-                                        data["fwhm"] = list(self.fwhm_list[self.active_tel])
                                     await s.publish(data=data, timeout=10)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 42: {e}')
@@ -1352,7 +1332,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def auto_focus(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             ok = False
             v0 = float(self.auxGui.focus_tab.last_e.text())
             step = float(self.auxGui.focus_tab.steps_e.text())
@@ -1388,8 +1368,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 self.ob[self.active_tel]["block"] = program
                 self.ob[self.active_tel]["origin"] = "auto_focus"
-                self.autofocus_started[self.active_tel]=True
-                self.fwhm_list[self.active_tel] = []
+                self.autofocus_started[self.active_tel] = True
                 tmp = await self.tel_focusers[self.active_tel].aget_position()
                 self.last_focus_position[self.active_tel] = float(tmp)
                 self.planrunner_start(self.active_tel)
@@ -1405,7 +1384,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # dodac obluge wieloteleskoowosci
     @qs.asyncSlot()
     async def plan_start(self,tel):
-        if await self.user.aget_is_access():
+        if self.tel_acces[tel]:
             self.observer = self.auxGui.welcome_tab.observer_e.text()
 
             if self.next_i[tel] > -1 and self.next_i[tel] < len(self.plan[tel]):
@@ -1531,7 +1510,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                                 self.focus_method = "lorentzian"
                                 self.autofocus_started[tel] = True
-                                self.fwhm_list[tel] = []
                                 focus = await self.tel_focusers[tel].aget_position()
                                 self.last_focus_position[tel] = float(focus)
 
@@ -1735,7 +1713,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     logger.warning(f'TOI: EXCEPTION 15: {e}')
 
                     self.planGui.update_table()
-                print(tel, len(self.plan[tel]),self.current_i[tel],self.next_i[tel])
 
     def check_next_i(self,tel):
         if self.next_i[tel] > len(self.plan[tel])-1:
@@ -1757,6 +1734,36 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.next_i[tel] = self.next_i[tel] + 1
                     self.check_next_i()
 
+    # focus window
+    def update_focus_window(self):
+        try:
+            if "max_sharpness_focus" in self.nats_focus_status.keys() and "status" in self.nats_focus_status.keys():
+                status = self.nats_focus_status["status"]
+                if status == "ok":
+                    self.auxGui.focus_tab.result_e.setText(f"{int(self.nats_focus_status['max_sharpness_focus'])}")
+                    self.auxGui.focus_tab.max_sharp = self.nats_focus_status["max_sharpness_focus"]
+                else:
+                    self.auxGui.focus_tab.result_e.setText(status)
+                    self.auxGui.focus_tab.max_sharp = None
+
+            if "sharpness_values" in self.nats_focus_status.keys() and "focus_values" in self.nats_focus_status.keys():
+                focus_values = self.nats_focus_status["focus_values"]
+                sharpness_values = self.nats_focus_status["sharpness_values"]
+                fit_x = self.nats_focus_status["fit_x"]
+                fit_y = self.nats_focus_status["fit_y"]
+
+                self.auxGui.focus_tab.fit_x = fit_x
+                self.auxGui.focus_tab.fit_y = fit_y
+                self.auxGui.focus_tab.x = focus_values
+                self.auxGui.focus_tab.y = sharpness_values
+
+                if "fwhm" in self.nats_focus_status.keys():
+                    self.auxGui.focus_tab.fwhm = self.nats_focus_status["fwhm"]
+
+            self.auxGui.focus_tab.update()
+            self.auxGui.tabWidget.setCurrentIndex(2)
+        except Exception as e:
+            logger.warning(f'EXCEPTION 45: {e}')
 
 
     # ############ CCD ##################################
@@ -1825,8 +1832,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 fwhm_x,fwhm_y=0,0
             fwhm_x, fwhm_y = scale * fwhm_x, scale * fwhm_y
 
-            if self.autofocus_started[self.active_tel]:
-                self.fwhm_list[self.active_tel].append(max(float(fwhm_x), float(fwhm_y)))
 
             txt = txt + f"FWHM X/Y:".ljust(13)+f"{float(fwhm_x):.1f}/{float(fwhm_y):.1f}\n"
 
@@ -1869,7 +1874,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def ccd_Snap(self):
         self.observer = self.auxGui.welcome_tab.observer_e.text()
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             ok_ndit = False
             ok_exp = False
             ok_seq = False
@@ -1929,7 +1934,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def ccd_startExp(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
 
             ok_ndit = False
             ok_exp = False
@@ -2054,7 +2059,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def ccd_setBin(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             if self.instGui.ccd_tab.inst_Bin_s.currentIndex()==0: x,y=1,1
             elif self.instGui.ccd_tab.inst_Bin_s.currentIndex()==1: x,y=2,2
             elif self.instGui.ccd_tab.inst_Bin_s.currentIndex()==2: x,y=1,2
@@ -2074,7 +2079,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def ccd_setGain(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             i = self.instGui.ccd_tab.inst_setGain_e.currentIndex()
             gain = self.cfg_inst_gain_i[i]
             txt=f"REQUEST: CCD gain {self.instGui.ccd_tab.inst_setGain_e.currentText()}"
@@ -2087,7 +2092,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def ccd_setReadMode(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
            i = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
            rm = self.cfg_inst_rm_i[i]
            if True:
@@ -2102,7 +2107,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def ccd_setTemp(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             temp=float(self.instGui.ccd_tab.inst_setTemp_e.text())
             if temp>-81 and temp<20:
                 txt=f"REQUEST: CCD temp. set to {temp} deg."
@@ -2119,7 +2124,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def ccd_coolerOnOf(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             if self.ccd.cooleron:
               txt="REQUEST: CCD cooler OFF"
               await self.ccd.aput_cooleron(False)
@@ -2221,7 +2226,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def mount_motorsOnOff(self):
         # DUPA dwa agety w jednej subskrypcji
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
            r = await self.mount.aget_motorstatus()
            if r=="true":
                self.mount_motortatus = True
@@ -2264,7 +2269,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def covers_openOrClose(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
            self.cover_status = self.cover.coverstate
            if self.cover_status==1:
               txt="REQUEST: mirror OPEN"
@@ -2308,7 +2313,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def park_mount(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             if self.mount.motorstatus != "false":
                 txt="PARK requested"
                 self.mntGui.mntStat_e.setText(txt)
@@ -2340,7 +2345,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def mount_slew(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             if self.mount.motorstatus != "false":
                 self.req_ra=""
                 self.req_dec=""
@@ -2394,7 +2399,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def mount_trackOnOff(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             if await self.mount.aget_motorstatus() != "false":
                 self.mount_tracking = await self.mount.aget_tracking()
 
@@ -2509,7 +2514,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def pulse_up(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             arcsec = self.mntGui.pulse_window.pulseDec_e.text()
             sec = 1000 * (float(arcsec)/6 )
             sec = int(sec)
@@ -2523,7 +2528,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def pulse_down(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             arcsec = self.mntGui.pulse_window.pulseDec_e.text()
             sec = 1000 * (float(arcsec)/6 )
             sec = int(sec)
@@ -2537,7 +2542,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def pulse_left(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             arcsec = self.mntGui.pulse_window.pulseRa_e.text()
             sec = 1000 * (float(arcsec)/6  )
             sec = int(sec)
@@ -2551,7 +2556,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def pulse_right(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             arcsec = self.mntGui.pulse_window.pulseRa_e.text()
             sec = 1000 * (float(arcsec)/6 )
             sec = int(sec)
@@ -2571,7 +2576,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def dome_openOrClose(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
            if self.cover.coverstate == 1:
                if self.dome_shutterstatus==0:
                   await self.dome.aput_closeshutter()
@@ -2595,7 +2600,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def dome_move2Az(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
            if self.dome_next_az_ok:
                az = float(self.mntGui.domeNextAz_e.text())
                await self.dome.aput_slewtoazimuth(az)
@@ -2615,7 +2620,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def domeFollow(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             self.toi_status["dome_follow_switch"] = self.mntGui.domeAuto_c.isChecked()
             try:
                 s = self.nats_pub_toi_status
@@ -2698,7 +2703,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def VentilatorsOnOff(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
             r = await self.dome.aget_dome_fans_running()
             if r:
                 self.dome_fanStatus=True
@@ -2740,7 +2745,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def mirrorFansOnOff(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
            r = await self.focus.aget_fansstatus()
            if r == "True": self.dome_fanStatus=True
            else: self.dome_fanStatus=False
@@ -2776,7 +2781,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def FlatLampOnOff(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
 
            if self.mntGui.flatLights_c.isChecked():
                await self.mount.aput_domelamp_on()
@@ -2798,7 +2803,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def domeLightOnOff(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
            if self.mntGui.domeLights_c.isChecked():
                await self.cctv.aput_ir(True)
                self.mntGui.domeLights_e.setText("no feedback")
@@ -2825,7 +2830,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def set_focus(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
            self.focus_editing=False
            self.mntGui.setFocus_s.setStyleSheet("background-color: rgb(255, 255, 255);")
            val=self.mntGui.setFocus_s.value()
@@ -2868,7 +2873,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def set_filter(self):
-        if await self.user.aget_is_access():
+        if self.tel_acces[self.active_tel]:
            ind=int(self.mntGui.telFilter_s.currentIndex())
            if ind == -1: filtr="--"
            else: filtr=self.filter_list[ind]
@@ -2927,7 +2932,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.telescope is not None:
             txt = f"REQUEST: EMERGENCY STOP"
             await self.msg(txt, "red")
-            await self.user.aget_is_access()
+            #await self.user.aget_is_access()
             self.mntGui.domeAuto_c.setChecked(False)
             await self.tic_telescopes[self.active_tel].emergency_stop()
             await self.domeFollow() #
@@ -2938,7 +2943,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def shutdown(self):
         if self.telescope is not None:
-            if await self.user.aget_is_access():
+            if self.tel_acces[self.active_tel]:
                 txt = f"REQUEST: telescope shutdown"
                 await self.msg(txt, "green")
                 self.mntGui.domeAuto_c.setChecked(False)
@@ -2954,7 +2959,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def weatherStop(self):
         if self.telescope is not None:
-            if await self.user.aget_is_access():
+            if self.tel_acces[self.active_tel]:
                 txt = f"REQUEST: weather stop"
                 await self.msg(txt, "yellow")
                 await self.tic_telescopes[self.active_tel].weather_stop()
@@ -3088,6 +3093,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     def variables_init(self):
 
+        self.telescope_switch_status = {}
+        self.telescope_switch_status["plan"] = False
 
         # tu pobieramy konfiguracje z NATS
         self.client_cfg = self.observatory_model.get_client_configuration()
@@ -3183,7 +3190,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.oca_tel_state = {k:copy.deepcopy(templeate) for k in self.local_cfg["toi"]["telescopes"]}
 
         self.cfg_showRotator = True   # potrzebne do pierwszego wyswietlenia
-
         self.tel_alpaca_con = False
 
         self.catalog_file = None
@@ -3261,11 +3267,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.nats_ob_progress = {}      # ten sluzy tylko do czytania z nats
         self.nats_focus_status = {}     #  tak samo
 
-        self.fits_exec=False
+        #self.fits_exec=False
 
         self.autofocus_started={k:False for k in self.local_cfg["toi"]["telescopes"]}
         self.last_focus_position={k:None for k in self.local_cfg["toi"]["telescopes"]}
-        self.fwhm_list = {k:[] for k in self.local_cfg["toi"]["telescopes"]}
 
         self.acces=True
 
@@ -3344,9 +3349,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ob_log = []
 
         self.tmp_i = 1
-
-
-        self.telescope_switch_status = {"plan":None}
 
         self.nats_toi_plan_status = {}
         self.nats_toi_ob_status = {}
