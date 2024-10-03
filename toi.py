@@ -48,6 +48,7 @@ from ffs_lib.ffs import FFS
 from fits_save import *
 from instrument_gui import InstrumentGui
 from mnt_gui import MntGui
+from sky_gui import SkyGui
 from obs_gui import ObsGui
 from plan_gui import PlanGui
 from toi_lib import *
@@ -94,6 +95,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.obsGui = ObsGui(self, loop=self.loop, client_api=self.client_api)
         self.mntGui = MntGui(self, loop=self.loop, client_api=self.client_api)
+
+        self.skyGui = SkyGui(self)
+
         self.instGui = InstrumentGui(self, loop=self.loop, client_api=self.client_api)
         self.planGui = PlanGui(self, loop=self.loop, client_api=self.client_api)
         self.auxGui = AuxGui(self)
@@ -735,13 +739,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             try:
 
                 # DUPA1
-                print("********* PING **************")
+                #print("********* PING **************")
 
                 for tel in self.acces_grantors.keys():
 
-                    print(tel)
-                    print(len(self.plan[tel]), self.current_i[tel], self.next_i[tel])
-                    print(self.ob[tel])
+                    #print(tel)
+                    #print(len(self.plan[tel]), self.current_i[tel], self.next_i[tel])
+                    #print(self.ob[tel])
 
                     acces = await self.acces_grantors[tel].aget_is_access()
                     name = await self.acces_grantors[tel].aget_current_user()
@@ -1115,10 +1119,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 program_name = self.ob[tel]["origin"]
 
                 #DUPA1
-                print("======================================")
-                print(f"TEL: {tel}")
-                print(f"PROGRAM RUNNER: {program}")
-                print("======================================")
+                #print("======================================")
+                #print(f"TEL: {tel}")
+                #print(f"PROGRAM RUNNER: {program}")
+                #print("======================================")
 
 
                 await self.planrunners[tel].aload_nightplan_string(program_name, string=program, overwrite=True, client_config_dict=self.client_cfg)
@@ -3218,9 +3222,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #print(geometry)
         self.obs_window_geometry = [geometry.left(),geometry.top(),850,400]
         self.mnt_geometry = [self.obs_window_geometry[0],self.obs_window_geometry[1]+self.obs_window_geometry[3]+100,850,400]
-        self.aux_geometry = [self.obs_window_geometry[0]+self.obs_window_geometry[2]+60,self.obs_window_geometry[1],510,550]
-        self.instrument_geometry = [self.aux_geometry[0],self.aux_geometry[1]+self.aux_geometry[3]+70,510,300]
-        self.plan_geometry = [self.aux_geometry[0]+self.aux_geometry[2]+10,self.aux_geometry[1],490,1100]
+        self.instrument_geometry = [self.obs_window_geometry[0] + 855 ,self.obs_window_geometry[1]+680,510,300]
+        self.plan_geometry = [self.obs_window_geometry[0]+1370 ,self.obs_window_geometry[1],490,1100]
+
+        self.aux_geometry = [self.obs_window_geometry[0]+2000,self.obs_window_geometry[1],510,550]
+
+
 
         self.tic_con=None
         self.fw_con=None
