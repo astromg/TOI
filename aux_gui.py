@@ -233,7 +233,7 @@ class FocusGui(QWidget):
         #self.axes.set_ylim(self.axes.get_ylim()[::-1])
         self.axes.set_xlabel("focus encoder position")
         self.axes.set_ylabel("sharpness")
-        self.fig.tight_layout()
+        #self.fig.tight_layout()
         self.canvas.draw()
         self.show()
 

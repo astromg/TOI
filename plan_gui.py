@@ -369,7 +369,10 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                       self.plan_t.resizeColumnsToContents()
                       self.plan_t.horizontalHeader().setStretchLastSection(True)
-                      self.parent.obsGui.main_form.skyView.updateRadar()
+                      #self.parent.obsGui.main_form.skyView.updateRadar()
+                      if self.parent.skyGui.skyView:
+                          self.parent.skyGui.skyView.updateRadar()
+
                       self.plan_t.blockSignals(False)
                       self.plan_t.resizeColumnsToContents()
                       for col in range(1,self.plan_t.columnCount()):

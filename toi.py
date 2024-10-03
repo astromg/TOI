@@ -347,9 +347,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         try:
             self.mntGui.updateUI()
+            self.skyGui.updateUI()
             self.auxGui.updateUI()
             self.planGui.updateUI()
             self.instGui.updateUI()
+
 
             if not bool(self.cfg_showRotator):
                 self.mntGui.comRotator1_l.setText("\u2B24")
@@ -503,7 +505,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 self.obsGui.main_form.date_e.setText(str(self.date))
                 self.obsGui.main_form.ut_e.setText(str(ut))
-                self.obsGui.main_form.skyView.updateAlmanac()
+                if self.skyGui.skyView:
+                    self.skyGui.skyView.updateAlmanac()
+                #self.obsGui.main_form.skyView.updateAlmanac()
                 #self.obsGui.main_form.skyView.updateRadar()
 
             except Exception as e:
@@ -754,16 +758,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if self.active_tel:
                         if tel == self.active_tel:
                             txt = self.tel_users[tel]
-                            self.obsGui.main_form.control_e.setText(txt)
+                            self.skyGui.user_e.setText(txt)
                             if self.tel_acces[tel]:
-                                self.obsGui.main_form.control_e.setStyleSheet(
-                                    "background-color: rgb(233, 233, 233); color: rgb(0,150,0);")
-                            elif self.tel_users[tel] == self.myself:
-                                self.obsGui.main_form.control_e.setStyleSheet(
-                                    "background-color: rgb(233, 233, 233); color: rgb(150,0,0);")
+                                self.skyGui.user_e.setStyleSheet(f"background-color: {self.nats_cfg[tel]['color']};")
                             else:
-                                self.obsGui.main_form.control_e.setStyleSheet(
-                                    "background-color: rgb(233, 233, 233); color: black;")
+                                self.skyGui.user_e.setStyleSheet(
+                                    f"background-color: rgb(233, 233, 233); color: black;")
+
                 self.update_oca()
 
             except Exception as e:
@@ -2313,7 +2314,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                self.mntGui.telCovers_e.setStyleSheet("color: rgb(233, 0, 0); background-color: rgb(233, 233, 233);")
 
            self.mntGui.telCovers_e.setText(txt)
-           self.obsGui.main_form.skyView.updateMount()
+           if self.skyGui.skyView:
+               self.skyGui.skyView.updateMount()
+           #self.obsGui.main_form.skyView.updateMount()
 
     @qs.asyncSlot()
     async def park_mount(self):
@@ -2455,7 +2458,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
             self.mntGui.tracking_c.setChecked(False)
         self.mntGui.mntStat_e.setText(txt)
-        self.obsGui.main_form.skyView.updateMount()
+        #self.obsGui.main_form.skyView.updateMount()
+        if self.skyGui.skyView:
+            self.skyGui.skyView.updateMount()
         await self.msg(f"TELEMETRY: mount {txt}","black")
 
         if self.mount_slewing:
@@ -2495,7 +2500,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.mount_alt and self.mount_az:
            self.mntGui.mntAlt_e.setText(f"{self.mount_alt:.3f}")
            self.mntGui.mntAz_e.setText(f"{self.mount_az:.3f}")
-           self.obsGui.main_form.skyView.updateMount()
+           #self.obsGui.main_form.skyView.updateMount()
+           if self.skyGui.skyView:
+               self.skyGui.skyView.updateMount()
            airmass = calc_airmass(float(self.mount_alt))
            if airmass:
                self.mntGui.mntAirmass_e.setText("%.1f" % airmass)
@@ -2646,29 +2653,31 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
               txt="OPEN"
               self.mntGui.domeShutter_e.setStyleSheet("color: rgb(0,150,0); background-color: rgb(233, 233, 233);")
               self.mntGui.domeShutter_c.setChecked(True)
-              self.obsGui.main_form.skyView.updateDome()
+              #self.obsGui.main_form.skyView.updateDome()
 
            elif self.dome_shutterstatus==1:
                 txt="CLOSED"
                 self.mntGui.domeShutter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
                 self.mntGui.domeShutter_c.setChecked(False)
-                self.obsGui.main_form.skyView.updateDome()
+                #self.obsGui.main_form.skyView.updateDome()
 
            elif self.dome_shutterstatus==2:
                 txt="OPENING"
                 self.mntGui.domeShutter_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
-                self.obsGui.main_form.skyView.updateDome()
+                #self.obsGui.main_form.skyView.updateDome()
 
 
            elif self.dome_shutterstatus==3:
                 txt="CLOSING"
                 self.mntGui.domeShutter_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
-                self.obsGui.main_form.skyView.updateDome()
+                #self.obsGui.main_form.skyView.updateDome()
 
            else:
                 txt="UNKNOWN"
                 self.mntGui.domeShutter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
                 #self.obsGui.main_form.skyView.updateDome()
+           if self.skyGui.skyView:
+               self.skyGui.skyView.updateDome()
            self.mntGui.domeShutter_e.setText(txt)
            await self.msg(f"TELEMETRY: shutter {txt}","black")
 
@@ -2691,7 +2700,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.dome_az = await self.dome.aget_az()
         if self.dome_az:
             self.mntGui.domeAz_e.setText(f"{self.dome_az:.2f}")
-            self.obsGui.main_form.skyView.updateDome()
+            #self.obsGui.main_form.skyView.updateDome()
+            if self.skyGui.skyView:
+                self.skyGui.skyView.updateDome()
 
     def domeAZ_check(self, event):
         self.dome_next_az_ok = False
@@ -2944,6 +2955,20 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             txt = f"REQUEST: emergency stop but no telescope is selected"
             await self.msg(txt, "yellow")
 
+
+    @qs.asyncSlot()
+    async def ping(self):
+        if self.telescope is not None:
+            try:
+                s = self.nats_pub_toi_message[self.active_tel]
+                data = {"tel": self.active_tel, "info": "PING"}
+                await s.publish(data=data, timeout=10)
+            except Exception as e:
+                logger.warning(f'TOI: EXCEPTION 43: {e}')
+        else:
+            txt = f"REQUEST: telescope shutdown but no telescope is selected"
+            await self.msg(txt, "yellow")
+
     @qs.asyncSlot()
     async def shutdown(self):
         if self.telescope is not None:
@@ -2979,8 +3004,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def takeControl(self):
         txt="REQUEST: Control"
-        self.obsGui.main_form.control_e.setText(txt)
-        self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        #self.obsGui.main_form.control_e.setText(txt)
+        #self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         try: await self.user.aput_break_control()
         except Exception as e: pass
         try:
@@ -2992,22 +3017,23 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.msg(txt,"green")
 
     async def user_update(self, event):
+        pass
         # STAGE2
         # to jakos zupelnie nie idzie
         # jakos trzeba sprawdzac czy mamy kontrole nad wszystkimi teleskopami
-        self.TICuser=self.user.current_user
-        self.acces=bool(await self.user.aget_is_access())
-        txt=str(self.TICuser["name"])
-        self.obsGui.main_form.control_e.setText(txt)
-        if self.acces:
-            self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(0,150,0);")
-            await self.msg(f"TELEMETRY: user {txt} have controll","green")
-        elif  self.user.current_user["name"]==self.myself:
-            self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150,0,0);")
-            await self.msg(f"TELEMETRY: user {txt} DON'T have controll","yellow")
-        else:
-            self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-            await self.msg(f"TELEMETRY: user {txt} have controll","black")
+        # self.TICuser=self.user.current_user
+        # self.acces=bool(await self.user.aget_is_access())
+        # txt=str(self.TICuser["name"])
+        # self.obsGui.main_form.control_e.setText(txt)
+        # if self.acces:
+        #     self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(0,150,0);")
+        #     await self.msg(f"TELEMETRY: user {txt} have controll","green")
+        # elif  self.user.current_user["name"]==self.myself:
+        #     self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150,0,0);")
+        #     await self.msg(f"TELEMETRY: user {txt} DON'T have controll","yellow")
+        # else:
+        #     self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        #     await self.msg(f"TELEMETRY: user {txt} have controll","black")
 
 # ############ INNE ##############################
 
@@ -3021,23 +3047,36 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     def updateWeather(self):
         try:
-            self.auxGui.welcome_tab.wind_e.setText(f"{self.telemetry_wind:.1f} [m/s]")
-            self.auxGui.welcome_tab.windDir_e.setText(f"{self.telemetry_wind_direction:.0f} [deg]")
-            self.auxGui.welcome_tab.temp_e.setText(f"{self.telemetry_temp:.1f} [C]")
-            self.auxGui.welcome_tab.hummidity_e.setText(f"{self.telemetry_humidity:.0f} [%]")
-            self.auxGui.welcome_tab.pressure_e.setText(f"{self.telemetry_pressure:.1f} [hPa]")
+            self.obsGui.main_form.wind_e.setText(f"{self.telemetry_wind:.1f} [m/s]")
+            self.obsGui.main_form.windDir_e.setText(f"{self.telemetry_wind_direction:.0f} [deg]")
+            self.obsGui.main_form.temp_e.setText(f"{self.telemetry_temp:.1f} [C]")
+            self.obsGui.main_form.hummidity_e.setText(f"{self.telemetry_humidity:.0f} [%]")
+            #self.obsGui.main_form.pressure_e.setText(f"{self.telemetry_pressure:.1f} [hPa]")
 
-            if float(self.telemetry_wind)>float(self.cfg_wind_limit):
-                self.auxGui.welcome_tab.wind_e.setStyleSheet("color: red; background-color: rgb(235,235,235);")
+            if float(self.telemetry_wind) > float(self.cfg_wind_limit_pointing):
+                self.obsGui.main_form.wind_e.setStyleSheet("color: rgb(0, 0, 0); background-color: rgb(255, 140, 0);")
+                self.obsGui.main_form.windDir_e.setStyleSheet("color: rgb(0, 0, 0); background-color: rgb(255, 140, 0);")
+            elif float(self.telemetry_wind) > float(self.cfg_wind_limit):
+                self.obsGui.main_form.wind_e.setStyleSheet("color: rgb(0, 0, 0); background-color: red;")
+                self.obsGui.main_form.windDir_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
             else:
-                self.auxGui.welcome_tab.wind_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
+                self.obsGui.main_form.wind_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
+                self.obsGui.main_form.windDir_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
 
-            if float(self.telemetry_humidity)>float(self.cfg_humidity_limit):
-                self.auxGui.welcome_tab.hummidity_e.setStyleSheet("color: red; background-color: rgb(235,235,235);")
+            if float(self.telemetry_humidity)> float(self.cfg_humidity_limit):
+                self.obsGui.main_form.hummidity_e.setStyleSheet("color: rgb(0, 0, 0); background-color: red;")
             else:
-                self.auxGui.welcome_tab.hummidity_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
+                self.obsGui.main_form.hummidity_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
 
-            self.obsGui.main_form.skyView.updateWind(self)
+            if float(self.telemetry_temp) < -1:
+                self.obsGui.main_form.temp_e.setStyleSheet("color: rgb(0, 0, 0); background-color: red;")
+            else:
+                self.obsGui.main_form.temp_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
+
+
+            #self.obsGui.main_form.skyView.updateWind(self)
+            if self.skyGui.skyView:
+                self.skyGui.skyView.updateWind(self)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -3064,12 +3103,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         txt = ut + " " + txt
         if txt.split()[1] != "TELEMETRY:":
             self.obsGui.main_form.msg_e.append(txt)
-            # try:
-            #     w: MsgJournalPublisher = self.nats_journal_toi_msg
-            #     info = f"TOI {self.myself} {txt}"
-            #     await w.log('INFO', info)
-            # except Exception as e:
-            #     pass
+             # try:
+             #     w: MsgJournalPublisher = self.nats_journal_toi_msg
+             #     info = f"TOI {self.myself} {txt}"
+             #     await w.log('INFO', info)
+             # except Exception as e:
+             #     pass
 
 
         # LOG dzialan
@@ -3110,6 +3149,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.toi_status = {}
 
         for k in self.nats_cfg.keys():
+
+            try:
+                tmp = nats_cfg[k]["observatory"]["style"]["color"]
+            except KeyError:
+                tmp = None
+            self.nats_cfg[k]["color"] = tmp
 
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["mount"]["min_alt"]
@@ -3182,6 +3227,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         templeate = {
             "mount_motor":{"val":None, "pms_topic":".mount.motorstatus"},
+            "mirror_status": {"val": None, "pms_topic": ".cover.coverstate"},
             "mount_tracking": {"val": None, "pms_topic": ".mount.tracking"},
             "mount_slewing": {"val": None, "pms_topic": ".mount.slewing"},
             "dome_shutterstatus": {"val": None, "pms_topic": ".dome.shutterstatus"},
@@ -3221,8 +3267,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         #print(geometry)
         self.obs_window_geometry = [geometry.left(),geometry.top(),850,400]
-        self.mnt_geometry = [self.obs_window_geometry[0],self.obs_window_geometry[1]+self.obs_window_geometry[3]+100,850,400]
-        self.instrument_geometry = [self.obs_window_geometry[0] + 855 ,self.obs_window_geometry[1]+680,510,300]
+        self.mnt_geometry = [self.obs_window_geometry[0],self.obs_window_geometry[1]+self.obs_window_geometry[3]+110,850,450]
+
+        self.instrument_geometry = [self.obs_window_geometry[0] + 855 ,self.obs_window_geometry[1]+610,500,500]
+
         self.plan_geometry = [self.obs_window_geometry[0]+1370 ,self.obs_window_geometry[1],490,1100]
 
         self.aux_geometry = [self.obs_window_geometry[0]+2000,self.obs_window_geometry[1],510,550]

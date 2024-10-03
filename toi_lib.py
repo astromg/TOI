@@ -8,6 +8,12 @@ import time
 from PyQt5.QtCore import QThread,pyqtSignal
 
 
+def xy2rt(x,y):
+    x=float(x)
+    y=float(y)
+    r = numpy.sqrt(x**2+y**2)
+    theta = numpy.arctan2(y,x)
+    return(theta,r)
 
 def seq_parser(seq):
     if "x" in seq and "(" in seq and ")" in seq:

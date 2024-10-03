@@ -669,16 +669,18 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.line_l.setFrameShadow(QFrame.Raised)
 
         w = w + 1
-        self.grid.addWidget(self.line_l, w, 0, 1, 8)
+        self.shutdown_p = QPushButton('SHUTDOWN')
+        self.weatherStop_p = QPushButton('WEATHER TOP')
+        self.EmStop_p = QPushButton('EMERGENCY STOP')
+        self.EmStop_p.setStyleSheet(" color: rgb(133, 5, 5);")
 
-        w = w + 1
-        self.testowyPocisk_p = QPushButton('Update')
-        #self.testowyPocisk_p.clicked.connect(self.parent.force_update)
-        self.grid.addWidget(self.testowyPocisk_p, w, 0,1,2)
+        self.shutdown_p.clicked.connect(self.parent.shutdown)
+        self.weatherStop_p.clicked.connect(self.parent.weatherStop)
+        self.EmStop_p.clicked.connect(self.parent.EmStop)
 
-        self.config_p = QPushButton("\u2699")
-        self.grid.addWidget(self.config_p, w, 7)
-
+        self.grid.addWidget(self.shutdown_p, w, 5,1,2)
+        #self.grid.addWidget(self.weatherStop_p, w, 3,1,2)
+        self.grid.addWidget(self.EmStop_p, w, 0,1,3)
 
         ##########################################################
 
