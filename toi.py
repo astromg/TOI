@@ -21,6 +21,7 @@ from xmlrpc.client import ResponseError
 
 import ephem
 import numpy
+import requests
 import yaml
 from pathlib import Path
 from typing import Optional
@@ -115,6 +116,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.alpaca_con_loop())
         self.add_background_task(self.tel_con_loop())
         self.add_background_task(self.tel_progress_loop())
+        self.add_background_task(self.check_lights_loop())
+
+
 
         self.add_background_task(self.guider_loop())
 
@@ -577,6 +581,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             except Exception as e:
                 logger.warning(f'EXCEPTION 2: {e}')
             await asyncio.sleep(3)
+
+
+    async def check_lights_loop(self):
+        while True:
+            if self.telescope:
+                req = requests.get('http://' + self.local_cfg[self.active_tel]["light_ip"] + '/api/rgbw/state', timeout=0.5)
+
+                if req.status_code != 200:
+                    val = int(req.json()["rgbw"]["desiredColor"], 16)
+                    if val > 0:
+                        self.mntGui.domeLights_c.setChecked(True)
+                    else:
+                        self.mntGui.domeLights_c.setChecked(False)
+            await asyncio.sleep(3)
+
 
 
     async def tel_progress_loop(self):
@@ -2717,22 +2736,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def domeLightOnOff(self):
         if self.tel_acces[self.active_tel]:
-           if self.mntGui.domeLights_c.isChecked():
-               await self.cctv.aput_ir(True)
-               self.mntGui.domeLights_e.setText("no feedback")
-               txt = "REQUEST: dome lamp ON - no feedback"
-               self.mntGui.domeLights_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
-           else:
-               await self.cctv.aput_ir(False)
-               self.mntGui.domeLights_e.setText("")
-               txt = "REQUEST: dome lamp OFF - no feedback"
-               self.mntGui.domeLights_e.setStyleSheet("color: rgb(0,0,0); background-color: rgb(233, 233, 233);")
-           await self.msg(txt,"green")
+            if self.mntGui.domeLights_c.isChecked():
+                val = str(hex(int(255))).replace('0x', '', 1)
+                if len(val) == 1:
+                    val = '0' + val
+                requests.post('http://' + self.local_cfg[self.active_tel]["light_ip"] + '/api/rgbw/set', json={"rgbw": {"desiredColor": val}})
+            else:
+                val = str(hex(int(0))).replace('0x', '', 1)
+                if len(val) == 1:
+                    val = '0' + val
+                requests.post('http://' + self.local_cfg[self.active_tel]["light_ip"] + '/api/rgbw/set', json={"rgbw": {"desiredColor": val}})
         else:
             txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
-            if self.mntGui.domeLights_c.isChecked(): self.mntGui.domeLights_c.setChecked(False)
-            else: self.mntGui.domeLights_c.setChecked(True)
+            # if self.mntGui.domeLights_c.isChecked(): self.mntGui.domeLights_c.setChecked(False)
+            # else: self.mntGui.domeLights_c.setChecked(True)
 
 
 

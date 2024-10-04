@@ -15,6 +15,7 @@ wk06:
   flat_log_files: /Logs/wk06_flats_log.txt
   object_catalog: ./object_catalog.txt
 
+  light_ip: 192.168.7.217
   overhead: 15
   showRotator: False
 
@@ -24,6 +25,7 @@ zb08:
   flat_log_files: /Logs/zb08_flats_log.txt
   object_catalog: ./object_catalog.txt
 
+  light_ip: 192.168.7.216
   overhead: 15
   showRotator: True
 
@@ -33,5 +35,6 @@ jk15:
   flat_log_files: /Logs/jk15_flats_log.txt
   object_catalog: ./object_catalog.txt
 
+  light_ip: 192.168.7.218
   overhead: 25
   showRotator: True

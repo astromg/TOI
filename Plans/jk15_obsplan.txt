@@ -1,0 +1,5 @@
+ZERO seq=11/u/0
+STOP
+OBJECT NGC6362 17:31:55.0 -67:02:54.0 seq=10x(2/B/140,2/V/112,2/Ic/224) comment=""
+OBJECT NGC6809 19:39:59.7 -30:57:53.1 seq=10x(2/B/60,2/V/48,2/Ic/96) comment=""
+OBJECT NGC362 01:03:14.3 -70:50:55.6 seq=10x(2/B/150,2/V/120,2/Ic/240) comment=""
