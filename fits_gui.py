@@ -73,8 +73,8 @@ class FitsWindow(QWidget):
         self.sat_adu = []
         self.ok_coo = []
         self.ok_adu = []
-        self.fwhm_x = 0
-        self.fwhm_y = 0
+        self.fwhm_x = None
+        self.fwhm_y = None
 
 
         scale = 1
@@ -182,7 +182,8 @@ class FitsWindow(QWidget):
                 print(f"TOI FITS EXCEPTION 3: {e}")
 
             try:
-                txt = txt + f"FWHM:  <b>{self.fwhm_x:.1f}</b>/<b>{self.fwhm_y:.1f}</b> <br>"
+                if self.fwhm_x and self.fwhm_y:
+                    txt = txt + f"FWHM:  <b>{self.fwhm_x:.1f}</b>/<b>{self.fwhm_y:.1f}</b> <br>"
                 txt = txt + f"detected stars:  <i>{len(self.coo)}</i> <br>"
                 txt = txt + f"saturated stars:  <i>{len(self.sat_coo)}</i> <br>"
                 txt = txt + f"min/max ADU:  <i>{self.stats.min:.0f}</i>/<i>{self.stats.max:.0f}</i><br>"
