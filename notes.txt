@@ -27,6 +27,16 @@
 "background-color: rgb(255, 255, 255); color: black;"
 
 
+# ######## NATS TOI #########################
+            self.nats_toi_plan_status[k] = get_publisher(f'tic.status.{k}.toi.plan')
+            self.nats_toi_ob_status[k] = get_publisher(f'tic.status.{k}.toi.ob')
+            self.nats_toi_exp_status[k] = get_publisher(f'tic.status.{k}.toi.exp')
+
+            self.nats_toi_focus_status[k] = get_publisher(f'tic.status.{k}.toi.focus')
+
+            self.nats_pub_toi_status[k] = get_publisher(f'tic.status.{k}.toi.status')
+            self.nats_pub_toi_message[k] = get_publisher(f'tic.status.{k}.toi.message')
+
 
 # ######## OB ##############################
           # ob["name","block","type","ra","dec","seq","comment"]

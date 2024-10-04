@@ -6,6 +6,8 @@ toi:
   mark_saturated_stars: True
   log_display_h: 8
 
+  show_sat_stars: True
+
 
 wk06:
   tel_directory: /data/fits/wk06/

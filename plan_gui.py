@@ -75,14 +75,14 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.phase_window.raise_()
 
     def run_tpg(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
             self.tpg_window = TPGWindow(self)
         else:
             txt="WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
     def pocisniecie_copy(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
              if len(self.parent.plan[self.parent.active_tel])>self.i:
                  tmp_ob = self.parent.plan[self.parent.active_tel][self.i].copy()
                  i = self.i + 1
@@ -102,15 +102,19 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           #self.edit_window.raise_()
 
     def pocisniecie_edit(self):
-        if len(self.plan)>self.i:
-            self.edit_window=EditWindow(self)
-            self.edit_window.show()
-            self.edit_window.raise_()
-        else: print("no plan loaded") # ERROR MSG
+        if self.parent.tel_acces[self.parent.active_tel]:
+            if len(self.plan)>self.i:
+                self.edit_window=EditWindow(self)
+                self.edit_window.show()
+                self.edit_window.raise_()
+            else: print("no plan loaded") # ERROR MSG
+        else:
+            txt="WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
 
 
     def pocisniecie_addStop(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
 
             if len(self.parent.plan[self.parent.active_tel])>self.i:
                  #print("ide ***************")
@@ -126,7 +130,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.parent.WarningWindow(txt)
 
     def pocisniecie_addBell(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
              if len(self.plan)>self.i:
                  ob = {"name": "BELL"}
                  ob["type"] = "BELL"
@@ -412,7 +416,10 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                      self.log_t.setItem(i,1,txt)
 
                  if True:
-                     txt = str(self.parent.ob_log[i]["uobi"])
+                     txt = ""
+                     if "kwargs" in self.parent.ob_log[i]["command_dict"].keys():
+                         if "seq" in self.parent.ob_log[i]["command_dict"]["kwargs"].keys():
+                             txt = str(self.parent.ob_log[i]["command_dict"]["kwargs"]["seq"])
                      txt=QTableWidgetItem(txt)
                      txt.setBackground(QtGui.QColor(233, 233, 233))
                      self.log_t.setItem(i,2,txt)
@@ -426,7 +433,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
     def setNext(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
 
             #self.next_i = self.i
             self.parent.next_i[self.parent.active_tel] = self.i
@@ -438,32 +445,38 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
     def import_to_manuall(self):                  # uzupelnia nazwe i wspolrzedne w oknie manual
+        if self.parent.tel_acces[self.parent.active_tel]:
+          try:
+              if self.parent.plan[self.parent.active_tel][self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
+              elif self.parent.plan[self.parent.active_tel][self.i]["type"] == "ZERO": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
+              elif self.parent.plan[self.parent.active_tel][self.i]["type"] == "DARK": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(2)
+              elif self.parent.plan[self.parent.active_tel][self.i]["type"] == "SKYFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(3)
+              elif self.parent.plan[self.parent.active_tel][self.i]["type"] == "DOMEFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(4)
 
-          if self.parent.plan[self.parent.active_tel][self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
-          elif self.parent.plan[self.parent.active_tel][self.i]["type"] == "ZERO": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
-          elif self.parent.plan[self.parent.active_tel][self.i]["type"] == "DARK": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(2)
-          elif self.parent.plan[self.parent.active_tel][self.i]["type"] == "SKYFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(3)
-          elif self.parent.plan[self.parent.active_tel][self.i]["type"] == "DOMEFLAT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(4)
-
-          if "type" in self.parent.plan[self.parent.active_tel][self.i].keys():
-              if self.parent.plan[self.parent.active_tel][self.i]["type"] in ["OBJECT","DARK","ZERO","SKYFLAT","DOMEFLAT"]:
-                  if "ra" in self.parent.plan[self.parent.active_tel][self.i].keys() and "dec" in self.parent.plan[self.parent.active_tel][self.i].keys():
-                      self.parent.mntGui.setEq_r.setChecked(True)
-                      self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ra"])
-                      self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["dec"])
-                      self.parent.mntGui.updateNextRaDec()
+              if "type" in self.parent.plan[self.parent.active_tel][self.i].keys():
+                  if self.parent.plan[self.parent.active_tel][self.i]["type"] in ["OBJECT","DARK","ZERO","SKYFLAT","DOMEFLAT"]:
+                      if "ra" in self.parent.plan[self.parent.active_tel][self.i].keys() and "dec" in self.parent.plan[self.parent.active_tel][self.i].keys():
+                          self.parent.mntGui.setEq_r.setChecked(True)
+                          self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ra"])
+                          self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["dec"])
+                          self.parent.mntGui.updateNextRaDec()
+                          if "name" in self.parent.plan[self.parent.active_tel][self.i].keys():
+                              self.parent.mntGui.target_e.setText(self.plan[self.i]["name"])
+                              self.parent.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
                       if "name" in self.parent.plan[self.parent.active_tel][self.i].keys():
-                          self.parent.mntGui.target_e.setText(self.plan[self.i]["name"])
-                          self.parent.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
-                  if "name" in self.parent.plan[self.parent.active_tel][self.i].keys():
-                      self.parent.instGui.ccd_tab.inst_object_e.setText(self.plan[self.i]["name"])
-                  if "seq" in self.parent.plan[self.parent.active_tel][self.i].keys():
-                      self.parent.instGui.ccd_tab.Select2_r.setChecked(True)
-                      self.parent.instGui.ccd_tab.inst_Seq_e.setText(self.plan[self.i]["seq"])
-                  if self.parent.plan[self.parent.active_tel][self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
+                          self.parent.instGui.ccd_tab.inst_object_e.setText(self.plan[self.i]["name"])
+                      if "seq" in self.parent.plan[self.parent.active_tel][self.i].keys():
+                          self.parent.instGui.ccd_tab.Select2_r.setChecked(True)
+                          self.parent.instGui.ccd_tab.inst_Seq_e.setText(self.plan[self.i]["seq"])
+                      if self.parent.plan[self.parent.active_tel][self.i]["type"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
+          except Exception as e:
+              print(f"PLAN GUI EXCEPTION 34: {e}")
+        else:
+            txt="WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
 
     def setSkip(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
 
             if "skip" in self.parent.plan[self.parent.active_tel][self.i].keys():
                 if self.parent.plan[self.parent.active_tel][self.i]["skip"]:
@@ -522,7 +535,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def pocisniecie_delAll(self):
         try:
-            if self.parent.acces:
+            if self.parent.tel_acces[self.parent.active_tel]:
 
                 if self.parent.current_i[self.parent.active_tel] >= 0:
                     ob_tmp = self.parent.plan[self.parent.active_tel][self.parent.current_i[self.parent.active_tel]]
@@ -542,7 +555,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
     def pocisniecie_del(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
               if self.i != self.parent.current_i[self.parent.active_tel] and self.i < len(self.parent.plan[self.parent.active_tel]):
                   if self.i < self.parent.current_i[self.parent.active_tel]: self.parent.current_i[self.parent.active_tel] = self.parent.current_i[self.parent.active_tel] - 1
                   if self.i < self.parent.next_i[self.parent.active_tel]: self.parent.next_i[self.parent.active_tel] = self.parent.next_i[self.parent.active_tel] - 1
@@ -558,7 +571,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.parent.WarningWindow(txt)
 
     def pocisniecie_first(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
 
             if self.i != self.parent.current_i[self.parent.active_tel]:
               self.parent.plan[self.parent.active_tel].insert(0,self.parent.plan[self.parent.active_tel][self.i])
@@ -579,7 +592,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
     def pocisniecie_last(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
           if self.i != self.parent.current_i[self.parent.active_tel]:
               self.parent.plan[self.parent.active_tel].append(self.parent.plan[self.parent.active_tel][self.i])
               self.parent.plan[self.parent.active_tel].pop(self.i)
@@ -595,7 +608,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.parent.WarningWindow(txt)
 
     def pocisniecie_up(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
           if self.i != self.parent.current_i[self.parent.active_tel]:
               if self.i - 1 == self.parent.current_i[self.parent.active_tel]:
                   self.parent.current_i[self.parent.active_tel] = self.parent.current_i[self.parent.active_tel] + 1
@@ -616,7 +629,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
     def pocisniecie_down(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
 
             if self.i != self.parent.current_i[self.parent.active_tel]:
               if self.i + 1 == self.parent.current_i[self.parent.active_tel]:
@@ -638,7 +651,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.parent.WarningWindow(txt)
 
     def pocisniecie_swap(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
           if self.i != self.parent.current_i[self.parent.active_tel] and self.prev_i != self.parent.current_i[self.parent.active_tel]:
               self.parent.plan[self.parent.active_tel][self.i],self.parent.plan[self.parent.active_tel][self.prev_i]=self.parent.plan[self.parent.active_tel][self.prev_i],self.parent.plan[self.parent.active_tel][self.i]
               self.parent.update_plan(self.parent.active_tel)
@@ -667,7 +680,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
     def loadPlan(self):
-        if self.parent.acces:
+        if self.parent.tel_acces[self.parent.active_tel]:
           # ob["name","block","type","ra","dec","seq","pos","comment","ok"]
           # ob["wait","wait_ut","wait_sunset","wait_sunrise"]
           # [meta_alt,meta_az,meta_plan_ut,meta_plan_alt,meta_plan_az,skip,skip_alt]
@@ -697,8 +710,11 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.parent.WarningWindow(txt)
 
     def plan_start(self):
-        self.parent.plan_start(self.parent.active_tel)
-          
+        if self.parent.tel_acces[self.parent.active_tel]:
+            self.parent.plan_start(self.parent.active_tel)
+        else:
+              txt = "WARNING: U don't have controll"
+              self.parent.WarningWindow(txt)
         # =================== OKNO GLOWNE ====================================
     def updateUI(self):
 
@@ -714,7 +730,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           w=0
           self.log_t=QTableWidget(0,3)
-          self.log_t.setHorizontalHeaderLabels(["UT","Object","cos"])
+          self.log_t.setHorizontalHeaderLabels(["UT","Object","seq"])
           self.log_t.setSelectionMode(QAbstractItemView.NoSelection)
           self.log_t.verticalHeader().hide()
           self.log_t.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -1018,7 +1034,7 @@ class PhaseWindow(QWidget):
             t = ephem.julian_date(s)
             mag = []
             jd = []
-            print(file)
+            #print(file)
             with open(file, "r") as plik:
                 if plik != None:
                     for line in plik:
@@ -1029,7 +1045,7 @@ class PhaseWindow(QWidget):
                             except ValueError:
                                 pass
             if len(mag) == len(jd) and len(jd)>0:
-                print(mag,jd)
+                #print(mag,jd)
                 if self.phase_c.isChecked():
                     objects = []
                     periods = []

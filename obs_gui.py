@@ -318,28 +318,32 @@ class MainForm(QWidget):
         self.obs_t.setStyleSheet("font-size: 9pt; selection-background-color: rgb(138,176,219);")
         grid.addWidget(self.obs_t, w, 0, 1, 8)
 
-        w = w + 1
+
         self.SpecialPocisk_p = QPushButton('NO')
         #self.testowyPocisk_p.clicked.connect(self.parent.force_update)
-        grid.addWidget(self.SpecialPocisk_p, w, 0,1,2)
 
-        w = w + 1
+
+
         self.ping_p = QPushButton('PING')
         self.ping_p.clicked.connect(self.parent.ping)
         self.log_p = QPushButton('LOG')
         self.flats_p = QPushButton('FLATS')
         self.guider_p = QPushButton('GUIDER')
+        self.guider_p.clicked.connect(lambda: self.parent.guiderGui.show())
         self.focus_p = QPushButton('AUTO FOCUS')
+        self.focus_p.clicked.connect(lambda: self.parent.focusGui.raise_())
         self.fits_p = QPushButton('FITS')
-
-        grid.addWidget(self.ping_p, w, 0)
-        grid.addWidget(self.log_p, w, 1)
-        grid.addWidget(self.focus_p, w, 2)
+        self.fits_p.clicked.connect(lambda: self.parent.fitsGui.raise_())
 
         w = w + 1
+        #grid.addWidget(self.SpecialPocisk_p, w, 0, 1, 2)
+        grid.addWidget(self.log_p, w, 0)
+        grid.addWidget(self.focus_p, w, 3)
+        w = w + 1
         grid.addWidget(self.flats_p, w, 0)
-        grid.addWidget(self.guider_p, w, 1)
-        grid.addWidget(self.fits_p, w, 2)
+        grid.addWidget(self.guider_p, w, 3)
+        w = w + 1
+        grid.addWidget(self.fits_p, w, 3)
 
         w = w + 1
 
@@ -351,6 +355,7 @@ class MainForm(QWidget):
         w = w + 1
 
         self.config_p = QPushButton("\u2699")
+        grid.addWidget(self.ping_p, w, 0)
         grid.addWidget(self.config_p, w, 7)
 
         w = 4
