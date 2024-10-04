@@ -129,7 +129,7 @@ class FitsWindow(QWidget):
                 n = self.parent.fits_downloader_data["param"]["loop"]
                 ndit = self.parent.fits_downloader_data["param"]["nloops"]
             except Exception as e:
-                print("TOI FITS EXCEPTION 1: {e}")
+                print(f"TOI FITS EXCEPTION 1: {e}")
 
 
             try:
@@ -166,7 +166,7 @@ class FitsWindow(QWidget):
                     self.canvas.draw()
 
             except Exception as e:
-                print("TOI FITS EXCEPTION 2: {e}")
+                print(f"TOI FITS EXCEPTION 2: {e}")
 
             try:
                 txt = txt + f" {date.split('T')[0]} <br>"
@@ -179,7 +179,7 @@ class FitsWindow(QWidget):
                 txt = txt + f" EXP: <b>{exptime}</b> s. <br>"
                 txt = txt + f" <hr> <br>"
             except Exception as e:
-                print("TOI FITS EXCEPTION 3: {e}")
+                print(f"TOI FITS EXCEPTION 3: {e}")
 
             try:
                 txt = txt + f"FWHM:  <b>{self.fwhm_x:.1f}</b>/<b>{self.fwhm_y:.1f}</b> <br>"
@@ -190,7 +190,7 @@ class FitsWindow(QWidget):
                 txt = txt + f"rms/q68 ADU:  <i>{self.stats.rms:.0f}</i>/<i>{self.stats.sigma_quantile:.0f}</i> <br>"
                 txt = txt + f" <hr> <br>"
             except Exception as e:
-                print("TOI FITS EXCEPTION 4: {e}")
+                print(f"TOI FITS EXCEPTION 4: {e}")
 
             try:
                 if ok:
@@ -206,7 +206,7 @@ class FitsWindow(QWidget):
                     txt = txt + " <b>OFP TARGETS</b>  <br>"
                     txt = txt + txt2
             except Exception as e:
-                print("TOI FITS EXCEPTION 5: {e}")
+                print(f"TOI FITS EXCEPTION 5: {e}")
 
             self.tel_e.setText(tel)
             self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[tel]['color']};")
