@@ -73,8 +73,8 @@ class FitsWindow(QWidget):
         self.sat_adu = []
         self.ok_coo = []
         self.ok_adu = []
-        self.fwhm_x = "--"
-        self.fwhm_y = "--"
+        self.fwhm_x = 0
+        self.fwhm_y = 0
 
 
         scale = 1
@@ -146,11 +146,11 @@ class FitsWindow(QWidget):
                     ybin = self.parent.fits_ofp_data["raw"]["header"]["YBINNING"]
                     focus = self.parent.fits_ofp_data["raw"]["header"]["FOCUS"]
 
-
-                    pointing_err_ra = self.parent.fits_ofp_data["raw"]["pointing_error"]["real_ra_diff"]
-                    pointing_err_dec = self.parent.fits_ofp_data["raw"]["pointing_error"]["dec_diff"]
-                    self.pointing_x = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_ra"]
-                    self.pointing_y = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_dec"]
+                    if "pointing_error" in self.parent.fits_ofp_data["raw"].keys():
+                        pointing_err_ra = self.parent.fits_ofp_data["raw"]["pointing_error"]["real_ra_diff"]
+                        pointing_err_dec = self.parent.fits_ofp_data["raw"]["pointing_error"]["dec_diff"]
+                        self.pointing_x = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_ra"]
+                        self.pointing_y = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_dec"]
                     if "objects" in self.parent.fits_ofp_data["raw"].keys():
                         for k in self.parent.fits_ofp_data["raw"]["objects"].keys():
                             if "x_pix" not in self.parent.fits_ofp_data["raw"]["objects"][k].keys():
