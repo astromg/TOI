@@ -326,8 +326,10 @@ class MainForm(QWidget):
 
         self.ping_p = QPushButton('PING')
         self.ping_p.clicked.connect(self.parent.ping)
-        self.log_p = QPushButton('LOG')
+        self.log_p = QPushButton('PLANRUNNER')
+        self.log_p.clicked.connect(lambda: self.parent.planrunnerGui.show())
         self.flats_p = QPushButton('FLATS')
+        self.flats_p.setStyleSheet(" color: gray;")
         self.guider_p = QPushButton('GUIDER')
         self.guider_p.clicked.connect(lambda: self.parent.guiderGui.show())
         self.focus_p = QPushButton('AUTO FOCUS')
@@ -355,6 +357,8 @@ class MainForm(QWidget):
         w = w + 1
 
         self.config_p = QPushButton("\u2699")
+        self.config_p.setStyleSheet(" color: gray;")
+
         grid.addWidget(self.ping_p, w, 0)
         grid.addWidget(self.config_p, w, 7)
 

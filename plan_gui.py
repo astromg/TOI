@@ -843,12 +843,12 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.grid.addWidget(self.last_p, w,4)
 
           w=w+1
-          self.prog_call_e=QTextEdit()
-          self.prog_call_e.setReadOnly(True)
-          self.prog_call_e.setStyleSheet("background-color: rgb(235,235,235);")
-          self.grid.addWidget(self.prog_call_e,w,0,3,5)
-
-          w=w+3
+          # self.prog_call_e=QTextEdit()
+          # self.prog_call_e.setReadOnly(True)
+          # self.prog_call_e.setStyleSheet("background-color: rgb(235,235,235);")
+          # self.grid.addWidget(self.prog_call_e,w,0,3,5)
+          #
+          # w=w+3
           self.load_p=QPushButton('Load Plan')
           self.tpg_p = QPushButton('TPG')
           self.save_p = QPushButton('Save Plan')

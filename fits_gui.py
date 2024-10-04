@@ -26,8 +26,10 @@ class FitsWindow(QWidget):
         self.colorbar = None
         self.image=[]
         self.coo = []
+        self.sat_coo = []
         self.fwhm_x = None
         self.fwhm_y = None
+        self.stats = None
 
     def clear(self):
         self.axes.clear()
@@ -77,6 +79,7 @@ class FitsWindow(QWidget):
         self.ok_adu = []
         self.fwhm_x = None
         self.fwhm_y = None
+
 
 
         scale = 1
@@ -188,9 +191,10 @@ class FitsWindow(QWidget):
                     txt = txt + f"FWHM:  <b>{self.fwhm_x:.1f}</b>/<b>{self.fwhm_y:.1f}</b> <br>"
                 txt = txt + f"detected stars:  <i>{len(self.coo)}</i> <br>"
                 txt = txt + f"saturated stars:  <i>{len(self.sat_coo)}</i> <br>"
-                txt = txt + f"min/max ADU:  <i>{self.stats.min:.0f}</i>/<i>{self.stats.max:.0f}</i><br>"
-                txt = txt + f"mean/median ADU:  <i>{self.stats.mean:.0f}</i>/<i>{self.stats.median:.0f}</i> <br>"
-                txt = txt + f"rms/q68 ADU:  <i>{self.stats.rms:.0f}</i>/<i>{self.stats.sigma_quantile:.0f}</i> <br>"
+                if self.stats:
+                    txt = txt + f"min/max ADU:  <i>{self.stats.min:.0f}</i>/<i>{self.stats.max:.0f}</i><br>"
+                    txt = txt + f"mean/median ADU:  <i>{self.stats.mean:.0f}</i>/<i>{self.stats.median:.0f}</i> <br>"
+                    txt = txt + f"rms/q68 ADU:  <i>{self.stats.rms:.0f}</i>/<i>{self.stats.sigma_quantile:.0f}</i> <br>"
                 txt = txt + f" <hr> <br>"
             except Exception as e:
                 print(f"TOI FITS EXCEPTION 4: {e}")

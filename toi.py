@@ -55,6 +55,7 @@ from plan_gui import PlanGui
 from fits_gui import FitsWindow
 from focus_gui import FocusWindow
 from guider_gui import GuiderWindow
+from planrunner_gui import PlanrunnerWindow
 from toi_lib import *
 
 # import paho.mqtt.client as mqtt
@@ -107,6 +108,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.fitsGui = FitsWindow(self)
         self.focusGui = FocusWindow(self)
         self.guiderGui = GuiderWindow(self)
+        self.planrunnerGui = PlanrunnerWindow(self)
 
 
         self.auxGui = AuxGui(self)
@@ -366,6 +368,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.planGui.updateUI()
             self.instGui.updateUI()
             self.focusGui.updateUI()
+            self.planrunnerGui.updateUI()
 
 
             if not bool(self.cfg_showRotator):
@@ -1271,8 +1274,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if "id" in info.keys():  # to jest tylko do wyswietlania w oknie loga planu
                     self.program_id = info["id"]
                     ut=str(self.almanac["ut"]).split()[1].split(":")[0]+":"+str(self.almanac["ut"]).split()[1].split(":")[1]
-                    txt = f"--- {tel} ---  {ut}  ------  {self.program_id}  ------\n {info}\n"
-                    self.planGui.prog_call_e.append(txt)
+                    txt = f"------  {ut}  -----  {self.program_id}  ------\n {info}\n\n"
+                    self.planrunnerGui.text[tel] = self.planrunnerGui.text[tel] + txt
+                    self.planrunnerGui.updateUI()
 
                 # FLAT RECORDER
                 #  to mozna na razie wylaczyc, bedzie przerabiane
