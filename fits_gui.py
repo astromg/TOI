@@ -26,6 +26,8 @@ class FitsWindow(QWidget):
         self.colorbar = None
         self.image=[]
         self.coo = []
+        self.fwhm_x = None
+        self.fwhm_y = None
 
     def clear(self):
         self.axes.clear()
