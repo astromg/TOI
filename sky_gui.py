@@ -76,7 +76,7 @@ class SkyGui(QWidget):
             self.layout = QGridLayout()
             w = 0
             self.pic_l = QLabel(" ")
-            self.pic_l.setPixmap(QtGui.QPixmap("./Icons/logo_oca.png").scaled(300, 300))
+            self.pic_l.setPixmap(QtGui.QPixmap("./Icons/logo_oca2.png").scaled(300, 300))
             self.pic_l.setAlignment(Qt.AlignCenter)
             self.layout.addWidget(self.pic_l, w, 0, 1, 1)
 
@@ -201,9 +201,9 @@ class SkyView(QWidget):
 
         try:
             self.sun = self.axes.plot(deg_to_decimal_deg(self.parent.almanac["sun_az"]) * 2 * 3.14 / 360.,
-                                      90 - deg_to_decimal_deg(self.parent.almanac["sun_alt"]), "oy", alpha=0.7)
+                                      90 - deg_to_decimal_deg(self.parent.almanac["sun_alt"]), "oy", alpha=0.7, markersize=10)
             self.moon = self.axes.plot(deg_to_decimal_deg(self.parent.almanac["moon_az"]) * 2 * 3.14 / 360.,
-                                       90 - deg_to_decimal_deg(self.parent.almanac["moon_alt"]), "ok", alpha=0.7)
+                                       90 - deg_to_decimal_deg(self.parent.almanac["moon_alt"]), "ok", alpha=0.7, markersize=8)
         except Exception as es:
             print(es)
 

@@ -365,24 +365,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     # ################### METODY POD NATS READERY ##################
 
-    # async def nats_log_flat_reader(self):
-    #     reader = get_journalreader(f'tic.journal.{self.active_tel}.log.flats', deliver_policy='last')
-    #     async for data, meta in reader:
-    #         d:JournalEntry = data
-    #         r = d.message
-    #
-    # async def nats_log_focus_reader(self):
-    #     reader = get_journalreader(f'tic.journal.{self.active_tel}.log.focus', deliver_policy='last')
-    #     async for data, meta in reader:
-    #         d:JournalEntry = data
-    #         r = d.message
-    #
-    # async def nats_log_toi_reader(self):
-    #     reader = get_journalreader(f'tic.journal.{self.active_tel}.toi.signal', deliver_policy='last')
-    #     async for data, meta in reader:
-    #         d:JournalEntry = data
-    #         r = d.message
-
     async def nats_toi_plan_status_reader(self):
         try:
             reader = get_reader(f'tic.status.{self.active_tel}.toi.plan', deliver_policy='last')
@@ -747,9 +729,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 for tel in self.acces_grantors.keys():
 
-                    #print(tel)
-                    #print(len(self.plan[tel]), self.current_i[tel], self.next_i[tel])
-                    #print(self.ob[tel])
+                    try:
+                        print("zb08")
+                        #print(len(self.plan[tel]), self.current_i[tel], self.next_i[tel])
+                        print(self.ob["zb08"])
+                        print(self.nats_ob_progress)
+                        print(self.planrunners["zb08"].is_nightplan_running(self.ob["zb08"]['origin']))
+                    except:
+                        pass
 
                     acces = await self.acces_grantors[tel].aget_is_access()
                     name = await self.acces_grantors[tel].aget_current_user()
@@ -774,15 +761,28 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             try:
                 for tel in self.local_cfg["toi"]["telescopes"]:
 
-                    try:
-                        if self.ob[tel]['run'] != self.planrunners[tel].is_nightplan_running(self.ob[tel]['origin']):
-                            print(f"{tel} OB(run)/PR: {self.ob[tel]['run']} / {self.planrunners[tel].is_nightplan_running(self.ob[tel]['origin'])}")
-                            #DUPA3
-                    except:
-                        pass
+                    # try:
+                    #     if self.ob[tel]['run'] != self.planrunners[tel].is_nightplan_running(self.ob[tel]['origin']):
+                    #         print(f"{tel} OB(run)/PR: {self.ob[tel]['run']} / {self.planrunners[tel].is_nightplan_running(self.ob[tel]['origin'])}")
+                    #         #DUPA3
+                    # except:
+                    #     pass
+
+                    if self.telescope and not self.tel_acces[tel]:    # obsluga tego ze w czasie realizacji planu, ktos inny przejal kontrole
+                        if "continue_plan" in self.ob[tel].keys():
+                            if self.ob[tel]["continue_plan"]:
+                                self.ob[tel]["continue_plan"] = False
+                                self.current_i[tel] = -1
+                                self.ob[tel]["done"] = False
+                                self.update_plan(tel)
+
+
 
                     if self.telescope and self.tel_acces[tel]:
-                        if "continue_plan" in self.ob[tel].keys() and "done" in self.ob[tel].keys() and "origin" in self.ob[tel].keys():
+                        #DUPA1
+
+
+                        if self.ob[tel]["origin"]:
 
                             if self.ob[tel]["done"] and "plan" in self.ob[tel]["origin"] and self.ob[tel]["continue_plan"]:
                                 await self.plan_start(tel)
@@ -3003,6 +3003,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def takeControl(self):
+
+        #DUPA1
+        self.reset_ob(self.active_tel)
+        try:
+            s = self.nats_toi_ob_status[self.active_tel]
+            status = {"ob_started": self.ob[self.active_tel]["run"], "ob_done": self.ob[self.active_tel]["done"],
+                      "ob_start_time": self.ob_start_time, "ob_expected_time": self.ob[self.active_tel]["slot_time"],
+                      "ob_program": ""}
+            await s.publish(data=status, timeout=10)
+        except Exception as e:
+            logger.warning(f'TOI: EXCEPTION 78: {e}')
+
         txt="REQUEST: Control"
         #self.obsGui.main_form.control_e.setText(txt)
         #self.obsGui.main_form.control_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
@@ -3129,9 +3141,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.update_table()
 
 
-    def reset_ob(self):
-        templeate = {"run":False,"done":False,"uobi":None,"origin":None,"slot_time":None,"start_time":None}
-        self.ob = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
+    def reset_ob(self,tel):
+        templeate = {"run":False,"done":False,"uobi":None,"origin":None,"slot_time":None,"start_time":None,"continue_plan":False}
+        self.ob[tel] = copy.deepcopy(templeate)
 
 
     def variables_init(self):
@@ -3314,7 +3326,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ob_prog_status = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
 
         # STAGE 2
-        self.reset_ob()
+
+        self.ob = {}
+        for t in self.local_cfg["toi"]["telescopes"]:
+            self.reset_ob(t)
 
         self.nats_plan_status = {"current_i":-1,"next_i":-1,"plan":[]}
 
