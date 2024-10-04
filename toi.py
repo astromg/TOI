@@ -729,14 +729,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 for tel in self.acces_grantors.keys():
 
-                    try:
-                        print("zb08")
-                        #print(len(self.plan[tel]), self.current_i[tel], self.next_i[tel])
-                        print(self.ob["zb08"])
-                        print(self.nats_ob_progress)
-                        print(self.planrunners["zb08"].is_nightplan_running(self.ob["zb08"]['origin']))
-                    except:
-                        pass
+                    # try:
+                    #     print("zb08")
+                    #     #print(len(self.plan[tel]), self.current_i[tel], self.next_i[tel])
+                    #     print(self.ob["zb08"])
+                    #     print(self.nats_ob_progress)
+                    #     print(self.planrunners["zb08"].is_nightplan_running(self.ob["zb08"]['origin']))
+                    # except:
+                    #     pass
 
                     acces = await self.acces_grantors[tel].aget_is_access()
                     name = await self.acces_grantors[tel].aget_current_user()
@@ -1695,8 +1695,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         t = self.oca_site.next_rising(star, use_center=True)
                                         if t < ob_time + ephem.second * self.plan[tel][i]["slotTime"]:
                                             self.plan[tel][i]["skip_alt"] = True
-                                            print("wysoko", self.plan[tel][i]["name"])
-                                            print(self.plan[tel][i]["slotTime"])
                                     except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
                                         pass
 
@@ -3009,7 +3007,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             s = self.nats_toi_ob_status[self.active_tel]
             status = {"ob_started": self.ob[self.active_tel]["run"], "ob_done": self.ob[self.active_tel]["done"],
-                      "ob_start_time": self.ob_start_time, "ob_expected_time": self.ob[self.active_tel]["slot_time"],
+                      "ob_start_time": None, "ob_expected_time": self.ob[self.active_tel]["slot_time"],
                       "ob_program": ""}
             await s.publish(data=status, timeout=10)
         except Exception as e:
@@ -3233,8 +3231,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 tmp = None
             self.nats_cfg[k]["focus_def_step"] = tmp
 
-            #print(self.nats_cfg)
-
         # statusty wszystkich teleskopow
 
         templeate = {
@@ -3277,7 +3273,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         geometry = QtWidgets.QDesktopWidget().screenGeometry(0)
 
-        #print(geometry)
         self.obs_window_geometry = [geometry.left(),geometry.top(),850,400]
         self.mnt_geometry = [self.obs_window_geometry[0],self.obs_window_geometry[1]+self.obs_window_geometry[3]+110,850,450]
 
