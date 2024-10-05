@@ -1,0 +1,25 @@
+# Standard stars for Stromgren used on 4.1m SOAR telescope
+# std_name     RA[hh mm ss.s]     DEC[deg mm ss.s]   Vstd   eVstd  b-y    eb-y   m1     em1    c1     ec1    beta    ebeta
+OBJECT HD8147     01:20:00.7933  -45:27:31.971 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT CD-45_460  01:24:12.5114  -44:27:00.046 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT HD9932     01:36:08.9856  -44:05:23.414 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT HD12756    02:04:18.5245  -30:24:25.691 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT HD22610    03:34:45.2933  -62:27:24.602 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT HD26273    04:07:24.6764  -44:00:00.695 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT HD26744    04:11:44.7618  -44:49:02.230 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT HD48855    06:43:14.1102  -45:14:30.284 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT CD-45_2690 06:42:25.3464  -45:09:12.380 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT CD-44_2834 06:40:10.7983  -45:06:03.330 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT NGC2257_A  06:30:25.6945  -64:18:58.474 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT NGC2257_B  06:30:38.6930  -64:21:41.881 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT NGC2257_D  06:30:28.4328  -64:20:06.229 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT HD57568    07:21:22.6838  -12:38:14.054 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT HD58489    07:24:04.6088  -40:02:45.841 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT HD66020    08:00:02.1481  -40:02:21.903 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT HD219057   23:13:09.8157  -30:26:59.297 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT HD64       00:05:27.6870  -33:22:28.075 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT HD3417     00:36:52.2534  -34:16:50.395 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT NGC330_A   00:56:03.3594  -72:29:08.001 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT NGC330_B   00:55:53.8331  -72:28:29.109 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT NGC330_D   00:56:07.1887  -72:28:13.823 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards
+OBJECT NGC330_G   00:55:52.8402  -72:26:31.532 seq=1/Ic/2,1/V/2,1/B/2,1/Hb_n/10,1/Hb_w/10,1/y_s/5,1/v_s/5,1/b_s/5,1/u_s/5  # stromgren standards

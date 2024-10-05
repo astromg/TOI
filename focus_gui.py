@@ -43,6 +43,8 @@ class FocusWindow(QWidget):
         #self.fig.tight_layout()
         self.canvas.draw()
         self.show()
+        self.raise_()
+
 
     def updateUI(self):
         if self.parent.active_tel != None:

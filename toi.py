@@ -42,7 +42,7 @@ from serverish.messenger import Messenger, single_read, get_reader, get_journalr
 from serverish.messenger.msg_publisher import MsgPublisher, get_publisher
 from serverish.messenger.msg_journal_pub import MsgJournalPublisher, get_journalpublisher, JournalEntry
 
-from aux_gui import AuxGui
+#from aux_gui import AuxGui
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 from calcFocus import calc_focus as calFoc
 from ffs_lib.ffs import FFS
@@ -111,7 +111,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.planrunnerGui = PlanrunnerWindow(self)
 
 
-        self.auxGui = AuxGui(self)
+        #self.auxGui = AuxGui(self)
 
         self.add_background_task(self.tic_con_loop())
         self.add_background_task(self.almanac_loop())
@@ -122,7 +122,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 
-        self.add_background_task(self.guider_loop())
+        #self.add_background_task(self.guider_loop())
 
         self.add_background_task(self.TOItimer())
         self.add_background_task(self.nats_weather_loop())
@@ -364,7 +364,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             self.mntGui.updateUI()
             self.skyGui.updateUI()
-            self.auxGui.updateUI()
+            #self.auxGui.updateUI()
             self.planGui.updateUI()
             self.instGui.updateUI()
             self.focusGui.updateUI()
@@ -420,11 +420,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             reader = get_reader(f'tic.status.{self.active_tel}.toi.focus', deliver_policy='last')
             async for data, meta in reader:
-                # DUPA
-                try:
-                    print(data["temperature"],data["filter"])
-                except:
-                    pass
                 self.nats_focus_status = data
                 self.update_focus_window()
         except (asyncio.CancelledError, asyncio.TimeoutError):
@@ -876,7 +871,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             try:
 
                 if self.telescope is not None:  # if telescope is selected, other component (e.g. dome ...) also. So no check
-                        guider_loop = int(self.auxGui.guider_tab.guiderView.guiderLoop_e.text())
+                        #guider_loop = int(self.auxGui.guider_tab.guiderView.guiderLoop_e.text())
                         method = self.guiderGui.guiderView.method_s.currentText()
 
                         # guider robi sie w petli, co guider_loop robi sie ekspozycja
@@ -1319,8 +1314,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     data["fit_y"] = list(calc_metadata["fit_y"])
                                     data["status"] = str(calc_metadata["status"])
                                     data["temperature"] = self.telemetry_temp
-                                    pos = self.parent.oca_tel_state[tel]["fw_position"]["val"]
-                                    data["filter"] = elf.parent.nats_cfg[t]["filter_list_names"][pos]
+                                    pos = self.oca_tel_state[tel]["fw_position"]["val"]
+                                    data["filter"] = self.nats_cfg[tel]["filter_list_names"][pos]
                                     await s.publish(data=data, timeout=10)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 42: {e}')
@@ -1393,7 +1388,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def plan_start(self,tel):
         if self.tel_acces[tel]:
-            self.observer = self.auxGui.welcome_tab.observer_e.text()
+            #self.observer = self.auxGui.welcome_tab.observer_e.text()
 
             if self.next_i[tel] > -1 and self.next_i[tel] < len(self.plan[tel]):
                 self.ob[tel] = self.plan[tel][self.next_i[tel]]
@@ -1534,9 +1529,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob[tel]["continue_plan"] = True
                                 self.planrunner_start(tel)
 
-                            self.next_ob()
-                    else:
-                        self.next_ob()
         else:
             txt="WARNING: U don't have controll"
             self.WarningWindow(txt)
@@ -1749,7 +1741,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.focusGui.fwhm = self.nats_focus_status["fwhm"]
 
             self.focusGui.update()
-            self.auxGui.tabWidget.setCurrentIndex(2)
         except Exception as e:
             logger.warning(f'EXCEPTION 45: {e}')
 
@@ -1807,7 +1798,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def ccd_Snap(self):
-        self.observer = self.auxGui.welcome_tab.observer_e.text()
+        #self.observer =
         if self.tel_acces[self.active_tel]:
             ok_ndit = False
             ok_exp = False
@@ -3205,7 +3196,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.plan_geometry = [self.obs_window_geometry[0]+1370 ,self.obs_window_geometry[1],490,1100]
 
-        self.aux_geometry = [self.obs_window_geometry[0]+2000,self.obs_window_geometry[1],510,550]
+        #self.aux_geometry = [self.obs_window_geometry[0]+2000,self.obs_window_geometry[1],510,550]
 
 
 

@@ -218,6 +218,7 @@ class FitsWindow(QWidget):
             self.tel_e.setText(tel)
             self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[tel]['color']};")
             self.stat_e.setHtml(txt)
+        self.raise_()
 
     def mkUI(self):
         self.fig = Figure((1.0, 1.0), linewidth=-1, dpi=100)
