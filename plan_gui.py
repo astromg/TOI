@@ -1067,12 +1067,16 @@ class PhaseWindow(QWidget):
                     i = objects.index(self.name)
                     P = periods[i]
                     jd0 = jd0s[i]
-                    if numpy.isnan(jd0):
-                        jd0 = min(jd)
-                    jd = (numpy.array(jd) - float(jd0))/float(P)%1
-                    t = (t - float(jd0))/float(P)%1
-                    self.axes.set_xlim(-0.1,1.1)
-                    self.axes.set_title(f"{self.ut} {self.name} P={P}")
+                    if not numpy.isnan(P):
+                        if numpy.isnan(jd0):
+                            jd0 = min(jd)
+                        jd = (numpy.array(jd) - float(jd0))/float(P)%1
+                        t = (t - float(jd0))/float(P)%1
+                        self.axes.set_xlim(-0.1,1.1)
+                        self.axes.set_title(f"{self.ut} {self.name} P={P}")
+                    else:
+                        self.phase_c.setChecked(False)
+                        self.axes.set_title(f"{self.ut} {self.name}")
                 else:
                     self.axes.set_title(f"{self.ut} {self.name}")
 
@@ -1085,7 +1089,7 @@ class PhaseWindow(QWidget):
         except (FileNotFoundError,ValueError) as e:
             print(f"Phase Window Error: {e}")
 
-        self.fig.tight_layout()
+        #self.fig.tight_layout()
         self.canvas.draw()
         self.show()
 
@@ -1291,7 +1295,7 @@ class PlotWindow(QWidget):
             #self.axes.set_ylabel("altitude")
             #self.axes.set_xlabel("UT")
             self.fig.subplots_adjust(bottom=0.12,top=0.8,left=0.08,right=0.98)
-            self.fig.tight_layout()
+            #self.fig.tight_layout()
 
             self.canvas.draw()
             self.show()
