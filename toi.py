@@ -4,10 +4,10 @@
 # 1.08.2022
 # Marek Gorski
 # ----------------
+import logging
 import asyncio
 import datetime
 import functools
-import logging
 import os
 # import json
 import pwd
@@ -62,7 +62,8 @@ from toi_lib import *
 #from starmatch_lib import StarMatch
 
 # level ustawic w settings
-logging.basicConfig(level='INFO') # DEBUG, INFO, WARNING, ERROR
+logging.basicConfig(level='INFO', format='%(asctime)s.%(msecs)03d [%(levelname)s] [%(name)s] %(message)s',
+                    datefmt='%H:%M:%S')
 logger = logging.getLogger(__name__)
 
 
