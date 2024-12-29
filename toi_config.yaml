@@ -11,7 +11,7 @@ toi:
 
 wk06:
   tel_directory: /data/fits/wk06/
-  tel_ob_list: /data/misc/objects_list/
+  tel_ob_list: /data/misc/synced/objects_list/
   flat_log_files: /Logs/wk06_flats_log.txt
   object_catalog: ./object_catalog.txt
 
@@ -21,7 +21,7 @@ wk06:
 
 zb08:
   tel_directory: /data/fits/zb08/
-  tel_ob_list: /data/misc/objects_list/
+  tel_ob_list: /data/misc/synced/objects_list/
   flat_log_files: /Logs/zb08_flats_log.txt
   object_catalog: ./object_catalog.txt
 
@@ -31,7 +31,7 @@ zb08:
 
 jk15:
   tel_directory: /data/fits/jk15/
-  tel_ob_list: /data/misc/objects_list/
+  tel_ob_list: /data/misc/synced/objects_list/
   flat_log_files: /Logs/jk15_flats_log.txt
   object_catalog: ./object_catalog.txt
 
