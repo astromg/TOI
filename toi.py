@@ -65,7 +65,7 @@ from toi_lib import *
 logging.basicConfig(level='INFO', format='%(asctime)s.%(msecs)03d [%(levelname)s] [%(name)s] %(message)s',
                     datefmt='%H:%M:%S')
 logger = logging.getLogger(__name__)
-
+logging.Formatter.converter = time.gmtime
 
 class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
@@ -877,8 +877,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                         # guider robi sie w petli, co guider_loop robi sie ekspozycja
                         self.tmp_i = self.tmp_i + 1
-                        if self.tmp_i > guider_loop:
-                            self.tmp_i = 0
+                        # if self.tmp_i > guider_loop:
+                        #     self.tmp_i = 0
 
                         # tu sie robie ekspozycja
                         if self.tmp_i == 1:
@@ -1363,7 +1363,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 exp=self.instGui.ccd_tab.inst_Dit_e.text()
                 if len(exp)==0:
                     exp = 5
-                    await self.msg(f" {tel} WARNING: no exp specified. exp=5","red")
+                    await self.msg(f" {self.telescope.id} WARNING: no exp specified. exp=5","red")
 
                 seq = f"{int(number)}/"+str(self.curent_filter)+"/"+str(exp)
                 pos = f"{int(v0)}/{int(step)}"
