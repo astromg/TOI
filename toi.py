@@ -273,7 +273,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_mode = ["Normal", "Sky", "JitterBox", "JitterRandom"]
             self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
             self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
-            self.cfg_inst_defSetUp = {"gain": "Gain 2750", "rm": "1MHz","bin":"2x2", "temp":-20}
+            self.cfg_inst_defSetUp = {"gain": "Gain 2", "rm": "0,1MHz 18-bit","bin":"1x1", "temp":-58}
 
         # obsluga subskrypcji
 
@@ -1305,7 +1305,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 await self.msg(f" {tel} PLAN: Auto-focus sequence finished","black")
                                 max_sharpness_focus, calc_metadata = calFoc.calculate(self.local_cfg[tel]["tel_directory"]+"focus/actual",method=self.focus_method)
                                 try:
-                                    s = self.nats_toi_focus_status[tel]
+                                    #DUPA
+                                    #s = self.nats_toi_focus_status[tel]
                                     data = {}
                                     data["coef"] = list(calc_metadata["coef"])
                                     data["focus_values"] = list(calc_metadata["focus_values"])
@@ -1315,9 +1316,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     data["fit_y"] = list(calc_metadata["fit_y"])
                                     data["status"] = str(calc_metadata["status"])
                                     data["temperature"] = self.telemetry_temp
-                                    pos = self.oca_tel_state[tel]["fw_position"]["val"]
-                                    data["filter"] = self.nats_cfg[tel]["filter_list_names"][pos]
-                                    await s.publish(data=data, timeout=10)
+                                    # DUPA
+                                    try:
+                                        pos = self.oca_tel_state[tel]["fw_position"]["val"]
+                                        print("DEBUG_1: ", pos, self.nats_cfg[tel]["filter_list_names"])
+                                        print("DEBUG_2: ", pos, self.nats_cfg[tel]["filter_list_names"][pos])
+                                        data["filter"] = self.nats_cfg[tel]["filter_list_names"][pos]
+                                    except:
+                                        data["filter"] = "--"
+
+                                    await self.nats_toi_focus_status[tel].publish(data=data, timeout=10)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 42: {e}')
 
