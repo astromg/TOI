@@ -38,3 +38,14 @@ jk15:
   light_ip: 192.168.7.218
   overhead: 25
   showRotator: True
+
+
+ctc:
+  ctc_base_folder: /data/misc/cycle_time_calc
+  rm_modes_mhz: {
+    "zb08": [5, 3, 1, 0.05],
+    "jk15": [4, 2, 1, 1, 0.1, 0.1],
+    "wk06": [5, 3, 1, 0.05],
+    "dev": [1, 1, 1, 1, 1, 1, 1],
+    "sim": [1, 1, 1, 1, 1, 1, 1],
+    "default": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]}

@@ -169,7 +169,7 @@ class SkyView(QWidget):
             for p in self.nextOb: p.remove()
         except:
             pass
-        sun_h = f"{deg_to_decimal_deg(self.parent.almanac['sun_alt']):.0f}"
+        sun_h = f"{deg_to_decimal_deg(self.parent.almanac['sun_alt']):.2f}"
         sunrise_tmp = str(self.parent.almanac["sunrise"]).split()[1]
         sunset_tmp = str(self.parent.almanac["sunset"]).split()[1]
         sunrise = sunrise_tmp.split(":")[0] + ":" + sunrise_tmp.split(":")[1]

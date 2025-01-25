@@ -1305,8 +1305,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 await self.msg(f" {tel} PLAN: Auto-focus sequence finished","black")
                                 max_sharpness_focus, calc_metadata = calFoc.calculate(self.local_cfg[tel]["tel_directory"]+"focus/actual",method=self.focus_method)
                                 try:
-                                    #DUPA
-                                    #s = self.nats_toi_focus_status[tel]
                                     data = {}
                                     data["coef"] = list(calc_metadata["coef"])
                                     data["focus_values"] = list(calc_metadata["focus_values"])
@@ -1316,11 +1314,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     data["fit_y"] = list(calc_metadata["fit_y"])
                                     data["status"] = str(calc_metadata["status"])
                                     data["temperature"] = self.telemetry_temp
-                                    # DUPA
                                     try:
                                         pos = self.oca_tel_state[tel]["fw_position"]["val"]
-                                        print("DEBUG_1: ", pos, self.nats_cfg[tel]["filter_list_names"])
-                                        print("DEBUG_2: ", pos, self.nats_cfg[tel]["filter_list_names"][pos])
                                         data["filter"] = self.nats_cfg[tel]["filter_list_names"][pos]
                                     except:
                                         data["filter"] = "--"
