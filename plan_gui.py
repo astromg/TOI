@@ -702,16 +702,19 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                    line = line.strip()
                                    ob,ok,tmp1,tmp2,tmp3 = ob_parser(line,overhed=self.parent.overhed,filter_list=self.parent.filter_list)
                                    #DUPA
-                                   if os.path.exists(self.parent.local_cfg["ctc"]["ctc_base_folder"]):
-                                       self.ctc = CycleTimeCalc(telescope=self.parent.active_tel,base_folder=self.parent.local_cfg["ctc"]["ctc_base_folder"],tpg=True)
-                                       self.ctc.set_rm_modes(self.parent.local_cfg["ctc"]["rm_modes_mhz"])
-                                       self.ctc.set_start_rmode(2)  # tutaj zmienic defoult read mode dla teleskopu
-                                       self.ctc.reset_time()
-                                       ctc_ob_time = self.ctc.calc_time(ob["block"])
-                                       if float(ob["slotTime"]) / float(ctc_ob_time) < 1.3 and float(ob["slotTime"]) / float(ctc_ob_time) > 0.7:
-                                           ob["slotTime"] = ctc_ob_time
-                                       else:
-                                           print(f'TOI CTC disagreement: {ob["slotTime"]} {ctc_ob_time} {ob["block"]}')
+                                   try:
+                                       if os.path.exists(self.parent.local_cfg["ctc"]["ctc_base_folder"]):
+                                           self.ctc = CycleTimeCalc(telescope=self.parent.active_tel,base_folder=self.parent.local_cfg["ctc"]["ctc_base_folder"],tpg=True)
+                                           self.ctc.set_rm_modes(self.parent.local_cfg["ctc"]["rm_modes_mhz"])
+                                           self.ctc.set_start_rmode(2)  # tutaj zmienic defoult read mode dla teleskopu
+                                           self.ctc.reset_time()
+                                           ctc_ob_time = self.ctc.calc_time(ob["block"])
+                                           if float(ob["slotTime"]) / float(ctc_ob_time) < 1.3 and float(ob["slotTime"]) / float(ctc_ob_time) > 0.7:
+                                               ob["slotTime"] = ctc_ob_time
+                                           else:
+                                               print(f'TOI CTC disagreement: {ob["slotTime"]} {ctc_ob_time} {ob["block"]}')
+                                   except:
+                                       pass
 
                                    tmp_plan.append(ob)
                          self.plan[self.i+1:self.i+1] = tmp_plan
@@ -952,17 +955,20 @@ class TPGWindow(QWidget):
             ob, ok, tmp1, tmp2, tmp3 = ob_parser(blok, overhed=self.parent.parent.overhed,
                                                                  filter_list=self.parent.parent.filter_list)
             #DUPA
-            if os.path.exists(self.parent.parent.local_cfg["ctc"]["ctc_base_folder"]):
-                self.ctc = CycleTimeCalc(telescope=self.parent.parent.active_tel,
-                                         base_folder=self.parent.parent.local_cfg["ctc"]["ctc_base_folder"], tpg=True)
-                self.ctc.set_rm_modes(self.parent.parent.local_cfg["ctc"]["rm_modes_mhz"])
-                self.ctc.set_start_rmode(2)  # tutaj zmienic defoult read mode dla teleskopu
-                self.ctc.reset_time()
-                ctc_ob_time = self.ctc.calc_time(ob["block"])
-                if float(ob["slotTime"])/float(ctc_ob_time) < 1.3 and float(ob["slotTime"])/float(ctc_ob_time) > 0.7:
-                    ob["slotTime"] = ctc_ob_time
-                else:
-                    print(f'TOI CTC disagreement: {ob["slotTime"]} {ctc_ob_time} {ob["block"]}')
+            try:
+                if os.path.exists(self.parent.parent.local_cfg["ctc"]["ctc_base_folder"]):
+                    self.ctc = CycleTimeCalc(telescope=self.parent.parent.active_tel,
+                                             base_folder=self.parent.parent.local_cfg["ctc"]["ctc_base_folder"], tpg=True)
+                    self.ctc.set_rm_modes(self.parent.parent.local_cfg["ctc"]["rm_modes_mhz"])
+                    self.ctc.set_start_rmode(2)  # tutaj zmienic defoult read mode dla teleskopu
+                    self.ctc.reset_time()
+                    ctc_ob_time = self.ctc.calc_time(ob["block"])
+                    if float(ob["slotTime"])/float(ctc_ob_time) < 1.3 and float(ob["slotTime"])/float(ctc_ob_time) > 0.7:
+                        ob["slotTime"] = ctc_ob_time
+                    else:
+                        print(f'TOI CTC disagreement: {ob["slotTime"]} {ctc_ob_time} {ob["block"]}')
+            except:
+                pass
 
             tmp_plan.append(ob)
         self.parent.plan[self.parent.i + 1:self.parent.i + 1] = tmp_plan
