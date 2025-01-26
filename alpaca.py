@@ -5,6 +5,72 @@ import json
 import requests
 
 
+# Tertiary mirror
+
+# data = {"Action":"selectnasmythport","Parameters":"1"}
+# quest = "http://192.168.7.110:11111/api/v1/telescope/0/action"
+# r = requests.put(quest, data=data).json()
+# r = r['Value']
+# print(f"ALPACA: {quest}\n {r}\n")
+
+# data = {"Action":"nasmythport","Parameters":""}
+# quest = "http://192.168.7.110:11111/api/v1/telescope/0/action"
+# r = requests.put(quest, data=data).json()
+# r = r['Value']
+# print(f"ALPACA: {quest}\n {r}\n")
+
+
+
+# ERROR
+
+
+# data ={"Action" :"telescope:errorstring" ,"Parameters" :""}
+# quest ="http://192.168.7.110:11111/api/v1/telescope/0/action"
+# r = requests.put(quest ,data=data).json()
+# r= r['Value']
+# print(f"ALPACA: {quest}\n {r}\n")
+
+# data = {"Action":"clearerror","Parameters":"1"}
+# quest = "http://192.168.7.110:11111/api/v1/telescope/0/action"
+# r = requests.put(quest, data=data).json()
+# r = r['Value']
+# print(f"ALPACA: {quest}\n {r}\n")
+
+
+
+# Rotator
+
+#  72.86856842041016
+
+quest = "http://192.168.7.110:11111/api/v1/rotator/0/moveabsolute"
+data={"Position":"190"}
+r = requests.put(quest, data=data).json()
+print(f"ALPACA: {quest}\n {r}\n")
+
+# quest = "http://192.168.7.110:11111/api/v1/rotator/0/move"
+# data={"Position":"10"}
+# r = requests.put(quest, data=data).json()
+# print(f"ALPACA: {quest}\n {r}\n")
+
+# quest = "http://192.168.7.110:11111/api/v1/rotator/0/movemechanical"
+# data={"Position":"150"}
+# r = requests.put(quest, data=data).json()
+# print(f"ALPACA: {quest}\n {r}\n")
+
+# quest = "http://192.168.7.110:11111/api/v1/rotator/0/position"
+# r = requests.get(quest)
+# r = r.json()
+# r = r["Value"]
+# print(f"ALPACA: {quest}\n {r}\n")
+#
+# quest = "http://192.168.7.110:11111/api/v1/rotator/0/mechanicalposition"
+# r = requests.get(quest)
+# r = r.json()
+# r = r["Value"]
+# print(f"ALPACA: {quest}\n {r}\n")
+
+
+
 
 # awaryjny
 # txt =""
@@ -63,7 +129,7 @@ import requests
 # quest="http://192.168.7.110:11111/api/v1/camera/0/setccdtemperature"
 
 #quest="http://192.168.7.110:11111/api/v1/camera/1/description"
-quest="http://192.168.7.110:11111/api/v1/camera/0/numx"
+#quest="http://192.168.7.110:11111/api/v1/camera/0/numx"
 #quest="http://192.168.7.110:11111/api/v1/camera/1/electronsperadu"
 #quest="http://192.168.7.110:11111/api/v1/camera/1/exposuremax"
 #quest="http://192.168.7.110:11111/api/v1/camera/1/fullwellcapacity"
@@ -74,12 +140,12 @@ quest="http://192.168.7.110:11111/api/v1/camera/0/numx"
 #data={"Direction":"0","Duration":"1000"}
 
 
-r=requests.get(quest)
+#r=requests.get(quest)
 
 # data={"Command":"MotStat","Raw":"True"}
 # quest="http://192.168.7.110:11111/api/v1/telescope/0/commandstring"
 
 #r=requests.put(quest,data=data)
 
-r=r.json()
-print(f"ALPACA: {quest}\n {r}\n")
+#r=r.json()
+#print(f"ALPACA: {quest}\n {r}\n")
