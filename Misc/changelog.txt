@@ -1,7 +1,13 @@
 <h4>Whats New?</h4>
 
---- 02.10.2024 --- <br>
 
+
+--- 26.10.2025 --- <br>
+Flat Log Window is again available.  
+TPG is moved to separate Qthread not to block Main Window, TPG progress is now reported and start at sunset now takes
+current_time - 4h.
+<br><br>
+--- 02.10.2024 --- <br>
 TOI can operate multiple telescopes (planrunners) from one app. Telescope PLANS are now synchronized between
 TOI instances on different computers (via NATS). Autofocus now is calculated based on the Lorentzian profile by default.
 All telescopes statuses are now displayed in the main telescope selection window.

@@ -921,12 +921,55 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 # ######### OKNO TPG  ##########
 # #############################################
 
+class TPG_Worker(QtCore.QObject):
+    done_signal = QtCore.pyqtSignal()
+    plan_ready_signal = QtCore.pyqtSignal(list)
+    update_signal = QtCore.pyqtSignal(str)
+    def __init__(self,tel,date,wind,uobi_done):
+        super(TPG_Worker, self).__init__()
+        self.tel=tel
+        self.date=date
+        self.wind=wind
+        self.uobi_done=uobi_done
+
+    def run(self):
+        p = tpg(self.tel, self.date, wind=self.wind,done_uobi=self.uobi_done)
+
+        p.Initiate()
+        self.update_signal.emit("TPG init <span style='color: green;'>\u2714</span>")
+        p.LoadObjects()
+        self.update_signal.emit("loading objects <span style='color: green;'>\u2714</span>")
+        p.MakeTime()
+        self.update_signal.emit("making timeline <span style='color: green;'>\u2714</span>")
+        self.update_signal.emit(f"plan start: <span style='color: green; font-weight: bold;'> {p.start_time}  </span>")
+        p.CalcObject()
+        self.update_signal.emit("calculating visibilities <span style='color: green;'>\u2714</span>")
+        p.MaskMoon()
+        self.update_signal.emit("Moon masking <span style='color: green;'>\u2714</span>")
+        p.MaskWind()
+        self.update_signal.emit("wind masking <span style='color: green;'>\u2714</span>")
+        p.MaskPhase()
+        self.update_signal.emit("database masking <span style='color: green;'>\u2714</span>")
+        p.MaskStartEnd()
+        p.MaskPhaseStartEnd()
+        self.update_signal.emit("phase and time masking <span style='color: green;'>\u2714</span>")
+        p.Waga()
+        p.RandomizeList()
+        self.update_signal.emit("randomization <span style='color: green;'>\u2714</span>")
+        p.allocate()
+        self.update_signal.emit("allocating objects <span style='color: green;'>\u2714</span>")
+        p.export()
+        self.update_signal.emit("<span style='color: green; font-weight: bold;'>\u2714 DONE \u2714</span>")
+
+        self.plan_ready_signal.emit(p.plan)
+        self.done_signal.emit()
+
 class TPGWindow(QWidget):
     def __init__(self, parent):
         super(TPGWindow, self).__init__()
         self.parent = parent
         self.setStyleSheet("font-size: 11pt;")
-        self.setMinimumSize(200,200)
+        self.setMinimumSize(200,450)
         #self.setGeometry(100,100,400,100)
         self.mkUI()
 
@@ -936,7 +979,8 @@ class TPGWindow(QWidget):
         ut = self.ut_e.text()
 
         if self.sunset_c.isChecked():
-            date = [ut.split()[0]]
+            local_time = ephem.Date(ephem.Date(ut) - 4 * ephem.hour)
+            date = [str(local_time.datetime()).split()[0]]
         else:
             date = [ut.split()[0], ut.split()[1]]
         if self.wind_c.isChecked():
@@ -948,10 +992,34 @@ class TPGWindow(QWidget):
             uobi_done = self.parent.done
         else:
             uobi_done = []
-        p = tpg(tel, date, wind=wind,done_uobi=uobi_done)
 
+        self.info_e.clear()
+
+        self.thread = QtCore.QThread()
+        self.tpg_worker = TPG_Worker(tel,date,wind,uobi_done)
+        self.tpg_worker.moveToThread(self.thread)
+        self.thread.started.connect(self.tpg_worker.run)
+        self.tpg_worker.done_signal.connect(self.thread.quit)
+        self.tpg_worker.done_signal.connect(self.tpg_worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.tpg_worker.plan_ready_signal.connect(self.get_plan)
+        self.tpg_worker.update_signal.connect(self.update_status)
+        #self.tpg_th.go(tel,date,wind,uobi_done)
+        self.thread.start()
+
+
+    def update_status(self,txt):
+        if "wind masking" in txt:
+            if self.wind_c.isChecked():
+                self.info_e.append(txt)
+                self.info_e.repaint()
+        else:
+            self.info_e.append(txt)
+            self.info_e.repaint()
+
+    def get_plan(self,plan):
         tmp_plan=[]
-        for blok in p.plan:
+        for blok in plan:
             ob, ok, tmp1, tmp2, tmp3 = ob_parser(blok, overhed=self.parent.parent.overhed,
                                                                  filter_list=self.parent.parent.filter_list)
             #DUPA
@@ -975,7 +1043,7 @@ class TPGWindow(QWidget):
         self.parent.parent.upload_plan()
         self.parent.parent.update_plan(self.parent.parent.active_tel)
 
-        self.close()
+        #self.close()
 
 
     def mkUI(self):
@@ -1003,8 +1071,12 @@ class TPGWindow(QWidget):
 
         self.add_p = QPushButton('Generate Plan')
         self.add_p.clicked.connect(self.add)
-        self.close_p = QPushButton('Cancel')
+        self.close_p = QPushButton('Close')
         self.close_p.clicked.connect(lambda: self.close())
+
+        self.info_e = QTextEdit("")
+        self.info_e.isReadOnly()
+        self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
 
         grid.addWidget(self.ut_e, 0, 0,1,2)
         grid.addWidget(self.sunset_c, 1, 0)
@@ -1014,8 +1086,11 @@ class TPGWindow(QWidget):
 
         grid.addWidget(self.repeat_c, 3, 0,1,2)
 
-        grid.addWidget(self.add_p, 4, 1)
-        grid.addWidget(self.close_p, 4, 0)
+        grid.addWidget(self.info_e, 4, 0, 1, 2)
+
+        grid.addWidget(self.add_p, 5, 1)
+        grid.addWidget(self.close_p, 5, 0)
+
 
         self.setLayout(grid)
         self.show()
@@ -1299,8 +1374,12 @@ class PlotWindow(QWidget):
                                 alt_tab.append(deg_to_decimal_deg(str(alt)))
                                 t = t + 10*ephem.second
                             #print(alt_tab,t_tab)
-                            self.axes.plot(t_tab,alt_tab,color=color[j])
-                            self.axes.text(self.t, 93, f"{self.parent.plan[i]['name']}", color=color[j], rotation=90, fontsize=fontsize)
+                            if "standard" in self.parent.plan[i]["block"]:
+                                self.axes.plot(t_tab, alt_tab, color="blue")
+                                self.axes.text(self.t, 93, f"{self.parent.plan[i]['name']}", color="blue",rotation=90, fontsize=fontsize)
+                            else:
+                                self.axes.plot(t_tab,alt_tab,color=color[j])
+                                self.axes.text(self.t, 93, f"{self.parent.plan[i]['name']}", color=color[j], rotation=90, fontsize=fontsize)
                             j=j+1
 
                         self.t = self.t + ephem.second * slotTime
@@ -1316,6 +1395,11 @@ class PlotWindow(QWidget):
             self.axes.text(self.t_now, 82, f"{txt}", rotation=90, fontsize=fontsize)
 
             xtics = [self.t0, self.t0_dusk, self.t_end_dusk, self.t_end]
+            t =  ephem.Date(self.t0_dusk+30*ephem.minute)
+            while t < ephem.Date(self.t_end_dusk-30*ephem.minute):
+                t = ephem.Date(t) + ephem.hour
+                h = str(ephem.Date(t)).split()
+                xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
             xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
             self.axes.set_xticks(xtics)
             self.axes.set_xticklabels(xtics_labels,rotation=45,minor=False)

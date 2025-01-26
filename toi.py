@@ -54,6 +54,7 @@ from obs_gui import ObsGui
 from plan_gui import PlanGui
 from fits_gui import FitsWindow
 from focus_gui import FocusWindow
+from flat_gui import FlatWindow
 from guider_gui import GuiderWindow
 from planrunner_gui import PlanrunnerWindow
 from toi_lib import *
@@ -108,6 +109,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.planGui = PlanGui(self, loop=self.loop, client_api=self.client_api)
         self.fitsGui = FitsWindow(self)
         self.focusGui = FocusWindow(self)
+        self.flatGui = FlatWindow(self)
         self.guiderGui = GuiderWindow(self)
         self.planrunnerGui = PlanrunnerWindow(self)
 
@@ -144,18 +146,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.nats_toi_ob_status[k] = get_publisher(f'tic.status.{k}.toi.ob')
             self.nats_toi_exp_status[k] = get_publisher(f'tic.status.{k}.toi.exp')
 
+            self.nats_toi_flat_status[k] = get_publisher(f'tic.status.{k}.toi.flat')
             self.nats_toi_focus_status[k] = get_publisher(f'tic.status.{k}.toi.focus')
 
             self.nats_pub_toi_status[k] = get_publisher(f'tic.status.{k}.toi.status')
             self.nats_pub_toi_message[k] = get_publisher(f'tic.status.{k}.toi.message')
 
     async def oca_telemetry_reader(self,tel,key):
+        # DUPA
+        # dodac sprawdzanie czy na tych topikach nadaje
         try:
             r = get_reader(f'tic.status.{tel}{self.oca_tel_state[tel][key]["pms_topic"]}', deliver_policy='last')
             async for data, meta in r:
                 txt = data["measurements"][f"{tel}{self.oca_tel_state[tel][key]['pms_topic']}"]
                 self.oca_tel_state[tel][key]["val"] = txt
                 self.update_oca()
+                # tutaj jakas zmienna ktora nadaje jak nic nie idzie
 
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
@@ -225,6 +231,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # tez trzeba resetowac, bo jest tylko wyslwietlany
         self.ob_log = []
+        self.flat_log = []
 
         # TELESCOPE CONFIGURATION HARDCODED
 
@@ -358,7 +365,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_exp_status_reader(), group="telescope_task")
+        self.add_background_task(self.nats_toi_flat_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_focus_status_reader(), group="telescope_task")
+
+
 
         await self.run_background_tasks(group="telescope_task")
 
@@ -369,6 +379,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.planGui.updateUI()
             self.instGui.updateUI()
             self.focusGui.updateUI()
+            #self.flatGui.updateUI()
             self.planrunnerGui.updateUI()
 
 
@@ -416,6 +427,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             raise
         except Exception as e:
             logger.warning(f'EXCEPTION 106: {e}')
+
+
+    async def nats_toi_flat_status_reader(self):
+        try:
+            time = datetime.datetime.now() - datetime.timedelta(hours=25)  # do konfiguracji
+            reader = get_reader(f'tic.status.{self.active_tel}.toi.flat', deliver_policy='by_start_time',opt_start_time=time)
+            async for data, meta in reader:
+                self.flat_log.append(data)
+                #DUPA2
+                self.flatGui.updateUI()
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 107a: {e}')
+
+
 
     async def nats_toi_focus_status_reader(self):
         try:
@@ -1275,23 +1302,20 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.planrunnerGui.updateUI()
 
                 # FLAT RECORDER
-                #  to mozna na razie wylaczyc, bedzie przerabiane
 
-                # if "type" in info.keys() and "name" in info.keys() and "exp_done" in info.keys() and "filter" in info.keys() and "exp_time" in info.keys() and "done" in info.keys():
-                #
-                #     if info["type"] == "flat" and info["exp_done"] == False:
-                #         self.flat_record["date"] =  str(self.date) + " " + str(self.ut).split()[1].split(":")[0] + ":" + str(self.ut).split()[1].split(":")[1]
-                #         self.flat_record["filter"] = info["filter"]
-                #         self.flat_record["exp_time"] = info["exp_time"]
-                #         self.flat_record["h_sun"] = f"{deg_to_decimal_deg(self.almanac['sun_alt']):.2f}"
-                #         self.flat_record["go"] = True
-                # if "name" in info.keys():
-                #     if info["name"] == "DOMEFLAT":          # te wystepuja w oddzielnej iteracji, wczesniejszej
-                #         self.flat_record["type"] = "domeflat"
-                #     elif info["name"] == "SKYFLAT":
-                #         self.flat_record["type"] = "skyflat"
-
-
+                if set(["type","exp_done","timestamp_utc","mean","exp_time","filter"]).issubset(info.keys()):
+                    if info["type"] == "flat" and info["exp_done"]:
+                        fr = {}
+                        fr["timestamp_utc"] = info["timestamp_utc"]
+                        fr["mean"] = info["mean"]
+                        fr["exp_time"] = info["exp_time"]
+                        fr["filter"] = info["filter"]
+                        fr["h_sun"] = f"{deg_to_decimal_deg(self.almanac['sun_alt']):.2f}"
+                        try:
+                            data = fr
+                            await self.nats_toi_flat_status[tel].publish(data=data, timeout=10)
+                        except Exception as e:
+                            logger.warning(f'TOI: EXCEPTION 51: {e}')
 
                 try:
 
@@ -1772,32 +1796,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         image = self.image
         image = numpy.asarray(image)
         self.fitsGui.updateImage(image)
-
-
-            #self.auxGui.tabWidget.setCurrentIndex(4)
-
-            # To jest logowanie flatow, pozniej to ogarnac
-
-            # if self.flat_record["go"]:
-            #     self.flat_record["ADU"] = stats.median
-            #     txt = (f'{self.flat_record["date"]}  {self.flat_record["type"]}  {self.flat_record["filter"]}  'f'{float(self.flat_record["exp_time"]):.2f}  {self.flat_record["h_sun"]}  {self.flat_record["ADU"]}')
-            #     self.auxGui.flat_tab.info_e.append(txt)
-            #     self.auxGui.tabWidget.setCurrentIndex(1)
-            #     self.flat_record["go"] = False
-            #
-            #     f_name = self.flat_log_files
-            #     flat_log_file = self.script_location+f_name #"/Logs/zb08_flats_log.txt"
-            #     if os.path.exists(flat_log_file):
-            #         pass
-            #     else:
-            #         with open(flat_log_file,"w") as log_file:
-            #             log_file.write("DATE UT | type | filter | exp | h_sun | ADU\n")
-            #     with open(flat_log_file,"a") as log_file:
-            #         log_file.write(txt+"\n")
-            #     w: MsgJournalPublisher = self.nats_journal_flats_writter
-            #     await w.log('INFO', txt)
-            #     self.flat_record["go"] = False
-
 
 
     @qs.asyncSlot()
@@ -3337,6 +3335,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.nats_toi_ob_status = {}
         self.nats_toi_exp_status = {}
 
+        self.nats_toi_flat_status = {}
         self.nats_toi_focus_status = {}
 
 

@@ -329,7 +329,7 @@ class MainForm(QWidget):
         self.log_p = QPushButton('PLANRUNNER')
         self.log_p.clicked.connect(lambda: self.parent.planrunnerGui.show())
         self.flats_p = QPushButton('FLATS')
-        self.flats_p.setStyleSheet(" color: gray;")
+        self.flats_p.clicked.connect(lambda: self.parent.flatGui.updateUI())
         self.guider_p = QPushButton('GUIDER')
         self.guider_p.clicked.connect(lambda: self.parent.guiderGui.show())
         self.focus_p = QPushButton('AUTO FOCUS')
