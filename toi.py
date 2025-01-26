@@ -379,7 +379,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.planGui.updateUI()
             self.instGui.updateUI()
             self.focusGui.updateUI()
-            #self.flatGui.updateUI()
+            self.flatGui.updateUI()
             self.planrunnerGui.updateUI()
 
 

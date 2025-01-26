@@ -3,7 +3,7 @@
 
 
 --- 26.10.2025 --- <br>
-Flat Log Window is again available.  
+Flat Log Window is again available.
 TPG is moved to separate Qthread not to block Main Window, TPG progress is now reported and start at sunset now takes
 current_time - 4h.
 <br><br>

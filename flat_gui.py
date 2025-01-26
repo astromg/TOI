@@ -18,7 +18,7 @@ class FlatWindow(QWidget):
         super(FlatWindow, self).__init__()
         self.parent = parent
         self.setWindowTitle('Flat Log')
-        self.setGeometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1]+500, 400, 500)
+        self.setGeometry(self.parent.obs_window_geometry[0] + 2100, self.parent.obs_window_geometry[1]+500, 400, 500)
         self.mkUI()
         self.text = {k:"" for k in self.parent.local_cfg["toi"]["telescopes"]}
 
