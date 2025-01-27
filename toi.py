@@ -669,6 +669,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         ob_start_time = self.nats_ob_progress["ob_start_time"]
                         ob_expected_time = self.nats_ob_progress["ob_expected_time"]
                         program = self.nats_ob_progress["ob_program"]
+                        error = self.nats_ob_progress["error"]
 
                         if ob_started:
                             if True:
@@ -680,29 +681,53 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     self.planGui.ob_Prog_n.setFormat("")
 
                                 else:
-                                    t = self.time - float(ob_start_time)
-                                    p = t / float(ob_expected_time)
-                                    txt = f"{int(t)}/{int(ob_expected_time)}"
-                                    self.planGui.ob_Prog_n.setValue(int(100 * p))
-                                    self.planGui.ob_Prog_n.setFormat(txt)
 
-                                    if p > 1.1:
+                                    if error:
                                         RED_PROGBAR_STYLE = """
                                         QProgressBar{
                                             border: 2px solid grey;
                                             border-radius: 5px;
                                             text-align: center
                                         }
-            
+
                                         QProgressBar::chunk {
                                             background-color: red;
                                             width: 10px;
                                             margin: 1px;
                                         }
                                         """
+                                        t = self.time - float(ob_start_time)
+                                        p = t / float(ob_expected_time)
+                                        txt = f"{int(t)}/{int(ob_expected_time)}"
+                                        self.planGui.ob_Prog_n.setValue(int(100 * p))
                                         self.planGui.ob_Prog_n.setStyleSheet(RED_PROGBAR_STYLE)
+                                        txt = f"ERROR {int(t)}/{int(ob_expected_time)}"
+                                        self.planGui.ob_Prog_n.setFormat(txt)
+
                                     else:
-                                        self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
+                                        t = self.time - float(ob_start_time)
+                                        p = t / float(ob_expected_time)
+                                        txt = f"{int(t)}/{int(ob_expected_time)}"
+                                        self.planGui.ob_Prog_n.setValue(int(100 * p))
+                                        self.planGui.ob_Prog_n.setFormat(txt)
+
+                                        if p > 1.1:
+                                            RED_PROGBAR_STYLE = """
+                                            QProgressBar{
+                                                border: 2px solid grey;
+                                                border-radius: 5px;
+                                                text-align: center
+                                            }
+                
+                                            QProgressBar::chunk {
+                                                background-color: red;
+                                                width: 10px;
+                                                margin: 1px;
+                                            }
+                                            """
+                                            self.planGui.ob_Prog_n.setStyleSheet(RED_PROGBAR_STYLE)
+                                        else:
+                                            self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
 
                         elif ob_done:
                             self.planGui.ob_e.setText("")
@@ -826,6 +851,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if tel in self.planrunners.keys():
                         if not self.ob[tel]["done"] and self.ob[tel]["run"]:
                             if not self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]):
+                                print(self.ob[tel]["done"],self.ob[tel]["run"],self.ob[tel]["origin"],self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]))
 
                                 try:
                                     status = {"ob_started": self.ob[tel]["run"], "ob_done": self.ob[tel]["done"],
@@ -3252,7 +3278,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # aux zmienne
         self.exp_prog_status = {"plan_runner_status":"","ndit_req":1,"ndit":0,"dit_exp":0,"dit_start":0}
 
-        templeate = {"ob_started":False,"ob_done":False,"ob_expected_time":None,"ob_start_time":None,"ob_program":None}
+        templeate = {"ob_started":False,"ob_done":False,"ob_expected_time":None,"ob_start_time":None,"ob_program":None,"error":False}
         self.ob_prog_status = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
 
         self.ob = {}

@@ -172,6 +172,9 @@ class MainForm(QWidget):
                         state, rgb = f"{program.split()[0]} {program.split()[1]}", (0, 150, 0)
                     else:
                         state, rgb = f"{program.split()[0]}", (0, 0, 0)
+            if "error" in self.parent.ob_prog_status[t]:
+               if  self.parent.ob_prog_status[t]["error"]:
+                   state, rgb = f"ERROR {state}", (150, 0, 0)
 
             item = QTableWidgetItem(state)
             item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
