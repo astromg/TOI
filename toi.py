@@ -3008,7 +3008,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try: await self.user.aput_break_control()
         except Exception as e: pass
         try:
-            await self.user.aput_take_control(7*24*3600)
+            await self.user.aput_take_control(12*3600)
             self.upload_plan()
             self.update_plan(self.active_tel)
         except Exception as e:
