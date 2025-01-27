@@ -18,7 +18,7 @@ class FlatWindow(QWidget):
         super(FlatWindow, self).__init__()
         self.parent = parent
         self.setWindowTitle('Flat Log')
-        self.setGeometry(self.parent.obs_window_geometry[0] + 2100, self.parent.obs_window_geometry[1]+500, 400, 500)
+        self.setGeometry(self.parent.obs_window_geometry[0] + 2100, self.parent.obs_window_geometry[1]+500, 450, 500)
         self.mkUI()
         self.text = {k:"" for k in self.parent.local_cfg["toi"]["telescopes"]}
 
@@ -26,7 +26,7 @@ class FlatWindow(QWidget):
         if self.parent.telescope:
             self.tel_e.setText(self.parent.active_tel)
             self.tel_e.setAlignment(Qt.AlignCenter)
-            font = QFont()
+            font = QFont("Courier New",9)
             font.setBold(True)
             self.tel_e.setFont(font)
             self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[self.parent.active_tel]['color']};")
@@ -35,7 +35,7 @@ class FlatWindow(QWidget):
             self.info_e.append("date                     UT       filter    exp    h_sun     ADU")
             for r in self.parent.flat_log:
                 txt = r["timestamp_utc"].split()[0] + "    " + r["timestamp_utc"].split()[1].split(".")[0]
-                txt = txt + f'    {r["filter"]}    {r["exp_time"]}    {r["h_sun"]}    {r["mean"]}'
+                txt = txt + f'   {r["filter"]:12} {r["exp_time"]:.2f}      {r["h_sun"]}      {r["mean"]}'
                 self.info_e.append(txt)
             self.info_e.moveCursor(QTextCursor.End)
             self.show()

@@ -373,14 +373,15 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                       self.plan_t.resizeColumnsToContents()
                       self.plan_t.horizontalHeader().setStretchLastSection(True)
-                      #self.parent.obsGui.main_form.skyView.updateRadar()
                       if self.parent.skyGui.skyView:
                           self.parent.skyGui.skyView.updateRadar()
 
-                      self.plan_t.blockSignals(False)
-                      self.plan_t.resizeColumnsToContents()
-                      for col in range(1,self.plan_t.columnCount()):
-                          self.plan_t.horizontalHeader().setSectionResizeMode(col,QHeaderView.Stretch)
+                      if not self.show_ob:
+                          self.plan_t.blockSignals(False)
+                          self.plan_t.resizeColumnsToContents()
+
+                          for col in range(1,self.plan_t.columnCount()):
+                              self.plan_t.horizontalHeader().setSectionResizeMode(col,QHeaderView.Stretch)
             except Exception as e:
                 print(f"TOI plan GUI: EXCEPTION 103 {e}")
 
@@ -1351,7 +1352,11 @@ class PlotWindow(QWidget):
 
                     if "seq" in self.parent.plan[i].keys():
                         seq = self.parent.plan[i]["seq"]
-                        slotTime = calc_slot_time(seq,self.parent.parent.overhed)
+                        if "slotTime" in self.parent.plan[i].keys():
+                            slotTime = self.parent.plan[i]["slotTime"]
+                        else:
+                            slotTime = calc_slot_time(seq,self.parent.parent.overhed)
+                            print("NO SLOT TIME")
 
                         if slotTime < 60:
                             fontsize = 2
@@ -1374,7 +1379,10 @@ class PlotWindow(QWidget):
                                 alt_tab.append(deg_to_decimal_deg(str(alt)))
                                 t = t + 10*ephem.second
                             #print(alt_tab,t_tab)
-                            if "standard" in self.parent.plan[i]["block"]:
+                            if i == self.parent.i:
+                                self.axes.plot(t_tab, alt_tab, color="red",linestyle="-",linewidth="2")
+                                self.axes.text(self.t, 93, f"{self.parent.plan[i]['name']}", color="red",rotation=90, fontsize=fontsize)
+                            elif "standard" in self.parent.plan[i]["block"]:
                                 self.axes.plot(t_tab, alt_tab, color="blue")
                                 self.axes.text(self.t, 93, f"{self.parent.plan[i]['name']}", color="blue",rotation=90, fontsize=fontsize)
                             else:

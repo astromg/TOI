@@ -435,7 +435,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.flat', deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in reader:
                 self.flat_log.append(data)
-                #DUPA2
+                #DUPA3
                 self.flatGui.updateUI()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
@@ -821,6 +821,28 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             # sterowanie wykonywaniem planu
             try:
                 for tel in self.local_cfg["toi"]["telescopes"]:
+
+                    # DUPA2
+                    if tel in self.planrunners.keys():
+                        if not self.ob[tel]["done"] and self.ob[tel]["run"]:
+                            if not self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]):
+
+                                try:
+                                    status = {"ob_started": self.ob[tel]["run"], "ob_done": self.ob[tel]["done"],
+                                              "ob_start_time": self.ob_start_time,
+                                              "ob_expected_time": self.ob[tel]["slot_time"],
+                                              "ob_program": self.ob[tel]["block"],
+                                              "error": True}
+                                    await self.nats_toi_ob_status[tel].publish(data=status, timeout=10)
+                                except Exception as e:
+                                    logger.warning(f'TOI: EXCEPTION 8a: {e}')
+
+                                try:
+                                    data = {"tel": tel, "info": f"{tel} program error"}
+                                    await self.nats_pub_toi_message[tel].publish(data=data, timeout=10)
+                                except Exception as e:
+                                    logger.warning(f'TOI: EXCEPTION 8b: {e}')
+
                     if self.telescope and not self.tel_acces[tel]:    # obsluga tego ze w czasie realizacji planu, ktos inny przejal kontrole
                         if "continue_plan" in self.ob[tel].keys():
                             if self.ob[tel]["continue_plan"]:
@@ -1199,7 +1221,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                         try:
                             s = self.nats_toi_ob_status[tel]
-                            status = {"ob_started":self.ob[tel]["run"],"ob_done":self.ob[tel]["done"],"ob_start_time":self.ob_start_time,"ob_expected_time":self.ob[tel]["slot_time"],"ob_program":self.ob[tel]["block"]}
+                            status = {"ob_started":self.ob[tel]["run"],"ob_done":self.ob[tel]["done"],"ob_start_time":self.ob_start_time,"ob_expected_time":self.ob[tel]["slot_time"],"ob_program":self.ob[tel]["block"],"error": False}
                             await s.publish(data=status,timeout=10)
                         except Exception as e:
                             logger.warning(f'TOI: EXCEPTION 45: {e}')
@@ -1228,7 +1250,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                         try:
                             s = self.nats_toi_ob_status[tel]
-                            status = {"ob_started":self.ob[tel]["run"],"ob_done":self.ob[tel]["done"],"ob_start_time":self.ob[tel]["start_time"],"ob_expected_time":self.ob[tel]["slot_time"],"ob_program":self.ob[tel]["block"]}
+                            status = {"ob_started":self.ob[tel]["run"],"ob_done":self.ob[tel]["done"],"ob_start_time":self.ob[tel]["start_time"],"ob_expected_time":self.ob[tel]["slot_time"],"ob_program":self.ob[tel]["block"],"error": False}
                             await s.publish(data=status,timeout=10)
                         except Exception as e:
                             logger.warning(f'TOI: EXCEPTION 47: {e}')
@@ -1412,7 +1434,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # ############ PLAN ##########################
 
     # to ustawia wszytskie potrzebne parametry dla planrunnera i wywoluje planrunner_start
-    # dodac obluge wieloteleskoowosci
     @qs.asyncSlot()
     async def plan_start(self,tel):
         if self.tel_acces[tel]:
@@ -1445,7 +1466,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     s = self.nats_toi_ob_status[tel]
                                     status = {"ob_started": True, "ob_done": False,
                                               "ob_start_time": self.time,
-                                              "ob_expected_time": None, "ob_program": "STOP"}
+                                              "ob_expected_time": None, "ob_program": "STOP","error": False}
                                     await s.publish(data=status, timeout=10)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 51: {e}')
@@ -1506,7 +1527,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     s = self.nats_toi_ob_status[tel]
                                     status = {"ob_started": True, "ob_done": False,
                                               "ob_start_time": self.time,
-                                              "ob_expected_time": None, "ob_program": "WAIT"}
+                                              "ob_expected_time": None, "ob_program": "WAIT","error": False}
                                     await s.publish(data=status, timeout=10)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 51: {e}')
@@ -1592,7 +1613,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             s = self.nats_toi_ob_status[self.active_tel]
             status = {"ob_started": False, "ob_done": False,
                       "ob_start_time": None,
-                      "ob_expected_time": None, "ob_program": "STOPPED"}
+                      "ob_expected_time": None, "ob_program": "STOPPED","error": False}
             await s.publish(data=status, timeout=10)
         except Exception as e:
             logger.warning(f'TOI: EXCEPTION 56: {e}')
@@ -2873,9 +2894,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def ping(self):
         if self.telescope is not None:
             try:
-                s = self.nats_pub_toi_message[self.active_tel]
                 data = {"tel": self.active_tel, "info": "PING"}
-                await s.publish(data=data, timeout=10)
+                await self.nats_pub_toi_message[self.active_tel].publish(data=data, timeout=10)
             except Exception as e:
                 logger.warning(f'TOI: EXCEPTION 43: {e}')
         else:
@@ -2921,7 +2941,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             s = self.nats_toi_ob_status[self.active_tel]
             status = {"ob_started": self.ob[self.active_tel]["run"], "ob_done": self.ob[self.active_tel]["done"],
                       "ob_start_time": None, "ob_expected_time": self.ob[self.active_tel]["slot_time"],
-                      "ob_program": ""}
+                      "ob_program": "","error": False}
             await s.publish(data=status, timeout=10)
         except Exception as e:
             logger.warning(f'TOI: EXCEPTION 78: {e}')
@@ -3193,12 +3213,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.obs_window_geometry = [geometry.left(),geometry.top(),850,400]
         self.mnt_geometry = [self.obs_window_geometry[0],self.obs_window_geometry[1]+self.obs_window_geometry[3]+110,850,450]
+        self.instrument_geometry = [self.obs_window_geometry[0] + 910 ,self.obs_window_geometry[1]+610,500,500]
+        self.plan_geometry = [self.obs_window_geometry[0]+1415 ,self.obs_window_geometry[1],490,1100]
 
-        self.instrument_geometry = [self.obs_window_geometry[0] + 855 ,self.obs_window_geometry[1]+610,500,500]
-
-        self.plan_geometry = [self.obs_window_geometry[0]+1370 ,self.obs_window_geometry[1],490,1100]
-
-        #self.aux_geometry = [self.obs_window_geometry[0]+2000,self.obs_window_geometry[1],510,550]
 
 
 
