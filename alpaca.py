@@ -42,10 +42,10 @@ import requests
 
 #  72.86856842041016
 
-quest = "http://192.168.7.110:11111/api/v1/rotator/0/moveabsolute"
-data={"Position":"190"}
-r = requests.put(quest, data=data).json()
-print(f"ALPACA: {quest}\n {r}\n")
+# quest = "http://192.168.7.110:11111/api/v1/rotator/0/moveabsolute"
+# data={"Position":"190"}
+# r = requests.put(quest, data=data).json()
+# print(f"ALPACA: {quest}\n {r}\n")
 
 # quest = "http://192.168.7.110:11111/api/v1/rotator/0/move"
 # data={"Position":"10"}
@@ -57,17 +57,17 @@ print(f"ALPACA: {quest}\n {r}\n")
 # r = requests.put(quest, data=data).json()
 # print(f"ALPACA: {quest}\n {r}\n")
 
-# quest = "http://192.168.7.110:11111/api/v1/rotator/0/position"
-# r = requests.get(quest)
-# r = r.json()
-# r = r["Value"]
-# print(f"ALPACA: {quest}\n {r}\n")
-#
-# quest = "http://192.168.7.110:11111/api/v1/rotator/0/mechanicalposition"
-# r = requests.get(quest)
-# r = r.json()
-# r = r["Value"]
-# print(f"ALPACA: {quest}\n {r}\n")
+quest = "http://192.168.7.110:11111/api/v1/rotator/0/position"
+r = requests.get(quest)
+r = r.json()
+r = r["Value"]
+print(f"ALPACA: {quest}\n {r}\n")
+
+quest = "http://192.168.7.110:11111/api/v1/rotator/0/mechanicalposition"
+r = requests.get(quest)
+r = r.json()
+r = r["Value"]
+print(f"ALPACA: {quest}\n {r}\n")
 
 
 

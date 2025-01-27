@@ -360,6 +360,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_log_loop_reader(), group="telescope_task")
         self.add_background_task(self.nats_downloader_reader(), group="telescope_task")
         self.add_background_task(self.nats_ofp_reader(), group="telescope_task")
+        self.add_background_task(self.nats_ffs_reader(), group="telescope_task")
 
         self.add_background_task(self.nats_toi_plan_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
@@ -444,9 +445,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 
-    async def nats_toi_focus_status_reader(self):
+    async def nats_toi_focus_status_reader(self):           # to moze powinno sie raczej robic jako append
         try:
-            reader = get_reader(f'tic.status.{self.active_tel}.toi.focus', deliver_policy='last')
+            time = datetime.datetime.now() - datetime.timedelta(hours=24)  # do konfiguracji
+            reader = get_reader(f'tic.status.{self.active_tel}.toi.focus', deliver_policy='by_start_time',opt_start_time=time)
+            #reader = get_reader(f'tic.status.{self.active_tel}.toi.focus', deliver_policy='last')
             async for data, meta in reader:
                 self.nats_focus_status = data
                 self.update_focus_window()
@@ -496,7 +499,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
-            logger.warning(f'TOI: EXCEPTION 4: {e}')
+            logger.warning(f'TOI: EXCEPTION 4c: {e}')
         except Exception as e:
             logger.warning(f'EXCEPTION 110: {e}')
 
@@ -510,10 +513,24 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
-            logger.warning(f'TOI: EXCEPTION 4: {e}')
+            logger.warning(f'TOI: EXCEPTION 4a: {e}')
         except Exception as e:
             logger.warning(f'EXCEPTION 110: {e}')
 
+    async def nats_ffs_reader(self):
+        try:
+            tel = self.active_tel
+            r = get_reader(f'tic.status.{tel}.fits.pipeline.faststat', deliver_policy='last')
+            async for data, meta in r:
+                self.fits_ffs_data = data
+                #print(self.fits_ffs_data)
+                #self.fitsGui.update_ffs_data()
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'TOI: EXCEPTION 4b: {e}')
+        except Exception as e:
+            logger.warning(f'EXCEPTION 110b: {e}')
 
 
     # ################### METODY POD SUBSKRYPCJE ##################
@@ -661,6 +678,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             # obsluga wyswietlania paska postepu OB
 
             try:
+
                 if "ob_started" in self.nats_ob_progress.keys() and "ob_expected_time" in self.nats_ob_progress.keys():
                     #if self.nats_ob_progress["ob_start_time"] and self.nats_ob_progress["ob_expected_time"]:
                     if True:
@@ -669,7 +687,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         ob_start_time = self.nats_ob_progress["ob_start_time"]
                         ob_expected_time = self.nats_ob_progress["ob_expected_time"]
                         program = self.nats_ob_progress["ob_program"]
-                        error = self.nats_ob_progress["error"]
+                        error = False
+                        if "error" in self.nats_ob_progress.keys():
+                            error = self.nats_ob_progress["error"]
 
                         if ob_started:
                             if True:
@@ -849,7 +869,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                     # DUPA2
                     if tel in self.planrunners.keys():
-                        if not self.ob[tel]["done"] and self.ob[tel]["run"]:
+                        if not self.ob[tel]["done"] and self.ob[tel]["run"] and "OBJECT" in self.ob[tel]["block"]:
                             if not self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]):
                                 print(self.ob[tel]["done"],self.ob[tel]["run"],self.ob[tel]["origin"],self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]))
 
@@ -868,6 +888,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     await self.nats_pub_toi_message[tel].publish(data=data, timeout=10)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 8b: {e}')
+                                self.ob[tel]["done"] = False
+                                self.ob[tel]["run"] = False
+                                self.ob[tel]["continue_plan"] = False
+
 
                     if self.telescope and not self.tel_acces[tel]:    # obsluga tego ze w czasie realizacji planu, ktos inny przejal kontrole
                         if "continue_plan" in self.ob[tel].keys():
@@ -875,6 +899,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob[tel]["continue_plan"] = False
                                 self.current_i[tel] = -1
                                 self.ob[tel]["done"] = False
+                                #self.ob[tel]["run"] = False
                                 self.update_plan(tel)
 
                     if self.telescope and self.tel_acces[tel]:
@@ -1378,6 +1403,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 max_sharpness_focus, calc_metadata = calFoc.calculate(self.local_cfg[tel]["tel_directory"]+"focus/actual",method=self.focus_method)
                                 try:
                                     data = {}
+                                    data["time"] = self.date+" "+self.ut
                                     data["coef"] = list(calc_metadata["coef"])
                                     data["focus_values"] = list(calc_metadata["focus_values"])
                                     data["sharpness_values"] = list(calc_metadata["sharpness_values"])
@@ -1815,6 +1841,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if "fwhm" in self.nats_focus_status.keys():
                     self.focusGui.fwhm = self.nats_focus_status["fwhm"]
 
+            txt = ""
+            if "time" in self.nats_focus_status.keys():
+                txt = f'{self.nats_focus_status["time"]}'
+            txt = txt + f'    {self.nats_focus_status["max_sharpness_focus"]:.0f}    {self.nats_focus_status["filter"]}    {self.nats_focus_status["temperature"]:.1f}    {self.nats_focus_status["status"]} '
+            self.focusGui.log_e.append(txt)
             self.focusGui.update()
         except Exception as e:
             logger.warning(f'EXCEPTION 45: {e}')
@@ -2009,9 +2040,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.exp_prog_status["dit_start"]=0
 
             try:
-                s = self.nats_toi_exp_status
                 data = self.exp_prog_status
-                await s.publish(data=data, timeout=10)
+                await self.nats_toi_exp_status[self.active_tel].publish(data=data, timeout=10)
             except Exception as e:
                 logger.warning(f'TOI: EXCEPTION 40: {e}')
 
@@ -2978,7 +3008,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try: await self.user.aput_break_control()
         except Exception as e: pass
         try:
-            await self.user.aput_take_control(12*3600)
+            await self.user.aput_take_control(7*24*3600)
             self.upload_plan()
             self.update_plan(self.active_tel)
         except Exception as e:
@@ -3154,6 +3184,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             except KeyError:
                 tmp = None
             self.nats_cfg[k]["ccd_temp"] = tmp
+
+            try:
+                tmp = nats_cfg[k]["observatory"]["components"]["camera"]["pixel_scale"]
+            except KeyError:
+                tmp = None
+            self.nats_cfg[k]["pixel_scale"] = tmp
 
 
             try:

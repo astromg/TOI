@@ -112,6 +112,12 @@ class FitsWindow(QWidget):
         self.plot_image()
         self.update_fits_data()
 
+
+    def update_ffs_data(self):
+        #print(self.parent.fits_ffs_data)
+        pass
+
+
     def update_fits_data(self):
         if True:
             ok = False
@@ -188,7 +194,11 @@ class FitsWindow(QWidget):
 
             try:
                 if self.fwhm_x and self.fwhm_y:
-                    txt = txt + f"FWHM:  <b>{self.fwhm_x:.1f}</b>/<b>{self.fwhm_y:.1f}</b> <br>"
+                    txt = txt + f"FWHM:  <b>{self.fwhm_x:.1f}</b>/<b>{self.fwhm_y:.1f}</b> px <br>"
+                    if self.parent.nats_cfg[tel]["pixel_scale"]:
+                        px = float(self.parent.nats_cfg[tel]["pixel_scale"])
+                        txt = txt + f"&nbsp; &nbsp; &nbsp; <b>{self.fwhm_x*px:.1f}</b>/<b>{self.fwhm_y*px:.1f}</b> arcsec <br>"
+
                 txt = txt + f"detected stars:  <i>{len(self.coo)}</i> <br>"
                 txt = txt + f"saturated stars:  <i>{len(self.sat_coo)}</i> <br>"
                 if self.stats:
