@@ -1672,6 +1672,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await self.planrunners[self.active_tel].astop_nightplan()
         except KeyError:
             pass
+        await self.ccd.aput_stopexposure()
 
 
         self.ob[self.active_tel]["done"] = False
@@ -1692,6 +1693,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.ob_progress[self.active_tel]["ob_expected_time"] = None
             self.ob_progress[self.active_tel]["ob_program"] = "STOPPED"
             self.ob_progress[self.active_tel]["error"] = False
+
+            self.ob_progress[self.active_tel]["dit_start"]=0
+
 
             await s.publish(data=self.ob_progress[self.active_tel], timeout=10)
         except Exception as e:
