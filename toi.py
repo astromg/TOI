@@ -153,7 +153,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.nats_pub_toi_message[k] = get_publisher(f'tic.status.{k}.toi.message')
 
     async def oca_telemetry_reader(self,tel,key):
-        # DUPA
         # dodac sprawdzanie czy na tych topikach nadaje
         try:
             r = get_reader(f'tic.status.{tel}{self.oca_tel_state[tel][key]["pms_topic"]}', deliver_policy='last')
@@ -436,7 +435,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.flat', deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in reader:
                 self.flat_log.append(data)
-                #DUPA3
                 self.flatGui.updateUI()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
@@ -866,12 +864,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             # sterowanie wykonywaniem planu
             try:
                 for tel in self.local_cfg["toi"]["telescopes"]:
+                    print(self.ob[tel]["done"], self.ob[tel]["run"], self.ob[tel]["origin"],
+                          self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]))
 
                     # DUPA2
                     if tel in self.planrunners.keys():
-                        if not self.ob[tel]["done"] and self.ob[tel]["run"] and "OBJECT" in self.ob[tel]["block"]:
+                        if not self.ob[tel]["done"] and self.ob[tel]["run"] and "seq" in self.ob[tel]["block"]:
                             if not self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]):
-                                przin("wykrylem brak planrunnera")
                                 print(self.ob[tel]["done"],self.ob[tel]["run"],self.ob[tel]["origin"],self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]))
 
                                 try:
@@ -885,7 +884,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     logger.warning(f'TOI: EXCEPTION 8a: {e}')
 
                                 try:
-                                    data = {"tel": tel, "info": f"{tel} program error"}
+                                    data = {"tel": tel, "info": f"program error on {self.tel_users[tel]}"}
                                     await self.nats_pub_toi_message[tel].publish(data=data, timeout=10)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 8b: {e}')
@@ -2948,6 +2947,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     @qs.asyncSlot()
+    async def report(self):
+        if self.telescope is not None:
+            #DUPA
+            await self.planrunners[self.active_tel].astop_nightplan()
+        else:
+            txt = f"WARNING: no telescope is selected"
+            await self.msg(txt, "yellow")
+
+    @qs.asyncSlot()
     async def ping(self):
         if self.telescope is not None:
             try:
@@ -2956,7 +2964,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             except Exception as e:
                 logger.warning(f'TOI: EXCEPTION 43: {e}')
         else:
-            txt = f"REQUEST: telescope shutdown but no telescope is selected"
+            txt = f"WARNING: telescope PING but telescope is not selected"
             await self.msg(txt, "yellow")
 
     @qs.asyncSlot()
@@ -3009,7 +3017,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try: await self.user.aput_break_control()
         except Exception as e: pass
         try:
-            await self.user.aput_take_control(12*3600)
+            await self.user.aput_take_control(84000)
             self.upload_plan()
             self.update_plan(self.active_tel)
         except Exception as e:

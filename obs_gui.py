@@ -327,6 +327,8 @@ class MainForm(QWidget):
 
 
 
+        self.report_p = QPushButton('REPORT')
+        self.report_p.clicked.connect(self.parent.report)
         self.ping_p = QPushButton('PING')
         self.ping_p.clicked.connect(self.parent.ping)
         self.log_p = QPushButton('PLANRUNNER')
@@ -362,7 +364,9 @@ class MainForm(QWidget):
         self.config_p = QPushButton("\u2699")
         self.config_p.setStyleSheet(" color: gray;")
 
-        grid.addWidget(self.ping_p, w, 0)
+
+        grid.addWidget(self.report_p, w, 0)
+        grid.addWidget(self.ping_p, w, 1)
         grid.addWidget(self.config_p, w, 7)
 
         w = 4
