@@ -412,8 +412,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.ob', deliver_policy='last')
             async for status, meta in reader:
                 self.nats_ob_progress = status
-                #DUPA
-                print("DUPA:        ", self.nats_ob_progress)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -657,7 +655,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if self.nats_ob_progress["status"] == "exposing":
                                 txt = "exposing: "
                         if self.nats_ob_progress["status"] == "exp done":
-                            print("HOP!!!!")
                             txt = "DONE "
                         if int(self.nats_ob_progress["dit_exp"]) == 0:
                             p = 100
@@ -668,7 +665,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                         p = int(100 * (self.nats_ob_progress["ndit"] / self.nats_ob_progress["ndit_req"]))
                         self.instGui.ccd_tab.inst_NditProg_n.setValue(p)
-                        print("DUPA22222:      ", txt)
                         txt = txt + f"{int(self.nats_ob_progress['ndit'])}/{int(self.nats_ob_progress['ndit_req'])}"
 
                         self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt)
@@ -869,7 +865,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             # sterowanie wykonywaniem planu
             try:
                 for tel in self.local_cfg["toi"]["telescopes"]:
-                    # DUPA2
                     if tel in self.planrunners.keys():
                         if not self.ob[tel]["done"] and self.ob[tel]["run"] and "seq" in self.ob[tel]["block"]:
                             if not self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]):
