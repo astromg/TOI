@@ -871,6 +871,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if tel in self.planrunners.keys():
                         if not self.ob[tel]["done"] and self.ob[tel]["run"] and "OBJECT" in self.ob[tel]["block"]:
                             if not self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]):
+                                przin("wykrylem brak planrunnera")
                                 print(self.ob[tel]["done"],self.ob[tel]["run"],self.ob[tel]["origin"],self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]))
 
                                 try:
