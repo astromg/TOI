@@ -144,7 +144,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         for k in self.local_cfg["toi"]["telescopes"]:
             self.nats_toi_plan_status[k] = get_publisher(f'tic.status.{k}.toi.plan')
             self.nats_toi_ob_status[k] = get_publisher(f'tic.status.{k}.toi.ob')
-            self.nats_toi_exp_status[k] = get_publisher(f'tic.status.{k}.toi.exp')
+            #self.nats_toi_exp_status[k] = get_publisher(f'tic.status.{k}.toi.exp')
 
             self.nats_toi_flat_status[k] = get_publisher(f'tic.status.{k}.toi.flat')
             self.nats_toi_focus_status[k] = get_publisher(f'tic.status.{k}.toi.focus')
@@ -171,7 +171,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             reader = get_reader(f'tic.status.{tel}.toi.ob', deliver_policy='last')
             async for status, meta in reader:
-                self.ob_prog_status[tel] = status
+                self.ob_progress[tel] = status
                 self.update_oca()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
@@ -364,7 +364,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_toi_plan_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_status_reader(), group="telescope_task")
-        self.add_background_task(self.nats_toi_exp_status_reader(), group="telescope_task")
+        #self.add_background_task(self.nats_toi_exp_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_flat_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_focus_status_reader(), group="telescope_task")
 
@@ -412,21 +412,23 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.ob', deliver_policy='last')
             async for status, meta in reader:
                 self.nats_ob_progress = status
+                #DUPA
+                print("DUPA:        ", self.nats_ob_progress)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
             logger.warning(f'EXCEPTION 105: {e}')
 
 
-    async def nats_toi_exp_status_reader(self):
-        try:
-            reader = get_reader(f'tic.status.{self.active_tel}.toi.exp', deliver_policy='last')
-            async for data, meta in reader:
-                self.nats_exp_prog_status = data
-        except (asyncio.CancelledError, asyncio.TimeoutError):
-            raise
-        except Exception as e:
-            logger.warning(f'EXCEPTION 106: {e}')
+    # async def nats_toi_exp_status_reader(self):
+    #     try:
+    #         reader = get_reader(f'tic.status.{self.active_tel}.toi.exp', deliver_policy='last')
+    #         async for data, meta in reader:
+    #             self.nats_ob_progress = data
+    #     except (asyncio.CancelledError, asyncio.TimeoutError):
+    #         raise
+    #     except Exception as e:
+    #         logger.warning(f'EXCEPTION 106: {e}')
 
 
     async def nats_toi_flat_status_reader(self):
@@ -641,30 +643,33 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def tel_progress_loop(self):
         while True:
+            #print(self.nats_ob_progress)
             # obsluga wyswietlania paskow postepu ekspozycji
             try:
-                if "dit_start" in self.nats_exp_prog_status.keys():
-                    if self.nats_exp_prog_status["dit_start"] > 0:
-                        dt = self.time - self.nats_exp_prog_status["dit_start"]
-                        if dt > self.nats_exp_prog_status["dit_exp"]:
-                            dt = self.nats_exp_prog_status["dit_exp"]
-                            if self.nats_exp_prog_status["plan_runner_status"] == "exposing":
+                if "dit_start" in self.nats_ob_progress.keys():
+                    if self.nats_ob_progress["dit_start"] > 0:
+                        dt = self.time - self.nats_ob_progress["dit_start"]
+                        if dt > self.nats_ob_progress["dit_exp"]:
+                            dt = self.nats_ob_progress["dit_exp"]
+                            if self.nats_ob_progress["status"] == "exposing":
                                 txt = "reading: "
                         else:
-                            if self.nats_exp_prog_status["plan_runner_status"] == "exposing":
+                            if self.nats_ob_progress["status"] == "exposing":
                                 txt = "exposing: "
-                        if self.nats_exp_prog_status["plan_runner_status"] == "exp done":
+                        if self.nats_ob_progress["status"] == "exp done":
+                            print("HOP!!!!")
                             txt = "DONE "
-                        if int(self.nats_exp_prog_status["dit_exp"]) == 0:
+                        if int(self.nats_ob_progress["dit_exp"]) == 0:
                             p = 100
                         else:
-                            p = int(100 * (dt / self.nats_exp_prog_status["dit_exp"]))
+                            p = int(100 * (dt / self.nats_ob_progress["dit_exp"]))
                         self.instGui.ccd_tab.inst_DitProg_n.setValue(p)
-                        txt2 = f"{int(dt)}/{int(self.nats_exp_prog_status['dit_exp'])}"
+                        txt2 = f"{int(dt)}/{int(self.nats_ob_progress['dit_exp'])}"
 
-                        p = int(100 * (self.nats_exp_prog_status["ndit"] / self.nats_exp_prog_status["ndit_req"]))
+                        p = int(100 * (self.nats_ob_progress["ndit"] / self.nats_ob_progress["ndit_req"]))
                         self.instGui.ccd_tab.inst_NditProg_n.setValue(p)
-                        txt = txt + f"{int(self.nats_exp_prog_status['ndit'])}/{int(self.nats_exp_prog_status['ndit_req'])}"
+                        print("DUPA22222:      ", txt)
+                        txt = txt + f"{int(self.nats_ob_progress['ndit'])}/{int(self.nats_ob_progress['ndit_req'])}"
 
                         self.instGui.ccd_tab.inst_NditProg_n.setFormat(txt)
                         self.instGui.ccd_tab.inst_DitProg_n.setFormat(txt2)
@@ -864,9 +869,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             # sterowanie wykonywaniem planu
             try:
                 for tel in self.local_cfg["toi"]["telescopes"]:
-                    print(self.ob[tel]["done"], self.ob[tel]["run"], self.ob[tel]["origin"],
-                          self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]))
-
                     # DUPA2
                     if tel in self.planrunners.keys():
                         if not self.ob[tel]["done"] and self.ob[tel]["run"] and "seq" in self.ob[tel]["block"]:
@@ -874,12 +876,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 print(self.ob[tel]["done"],self.ob[tel]["run"],self.ob[tel]["origin"],self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]))
 
                                 try:
-                                    status = {"ob_started": self.ob[tel]["run"], "ob_done": self.ob[tel]["done"],
-                                              "ob_start_time": self.ob_start_time,
-                                              "ob_expected_time": self.ob[tel]["slot_time"],
-                                              "ob_program": self.ob[tel]["block"],
-                                              "error": True}
-                                    await self.nats_toi_ob_status[tel].publish(data=status, timeout=10)
+                                    self.ob_progress[tel]["ob_started"] = self.ob[tel]["run"]
+                                    self.ob_progress[tel]["ob_done"] = self.ob[tel]["done"]
+                                    self.ob_progress[tel]["ob_start_time"] = self.ob_start_time
+                                    self.ob_progress[tel]["ob_expected_time"] = self.ob[tel]["slot_time"]
+                                    self.ob_progress[tel]["ob_program"] = self.ob[tel]["block"]
+                                    self.ob_progress[tel]["error"] = True
+
+                                    await self.nats_toi_ob_status[tel].publish(data=self.ob_progress[tel], timeout=10)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 8a: {e}')
 
@@ -1225,8 +1229,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.planrunners[tel] = self.tic_telescopes[tel].get_observation_plan()
                     tmp = self.planrunners[tel]
                     self.planrunners[tel].add_info_callback('exec_json', lambda info: self.PlanRunFeedback(tmp, info))
-                self.exp_prog_status["ndit"] = 0
-                self.exp_prog_status["dit_start"] = 0
+                self.ob_progress[tel]["ndit"] = 0
+                self.ob_progress[tel]["dit_start"] = 0
 
                 #self.ob_program = self.ob_program + f' observers="{self.observer}"' # zle sie parsuje naraz comment i observers
                 program = self.ob[tel]["block"]
@@ -1272,8 +1276,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                         try:
                             s = self.nats_toi_ob_status[tel]
-                            status = {"ob_started":self.ob[tel]["run"],"ob_done":self.ob[tel]["done"],"ob_start_time":self.ob_start_time,"ob_expected_time":self.ob[tel]["slot_time"],"ob_program":self.ob[tel]["block"],"error": False}
-                            await s.publish(data=status,timeout=10)
+                            self.ob_progress[tel]["ob_started"] = self.ob[tel]["run"]
+                            self.ob_progress[tel]["ob_done"] = self.ob[tel]["done"]
+                            self.ob_progress[tel]["ob_start_time"] = self.ob_start_time
+                            self.ob_progress[tel]["ob_expected_time"] = self.ob[tel]["slot_time"]
+                            self.ob_progress[tel]["ob_program"] = self.ob[tel]["block"]
+                            self.ob_progress[tel]["error"] = False
+                            await s.publish(data=self.ob_progress[tel],timeout=10)
                         except Exception as e:
                             logger.warning(f'TOI: EXCEPTION 45: {e}')
 
@@ -1286,11 +1295,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.current_i[tel] = -1
                             self.update_plan(tel)
 
-                        self.exp_prog_status["dit_start"] = 0
+                        self.ob_progress[tel]["dit_start"] = 0
 
                         try:
-                            s = self.nats_toi_exp_status[tel]
-                            data = self.exp_prog_status
+                            s = self.nats_toi_ob_status[tel]
+                            data = self.ob_progress[tel]
                             await s.publish(data=data, timeout=10)
                         except Exception as e:
                             logger.warning(f'TOI: EXCEPTION 46: {e}')
@@ -1301,8 +1310,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                         try:
                             s = self.nats_toi_ob_status[tel]
-                            status = {"ob_started":self.ob[tel]["run"],"ob_done":self.ob[tel]["done"],"ob_start_time":self.ob[tel]["start_time"],"ob_expected_time":self.ob[tel]["slot_time"],"ob_program":self.ob[tel]["block"],"error": False}
-                            await s.publish(data=status,timeout=10)
+                            self.ob_progress[tel]["ob_started"] = self.ob[tel]["run"]
+                            self.ob_progress[tel]["ob_done"] = self.ob[tel]["done"]
+                            self.ob_progress[tel]["ob_start_time"] = self.ob[tel]["start_time"]
+                            self.ob_progress[tel]["ob_expected_time"] = self.ob[tel]["slot_time"]
+                            self.ob_progress[tel]["ob_program"] = self.ob[tel]["block"]
+                            self.ob_progress[tel]["error"] = False
+
+                            await s.publish(data=self.ob_progress[tel],timeout=10)
                         except Exception as e:
                             logger.warning(f'TOI: EXCEPTION 47: {e}')
 
@@ -1315,28 +1330,28 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 if "exp_started" in info.keys() and "exp_done" in info.keys():
                     if info["exp_started"] and not info["exp_done"]:
-                        self.exp_prog_status["ndit"]=float(info["n_exp"])
-                        self.exp_prog_status["ndit_req"]=float(info["exp_no"])
-                        self.exp_prog_status["dit_exp"]=float(info["exp_time"])
-                        self.exp_prog_status["dit_start"]=self.time
-                        self.exp_prog_status["plan_runner_status"]="exposing"
+                        self.ob_progress[tel]["ndit"]=float(info["n_exp"])
+                        self.ob_progress[tel]["ndit_req"]=float(info["exp_no"])
+                        self.ob_progress[tel]["dit_exp"]=float(info["exp_time"])
+                        self.ob_progress[tel]["dit_start"]=self.time
+                        self.ob_progress[tel]["status"]="exposing"
 
                         try:
-                            s = self.nats_toi_exp_status[tel]
-                            data = self.exp_prog_status
+                            s = self.nats_toi_ob_status[tel]
+                            data = self.ob_progress[tel]
                             await s.publish(data=data, timeout=10)
                         except Exception as e:
                             logger.warning(f'TOI: EXCEPTION 48: {e}')
 
-                        await self.msg(f" {tel} PLAN: {self.exp_prog_status['dit_exp']} [s] exposure started","black")
+                        await self.msg(f" {tel} PLAN: {self.ob_progress[tel]['dit_exp']} [s] exposure started","black")
 
                     elif info["exp_done"] and info["exp_saved"]:
-                        self.exp_prog_status["ndit"]=float(info["n_exp"])
-                        self.exp_prog_status["plan_runner_status"]="exp done"
+                        self.ob_progress[tel]["ndit"]=float(info["n_exp"])
+                        self.ob_progress[tel]["status"]="exp done"
 
                         try:
-                            s = self.nats_toi_exp_status[tel]
-                            data = self.exp_prog_status
+                            s = self.nats_toi_ob_status[tel]
+                            data = self.ob_progress[tel]
                             await s.publish(data=data, timeout=10)
                         except Exception as e:
                             logger.warning(f'TOI: EXCEPTION 49: {e}')
@@ -1344,21 +1359,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 if "auto_exp_start" in info.keys() and "auto_exp_finnished" in info.keys():    # SKYFLAT
                     if info["auto_exp_start"] and not info["auto_exp_finnished"]:
-                        self.exp_prog_status["ndit"]=0
-                        self.exp_prog_status["ndit_req"]=float(info["exp_no"])
-                        self.exp_prog_status["dit_exp"]=float(info["auto_exp_time"])
-                        self.exp_prog_status["dit_start"]=self.time
-                        self.exp_prog_status["plan_runner_status"]="exposing"
+                        self.ob_progress[tel]["ndit"]=0
+                        self.ob_progress[tel]["ndit_req"]=float(info["exp_no"])
+                        self.ob_progress[tel]["dit_exp"]=float(info["auto_exp_time"])
+                        self.ob_progress[tel]["dit_start"]=self.time
+                        self.ob_progress[tel]["status"]="exposing"
 
                         try:
-                            s = self.nats_toi_exp_status[tel]
-                            data = self.exp_prog_status
+                            s = self.nats_toi_ob_status[tel]
+                            data = self.ob_progress[tel]
                             await s.publish(data=data, timeout=10)
                         except Exception as e:
                             logger.warning(f'TOI: EXCEPTION 50: {e}')
 
 
-                        await self.msg(f" {tel} PLAN: {self.exp_prog_status['dit_exp']} [s] test exposure started","black")
+                        await self.msg(f" {tel} PLAN: {self.ob_progress[tel]['dit_exp']} [s] test exposure started","black")
 
                     elif info["auto_exp_finnished"]:
                         await self.msg(f" {tel} PLAN: test exposure done", "black")
@@ -1516,10 +1531,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                                 try:
                                     s = self.nats_toi_ob_status[tel]
-                                    status = {"ob_started": True, "ob_done": False,
-                                              "ob_start_time": self.time,
-                                              "ob_expected_time": None, "ob_program": "STOP","error": False}
-                                    await s.publish(data=status, timeout=10)
+                                    self.ob_progress[tel]["ob_started"] = True
+                                    self.ob_progress[tel]["ob_done"] = False
+                                    self.ob_progress[tel]["ob_start_time"] = self.time
+                                    self.ob_progress[tel]["ob_expected_time"] = None
+                                    self.ob_progress[tel]["ob_program"] = "STOP"
+                                    self.ob_progress[tel]["error"] = False
+
+                                    await s.publish(data=self.ob_progress[tel], timeout=10)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 51: {e}')
 
@@ -1577,10 +1596,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                                 try:
                                     s = self.nats_toi_ob_status[tel]
-                                    status = {"ob_started": True, "ob_done": False,
-                                              "ob_start_time": self.time,
-                                              "ob_expected_time": None, "ob_program": "WAIT","error": False}
-                                    await s.publish(data=status, timeout=10)
+                                    self.ob_progress[tel]["ob_started"] = True
+                                    self.ob_progress[tel]["ob_done"] = False
+                                    self.ob_progress[tel]["ob_start_time"] = self.time
+                                    self.ob_progress[tel]["ob_expected_time"] = None
+                                    self.ob_progress[tel]["ob_program"] = "WAIT"
+                                    self.ob_progress[tel]["error"] = False
+
+                                    await s.publish(data=self.ob_progress[tel], timeout=10)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 51: {e}')
 
@@ -1663,10 +1686,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         try:
             s = self.nats_toi_ob_status[self.active_tel]
-            status = {"ob_started": False, "ob_done": False,
-                      "ob_start_time": None,
-                      "ob_expected_time": None, "ob_program": "STOPPED","error": False}
-            await s.publish(data=status, timeout=10)
+            self.ob_progress[self.active_tel]["ob_started"] = False
+            self.ob_progress[self.active_tel]["ob_done"] = False
+            self.ob_progress[self.active_tel]["ob_start_time"] = None
+            self.ob_progress[self.active_tel]["ob_expected_time"] = None
+            self.ob_progress[self.active_tel]["ob_program"] = "STOPPED"
+            self.ob_progress[self.active_tel]["error"] = False
+
+            await s.publish(data=self.ob_progress[self.active_tel], timeout=10)
         except Exception as e:
             logger.warning(f'TOI: EXCEPTION 56: {e}')
 
@@ -2037,11 +2064,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def ccd_stopExp(self):
         if True:
             await self.takeControl()
-            self.exp_prog_status["dit_start"]=0
+            self.ob_progress[self.active_tel]["dit_start"]=0
 
             try:
-                data = self.exp_prog_status
-                await self.nats_toi_exp_status[self.active_tel].publish(data=data, timeout=10)
+                data = self.ob_progress[self.active_tel]
+                await self.nats_toi_ob_status[self.active_tel].publish(data=data, timeout=10)
             except Exception as e:
                 logger.warning(f'TOI: EXCEPTION 40: {e}')
 
@@ -3004,10 +3031,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.reset_ob(self.active_tel)
         try:
             s = self.nats_toi_ob_status[self.active_tel]
-            status = {"ob_started": self.ob[self.active_tel]["run"], "ob_done": self.ob[self.active_tel]["done"],
-                      "ob_start_time": None, "ob_expected_time": self.ob[self.active_tel]["slot_time"],
-                      "ob_program": "","error": False}
-            await s.publish(data=status, timeout=10)
+            self.ob_progress[self.active_tel]["ob_started"] = False
+            self.ob_progress[self.active_tel]["ob_done"] = False
+            self.ob_progress[self.active_tel]["ob_start_time"] = None
+            self.ob_progress[self.active_tel]["ob_expected_time"] = None
+            self.ob_progress[self.active_tel]["ob_program"] = ""
+            self.ob_progress[self.active_tel]["error"] = False
+
+            await s.publish(data=self.ob_progress[self.active_tel], timeout=10)
         except Exception as e:
             logger.warning(f'TOI: EXCEPTION 78: {e}')
 
@@ -3321,10 +3352,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.telemetry_pressure = None
 
         # aux zmienne
-        self.exp_prog_status = {"plan_runner_status":"","ndit_req":1,"ndit":0,"dit_exp":0,"dit_start":0}
+        #self.exp_prog_status = {"plan_runner_status":"","ndit_req":1,"ndit":0,"dit_exp":0,"dit_start":0}
 
-        templeate = {"ob_started":False,"ob_done":False,"ob_expected_time":None,"ob_start_time":None,"ob_program":None,"error":False}
-        self.ob_prog_status = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
+        templeate = {"ob_started":False,"ob_done":False,"ob_expected_time":None,"ob_start_time":None,"ob_program":None,"error":False,"status":"","ndit_req":None,"ndit":None,"dit_exp":None,"dit_start":None}
+        #self.ob_prog_status = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
+        self.ob_progress = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
+
 
         self.ob = {}
         for t in self.local_cfg["toi"]["telescopes"]:
@@ -3332,7 +3365,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.nats_plan_status = {"current_i":-1,"next_i":-1,"plan":[]}
 
-        self.nats_exp_prog_status = {}  # ten sluzy tylko do czytania z nats
+        #self.nats_exp_prog_status = {}  # ten sluzy tylko do czytania z nats
         self.nats_ob_progress = {}      # ten sluzy tylko do czytania z nats
         self.nats_focus_status = {}     #  tak samo
 
@@ -3421,7 +3454,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.nats_toi_plan_status = {}
         self.nats_toi_ob_status = {}
-        self.nats_toi_exp_status = {}
+        #self.nats_toi_exp_status = {}
 
         self.nats_toi_flat_status = {}
         self.nats_toi_focus_status = {}

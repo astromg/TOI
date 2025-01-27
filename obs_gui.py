@@ -159,11 +159,11 @@ class MainForm(QWidget):
 
             # PROGRAM
             state, rgb = "--", (0, 0, 0)
-            #print(t,self.parent.ob_prog_status[t])
+            #print(t,self.parent.ob_progress[t])
             #templeate = {"ob_started": False, "ob_done": False, "ob_expected_time": 0.01, "ob_start_time": 0,"ob_program": None}
-            started = self.parent.ob_prog_status[t]["ob_started"]
-            done = self.parent.ob_prog_status[t]["ob_done"]
-            program = self.parent.ob_prog_status[t]["ob_program"]
+            started = self.parent.ob_progress[t]["ob_started"]
+            done = self.parent.ob_progress[t]["ob_done"]
+            program = self.parent.ob_progress[t]["ob_program"]
             if started and not done:
                 if "OBJECT" in program:
                     state,rgb = f"{program.split()[1]}", (0, 150, 0)
@@ -172,8 +172,8 @@ class MainForm(QWidget):
                         state, rgb = f"{program.split()[0]} {program.split()[1]}", (0, 150, 0)
                     else:
                         state, rgb = f"{program.split()[0]}", (0, 0, 0)
-            if "error" in self.parent.ob_prog_status[t]:
-               if  self.parent.ob_prog_status[t]["error"]:
+            if "error" in self.parent.ob_progress[t]:
+               if  self.parent.ob_progress[t]["error"]:
                    state, rgb = f"ERROR {state}", (150, 0, 0)
 
             item = QTableWidgetItem(state)
