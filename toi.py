@@ -930,8 +930,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if tel in self.planrunners.keys():
                         if not self.ob[tel]["done"] and self.ob[tel]["run"] and "seq" in self.ob[tel]["block"]:
                             if not self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]):
-                                print(self.ob[tel]["done"],self.ob[tel]["run"],self.ob[tel]["origin"],self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]))
-
                                 try:
                                     self.ob_progress[tel]["ob_started"] = self.ob[tel]["run"]
                                     self.ob_progress[tel]["ob_done"] = self.ob[tel]["done"]
@@ -952,7 +950,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob[tel]["done"] = False
                                 self.ob[tel]["run"] = False
                                 self.ob[tel]["continue_plan"] = False
-
+                                await self.update_log(f'planrunner STOPPED', "TOI ERROR", tel)
 
                     if self.telescope and not self.tel_acces[tel]:    # obsluga tego ze w czasie realizacji planu, ktos inny przejal kontrole
                         if "continue_plan" in self.ob[tel].keys():
@@ -962,6 +960,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob[tel]["done"] = False
                                 #self.ob[tel]["run"] = False
                                 self.update_plan(tel)
+                                await self.update_log(f'control LOST', "TOI ERROR", tel)
+
 
                     if self.telescope and self.tel_acces[tel]:
                         if self.ob[tel]["origin"]:
@@ -3199,6 +3199,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 c = QtCore.Qt.darkGreen
             if level == "TOI WARNING":
                 c = QtCore.Qt.darkYellow
+            if level == "TOI ERROR":
+                c = QtCore.Qt.darkRed
             if level == "PLANRUNNER":
                 c = QtCore.Qt.darkGray
             if level == "OFP":
