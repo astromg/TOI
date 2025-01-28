@@ -133,10 +133,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         for t in self.oca_tel_state.keys():   # statusy wszystkich teleskopow
             self.add_background_task(self.nats_pub_toi_message_reader(t))
 
-            self.add_background_task(self.nats_journal_planner_reader(t), group="telescope_task")
-            self.add_background_task(self.nats_journal_ofp_reader(t), group="telescope_task")
-            self.add_background_task(self.nats_journal_downloader_reader(t), group="telescope_task")
-            self.add_background_task(self.nats_journal_guider_reader(t), group="telescope_task")
+            self.add_background_task(self.nats_journal_planner_reader(t))
+            self.add_background_task(self.nats_journal_ofp_reader(t))
+            self.add_background_task(self.nats_journal_downloader_reader(t))
+            self.add_background_task(self.nats_journal_guider_reader(t))
 
             self.add_background_task(self.oca_telemetry_program_reader(t))
             for k in self.oca_tel_state[t].keys():
@@ -1867,12 +1867,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     except (ephem.NeverUpError, ephem.AlwaysUpError) as e:
                                         pass
 
-                                if self.plan[tel][i]["uobi"] in self.done_uobi:
-                                    ob_time = ob_time
-                                else:
-                                    if "slotTime" in self.plan[tel][i].keys():
-                                        slotTime = self.plan[tel][i]["slotTime"]
-                                        ob_time = ob_time + ephem.second * slotTime
+
+
+                                if "slotTime" in self.plan[tel][i].keys():
+                                    slotTime = self.plan[tel][i]["slotTime"]
+                                    ob_time = ob_time + ephem.second * slotTime
 
                 except Exception as e:
                     logger.warning(f'TOI: EXCEPTION 16: {e}')
@@ -2984,7 +2983,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            if ind == -1: filtr="--"
            else: filtr=self.filter_list[ind]
            await self.fw.aput_position(ind)
-           await self.update_log(f'setting filter to {filter}', "TOI RESPONDER", self.active_tel)
+           await self.update_log(f'setting filter to {filtr}', "TOI RESPONDER", self.active_tel)
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
@@ -3046,7 +3045,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def report(self):
         if self.telescope is not None:
-            #DUPA
             await self.planrunners[self.active_tel].astop_nightplan()
         else:
             txt = f"WARNING: no telescope is selected"
@@ -3188,7 +3186,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     #DUPA
     @qs.asyncSlot()
     async def update_log(self, txt, level, tel):
-        if True:
+        try:
             ut = str(self.ut).split()[1].split(":")[0] + ":" + str(self.ut).split()[1].split(":")[1] + ":" + str(self.ut).split()[1].split(":")[2]
             txt = ut + f'  [{level}]  ' + txt
 
@@ -3210,12 +3208,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if level == "GUIDER":
                 c = QtCore.Qt.darkGray
 
-            if tel == self.active_tel:
-                self.planGui.info_e.setTextColor(c)
-                self.planGui.info_e.append(txt)
-                self.planGui.info_e.repaint()
+            if self.active_tel:
+                if tel == self.active_tel:
+                    self.planGui.info_e.setTextColor(c)
+                    self.planGui.info_e.append(txt)
+                    self.planGui.info_e.repaint()
 
             self.log_record[tel] = self.log_record[tel] + txt + "\n"
+
+        except Exception as e:
+            print(f"TOI EXCEPTION (update_log): {e}")
 
 
     @qs.asyncSlot()
