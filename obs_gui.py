@@ -343,21 +343,26 @@ class MainForm(QWidget):
         self.fits_p.clicked.connect(lambda: self.parent.fitsGui.raise_())
 
 
-        w = w + 1
-
-        #grid.addWidget(self.SpecialPocisk_p, w, 0, 1, 2)
-        grid.addWidget(self.log_p, w, 0)
-        grid.addWidget(self.flats_p, w, 1)
-        grid.addWidget(self.fits_p, w, 2)
-        grid.addWidget(self.guider_p, w, 6)
-        grid.addWidget(self.focus_p, w, 7)
-
-        w = w + 1
+        w = 7
 
         self.msg_e = QTextEdit()
         self.msg_e.setReadOnly(True)
         self.msg_e.setStyleSheet("background-color: rgb(235,235,235);")
-        grid.addWidget(self.msg_e, w, 0, 1, 8)
+        grid.addWidget(self.msg_e, w, 0, 3, 5)
+
+        w = 7
+
+        grid.addWidget(self.log_p, w, 5)
+        grid.addWidget(self.focus_p, w, 7)
+
+        w = w + 1
+        #grid.addWidget(self.SpecialPocisk_p, w, 0, 1, 2)
+        grid.addWidget(self.flats_p, w, 5)
+        grid.addWidget(self.guider_p, w, 7)
+
+        w = w + 1
+
+        grid.addWidget(self.fits_p, w, 7)
 
         w = w + 1
 
