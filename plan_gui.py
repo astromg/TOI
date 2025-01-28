@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import copy
 import os
 #----------------
 # 01.08.2022
@@ -395,6 +396,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              # {'object_name': 'CR_Ser', 'uobi': 0, 'telescope': 'zb08', 'status': 'done', 'command_dict': {'command_name': 'OBJECT', 'args': ['CR_Ser', '18:10:02.13', '-13:32:45.5'], 'kwargs': {'seq': '2/B/12,2/V/3,2/Ic/1.8,2/g/7,2/r/1.5,2/i/1.4,2/z/5'}}, 'time': {'start_dt': '2024-09-20T01:11:08', 'end_dt': '2024-09-20T01:15:12', 'start_jd': 2460573.5494035487, 'end_jd': 2460573.5522267423, 'length_s': 243.923917}}
              self.log_t.clearContents()
 
+             font = QtGui.QFont()
+             font.setPointSize(10)
+
              for i,tmp in enumerate(self.parent.ob_log):
                  if self.log_t.rowCount() <= i: self.log_t.insertRow(i)
                  if True:
@@ -403,6 +407,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                         txt = txt.split("T")[1].split(":")[0]+":"+txt.split("T")[1].split(":")[1]
                         txt=QTableWidgetItem(txt)
                         txt.setBackground(QtGui.QColor(233, 233, 233))
+                        txt.setFont(font)
+
                         self.log_t.setItem(i,0,txt)
                      except Exception as e:
                          print("update_log_table Exception: ",e,self.parent.ob_log[i])
@@ -414,6 +420,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                         txt = self.parent.ob_log[i]["object_name"]
                      txt=QTableWidgetItem(txt)
                      txt.setBackground(QtGui.QColor(233, 233, 233))
+                     txt.setFont(font)
                      self.log_t.setItem(i,1,txt)
 
                  if True:
@@ -423,6 +430,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                              txt = str(self.parent.ob_log[i]["command_dict"]["kwargs"]["seq"])
                      txt=QTableWidgetItem(txt)
                      txt.setBackground(QtGui.QColor(233, 233, 233))
+                     txt.setFont(font)
                      self.log_t.setItem(i,2,txt)
 
              self.log_t.scrollToBottom()
@@ -745,15 +753,24 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.grid = QGridLayout()
 
           w=0
+          self.info_e = QTextEdit()
+          self.info_e.setReadOnly(True)
+          self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
+          self.grid.addWidget(self.info_e, w, 0, 3, 5)
+          if self.parent.active_tel:
+              txt = copy.deepcopy(self.parent.log_record[self.parent.active_tel])
+              self.info_e.append(txt)
+          w = w + 3
           self.log_t=QTableWidget(0,3)
           self.log_t.setHorizontalHeaderLabels(["UT","Object","seq"])
           self.log_t.setSelectionMode(QAbstractItemView.NoSelection)
           self.log_t.verticalHeader().hide()
           self.log_t.setEditTriggers(QTableWidget.NoEditTriggers)
           self.log_t.setStyleSheet("selection-background-color: white;")
+          self.log_t.verticalHeader().setDefaultSectionSize(10)
 
-          self.grid.addWidget(self.log_t, w,0,5,5)
-          w=w+5
+          self.grid.addWidget(self.log_t, w,0,4,5)
+          w=w+4
 
           self.stop_p=QPushButton('Stop')
           self.resume_p=QPushButton('Resume')
@@ -781,6 +798,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.plan_t.setHorizontalHeaderLabels(self.table_header)
           self.plan_t.setSelectionMode(QAbstractItemView.NoSelection)
           self.plan_t.verticalHeader().hide()
+          self.plan_t.verticalHeader().setDefaultSectionSize(15)
 
 
           self.grid.addWidget(self.plan_t, w,0,7,5)

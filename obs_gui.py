@@ -342,15 +342,22 @@ class MainForm(QWidget):
         self.fits_p = QPushButton('FITS')
         self.fits_p.clicked.connect(lambda: self.parent.fitsGui.raise_())
 
+
         w = w + 1
+
         #grid.addWidget(self.SpecialPocisk_p, w, 0, 1, 2)
         grid.addWidget(self.log_p, w, 0)
-        grid.addWidget(self.focus_p, w, 3)
+        grid.addWidget(self.flats_p, w, 1)
+        grid.addWidget(self.fits_p, w, 2)
+        grid.addWidget(self.guider_p, w, 6)
+        grid.addWidget(self.focus_p, w, 7)
+
         w = w + 1
-        grid.addWidget(self.flats_p, w, 0)
-        grid.addWidget(self.guider_p, w, 3)
-        w = w + 1
-        grid.addWidget(self.fits_p, w, 3)
+
+        self.msg_e = QTextEdit()
+        self.msg_e.setReadOnly(True)
+        self.msg_e.setStyleSheet("background-color: rgb(235,235,235);")
+        grid.addWidget(self.msg_e, w, 0, 1, 8)
 
         w = w + 1
 
@@ -369,15 +376,6 @@ class MainForm(QWidget):
         grid.addWidget(self.ping_p, w, 1)
         grid.addWidget(self.config_p, w, 7)
 
-        w = 4
-        self.msg_e = QTextEdit()
-        self.msg_e.setReadOnly(True)
-        self.msg_e.setStyleSheet("background-color: rgb(235,235,235);")
-        grid.addWidget(self.msg_e, w, 4, 3, 4)
-
-        # grid.setColumnMinimumWidth(6,100)
-        # grid.setColumnMinimumWidth(8,100)
-        # grid.setColumnMinimumWidth(10,100)
 
         grid.setSpacing(5)
 
