@@ -735,7 +735,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def plan_start(self):
         if self.parent.tel_acces[self.parent.active_tel]:
-            self.parent.plan_start(self.parent.active_tel)
+            self.parent.manual_plan_start(self.parent.active_tel)
         else:
               txt = "WARNING: U don't have controll"
               self.parent.WarningWindow(txt)

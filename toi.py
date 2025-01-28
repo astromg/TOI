@@ -193,7 +193,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
-            logger.warning(f'TOI: EXCEPTION 4b: {e}')
+            logger.warning(f'TOI: EXCEPTION 4b1: {e}')
         except Exception as e:
             logger.warning(f'EXCEPTION 110b: {e}')
 
@@ -206,7 +206,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
-            logger.warning(f'TOI: EXCEPTION 4b: {e}')
+            logger.warning(f'TOI: EXCEPTION 4b2: {e}')
         except Exception as e:
             logger.warning(f'EXCEPTION 110b: {e}')
 
@@ -218,7 +218,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
-            logger.warning(f'TOI: EXCEPTION 4b: {e}')
+            logger.warning(f'TOI: EXCEPTION 4b3: {e}')
         except Exception as e:
             logger.warning(f'EXCEPTION 110b: {e}')
 
@@ -230,12 +230,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
-            logger.warning(f'TOI: EXCEPTION 4b: {e}')
+            logger.warning(f'TOI: EXCEPTION 4b4: {e}')
         except Exception as e:
             logger.warning(f'EXCEPTION 110b: {e}')
-
-
-
 
 
 
@@ -318,7 +315,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cfg_inst_rm_i = self.nats_cfg[self.active_tel]["rm_list"]
         self.cfg_inst_temp = self.nats_cfg[self.active_tel]["ccd_temp"]
         self.cfg_focuser_defpos = f'{self.nats_cfg[self.active_tel]["focus_def_pos"]}/{self.nats_cfg[self.active_tel]["focus_def_step"]}'
-        self.cfg_focuser_seq = "8/V/5"
+        self.cfg_focuser_seq = "8/V/5" # DUPA
 
         self.cfg_tel_directory = self.local_cfg[self.active_tel]["tel_directory"]
         self.cfg_tel_ob_list = self.local_cfg[self.active_tel]["tel_ob_list"]
@@ -588,7 +585,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
-            logger.warning(f'TOI: EXCEPTION 4b: {e}')
+            logger.warning(f'TOI: EXCEPTION 4b5: {e}')
         except Exception as e:
             logger.warning(f'EXCEPTION 110b: {e}')
 
@@ -1361,9 +1358,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         except Exception as e:
                             logger.warning(f'TOI: EXCEPTION 46: {e}')
 
-                        await self.msg(f" {tel} PLAN: Plan finished", "black")
                         self.ob[tel]["run"] = False
                         self.ob[tel]["done"] = True
+                        await self.update_log(f'OB: finished ', "TOI", tel)
+
 
                         try:
                             s = self.nats_toi_ob_status[tel]
@@ -1400,7 +1398,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         except Exception as e:
                             logger.warning(f'TOI: EXCEPTION 48: {e}')
 
-                        await self.msg(f" {tel} PLAN: {self.ob_progress[tel]['dit_exp']} [s] exposure started","black")
+                        #await self.msg(f" {tel} PLAN: {self.ob_progress[tel]['dit_exp']} [s] exposure started","black")
 
                     elif info["exp_done"] and info["exp_saved"]:
                         self.ob_progress[tel]["ndit"]=float(info["n_exp"])
@@ -1430,14 +1428,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             logger.warning(f'TOI: EXCEPTION 50: {e}')
 
 
-                        await self.msg(f" {tel} PLAN: {self.ob_progress[tel]['dit_exp']} [s] test exposure started","black")
+                        #await self.msg(f" {tel} PLAN: {self.ob_progress[tel]['dit_exp']} [s] test exposure started","black")
 
                     elif info["auto_exp_finnished"]:
-                        await self.msg(f" {tel} PLAN: test exposure done", "black")
+                        pass
+                        #await self.msg(f" {tel} PLAN: test exposure done", "black")
 
                 if "test_exp_mean" in info.keys():                                                        # SKYFLAT
-                    await self.msg(f" {tel} PLAN: mean {int(info['test_exp_mean'])} ADU measured", "black")
-
+                    #await self.msg(f" {tel} PLAN: mean {int(info['test_exp_mean'])} ADU measured", "black")
+                    pass
 
                 if "id" in info.keys():  # to jest tylko do wyswietlania w oknie loga planu
                     self.program_id = info["id"]
@@ -1471,7 +1470,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         if "id" in info.keys():
                             if "auto_focus" in info["id"] and info["started"]==True and info["done"]==True:
                                 self.autofocus_started[tel]=False
-                                await self.msg(f" {tel} PLAN: Auto-focus sequence finished","black")
+                                #await self.msg(f" {tel} PLAN: Auto-focus sequence finished","black")
                                 max_sharpness_focus, calc_metadata = calFoc.calculate(self.local_cfg[tel]["tel_directory"]+"focus/actual",method=self.focus_method)
                                 try:
                                     data = {}
@@ -1496,10 +1495,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                                 if calc_metadata["status"] == "ok":
                                     await self.tel_focusers[tel].aput_move(int(max_sharpness_focus))
-                                    await self.msg(f"{tel} PLAN: focus set to {int(max_sharpness_focus)}","black")
+                                    await self.update_log(f'focus set to {int(max_sharpness_focus)}', "TOI", tel)
                                 else:
-                                    await self.msg(f" {tel} PLAN: focusing FAILED. Focus set to previous value {int(self.last_focus_position[tel])}", "red")
-
+                                    await self.update_log(f'focusing FAILED. Focus set to previous value {int(self.last_focus_position[tel])}', "TOI", tel)
                 except Exception as e:
                     logger.warning(f'TOI: EXCEPTION 37: {e}')
 
@@ -1509,6 +1507,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def auto_focus(self):
+        await self.update_log(f'AUTOFOCUS', "OPERATOR", self.active_tel )
         if self.tel_acces[self.active_tel]:
             ok = False
             v0 = float(self.focusGui.last_e.text())
@@ -1551,6 +1550,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 tmp = await self.tel_focusers[self.active_tel].aget_position()
                 self.last_focus_position[self.active_tel] = float(tmp)
                 self.planrunner_start(self.active_tel)
+                await self.update_log(f'autofocussing', "TOI RESPONDER", self.active_tel)
 
         else:
             txt="WARNING: U don't have control"
@@ -1558,6 +1558,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await self.update_log(f'you do not have control', "TOI WARNING", self.active_tel)
 
     # ############ PLAN ##########################
+
+    @qs.asyncSlot()
+    async def manual_plan_start(self,tel):
+        await self.update_log(f'PLAN START ', "OPERATOR", tel)
+
+        self.plan_start(self.active_tel)
 
     # to ustawia wszytskie potrzebne parametry dla planrunnera i wywoluje planrunner_start
     @qs.asyncSlot()
@@ -1587,6 +1593,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.next_i[tel] = self.current_i[tel] + 1
                                 self.current_i[tel] = -1
                                 self.update_plan(tel)
+                                await self.update_log(f'STOP reached ', "TOI", tel)
+
 
                                 try:
                                     s = self.nats_toi_ob_status[tel]
@@ -1610,12 +1618,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
                             if self.ob[tel]["type"] == "BELL":
-                                await self.msg(f" {tel} INFO: BELL","black")
+                                #await self.msg(f" {tel} INFO: BELL","black")
 
                                 try:
                                     s = self.nats_pub_toi_message[tel]
                                     data = {"tel":tel,"info":"BELL"}
                                     await s.publish(data=data, timeout=10)
+                                    await self.update_log(f'BELL reached ', "TOI", tel)
+
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 45: {e}')
 
@@ -1637,19 +1647,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     self.ob[tel]["start_time"] = self.time
                                     self.ob[tel]["done"]=False
                                     self.ob[tel]["run"]=True
-                                    await self.msg(f" {tel} PLAN: {self.ob[tel]['name']} {self.ob[tel]['wait']} s. start","black")
+                                    await self.update_log(f'starting WAIT ', "TOI", tel)
                                 if "wait_ut" in self.ob[tel].keys():
                                     self.ob[tel]["done"]=False
                                     self.ob[tel]["run"]=True
-                                    await self.msg(f" {tel} PLAN: {self.ob[tel]['name']} UT {self.ob[tel]['wait_ut']} start","black")
+                                    await self.update_log(f'starting WAIT ', "TOI", tel)
                                 if "wait_sunset" in self.ob[tel].keys():
                                     self.ob[tel]["done"]=False
                                     self.ob[tel]["run"]=True
-                                    await self.msg(f" {tel} PLAN: {self.ob[tel]['name']} sunset {self.ob[tel]['wait_sunset']} start","black")
+                                    await self.update_log(f'starting WAIT ', "TOI", tel)
                                 if "wait_sunrise" in self.ob[tel].keys():
                                     self.ob[tel]["done"]=False
                                     self.ob[tel]["run"]=True
-                                    await self.msg(f" {tel} PLAN: {self.ob[tel]['name']} sunrise {self.ob[tel]['wait_sunrise']} start","black")
+                                    await self.update_log(f'starting WAIT ', "TOI", tel)
                                 self.ob[tel]["continue_plan"] = True
                                 self.ob[tel]["origin"] = "plan"
 
@@ -1711,6 +1721,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob[tel]["origin"] = program_name
                                 self.ob[tel]["continue_plan"] = True
                                 self.planrunner_start(tel)
+                                await self.update_log(f'starting OB: {program} ', "TOI", tel)
+
 
         else:
             pass
