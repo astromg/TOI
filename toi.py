@@ -57,6 +57,8 @@ from focus_gui import FocusWindow
 from flat_gui import FlatWindow
 from guider_gui import GuiderWindow
 from planrunner_gui import PlanrunnerWindow
+from conditions_gui import ConditionsWindow
+
 from toi_lib import *
 
 # import paho.mqtt.client as mqtt
@@ -110,6 +112,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.fitsGui = FitsWindow(self)
         self.focusGui = FocusWindow(self)
         self.flatGui = FlatWindow(self)
+        self.conditionsGui = ConditionsWindow(self)
         self.guiderGui = GuiderWindow(self)
         self.planrunnerGui = PlanrunnerWindow(self)
 
@@ -132,6 +135,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         for t in self.oca_tel_state.keys():   # statusy wszystkich teleskopow
             self.add_background_task(self.nats_pub_toi_message_reader(t))
+            self.add_background_task(self.nats_ffs_reader(t))
 
             self.add_background_task(self.nats_journal_planner_reader(t))
             self.add_background_task(self.nats_journal_ofp_reader(t))
@@ -247,6 +251,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 101: {e}')
 
+
+    # NATS Conditions reader
+    async def nats_ffs_reader(self,tel):
+        try:
+            time = datetime.datetime.now() - datetime.timedelta(hours=24)
+            r = get_reader(f'tic.status.{tel}.fits.pipeline.faststat',  deliver_policy='by_start_time',opt_start_time=time)
+            async for data, meta in r:
+                self.fits_ffs_data[tel].append(data)
+                #self.conditionsGui.update()
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'TOI: EXCEPTION 778: {e}')
+        except Exception as e:
+            logger.warning(f'EXCEPTION 778b: {e}')
 
 
     # NATS weather
@@ -427,7 +446,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_log_loop_reader(), group="telescope_task")
         self.add_background_task(self.nats_downloader_reader(), group="telescope_task")
         self.add_background_task(self.nats_ofp_reader(), group="telescope_task")
-        self.add_background_task(self.nats_ffs_reader(), group="telescope_task")
 
         self.add_background_task(self.nats_toi_plan_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
@@ -574,22 +592,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 110: {e}')
 
-    async def nats_ffs_reader(self):
-        try:
-            tel = self.active_tel
-            r = get_reader(f'tic.status.{tel}.fits.pipeline.faststat', deliver_policy='last')
-            async for data, meta in r:
-                self.fits_ffs_data = data
-                #print(self.fits_ffs_data)
-                #self.fitsGui.update_ffs_data()
-        except (asyncio.CancelledError, asyncio.TimeoutError):
-            raise
-        except Exception as e:
-            logger.warning(f'TOI: EXCEPTION 4b5: {e}')
-        except Exception as e:
-            logger.warning(f'EXCEPTION 110b: {e}')
-
-
 
 
     # ################### METODY POD SUBSKRYPCJE ##################
@@ -614,6 +616,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.time = time.time()
                 self.ut = str(ephem.now())
                 self.almanac = Almanac(self.observatory)
+                self.jd = self.almanac['jd']
                 self.obsGui.main_form.ojd_e.setText(f"{self.almanac['jd']:.6f}")
                 self.obsGui.main_form.sid_e.setText(str(self.almanac["sid"]).split(".")[0])
                 date=str(self.almanac["ut"]).split()[0]
@@ -830,6 +833,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def nikomu_niepotrzeba_petla_ustawiajaca_pierdoly(self):
         while True:
             try:
+                if self.conditionsGui.isVisible():
+                    self.conditionsGui.update()
                 if self.ob[self.active_tel]["run"] and "name" in self.ob[self.active_tel].keys():
                     txt = self.ob["name"]
 
@@ -2424,7 +2429,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.update_log(f'mount PARK', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
             if self.mount.motorstatus != "false":
-                self.mntGui.mntStat_e.setText(txt)
+                #self.mntGui.mntStat_e.setText(txt)
                 self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,0,0); background-color: rgb(233, 233, 233);")
                 self.mntGui.domeAuto_c.setChecked(False)
                 await self.domeFollow()
@@ -3270,6 +3275,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     def variables_init(self):
 
+        self.jd = None
 
 
         self.telescope_switch_status = {}
@@ -3382,6 +3388,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.oca_tel_state = {k:copy.deepcopy(templeate) for k in self.local_cfg["toi"]["telescopes"]}
 
+
         self.cfg_showRotator = True   # potrzebne do pierwszego wyswietlenia
         self.tel_alpaca_con = False
 
@@ -3451,8 +3458,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.log_record = {t:"" for t in self.local_cfg["toi"]["telescopes"]}
 
+        self.fits_ffs_data = {t:[] for t in self.local_cfg["toi"]["telescopes"]}
+
         templeate = {"ob_started":False,"ob_done":False,"ob_expected_time":None,"ob_start_time":None,"ob_program":None,"error":False,"status":"","ndit_req":None,"ndit":None,"dit_exp":None,"dit_start":None}
-        #self.ob_prog_status = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
         self.ob_progress = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}
 
 

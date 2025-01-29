@@ -209,6 +209,10 @@ class MainForm(QWidget):
             log = log + "\n" + txt + "\n"
             log_file.write(log)
 
+    def open_conditions(self):
+        self.parent.conditionsGui.update()
+        self.parent.conditionsGui.show()
+
     # =================== OKNO GLOWNE ====================================
     def mkUI(self):
 
@@ -341,6 +345,8 @@ class MainForm(QWidget):
         self.focus_p.clicked.connect(lambda: self.parent.focusGui.raise_())
         self.fits_p = QPushButton('FITS')
         self.fits_p.clicked.connect(lambda: self.parent.fitsGui.raise_())
+        self.conditions_p = QPushButton('CONDITIONS')
+        self.conditions_p.clicked.connect(self.open_conditions)
 
 
         w = 7
@@ -352,17 +358,18 @@ class MainForm(QWidget):
 
         w = 7
 
-        grid.addWidget(self.log_p, w, 5)
-        grid.addWidget(self.focus_p, w, 7)
-
-        w = w + 1
-        #grid.addWidget(self.SpecialPocisk_p, w, 0, 1, 2)
-        grid.addWidget(self.flats_p, w, 5)
+        grid.addWidget(self.focus_p, w, 5)
         grid.addWidget(self.guider_p, w, 7)
 
         w = w + 1
-
+        #grid.addWidget(self.SpecialPocisk_p, w, 0, 1, 2)
+        grid.addWidget(self.log_p, w, 5)
         grid.addWidget(self.fits_p, w, 7)
+
+        w = w + 1
+
+        grid.addWidget(self.conditions_p, w, 5)
+        grid.addWidget(self.flats_p, w, 7)
 
         w = w + 1
 
