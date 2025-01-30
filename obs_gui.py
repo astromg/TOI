@@ -213,6 +213,10 @@ class MainForm(QWidget):
         self.parent.conditionsGui.update()
         self.parent.conditionsGui.show()
 
+    def report(self):
+        self.report_window = ReportWindow(self.parent)
+        self.report_window.show()
+
     # =================== OKNO GLOWNE ====================================
     def mkUI(self):
 
@@ -332,7 +336,7 @@ class MainForm(QWidget):
 
 
         self.report_p = QPushButton('REPORT')
-        self.report_p.clicked.connect(self.parent.report)
+        self.report_p.clicked.connect(self.report)
         self.ping_p = QPushButton('PING')
         self.ping_p.clicked.connect(self.parent.ping)
         self.log_p = QPushButton('PLANRUNNER')
@@ -401,4 +405,158 @@ class MainForm(QWidget):
         await self.stop_background_tasks()
         await self.stop_background_methods()
         super().closeEvent(event)
+
+# ############### FOCUS ##########################
+
+class ReportWindow(QWidget):
+    def __init__(self, parent):
+        super(ReportWindow, self).__init__()
+        self.parent = parent
+        self.setGeometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 500, 500)
+        self.mkUI()
+        self.setWindowTitle('Report')
+
+
+    def report(self):
+        self.rep_name = self.parent.ut.replace("/","_").replace(" ","_").replace(":","_")
+        if self.parent.active_tel:
+            self.rep_name = self.rep_name + "_" + self.parent.active_tel
+        self.dir_name = "./Reports/"+self.rep_name
+        if not os.path.exists(self.dir_name):
+            os.makedirs(self.dir_name)
+
+        with open(self.dir_name+"/report.txt","w") as file1:
+            txt = str(self.report_e.toPlainText())+"\n"
+            file1.write(txt)
+
+        if self.parent.active_tel:
+            with open(self.dir_name+"/log.txt","w") as file2:
+                txt = self.parent.log_record[self.parent.active_tel]
+                file2.write(txt)
+
+        zmienne = ["active_tel",
+                   "active_tel_i",
+                   "acces",
+                   "tel_acces",
+                   "ob",
+                   "ob_progress",
+                   "nats_ob_progress",
+                   "planrunners",
+                   "telescope_switch_status",
+                   "tel_alpaca_con",
+                   "flat_record",
+                   "cwd",
+                   "comProblem",
+                   "script_location",
+                   "msg_log_file",
+                   "msg_log_lines",
+                   "tic_con",
+                   "fw_con",
+                   "mount_con",
+                   "dome_con",
+                   "rotator_con",
+                   "inst_con",
+                   "focus_con",
+                   "covercalibrator_con",
+                   "nextOB_ok",
+                   "flag_newimage",
+                   "observer",
+                   "telemetry_temp",
+                   "telemetry_wind",
+                   "telemetry_wind_direction",
+                   "telemetry_humidity",
+                   "telemetry_pressure",
+                   "autofocus_started",
+                   "last_focus_position",
+                   "ut",
+                   "ephem_utc",
+                   "ephem_prev_utc",
+                   # ccd
+                   "binxy_changed",
+                   "ccd_binx",
+                   "ccd_biny",
+                   "cfg_inst_temp",
+                   "cfg_inst_gain",
+                   "cfg_inst_rm",
+                   "ccd_temp_set",
+                   "ccd_temp",
+                   # filter wheel
+                   "filter",
+                   "filter_list",
+                   # guider
+                   "prev_guider_coo",
+                   "prev_guider_adu",
+                   "guider_failed",
+                   # dome
+                   "dome_shutterstatus",
+                   "dome_az",
+                   "dome_status",
+                   # mount
+                   "mount_motortatus",
+                   "mount_ra",
+                   "mount_dec",
+                   "mount_alt",
+                   "mount_az",
+                   "mount_parked",
+                   "mount_slewing",
+                   "mount_tracking",
+                   "pulseRa",
+                   "pulseDec",
+                   "cover_status",
+                   # focus
+                   "focus_editing",
+                   "focus_value",
+                   # rotator
+                   "rotator_pos",
+                   # program
+                   "req_ra",
+                   "req_dec",
+                   "req_epoch",
+                   "program_id",
+                   "oca_tel_state",
+                   # plan
+                   "next_i",
+                   "current_i",
+                   "plan",
+                   "done_uobi",
+                   "nats_plan_status",
+                   # rozne
+                   "ob_log",
+                   "nats_cfg"]
+
+        txt = ""
+        for x in zmienne:
+            try:
+                val = eval("self.parent."+x)
+                txt = txt + f'*** {x}: {val}' + "\n"
+            except:
+                pass
+        with open(self.dir_name + "/telemetry.txt", "w") as file3:
+            file3.write(txt)
+
+        txt="Report created. Please inform mgorski on Slack"
+        self.parent.WarningWindow(txt)
+        self.close()
+
+    def mkUI(self):
+
+        grid = QGridLayout()
+        w = 0
+        self.report_l = QLabel("Please provide short description what happened: ")
+        w = w + 1
+        grid.addWidget(self.report_l, w, 0, 1, 2)
+        w = w + 1
+        self.report_e = QTextEdit("")
+        grid.addWidget(self.report_e, w, 0, 1, 2)
+        w = w + 1
+        self.close_p = QPushButton('Cancel')
+        self.close_p.clicked.connect(lambda: self.close())
+        self.report_p = QPushButton('Create Report')
+        self.report_p.clicked.connect(self.report)
+
+        grid.addWidget(self.close_p, w, 0)
+        grid.addWidget(self.report_p, w, 1)
+
+
+        self.setLayout(grid)
 

@@ -3060,13 +3060,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     @qs.asyncSlot()
-    async def report(self):
-        if self.telescope is not None:
-            await self.planrunners[self.active_tel].astop_nightplan()
-        else:
-            txt = f"WARNING: no telescope is selected"
-
-    @qs.asyncSlot()
     async def ping(self):
         await self.update_log(f'send annoying PING', "OPERATOR", self.active_tel)
         if self.telescope is not None:
