@@ -305,6 +305,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def telescope_switched(self):
 
+        print("* TEL SWITCH")
+        t0 = time.time()
+
         #self.fitsGui.clear()
         self.telescope_switch_status["plan"] = False
 
@@ -318,6 +321,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.fitsGui.ffs_worker.wait()
         except (AttributeError, RuntimeError):
             pass
+
+        t1 = time.time()
+        print(f'* a {t1-t0}')
 
         # to sa zmienne dla guidera
         self.pulseRa = 0
@@ -382,6 +388,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
             self.cfg_inst_defSetUp = {"gain": "Gain 2", "rm": "0,1MHz 18-bit","bin":"1x1", "temp":-58}
 
+        t2 = time.time()
+        print(f'* b {t2-t1}')
+
         # obsluga subskrypcji
 
         if self.telescope is not None:
@@ -404,6 +413,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cctv = self.telescope.get_cctv()
         self.ephemeris = self.observatory_model.get_ephemeris()
         self.ctc = self.telescope.get_cycle_time_calculator(client_config_dict=self.client_cfg) # cycle time calculator
+
+        t3 = time.time()
+        print(f'* c {t3-t2}')
 
         # ---------------------- run subscriptions from ocabox ----------------------
         await self.run_method_in_background(self.ephemeris.asubscribe_utc(self.ephem_update,time_of_data_tolerance=0.25),group="subscribe")
@@ -452,6 +464,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.run_method_in_background(self.ccd.asubscribe_readoutmode(self.ccd_rm_update), group="subscribe")
         await self.run_method_in_background(self.ccd.asubscribe_imageready(self.ccd_imageready), group="subscribe")
 
+
+        t4 = time.time()
+        print(f'* d {t4-t3}')
+
         # background task specific for selected telescope
 
         self.add_background_task(self.nats_log_loop_reader(), group="telescope_task")
@@ -469,6 +485,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         await self.run_background_tasks(group="telescope_task")
 
+        t5 = time.time()
+        print(f'* e {t5-t4}')
+
         try:
             self.mntGui.updateUI()
             self.skyGui.updateUI()
@@ -484,12 +503,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.mntGui.comRotator1_l.setStyleSheet("color: rgb(190,190,190);")
                 self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
 
+            t6 = time.time()
+            print(f'* f {t6 - t5}')
+
 
             self.updateWeather()
         except Exception as e:
             logger.warning(f'EXCEPTION 0: {e}')
 
         await self.update_log(f'{self.active_tel} telescope selected', "OPERATOR", self.active_tel)
+
+        t7 = time.time()
+        print(f'* g {t7-t6}')
 
     # ################### METODY POD NATS READERY ##################
 
