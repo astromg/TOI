@@ -9,6 +9,7 @@ import os
 import uuid
 import time
 
+
 import ephem
 import qasync as qs
 from qasync import QEventLoop
@@ -1307,6 +1308,12 @@ class PlotWindow(QWidget):
                 self.t = self.t_now
             else:
                 self.t = self.t0
+            if self.parent.parent.nats_ob_progress["ob_started"]:
+                if self.parent.parent.nats_ob_progress["ob_start_time"] and self.parent.parent.nats_ob_progress[
+                    "ob_expected_time"]:
+                    t0 = self.parent.parent.time
+                    dt = (t0 - self.parent.parent.nats_ob_progress["ob_start_time"])
+                    self.t = self.t - ephem.second * dt
             color = ["c","m"]
             j=0
             for i, tmp in enumerate(self.parent.plan):
@@ -1390,6 +1397,7 @@ class PlotWindow(QWidget):
                             dec = self.parent.plan[i]["dec"]
                             t_tab = []
                             alt_tab = []
+
                             t = self.t
                             while t <= self.t + ephem.second * slotTime:
                                 az, alt = RaDec2AltAz(self.parent.parent.observatory, t, ra, dec)

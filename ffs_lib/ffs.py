@@ -79,6 +79,9 @@ class FFS:
         self.sigma_quantile = numpy.median(image)-numpy.quantile(image, 0.159)
         self.noise = (self.median/self.gain+self.rn_noise)**0.5             
 
+        self.fwhm_x=None
+        self.fwhm_y=None
+
     def gauss_kernel(self,size,sigma):
         kernel = numpy.fromfunction(lambda x, y: (1/(2*numpy.pi*sigma**2)) * numpy.exp(-((x-(size-1)/2)**2+(y-(size-1)/2)**2)/(2*sigma**2)),(size,size))
         return kernel / numpy.sum(kernel)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import time
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
@@ -31,6 +31,8 @@ class FitsWindow(QWidget):
         self.fwhm_y = None
         self.stats = None
 
+        #self.ffs_worker = None
+
     def clear(self):
         self.axes.clear()
         self.axes.axis("off")
@@ -45,32 +47,18 @@ class FitsWindow(QWidget):
         self.axes.axis("off")
         if len(self.image)>0:
 
-            # try:
-            #     for p in self.poining_center:
-            #         p.remove()
-            # except AttributeError:
-            #     pass
-            # try:
-            #     for p in self.objects:
-            #         p.remove()
-            # except AttributeError:
-            #     pass
-
             vmin = numpy.mean(self.image) - 1 * numpy.std(self.image)
             vmax = numpy.mean(self.image) + 1 * numpy.std(self.image)
 
-            im = self.axes.imshow(self.image, vmin=vmin, vmax=vmax)
-
-            if True:
-                if len(self.sat_coo)>2 and self.parent.local_cfg["toi"]["show_sat_stars"]:
-                    x,y = zip(*self.sat_coo)
-                    self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
+            im = self.axes.imshow(self.image, vmin=vmin, vmax=vmax, interpolation='none', resample=False)
 
             self.canvas.draw()
             self.show()
 
     def updateImage(self, image):
         self.image = image
+
+        self.stats = None
         self.coo = []
         self.adu = []
         self.sat_coo = []
@@ -80,36 +68,51 @@ class FitsWindow(QWidget):
         self.fwhm_x = None
         self.fwhm_y = None
 
-
-
-        scale = 1
-        fwhm = 4
-        kernel_size = 6
-        saturation = 45000
-        if self.image.shape[0] > 4000 or self.image.shape[1] > 4000:
-            image = image.reshape(self.image.shape[0] // 2, 2, self.image.shape[1] // 2, 2).mean(axis=(1, 3))
-            fwhm = 2
-            kernel_size = 6
-            saturation = 45000
-            scale = 2
-
-        self.stats = FFS(self.image)
-        th = 20
-        coo,adu = self.stats.find_stars(threshold=th,kernel_size=kernel_size,fwhm=fwhm)
-        if len(coo)>3:
-            self.fwhm_x, self.fwhm_y = self.stats.fwhm(saturation=saturation)
-
-        if len(coo) > 1:
-            self.coo = numpy.array(coo)
-            self.adu = numpy.array(adu)
-            maska1 = numpy.array(adu) > saturation
-            self.sat_coo = coo[maska1]
-            self.sat_adu = adu[maska1]
-            maska2 = [not val for val in maska1]
-            self.ok_coo = coo[maska2]
-            self.ok_adu = adu[maska2]
-
         self.plot_image()
+        self.update_fits_data()
+        self.calc_ffs()
+
+
+    def calc_ffs(self):
+
+        try:
+            self.thread.quit()
+            self.thread.wait()
+            self.ffs_worker.deleteLater()
+        except AttributeError:
+            pass
+        except RuntimeError:
+            pass
+
+        self.thread = QtCore.QThread()
+        self.ffs_worker = FFS_Worker(self.image)
+        self.ffs_worker.moveToThread(self.thread)
+        self.thread.started.connect(self.ffs_worker.run)
+
+        # obsluga zatrzymania
+        self.ffs_worker.close_signal.connect(self.thread.quit)
+        self.ffs_worker.close_signal.connect(self.ffs_worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        # robota
+        self.ffs_worker.done_signal.connect(self.ffs_done)
+        self.thread.start()
+
+    def ffs_done(self,val):
+        self.stats = val
+        saturation = 45000
+        if len(self.stats.coo) > 1:
+            self.coo = numpy.array(self.stats.coo)
+            self.adu = numpy.array(self.stats.adu)
+            maska1 = numpy.array(self.stats.adu) > saturation
+            self.sat_coo = self.stats.coo[maska1]
+            self.sat_adu = self.stats.adu[maska1]
+            maska2 = [not val for val in maska1]
+            self.ok_coo = self.stats.coo[maska2]
+            self.ok_adu = self.stats.adu[maska2]
+            self.fwhm_x = self.stats.fwhm_x
+            self.fwhm_y = self.stats.fwhm_y
+
         self.update_fits_data()
 
 
@@ -174,7 +177,6 @@ class FitsWindow(QWidget):
                         self.poining_center = self.axes.plot(self.pointing_x,self.pointing_x,"k+",markersize=20)
                     if len(self.ob_x)>0:
                         self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")
-                    self.canvas.draw()
 
             except Exception as e:
                 print(f"TOI FITS EXCEPTION 2: {e}")
@@ -199,13 +201,17 @@ class FitsWindow(QWidget):
                         px = float(self.parent.nats_cfg[tel]["pixel_scale"])
                         txt = txt + f"&nbsp; &nbsp; &nbsp; <b>{self.fwhm_x*px:.1f}</b>/<b>{self.fwhm_y*px:.1f}</b> arcsec <br>"
 
-                txt = txt + f"detected stars:  <i>{len(self.coo)}</i> <br>"
-                txt = txt + f"saturated stars:  <i>{len(self.sat_coo)}</i> <br>"
                 if self.stats:
+                    if True:
+                        if len(self.sat_coo)>2 and self.parent.local_cfg["toi"]["show_sat_stars"]:
+                            x,y = zip(*self.sat_coo)
+                            self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
+                    txt = txt + f"detected stars:  <i>{len(self.coo)}</i> <br>"
+                    txt = txt + f"saturated stars:  <i>{len(self.sat_coo)}</i> <br>"
                     txt = txt + f"min/max ADU:  <i>{self.stats.min:.0f}</i>/<i>{self.stats.max:.0f}</i><br>"
                     txt = txt + f"mean/median ADU:  <i>{self.stats.mean:.0f}</i>/<i>{self.stats.median:.0f}</i> <br>"
                     txt = txt + f"rms/q68 ADU:  <i>{self.stats.rms:.0f}</i>/<i>{self.stats.sigma_quantile:.0f}</i> <br>"
-                txt = txt + f" <hr> <br>"
+                    txt = txt + f" <hr> <br>"
             except Exception as e:
                 print(f"TOI FITS EXCEPTION 4: {e}")
 
@@ -228,7 +234,33 @@ class FitsWindow(QWidget):
             self.tel_e.setText(tel)
             self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[tel]['color']};")
             self.stat_e.setHtml(txt)
+        self.canvas.draw()
         self.raise_()
+
+    def updateUI(self):
+
+        #self.ffs_worker = None
+
+        self.axes.clear()
+        self.axes.axis("off")
+        self.canvas.draw()
+        self.stat_e.setText("")
+        self.tel_e.setText("")
+        self.tel_e.setStyleSheet(f"background-color: rgb(233, 233, 233);")
+
+        if self.parent.active_tel:
+            self.tel_e.setText(self.parent.active_tel)
+            self.tel_e.setAlignment(Qt.AlignCenter)
+            font = QFont("Courier New",9)
+            font.setBold(True)
+            self.tel_e.setFont(font)
+            self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[self.parent.active_tel]['color']};")
+
+            self.show()
+            self.raise_()
+
+
+
 
     def mkUI(self):
         self.fig = Figure((1.0, 1.0), linewidth=-1, dpi=100)
@@ -268,3 +300,28 @@ class FitsWindow(QWidget):
         self.axes.clear()
         self.resize(400, 500)
         self.canvas.draw()
+        self.show()
+
+
+class FFS_Worker(QtCore.QObject):
+    close_signal = QtCore.pyqtSignal()
+    done_signal = QtCore.pyqtSignal(FFS)
+
+    def __init__(self, image):
+        super(FFS_Worker, self).__init__()
+        self.image = image
+
+    def run(self):
+        scale = 1
+        fwhm = 4
+        kernel_size = 6
+        saturation = 45000
+
+        self.stats = FFS(self.image)
+        th = 20
+        coo, adu = self.stats.find_stars(threshold=th, kernel_size=kernel_size, fwhm=fwhm)
+        if len(coo) > 3:
+            self.stats.fwhm(saturation=saturation)
+
+        self.done_signal.emit(self.stats)
+        self.close_signal.emit()

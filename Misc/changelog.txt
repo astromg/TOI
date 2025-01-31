@@ -2,10 +2,15 @@
 
 
 
---- 26.10.2025 --- <br>
+--- 30.10.2025 --- <br>
 Flat Log Window is again available.
+Log of operations and planrunner is now displayed in Plan Window.
+Conditions Window with record of telescopes fwhm is now avialable.
+Log of autofocus is displayed in Autofocus Window.
+FFS in Fits Window is in separate Qthread not to block Main Window.
 TPG is moved to separate Qthread not to block Main Window, TPG progress is now reported and start at sunset now takes
-current_time - 4h.
+current_time - 4h. Crush of planrunner is now observed and reported to other TOI's and OCAM.
+CTC is now used consistently in toi.
 <br><br>
 --- 02.10.2024 --- <br>
 TOI can operate multiple telescopes (planrunners) from one app. Telescope PLANS are now synchronized between

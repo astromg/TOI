@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Optional
 import qasync as qs
 from PyQt5 import QtWidgets, QtCore
+from astropy.io import fits
 from obcom.comunication.base_client_api import BaseClientAPI
 from ocaboxapi import Observatory, Telescope, AccessGrantor, Dome, Mount, CoverCalibrator, Focuser, Camera, \
     FilterWheel, Rotator, CCTV
@@ -46,7 +47,6 @@ from serverish.messenger.msg_journal_pub import MsgJournalPublisher, get_journal
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 from calcFocus import calc_focus as calFoc
 from ffs_lib.ffs import FFS
-from fits_save import *
 from instrument_gui import InstrumentGui
 from mnt_gui import MntGui
 from sky_gui import SkyGui
@@ -305,8 +305,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def telescope_switched(self):
 
-        self.fitsGui.clear()
+        #self.fitsGui.clear()
         self.telescope_switch_status["plan"] = False
+
+
+        try:
+            #await self.fitsGui.thread.stop()
+            self.fitsGui.thread.quit()
+            self.fitsGui.thread.wait()
+            self.fitsGui.ffs_worker.stop()
+            self.fitsGui.ffs_worker.quit()
+            self.fitsGui.ffs_worker.wait()
+        except (AttributeError, RuntimeError):
+            pass
 
         # to sa zmienne dla guidera
         self.pulseRa = 0
@@ -461,13 +472,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             self.mntGui.updateUI()
             self.skyGui.updateUI()
-            #self.auxGui.updateUI()
             self.planGui.updateUI()
             self.instGui.updateUI()
-            self.focusGui.updateUI()
-            self.flatGui.updateUI()
             self.planrunnerGui.updateUI()
-
+            self.flatGui.updateUI()
+            self.focusGui.updateUI()
+            self.fitsGui.updateUI()
 
             if not bool(self.cfg_showRotator):
                 self.mntGui.comRotator1_l.setText("\u2B24")
@@ -1798,6 +1808,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         for i, tmp in enumerate(self.plan[tel]):
                             if i == self.next_i[tel] or i == self.current_i[tel]:
                                 ob_time = ephem.now()
+                                if i == self.current_i[tel]:
+                                    if self.ob[tel]["start_time"] and self.ob[tel]["slotTime"]:
+                                        t1 = self.time-self.ob[tel]["start_time"]
+                                        t2 = self.ob[tel]["slotTime"] - t2
+                                        if t2 < 0:
+                                            t2 = 0
+                                        ob_time = ob_time - t2
                             if "uobi" not in self.plan[tel][i].keys():  # nadaje uobi jak nie ma
                                 self.plan[tel][i]["uobi"] = str(uuid.uuid4())[:8]
                             if len(self.plan[tel][i]["uobi"]) < 1:
@@ -1910,17 +1927,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if "skip" in self.plan[tel][self.next_i[tel]].keys():
                 if self.plan[tel][self.next_i[tel]]["skip"]:
                     self.next_i[tel] = self.next_i[tel] + 1
-                    self.check_next_i()
+                    self.check_next_i(tel)
 
             if "skip_alt" in self.plan[tel][self.next_i[tel]].keys():
                 if self.plan[tel][self.next_i[tel]]["skip_alt"]:
                     self.next_i[tel] = self.next_i[tel] + 1
-                    self.check_next_i()
+                    self.check_next_i(tel)
 
             if "ok" in self.plan[tel][self.next_i[tel]].keys():
                 if not self.plan[tel][self.next_i[tel]]["ok"]:
                     self.next_i[tel] = self.next_i[tel] + 1
-                    self.check_next_i()
+                    self.check_next_i(tel)
 
     # focus window
     def update_focus_window(self):
@@ -1968,6 +1985,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def update_fits_data(self):
         self.fitsGui.update_fits_data()
+        pass
 
 
     @qs.asyncSlot()
@@ -1977,11 +1995,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.image = hdul[0].data
         else:
             self.image = await self.ccd.aget_imagearray()
-
         image = self.image
         image = numpy.asarray(image)
         self.fitsGui.updateImage(image)
-
 
     @qs.asyncSlot()
     async def ccd_Snap(self):

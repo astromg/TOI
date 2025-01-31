@@ -30,6 +30,7 @@ class ConditionsWindow(QWidget):
         self.time = {t: [] for t in self.parent.fits_ffs_data.keys()}
         self.airmass = {t: [] for t in self.parent.fits_ffs_data.keys()}
 
+        self.focus_time = {t: [] for t in self.parent.fits_ffs_data.keys()}
 
         self.update()
 
@@ -37,6 +38,8 @@ class ConditionsWindow(QWidget):
         self.fwhm = {t:[] for t in self.parent.fits_ffs_data.keys()}
         self.time = {t: [] for t in self.parent.fits_ffs_data.keys()}
         self.airmass = {t: [] for t in self.parent.fits_ffs_data.keys()}
+
+        self.focus_time = {t: [] for t in self.parent.fits_ffs_data.keys()}
 
         self.ax1.clear()
         #self.ax2.clear()
@@ -63,6 +66,9 @@ class ConditionsWindow(QWidget):
                                     #time = datetime.fromisoformat(x["raw"]["header"]["DATE-OBS"])
                                     self.time[t].append(time)
 
+                    if "OBSTYPE" in x["raw"]["header"].keys() and "NLOOPS" in x["raw"]["header"].keys() and "LOOP" in x["raw"]["header"].keys():
+                        if x["raw"]["header"]["OBSTYPE"] == "focus" and float(x["raw"]["header"]["NLOOPS"]) == float(x["raw"]["header"]["LOOP"]):
+                            self.focus_time[t].append(float(x["raw"]["header"]["JD"]))
 
 
             x0 = float(str(self.parent.jd).split(".")[0])+0.5
@@ -85,6 +91,12 @@ class ConditionsWindow(QWidget):
                 #self.ax1.plot_date(x,y,marker = ".",color=self.parent.nats_cfg[t]['color'],alpha=0.5)
                 self.ax1.scatter(x, y, marker=".", color=self.parent.nats_cfg[t]['color'], alpha=1, s=100, label=t)
 
+                ft = numpy.array(self.focus_time[t])
+                mk = ft > x0
+                ft = ft[mk]
+
+                for focus_time in ft:
+                    self.ax1.axvline(x=focus_time, color=self.parent.nats_cfg[t]['color'],alpha=0.8)
 
             xtics = []
             t =  ephem.Date(x0)
