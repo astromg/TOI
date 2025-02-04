@@ -2,7 +2,7 @@
 
 
 
---- 30.10.2025 --- <br>
+--- 30.01.2025 --- <br>
 Flat Log Window is again available.
 Log of operations and planrunner is now displayed in Plan Window.
 Conditions Window with record of telescopes fwhm is now avialable.
