@@ -142,6 +142,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.add_background_task(self.nats_journal_downloader_reader(t))
             self.add_background_task(self.nats_journal_guider_reader(t))
 
+
+            self.add_background_task(self.oca_telemetry_conditions_reader(t))
+
             self.add_background_task(self.oca_telemetry_program_reader(t))
             for k in self.oca_tel_state[t].keys():
                 self.add_background_task(self.oca_telemetry_reader(t,k))
@@ -161,6 +164,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             self.nats_pub_toi_status[k] = get_publisher(f'tic.status.{k}.toi.status')
             self.nats_pub_toi_message[k] = get_publisher(f'tic.status.{k}.toi.message')
+
+    async def oca_telemetry_conditions_reader(self,tel):
+        try:
+            r = get_reader(f'telemetry.conditions.{tel}-htsensor', deliver_policy='last')
+            async for data, meta in r:
+                self.sensors[tel]["dome_conditions"] = data["measurements"]
+                self.update_dome_temp()   # DUPA
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 100a: {e}')
 
     async def oca_telemetry_reader(self,tel,key):
         # dodac sprawdzanie czy na tych topikach nadaje
@@ -472,6 +486,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_log_loop_reader(), group="telescope_task")
         self.add_background_task(self.nats_downloader_reader(), group="telescope_task")
         self.add_background_task(self.nats_ofp_reader(), group="telescope_task")
+        self.add_background_task(self.nats_ofp_error_reader(), group="telescope_task")
 
         self.add_background_task(self.nats_toi_plan_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
@@ -490,6 +505,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             t30 = time.time()
             self.mntGui.updateUI()
+            self.update_dome_temp()
             t31 = time.time()
             print(f'* MOUNT update {t31 - t30}')
             self.skyGui.updateUI()
@@ -650,6 +666,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 110: {e}')
 
+
+    async def nats_ofp_error_reader(self):
+        try:
+            tel = self.active_tel
+            r = get_reader(f'tic.planner.{tel}.status.error', deliver_policy='last') # new?
+            async for data, meta in r:
+                print("ERROR READER: ", data)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'TOI: EXCEPTION 4a: {e}')
+        except Exception as e:
+            logger.warning(f'EXCEPTION 110a: {e}')
 
 
     # ################### METODY POD SUBSKRYPCJE ##################
@@ -2928,6 +2957,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mntGui.ventilators_e.setText(txt)
         self.mntGui.ventilators_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
 
+    def update_dome_temp(self):  # DUPA
+        try:
+            temp = self.sensors[self.active_tel]["dome_conditions"]["temperature"]
+            if temp:
+                self.mntGui.domeTemp_e.setText(str(temp))
+        except Exception as e:
+            pass
+
     # OTHER COMPONENTS
 
     @qs.asyncSlot()
@@ -3353,6 +3390,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.nats_cfg = {k:{} for k in nats_cfg.keys()}
 
         self.toi_status = {}
+        self.sensors = {k: {} for k in nats_cfg.keys()}
 
         for k in self.nats_cfg.keys():
 

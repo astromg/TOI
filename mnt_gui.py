@@ -380,6 +380,11 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeStat_e.setReadOnly(True)
         self.domeStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
+        self.domeTemp_l = QLabel("TEMPERATURE:")
+        self.domeTemp_e = QLineEdit()
+        self.domeTemp_e.setReadOnly(True)
+        self.domeTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
         self.domeAuto_l  = QLabel("FOLLOW:")
         self.domeAuto_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         self.domeAuto_c = QCheckBox()
@@ -391,7 +396,9 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         w = w + 1
         self.grid.addWidget(self.domeConn2_l,w, 0)
         self.grid.addWidget(self.domeConn1_l,w, 1)
-        self.grid.addWidget(self.domeStat_e, w, 2, 1, 2)
+        self.grid.addWidget(self.domeStat_e, w, 2, 1, 1)
+        self.grid.addWidget(self.domeTemp_l, w, 4)
+        self.grid.addWidget(self.domeTemp_e, w, 5)
         self.grid.addWidget(self.domeAuto_l, w, 6)
         self.grid.addWidget(self.domeAuto_c, w, 7)
 
