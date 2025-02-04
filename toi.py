@@ -205,8 +205,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             r = get_journalreader(f'tic.journal.{tel}.pipeline', deliver_policy='new')
             async for data, meta in r:
-                if data.level > 10:
-                    await self.update_log(f'({data.level})  {data.message}', "OFP", tel)
+                await self.update_log(f'({data.level})  {data.message}', "OFP", tel)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -489,29 +488,53 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         print(f'* e {t5-t4}')
 
         try:
+            t30 = time.time()
             self.mntGui.updateUI()
+            t31 = time.time()
+            print(f'* MOUNT update {t31 - t30}')
             self.skyGui.updateUI()
+            t32 = time.time()
+            print(f'* SKY update {t32 - t31}')
             self.planGui.updateUI()
+            t33 = time.time()
+            print(f'* PLAN  update {t33 - t32}')
             self.instGui.updateUI()
+            t34 = time.time()
+            print(f'*  INST update {t34 - t33}')
             self.planrunnerGui.updateUI()
+            t35 = time.time()
+            print(f'* PLANRUNNER update {t35 - t34}')
             self.flatGui.updateUI()
+            t36 = time.time()
+            print(f'* FLAT update {t36 - t35}')
             self.focusGui.updateUI()
+            t37 = time.time()
+            print(f'* FOCUS update {t37 - t36}')
             self.fitsGui.updateUI()
+            t38 = time.time()
+            print(f'* FITS update {t38 - t37}')
 
             if not bool(self.cfg_showRotator):
                 self.mntGui.comRotator1_l.setText("\u2B24")
                 self.mntGui.comRotator1_l.setStyleSheet("color: rgb(190,190,190);")
                 self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
 
-            t6 = time.time()
-            print(f'* f {t6 - t5}')
-
-
+            t20 = time.time()
             self.updateWeather()
+            t21 = time.time()
+            print(f'* update weather {t21 - t20}')
         except Exception as e:
             logger.warning(f'EXCEPTION 0: {e}')
 
+        t6 = time.time()
+        print(f'* f {t6 - t5}')
+
+        t10 = time.time()
         await self.update_log(f'{self.active_tel} telescope selected', "OPERATOR", self.active_tel)
+        t11 = time.time()
+        print(f'* update log {t11 - t10}')
+
+        #DUPA
 
         t7 = time.time()
         print(f'* g {t7-t6}')
@@ -3263,7 +3286,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if tel == self.active_tel:
                     self.planGui.info_e.setTextColor(c)
                     self.planGui.info_e.append(txt)
+                    t100 = time.time()
                     self.planGui.info_e.repaint()
+                    t101 = time.time()
+                    print(f'* repaint {t101 - t100}')
+                    #DUPA
 
             self.log_record[tel] = self.log_record[tel] + txt + "\n"
 
