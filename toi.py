@@ -511,12 +511,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 0: {e}')
 
-        t7 = time.time()
-
         await self.update_log(f'{self.active_tel} telescope selected', "OPERATOR", self.active_tel)
 
-        t8 = time.time()
-        print(f'* g {t8-t7}')
+        t7 = time.time()
+        print(f'* g {t7-t6}')
 
     # ################### METODY POD NATS READERY ##################
 

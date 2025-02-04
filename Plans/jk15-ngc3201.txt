@@ -1,0 +1,1 @@
+OBJECT NGC3201 10:17:36.82 -46:24:44.9 seq=2x(2/B/40,5/V/30,2/Ic/30,2/g/30,2/i/30) comment="Globular Cluster"
