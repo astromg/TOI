@@ -226,9 +226,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_plan_ofp_log_reader(self,tel):
         try:
-            r = get_reader(f'tic.status.{tel}.planner.command.log', deliver_policy='new')
-            async for data, meta in r:
-                await self.plan_log_agregator(tel,data)
+            if self.tel_acces[tel]:
+                r = get_reader(f'tic.status.{tel}.planner.command.log', deliver_policy='new')
+                async for data, meta in r:
+                    await self.plan_log_agregator(tel,data)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -239,9 +240,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_journal_planner_reader(self,tel):
         try:
-            r = get_journalreader(f'tic.journal.{tel}.planner', deliver_policy='new')
-            async for data, meta in r:
-                await self.update_log(f'{data.message}', "PLANRUNNER", tel, level=data.level)
+            if self.tel_acces[tel]:
+                r = get_journalreader(f'tic.journal.{tel}.planner', deliver_policy='new')
+                async for data, meta in r:
+                    await self.update_log(f'{data.message}', "PLANRUNNER", tel, level=data.level)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -251,10 +253,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_journal_ofp_reader(self,tel):
         try:
-            r = get_journalreader(f'tic.journal.{tel}.pipeline', deliver_policy='new')
-            async for data, meta in r:
-                if data.level > 10:
-                    await self.update_log(f'{data.message}', "OFP", tel, level=data.level)
+            if self.tel_acces[tel]:
+                r = get_journalreader(f'tic.journal.{tel}.pipeline', deliver_policy='new')
+                async for data, meta in r:
+                    if data.level > 10:
+                        await self.update_log(f'{data.message}', "OFP", tel, level=data.level)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -264,9 +267,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_journal_downloader_reader(self,tel):
         try:
-            r = get_journalreader(f'tic.journal.{tel}.download', deliver_policy='new')
-            async for data, meta in r:
-                await self.update_log(f'{data.message}', "DOWNLOADER", tel, level=data.level)
+            if self.tel_acces[tel]:
+                r = get_journalreader(f'tic.journal.{tel}.download', deliver_policy='new')
+                async for data, meta in r:
+                    await self.update_log(f'{data.message}', "DOWNLOADER", tel, level=data.level)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -276,9 +280,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_journal_guider_reader(self,tel):
         try:
-            r = get_journalreader(f'tic.journal.{tel}.guider', deliver_policy='new')
-            async for data, meta in r:
-                await self.update_log(data.message, "GUIDER", tel, level=data.level)
+            if self.tel_acces[tel]:
+                r = get_journalreader(f'tic.journal.{tel}.guider', deliver_policy='new')
+                async for data, meta in r:
+                    await self.update_log(data.message, "GUIDER", tel, level=data.level)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -3392,7 +3397,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 tmp = f'{ut} {self.tel_users[tel]} {level} [{label}] {txt}'
                 self.log_record[tel] = self.log_record[tel] + tmp + "\n"
             else:
-                print("LOG: no acces!")
+                print("LOG: no acces! ", txt)
 
 
         except Exception as e:
