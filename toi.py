@@ -156,10 +156,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         for k in self.local_cfg["toi"]["telescopes"]:
             self.nats_toi_plan_status[k] = get_publisher(f'tic.status.{k}.toi.plan')
             self.nats_toi_ob_status[k] = get_publisher(f'tic.status.{k}.toi.ob')
-            #self.nats_toi_exp_status[k] = get_publisher(f'tic.status.{k}.toi.exp')
 
             self.nats_toi_flat_status[k] = get_publisher(f'tic.status.{k}.toi.flat')
             self.nats_toi_focus_status[k] = get_publisher(f'tic.status.{k}.toi.focus')
+            self.nats_toi_focus_record[k] = get_publisher(f'tic.status.{k}.toi.focus_record')
 
             self.nats_pub_toi_status[k] = get_publisher(f'tic.status.{k}.toi.status')
             self.nats_pub_toi_message[k] = get_publisher(f'tic.status.{k}.toi.message')
@@ -493,9 +493,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_toi_plan_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_status_reader(), group="telescope_task")
-        #self.add_background_task(self.nats_toi_exp_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_flat_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_focus_status_reader(), group="telescope_task")
+        self.add_background_task(self.nats_toi_focus_record_reader(), group="telescope_task")
+
+
 
 
 
@@ -528,10 +530,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 0: {e}')
 
+        t7 = time.time()
         await self.update_log(f'{self.active_tel} telescope selected', "OPERATOR", self.active_tel)
 
-        t7 = time.time()
-        print(f'* g {t7-t6}')
+        t8 = time.time()
+        print(f'* g {t8-t7}')
 
     # ################### METODY POD NATS READERY ##################
 
@@ -572,11 +575,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 
-    async def nats_toi_focus_status_reader(self):           # to moze powinno sie raczej robic jako append
+    async def nats_toi_focus_record_reader(self):           # to moze powinno sie raczej robic jako append
         try:
             time = datetime.datetime.now() - datetime.timedelta(hours=24)  # do konfiguracji
-            reader = get_reader(f'tic.status.{self.active_tel}.toi.focus', deliver_policy='by_start_time',opt_start_time=time)
-            #reader = get_reader(f'tic.status.{self.active_tel}.toi.focus', deliver_policy='last')
+            reader = get_reader(f'tic.status.{self.active_tel}.toi.focus_record', deliver_policy='by_start_time',opt_start_time=time)
+            async for data, meta in reader:
+                self.nats_focus_record = data
+                self.update_focus_log_window()
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 107: {e}')
+
+    async def nats_toi_focus_status_reader(self):           # to moze powinno sie raczej robic jako append
+        try:
+            reader = get_reader(f'tic.status.{self.active_tel}.toi.focus', deliver_policy='last')
             async for data, meta in reader:
                 self.nats_focus_status = data
                 self.update_focus_window()
@@ -1553,7 +1566,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     data["fit_x"] = list(calc_metadata["fit_x"])
                                     data["fit_y"] = list(calc_metadata["fit_y"])
                                     data["status"] = str(calc_metadata["status"])
-                                    data["temperature"] = self.telemetry_temp
+                                    data["temperature"] = self.sensors[tel]["dome_conditions"]["temperature"]
                                     try:
                                         pos = self.oca_tel_state[tel]["fw_position"]["val"]
                                         data["filter"] = self.nats_cfg[tel]["filter_list_names"][pos]
@@ -1561,6 +1574,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         data["filter"] = "--"
 
                                     await self.nats_toi_focus_status[tel].publish(data=data, timeout=10)
+
+                                    data_short = {}
+                                    data_short["status"] = data["status"]
+                                    data_short["temperature"] = data["temperature"]
+                                    data_short["max_sharpness_focus"] = data["max_sharpness_focus"]
+                                    data_short["time"] = data["time"]
+                                    data_short["filter"] = data["filter"]
+                                    await self.nats_toi_focus_record[tel].publish(data=data_short, timeout=10)
+
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 42: {e}')
 
@@ -2018,17 +2040,24 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.focusGui.x = focus_values
                 self.focusGui.y = sharpness_values
 
-                if "fwhm" in self.nats_focus_status.keys():
+                if "fwhm" in self.nats_focus_status.keys():             # to w zasadzie teraz nie dziala
                     self.focusGui.fwhm = self.nats_focus_status["fwhm"]
 
-            txt = ""
-            if "time" in self.nats_focus_status.keys():
-                txt = f'{self.nats_focus_status["time"]}'
-            txt = txt + f'    {self.nats_focus_status["max_sharpness_focus"]:.0f}    {self.nats_focus_status["filter"]}    {self.nats_focus_status["temperature"]:.1f}    {self.nats_focus_status["status"]} '
-            self.focusGui.log_e.append(txt)
             self.focusGui.update()
         except Exception as e:
             logger.warning(f'EXCEPTION 45: {e}')
+
+    def update_focus_log_window(self):
+        try:
+            txt = ""
+            if "time" in self.nats_focus_record.keys():
+                txt = f'{self.nats_focus_record["time"]}'
+            txt = txt + f'    {self.nats_focus_record["max_sharpness_focus"]:.0f}    {self.nats_focus_record["filter"]}    {self.nats_focus_record["temperature"]:.2f}    {self.nats_focus_record["status"]} '
+            self.focusGui.log_e.append(txt)
+            self.focusGui.log_e.repaint()
+
+        except Exception as e:
+            logger.warning(f'EXCEPTION 45a: {e}')
 
 
     # ############ CCD ##################################
@@ -3548,6 +3577,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #self.nats_exp_prog_status = {}  # ten sluzy tylko do czytania z nats
         self.nats_ob_progress = {}      # ten sluzy tylko do czytania z nats
         self.nats_focus_status = {}     #  tak samo
+        self.nats_focus_record = {}     # tak samo
 
         #self.fits_exec=False
 
@@ -3638,6 +3668,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.nats_toi_flat_status = {}
         self.nats_toi_focus_status = {}
+        self.nats_toi_focus_record = {}
 
 
         self.nats_pub_toi_status = {}
