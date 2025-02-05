@@ -397,13 +397,15 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         level = log["level"]
         txt = log["txt"]
 
-        c = QtCore.Qt.black
+        c = QtCore.Qt.gray
         if float(level) > 10:
             if user == self.parent.myself:
                 if label == "OPERATOR":
                     c = QtCore.Qt.blue
                 if label == "TOI RESPONDER":
                     c = QtCore.Qt.darkGreen
+                if label == "TOI":
+                    c = QtCore.Qt.black
                 if label == "WARNING":
                     c = QtCore.Qt.darkYellow
                 if label == "ERROR":
