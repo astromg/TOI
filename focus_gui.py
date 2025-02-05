@@ -54,8 +54,8 @@ class FocusWindow(QWidget):
                 self.last_e.setText(str(self.parent.nats_cfg[self.parent.active_tel]["focus_def_pos"]))
             self.range_e.setText("8")
             self.log_e.clear()
-            self.log_e.append("DATE     FOCUS      FILTER      TEMP ")
-            self.log_e.append("---------------------------------------------")
+            self.log_e.append("DATE       UT      FOCUS      FILTER      TEMP ")
+            self.log_e.append("-----------------------------------------------------------------")
 
 
 
