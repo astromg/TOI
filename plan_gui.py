@@ -446,27 +446,38 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                         self.log_t.setItem(i,0,txt)
                      except Exception as e:
-                         print("update_log_table Exception: ",e,self.parent.ob_log[i])
+                         print("update_log_table col 0 Exception: ",e,self.parent.ob_log[i])
                  if True:
-                     type = self.parent.ob_log[i]["command_dict"]["command_name"]
-                     if type != "OBJECT":
-                        txt = type + " " + self.parent.ob_log[i]["object_name"]
-                     else:
-                        txt = self.parent.ob_log[i]["object_name"]
-                     txt=QTableWidgetItem(txt)
-                     txt.setBackground(QtGui.QColor(233, 233, 233))
-                     txt.setFont(font)
-                     self.log_t.setItem(i,1,txt)
+                     try:
+                         if "command_name" in self.parent.ob_log[i]["command_dict"].keys():
+                             type = self.parent.ob_log[i]["command_dict"]["command_name"]
+                             if type != "OBJECT":
+                                txt = type + " " + self.parent.ob_log[i]["object_name"]
+                             else:
+                                txt = self.parent.ob_log[i]["object_name"]
+                         else:
+                             txt = ""
+
+                         txt=QTableWidgetItem(txt)
+                         txt.setBackground(QtGui.QColor(233, 233, 233))
+                         txt.setFont(font)
+                         self.log_t.setItem(i,1,txt)
+
+                     except Exception as e:
+                         print("update_log_table col 1 Exception: ", e, self.parent.ob_log[i])
 
                  if True:
-                     txt = ""
-                     if "kwargs" in self.parent.ob_log[i]["command_dict"].keys():
-                         if "seq" in self.parent.ob_log[i]["command_dict"]["kwargs"].keys():
-                             txt = str(self.parent.ob_log[i]["command_dict"]["kwargs"]["seq"])
-                     txt=QTableWidgetItem(txt)
-                     txt.setBackground(QtGui.QColor(233, 233, 233))
-                     txt.setFont(font)
-                     self.log_t.setItem(i,2,txt)
+                     try:
+                         txt = ""
+                         if "kwargs" in self.parent.ob_log[i]["command_dict"].keys():
+                             if "seq" in self.parent.ob_log[i]["command_dict"]["kwargs"].keys():
+                                 txt = str(self.parent.ob_log[i]["command_dict"]["kwargs"]["seq"])
+                         txt=QTableWidgetItem(txt)
+                         txt.setBackground(QtGui.QColor(233, 233, 233))
+                         txt.setFont(font)
+                         self.log_t.setItem(i,2,txt)
+                     except Exception as e:
+                         print("update_log_table col 2 Exception: ", e, self.parent.ob_log[i])
 
              self.log_t.scrollToBottom()
              self.log_t.resizeColumnsToContents()

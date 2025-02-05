@@ -148,6 +148,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.add_background_task(self.oca_telemetry_program_reader(t))
             self.add_background_task(self.nats_pub_toi_status_reader(t))
 
+            self.add_background_task(self.nats_plan_ofp_log_reader(t))
+
+
             for k in self.oca_tel_state[t].keys():
                 self.add_background_task(self.oca_telemetry_reader(t,k))
 
@@ -164,6 +167,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.nats_toi_focus_status[k] = get_publisher(f'tic.status.{k}.toi.focus')
             self.nats_toi_focus_record[k] = get_publisher(f'tic.status.{k}.toi.focus_record')
 
+            self.nats_toi_plan_log[k] = get_publisher(f'tic.status.{k}.toi.plan_log')
             self.nats_toi_log[k] = get_publisher(f'tic.status.{k}.toi.log')
             self.nats_pub_toi_status[k] = get_publisher(f'tic.status.{k}.toi.status')  # dome status
             self.nats_pub_toi_message[k] = get_publisher(f'tic.status.{k}.toi.message')
@@ -220,6 +224,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 108: {e}')
 
+    async def nats_plan_ofp_log_reader(self,tel):
+        try:
+            r = get_reader(f'tic.status.{tel}.planner.command.log', deliver_policy='new')
+            async for data, meta in r:
+                await self.plan_log_agregator(tel,data)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'TOI: EXCEPTION 34f: {e}')
+        except Exception as e:
+            logger.warning(f'EXCEPTION 34g: {e}')
 
 
     async def nats_journal_planner_reader(self,tel):
@@ -502,15 +517,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # background task specific for selected telescope
 
-        self.add_background_task(self.nats_log_loop_reader(), group="telescope_task")
+        #self.add_background_task(self.nats_log_loop_reader(), group="telescope_task")
         self.add_background_task(self.nats_downloader_reader(), group="telescope_task")
         self.add_background_task(self.nats_ofp_reader(), group="telescope_task")
         self.add_background_task(self.nats_ofp_error_reader(), group="telescope_task")
 
-
         self.add_background_task(self.nats_toi_plan_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
-        self.add_background_task(self.nats_toi_log_reader(), group="telescope_task")
+
+        self.add_background_task(self.nats_toi_plan_log_reader(), group="telescope_task")
+        #self.add_background_task(self.nats_toi_log_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_flat_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_focus_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_focus_record_reader(), group="telescope_task")
@@ -579,6 +595,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             logger.warning(f'EXCEPTION 105: {e}')
 
 
+
     async def nats_toi_log_reader(self):
         try:
             time = datetime.datetime.now() - datetime.timedelta(hours=1)
@@ -629,24 +646,40 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 107: {e}')
 
-    async def nats_log_loop_reader(self):
+
+    async def nats_toi_plan_log_reader(self):
         try:
-            tel = self.active_tel
-            time = datetime.datetime.now() - datetime.timedelta(hours=int(self.local_cfg["toi"]["log_display_h"]))
-            r = get_reader(f'tic.status.{tel}.planner.command.log', deliver_policy='by_start_time',opt_start_time=time)
-            async for data, meta in r:
+            time = datetime.datetime.now() - datetime.timedelta(hours=1)
+            reader = get_reader(f'tic.status.{self.active_tel}.toi.plan_log', deliver_policy='by_start_time',opt_start_time=time)
+            async for data, meta in reader:
                 self.ob_log.append(data)
                 if "uobi" in data.keys():
                     if data["uobi"] not in self.done_uobi:
-                        #self.planGui.done.append(data["uobi"])
                         self.done_uobi.append(data["uobi"])
                 self.planGui.update_log_table()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
-            logger.warning(f'TOI: EXCEPTION 3: {e}')
-        except Exception as e:
-            logger.warning(f'EXCEPTION 109: {e}')
+            logger.warning(f'EXCEPTION 106c: {e}')
+
+    # async def nats_log_loop_reader(self):
+    #     try:
+    #         tel = self.active_tel
+    #         time = datetime.datetime.now() - datetime.timedelta(hours=int(self.local_cfg["toi"]["log_display_h"]))
+    #         r = get_reader(f'tic.status.{tel}.planner.command.log', deliver_policy='by_start_time',opt_start_time=time)
+    #         async for data, meta in r:
+    #             self.ob_log.append(data)
+    #             if "uobi" in data.keys():
+    #                 if data["uobi"] not in self.done_uobi:
+    #                     #self.planGui.done.append(data["uobi"])
+    #                     self.done_uobi.append(data["uobi"])
+    #             self.planGui.update_log_table()
+    #     except (asyncio.CancelledError, asyncio.TimeoutError):
+    #         raise
+    #     except Exception as e:
+    #         logger.warning(f'TOI: EXCEPTION 3: {e}')
+    #     except Exception as e:
+    #         logger.warning(f'EXCEPTION 109: {e}')
 
     async def nats_downloader_reader(self):
         try:
@@ -1078,6 +1111,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                             self.plan[tel].pop(self.current_i[tel])
                                             self.current_i[tel] = -1
                                             self.update_plan(tel)
+                                            time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                            tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sec={self.ob[tel]["wait"]}'}},"time": {"end_dt": time}}
+                                            self.plan_log_agregator(tel, tmp)
                                 if "wait_ut" in self.ob[tel].keys():
                                     if self.ob[tel]["wait_ut"] != "":
                                         req_ut = str(self.ob[tel]["wait_ut"])
@@ -1092,6 +1128,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                             self.plan[tel].pop(self.current_i[tel])
                                             self.current_i[tel] = -1
                                             self.update_plan(tel)
+                                            time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                            tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'ut={self.ob[tel]["wait_ut"]}'}},"time": {"end_dt": time}}
+                                            self.plan_log_agregator(tel, tmp)
                                 if "wait_sunrise" in self.ob[tel].keys():
                                     if self.ob[tel]["wait_sunrise"] != "":
                                         if deg_to_decimal_deg(self.almanac["sun_alt"]) > float(self.ob[tel]["wait_sunrise"]):
@@ -1101,6 +1140,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                             self.plan[tel].pop(self.current_i[tel])
                                             self.current_i[tel] = -1
                                             self.update_plan(tel)
+                                            time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                            tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sunrise={self.ob[tel]["wait_sunrise"]}'}},"time": {"end_dt": time}}
+                                            self.plan_log_agregator(tel, tmp)
                                 if "wait_sunset" in self.ob[tel].keys():
                                     if self.ob[tel]["wait_sunset"] != "":
                                         if deg_to_decimal_deg(self.almanac["sun_alt"]) < float(self.ob[tel]["wait_sunset"]):
@@ -1111,6 +1153,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                             self.plan[tel].pop(self.current_i[tel])
                                             self.current_i[tel] = -1
                                             self.update_plan(tel)
+                                            time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                            tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sunset={self.ob[tel]["wait_sunset"]}'}},"time": {"end_dt": time}}
+                                            self.plan_log_agregator(tel, tmp)
 
             except Exception as e:
                 logger.warning(f'TOI: EXCEPTION 8: {e}')
@@ -1708,6 +1753,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.update_plan(tel)
                                 await self.update_log(f'STOP reached ', "TOI", tel)
 
+                                time = self.ut.split()[0]+"T"+self.ut.split()[1]
+                                tmp = {"object_name": "STOP", "command_dict":{"command_name":""},"time":{"end_dt":time}}
+                                self.plan_log_agregator(tel,tmp)
+
+
 
                                 try:
                                     s = self.nats_toi_ob_status[tel]
@@ -1731,13 +1781,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
                             if self.ob[tel]["type"] == "BELL":
-                                #await self.msg(f" {tel} INFO: BELL","black")
 
                                 try:
                                     s = self.nats_pub_toi_message[tel]
                                     data = {"tel":tel,"info":"BELL"}
                                     await s.publish(data=data, timeout=10)
                                     await self.update_log(f'BELL reached ', "TOI", tel)
+
+                                    time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                    tmp = {"object_name": "BELL", "command_dict": {"command_name": ""},
+                                           "time": {"end_dt": time}}
+                                    self.plan_log_agregator(tel, tmp)
 
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 45: {e}')
@@ -3317,6 +3371,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.tmp_box.show()
 
     @qs.asyncSlot()
+    async def plan_log_agregator(self, tel, data):
+        await self.nats_toi_plan_log[tel].publish(data=data, timeout=10)
+
+    @qs.asyncSlot()
     async def update_log(self, txt, label, tel, level=20):
         try:
             if self.tel_acces[tel]:
@@ -3654,8 +3712,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.nats_toi_focus_status = {}
         self.nats_toi_focus_record = {}
 
-
-
+        self.nats_toi_plan_log = {}
         self.nats_pub_toi_status = {}
         self.nats_toi_log = {}
         self.nats_pub_toi_message = {}
