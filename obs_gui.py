@@ -62,7 +62,21 @@ class MainForm(QWidget):
             i = i + 1
 
             # TELESKOPY
-            txt = t
+            ok = True
+            try:
+                for k in self.parent.nats_toi_op_status[t].keys():
+                    if self.parent.nats_toi_op_status[t][k]:
+                        pass
+                    else:
+                        ok = False
+            except Exception as e:
+                print(f"toi status warning {e}")
+
+            if ok:
+                txt = ""
+            else:
+                txt = "\u26A0 "
+            txt = txt + f'{t}'
 
             acces = self.parent.tel_acces[t]
             if acces:

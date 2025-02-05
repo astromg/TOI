@@ -240,7 +240,7 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                  if alt < self.parent.cfg_alt_limits["low"] :
                                      font = QtGui.QFont()
                                      font.setPointSize(15)
-                                     txt = QTableWidgetItem("\u26A0")
+                                     txt = QTableWidgetItem("\u26A0") # ostrzezenie
                                      txt.setFont(font)
                                      txt.setTextAlignment(QtCore.Qt.AlignCenter)
                                      txt.setForeground(QtGui.QColor("orange"))
