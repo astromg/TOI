@@ -210,7 +210,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             reader = get_reader(f'tic.status.{tel}.toi.status', deliver_policy='last')
             async for data, meta in reader:
-                self.nats_toi_op_status[tel] = data #DUPA
+                self.nats_toi_op_status[tel] = data
                 # if "dome_follow_switch" in data.keys():
                 #     self.toi_status["dome_follow_switch"] = data["dome_follow_switch"]
                 #     self.mntGui.domeAuto_c.setChecked(self.toi_status["dome_follow_switch"])
@@ -2958,12 +2958,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         if self.dome_fanStatus:
             self.mntGui.ventilators_c.setChecked(True)
-            self.toi_op_status["dome_ventilators"] = False
+            self.toi_op_status["dome_ventilators"]["state"] = True
             await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
             txt="VENT ON"
         else:
             self.mntGui.ventilators_c.setChecked(False)
-            self.toi_op_status["dome_ventilators"] = True
+            self.toi_op_status["dome_ventilators"]["state"] = False
             await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
             txt="VENT OFF"
         self.mntGui.ventilators_e.setText(txt)
@@ -2996,12 +2996,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
            if self.dome_fanStatus:
                self.mntGui.mirrorFans_c.setChecked(True)
-               self.toi_op_status["mirror_fans"] = False
+               self.toi_op_status["mirror_fans"]["state"] = True
                await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
                txt="FANS ON"
            else:
                self.mntGui.mirrorFans_c.setChecked(False)
-               self.toi_op_status["mirror_fans"] = True
+               self.toi_op_status["mirror_fans"]["state"] = False
                await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
                txt="FANS OFF"
            self.mntGui.mirrorFans_e.setText(txt)
@@ -3018,14 +3018,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                await self.update_log(f'turning flat lamps ON', "TOI RESPONDER", self.active_tel)
                self.mntGui.flatLights_e.setText("no feedback")
                self.mntGui.flatLights_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
-               self.toi_op_status["flat_lamps"] = False
+               self.toi_op_status["flat_lamps"]["state"] = True
                await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
            else:
                await self.mount.aput_domelamp_off()
                await self.update_log(f'turning flat lamps OFF', "TOI RESPONDER", self.active_tel)
                self.mntGui.flatLights_e.setText("")
                self.mntGui.flatLights_e.setStyleSheet("color: rgb(0,0,0); background-color: rgb(233, 233, 233);")
-               self.toi_op_status["flat_lamps"] = True
+               self.toi_op_status["flat_lamps"]["state"] = False
                await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
         else:
             txt="WARNING: U don't have control"
@@ -3041,14 +3041,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if len(val) == 1:
                     val = '0' + val
                 requests.post('http://' + self.local_cfg[self.active_tel]["light_ip"] + '/api/rgbw/set', json={"rgbw": {"desiredColor": val}})
-                self.toi_op_status["dome_lights"] = False
+                self.toi_op_status["dome_lights"]["state"] = True
                 await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
             else:
                 val = str(hex(int(0))).replace('0x', '', 1)
                 if len(val) == 1:
                     val = '0' + val
                 requests.post('http://' + self.local_cfg[self.active_tel]["light_ip"] + '/api/rgbw/set', json={"rgbw": {"desiredColor": val}})
-                self.toi_op_status["dome_lights"] = True
+                self.toi_op_status["dome_lights"]["state"] = False
             await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
         else:
             txt="WARNING: U don't have control"
@@ -3466,7 +3466,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.oca_tel_state = {k:copy.deepcopy(templeate) for k in self.local_cfg["toi"]["telescopes"]}
 
-        self.toi_op_status = {}
+        self.toi_op_status = {"dome_ventilators":{"state":False,"defoult":False}, "mirror_fans":{"state":False,"defoult":False},"flat_lamps":{"state":False,"defoult":False},"dome_lights":{"state":False,"defoult":False}}
 
         self.cfg_showRotator = True   # potrzebne do pierwszego wyswietlenia
         self.tel_alpaca_con = False
@@ -3644,6 +3644,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.nats_toi_flat_status = {}
         self.nats_toi_focus_status = {}
         self.nats_toi_focus_record = {}
+
 
 
         self.nats_pub_toi_status = {}

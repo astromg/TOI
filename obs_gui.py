@@ -65,7 +65,7 @@ class MainForm(QWidget):
             ok = True
             try:
                 for k in self.parent.nats_toi_op_status[t].keys():
-                    if self.parent.nats_toi_op_status[t][k]:
+                    if self.parent.nats_toi_op_status[t][k]["state"] == self.parent.nats_toi_op_status[t][k]["defoult"]:
                         pass
                     else:
                         ok = False
