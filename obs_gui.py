@@ -62,17 +62,19 @@ class MainForm(QWidget):
             i = i + 1
 
             # TELESKOPY
-            ok = True
+            rgb = (0, 0, 0)
+            status_ok = True
             try:
+                print(self.parent.nats_toi_op_status[t])
                 for k in self.parent.nats_toi_op_status[t].keys():
                     if self.parent.nats_toi_op_status[t][k]["state"] == self.parent.nats_toi_op_status[t][k]["defoult"]:
                         pass
                     else:
-                        ok = False
+                        status_ok = False
             except Exception as e:
                 print(f"toi status warning {e}")
 
-            if ok:
+            if status_ok:
                 txt = ""
             else:
                 txt = "\u26A0 "
@@ -85,10 +87,15 @@ class MainForm(QWidget):
                 #txt = txt + " \u2301" #   blyskawica
                 #txt = txt + " \u2713" # check ok
                 item = QTableWidgetItem(txt)
-                item.setForeground(QtGui.QColor("green"))
+                rgb = (0, 150, 0)
             else:
                 item = QTableWidgetItem(txt)
+
+            if not status_ok:
+                rgb = (255, 160, 0)
+
             item.setTextAlignment(QtCore.Qt.AlignCenter)
+            item.setForeground(QtGui.QColor(*rgb))
             self.obs_t.setItem(i, 0, item)
 
             # DOME
