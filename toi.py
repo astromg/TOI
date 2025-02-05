@@ -135,7 +135,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         for t in self.oca_tel_state.keys():   # statusy wszystkich teleskopow
             self.add_background_task(self.nats_pub_toi_message_reader(t))
-            self.add_background_task(self.nats_toi_log_reader(t))
 
             self.add_background_task(self.nats_ffs_reader(t))
 
@@ -254,19 +253,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             logger.warning(f'TOI: EXCEPTION 4b4: {e}')
         except Exception as e:
             logger.warning(f'EXCEPTION 110b: {e}')
-
-
-    async def nats_toi_log_reader(self,tel):
-        try:
-            reader = get_reader(f'tic.status.{tel}.toi.log', deliver_policy='new')
-            async for log, meta in reader:
-                if self.active_tel == tel:
-                    self.planGui.update_log_window(log)
-
-        except (asyncio.CancelledError, asyncio.TimeoutError):
-            raise
-        except Exception as e:
-            logger.warning(f'EXCEPTION 101c: {e}')
 
 
     async def nats_pub_toi_message_reader(self,tel):
@@ -507,6 +493,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.add_background_task(self.nats_toi_plan_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
+        self.add_background_task(self.nats_toi_log_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_flat_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_focus_status_reader(), group="telescope_task")
@@ -574,6 +561,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             raise
         except Exception as e:
             logger.warning(f'EXCEPTION 105: {e}')
+
+
+    async def nats_toi_log_reader(self):
+        try:
+            time = datetime.datetime.now() - datetime.timedelta(hours=1)
+            reader = get_reader(f'tic.status.{self.active_tel}.toi.log', deliver_policy='by_start_time',opt_start_time=time)
+            async for log, meta in reader:
+                if True:
+                    self.planGui.update_log_window(log)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 106c: {e}')
 
 
     async def nats_toi_flat_status_reader(self):
@@ -3206,7 +3206,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def takeControl(self):
-        await self.update_log(f'TAKE CONTROL', "OPERATOR", self.active_tel)
         self.reset_ob(self.active_tel)
         try:
             s = self.nats_toi_ob_status[self.active_tel]
@@ -3227,7 +3226,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             pass
         try:
             await self.user.aput_take_control(84000)
-            await self.update_log(f'taking control', "TOI RESPONDER", self.active_tel)
             self.upload_plan()
             self.update_plan(self.active_tel)
         except Exception as e:

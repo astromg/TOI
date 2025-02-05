@@ -398,9 +398,8 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         txt = log["txt"]
 
         c = QtCore.Qt.black
-        print("hopla")
         if float(level) > 10:
-            if user == self.parent.tel_users[self.parent.active_tel]:
+            if user == self.parent.myself:
                 if label == "OPERATOR":
                     c = QtCore.Qt.blue
                 if label == "TOI RESPONDER":
