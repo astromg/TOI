@@ -390,6 +390,39 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.parent.telescope_switch_status["plan"] = True
 
 
+    def update_log_window(self,log):
+        ut = log["time"]
+        user = log["user"]
+        label = log["label"]
+        level = log["level"]
+        txt = log["txt"]
+
+        c = QtCore.Qt.black
+        print("hopla")
+        if float(level) > 10:
+            if user == self.parent.tel_users[self.parent.active_tel]:
+                if label == "OPERATOR":
+                    c = QtCore.Qt.blue
+                if label == "TOI RESPONDER":
+                    c = QtCore.Qt.darkGreen
+                if label == "WARNING":
+                    c = QtCore.Qt.darkYellow
+                if label == "ERROR":
+                    c = QtCore.Qt.darkRed
+                if label == "PLANRUNNER":
+                    c = QtCore.Qt.darkGray
+                if label == "OFP":
+                    c = QtCore.Qt.darkGray
+                if label == "DOWNLOADER":
+                    c = QtCore.Qt.darkGray
+                if label == "GUIDER":
+                    c = QtCore.Qt.darkGray
+
+            msg = f'{ut} [{label}] {txt}'
+            self.info_e.setTextColor(c)
+            self.info_e.append(msg)
+            self.info_e.repaint()
+
     def update_log_table(self):
           if len(self.parent.ob_log)==0:
               self.log_t.clearContents()
@@ -758,9 +791,6 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.info_e.setReadOnly(True)
           self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
           self.grid.addWidget(self.info_e, w, 0, 3, 5)
-          if self.parent.active_tel:
-              txt = copy.deepcopy(self.parent.log_record[self.parent.active_tel])
-              self.info_e.append(txt)
           w = w + 3
           self.log_t=QTableWidget(0,3)
           self.log_t.setHorizontalHeaderLabels(["UT","Object","seq"])
