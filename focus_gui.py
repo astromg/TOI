@@ -20,7 +20,7 @@ class FocusWindow(QWidget):
     def __init__(self, parent):
         super(FocusWindow, self).__init__()
         self.parent = parent
-        self.setGeometry(self.parent.obs_window_geometry[0] + 2000, self.parent.obs_window_geometry[1]+810, 800, 500)
+        self.setGeometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1]+810, 900, 500)
         self.mkUI()
         self.setWindowTitle('Focus')
         self.x = []
@@ -54,8 +54,8 @@ class FocusWindow(QWidget):
                 self.last_e.setText(str(self.parent.nats_cfg[self.parent.active_tel]["focus_def_pos"]))
             self.range_e.setText("8")
             self.log_e.clear()
-            self.log_e.append("DATE   FOCUS   FILTER   TEMP ")
-            self.log_e.append("-----------------------------")
+            self.log_e.append("DATE     FOCUS      FILTER      TEMP ")
+            self.log_e.append("---------------------------------------------")
 
 
 
@@ -68,7 +68,7 @@ class FocusWindow(QWidget):
         self.axes = self.fig.add_axes([0.1, 0.2, 0.8, 0.75])
         self.log_e = QTextEdit("")
         self.log_e.setReadOnly(True)
-        self.log_e.setMinimumWidth(300)
+        self.log_e.setMinimumWidth(400)
 
         self.log_e.setStyleSheet("background-color: rgb(235,235,235);")
         grid.addWidget(self.canvas, w, 0, 1, 4)

@@ -1566,7 +1566,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     data["fit_x"] = list(calc_metadata["fit_x"])
                                     data["fit_y"] = list(calc_metadata["fit_y"])
                                     data["status"] = str(calc_metadata["status"])
-                                    data["temperature"] = self.sensors[tel]["dome_conditions"]["temperature"]
+                                    try:
+                                        data["temperature"] = self.sensors[tel]["dome_conditions"]["temperature"]
+                                    except:
+                                        data["temperature"] = "--"
                                     try:
                                         pos = self.oca_tel_state[tel]["fw_position"]["val"]
                                         data["filter"] = self.nats_cfg[tel]["filter_list_names"][pos]
@@ -2052,7 +2055,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             txt = ""
             if "time" in self.nats_focus_record.keys():
                 txt = f'{self.nats_focus_record["time"]}'
-            txt = txt + f'    {self.nats_focus_record["max_sharpness_focus"]:.0f}    {self.nats_focus_record["filter"]}    {self.nats_focus_record["temperature"]:.2f}    {self.nats_focus_record["status"]} '
+            txt = txt + f'    {self.nats_focus_record["max_sharpness_focus"]:.0f}    {self.nats_focus_record["filter"]}    {self.nats_focus_record["temperature"]}    {self.nats_focus_record["status"]} '
             self.focusGui.log_e.append(txt)
             self.focusGui.log_e.repaint()
 

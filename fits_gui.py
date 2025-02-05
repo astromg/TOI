@@ -22,7 +22,7 @@ class FitsWindow(QWidget):
         self.parent = parent
         self.setWindowTitle('Fits')
         self.mkUI()
-        self.setGeometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1], 1000, 700)
+        self.setGeometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1], 1000, 700)
         self.colorbar = None
         self.image=[]
         self.coo = []
