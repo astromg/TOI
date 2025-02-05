@@ -526,7 +526,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_toi_ob_status_reader(), group="telescope_task")
 
         self.add_background_task(self.nats_toi_plan_log_reader(), group="telescope_task")
-        #self.add_background_task(self.nats_toi_log_reader(), group="telescope_task")
+        self.add_background_task(self.nats_toi_log_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_flat_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_focus_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_focus_record_reader(), group="telescope_task")
