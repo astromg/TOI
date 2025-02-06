@@ -53,7 +53,7 @@ class FlatWindow(QWidget):
         font = QtGui.QFont()
         font.setPointSize(10)
 
-        t0 =  datetime.datetime.now()
+        t0 =  datetime.datetime.now(datetime.timezone.utc)
 
         for i,f in enumerate(data.keys()):
             if self.flat_table_t.rowCount() <= i: self.flat_table_t.insertRow(i)
@@ -66,6 +66,7 @@ class FlatWindow(QWidget):
 
             if data[f]["last_flats"]:
                 t_filter = datetime.datetime.fromisoformat(data[f]["last_flats"])
+                t_filter = t_filter.replace(tzinfo=datetime.timezone.utc)
                 dt = t0 - t_filter
                 days = dt.days
                 hours = dt.seconds / 3600.
@@ -83,6 +84,7 @@ class FlatWindow(QWidget):
 
             if data[f]["last_obs"]:
                 t_obs = datetime.datetime.fromisoformat(data[f]["last_obs"])
+                t_obs = t_obs.replace(tzinfo=datetime.timezone.utc)
                 dt = t0 - t_obs
                 days = dt.days
                 hours = dt.seconds / 3600.
@@ -103,6 +105,7 @@ class FlatWindow(QWidget):
         self.flat_table_t.resizeColumnsToContents()
         for col in range(2,self.flat_table_t.columnCount()):
             self.flat_table_t.horizontalHeader().setSectionResizeMode(col,QHeaderView.Stretch)
+        self.flat_table_t.repaint()
 
 
 
