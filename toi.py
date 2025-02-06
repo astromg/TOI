@@ -536,6 +536,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_toi_focus_status_reader(), group="telescope_task")
         self.add_background_task(self.nats_toi_focus_record_reader(), group="telescope_task")
 
+        self.add_background_task(self.reader_nats_flat_overwatch(), group="telescope_task")
+
+
 
 
 
@@ -718,15 +721,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def nats_ofp_error_reader(self):
         try:
             tel = self.active_tel
-            r = get_reader(f'tic.planner.{tel}.status.error', deliver_policy='new') # new?
+            r = get_reader(f'tic.planner.{tel}.status.error', deliver_policy='new')
             async for data, meta in r:
                 await self.update_log(f'{data["error_description"]}', "ERROR", tel)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
             logger.warning(f'TOI: EXCEPTION 4a: {e}')
+
+
+    async def reader_nats_flat_overwatch(self):
+        try:
+            tel = self.active_tel
+            r = get_reader(f'tic.status.{tel}.flat_overwatch', deliver_policy='last')
+            async for data, meta in r:
+                self.flatGui.update_flat_overwatch(data)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
         except Exception as e:
-            logger.warning(f'EXCEPTION 110a: {e}')
+            logger.warning(f'TOI: EXCEPTION 4c: {e}')
 
 
 
