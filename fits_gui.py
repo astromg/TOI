@@ -165,6 +165,7 @@ class FitsWindow(QWidget):
                         #pointing_err_dec = self.parent.fits_ofp_data["raw"]["pointing_error"]["dec_diff"]
                         self.pointing_x = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_ra"]
                         self.pointing_y = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_dec"]
+
                     if "objects" in self.parent.fits_ofp_data["raw"].keys():
                         for k in self.parent.fits_ofp_data["raw"]["objects"].keys():
                             if "x_pix" not in self.parent.fits_ofp_data["raw"]["objects"][k].keys():

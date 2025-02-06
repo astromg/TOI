@@ -1636,12 +1636,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     data["status"] = str(calc_metadata["status"])
                                     try:
                                         data["temperature"] = self.sensors[tel]["dome_conditions"]["temperature"]
-                                    except:
+                                    except Exception as e:
                                         data["temperature"] = "--"
                                     try:
                                         pos = self.oca_tel_state[tel]["fw_position"]["val"]
                                         data["filter"] = self.nats_cfg[tel]["filter_list_names"][pos]
-                                    except:
+                                    except Exception as e:
                                         data["filter"] = "--"
 
                                     await self.nats_toi_focus_status[tel].publish(data=data, timeout=10)
@@ -2347,7 +2347,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             try:
                 await self.planrunners[self.active_tel].astop_nightplan()
                 await self.update_log(f'stopping program', "TOI RESPONDER", self.active_tel)
-            except:
+            except Exception as e:
                 pass
             await self.ccd.aput_stopexposure()
             await self.update_log(f'stopping exposure', "TOI RESPONDER", self.active_tel)
@@ -3481,7 +3481,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             except KeyError:
                 tmp = None
             self.nats_cfg[k]["pixel_scale"] = tmp
-
 
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["filterwheel"]["filters"]
