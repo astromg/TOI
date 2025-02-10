@@ -131,10 +131,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #self.add_background_task(self.guider_loop())
 
         self.add_background_task(self.TOItimer())
+
         self.add_background_task(self.nats_weather_loop())
+        self.add_background_task(self.reader_ocm_messages())
 
         for t in self.oca_tel_state.keys():   # statusy wszystkich teleskopow
-            self.add_background_task(self.nats_pub_toi_message_reader(t))
+            #self.add_background_task(self.nats_pub_toi_message_reader(t))
 
             self.add_background_task(self.nats_ffs_reader(t))
 
@@ -170,7 +172,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.nats_toi_plan_log[k] = get_publisher(f'tic.status.{k}.toi.plan_log')
             self.nats_toi_log[k] = get_publisher(f'tic.status.{k}.toi.log')
             self.nats_pub_toi_status[k] = get_publisher(f'tic.status.{k}.toi.status')  # dome status
-            self.nats_pub_toi_message[k] = get_publisher(f'tic.status.{k}.toi.message')
+            #self.nats_pub_toi_message[k] = get_publisher(f'tic.status.{k}.toi.message')
 
     async def oca_telemetry_conditions_reader(self,tel):
         try:
@@ -291,17 +293,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 110b: {e}')
 
-
-    async def nats_pub_toi_message_reader(self,tel):
-        try:
-            reader = get_reader(f'tic.status.{tel}.toi.message', deliver_policy='new')
-            async for msg, meta in reader:
-                txt = f'{self.ut}    {msg["tel"]}:    {msg["info"]}'
-                self.obsGui.main_form.msg_e.append(txt)
-        except (asyncio.CancelledError, asyncio.TimeoutError):
-            raise
-        except Exception as e:
-            logger.warning(f'EXCEPTION 101: {e}')
+    # DUPA
+    # async def nats_pub_toi_message_reader(self,tel):
+    #     try:
+    #         reader = get_reader(f'tic.status.{tel}.toi.message', deliver_policy='new')
+    #         async for msg, meta in reader:
+    #             txt = f'{self.ut}    {msg["tel"]}:    {msg["info"]}'
+    #             self.obsGui.main_form.msg_e.append(txt)
+    #     except (asyncio.CancelledError, asyncio.TimeoutError):
+    #         raise
+    #     except Exception as e:
+    #         logger.warning(f'EXCEPTION 101: {e}')
 
 
     # NATS Conditions reader
@@ -319,6 +321,44 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 778b: {e}')
 
+
+    # DUPA
+    async def reader_ocm_messages(self):
+        try:
+            r = get_reader(f'tic.status.ocm.messages', deliver_policy='new')
+            async for data, meta in r:
+                label = data["label"]
+                c = QtCore.Qt.black
+                if label == "INFO":
+                    c = QtCore.Qt.black
+                if label == "PING":
+                    c = QtCore.Qt.darkYellow
+                if label == "WEATHER ALERT":
+                    c = QtCore.Qt.darkRed
+                if label == "WEATHER WARNING":
+                    c = QtCore.Qt.darkYellow
+                if label == "FWHM WARNING":
+                    c = QtCore.Qt.darkYellow
+
+                # if label == "TOI RESPONDER":
+                #     c = QtCore.Qt.darkGreen
+                # if label == "PLANRUNNER":
+                #     c = QtCore.Qt.darkGray
+
+                txt = f'{data["ut"]} [{data["user"]}] {data["info"]}'
+                self.obsGui.main_form.msg_e.setTextColor(c)
+                self.obsGui.main_form.msg_e.append(txt)
+                self.obsGui.main_form.msg_e.repaint()
+
+                if label == "PING":
+                    info = f"TOI reporting in"
+                    label = "INFO"
+                    await self.send_ocm_message(info, label=label)
+
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION: {e}')
 
     # NATS weather
     async def nats_weather_loop(self):
@@ -1094,8 +1134,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     logger.warning(f'TOI: EXCEPTION 8a: {e}')
 
                                 try:
-                                    data = {"tel": tel, "info": f"program error on {self.tel_users[tel]}"}
-                                    await self.nats_pub_toi_message[tel].publish(data=data, timeout=10)
+                                    info = f"program error on {tel}"
+                                    label = "PROGRAM ERROR"
+                                    await self.send_ocm_message(info, label=label)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 8b: {e}')
                                 self.ob[tel]["done"] = False
@@ -1791,9 +1832,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     logger.warning(f'TOI: EXCEPTION 51: {e}')
 
                                 try:
-                                    s = self.nats_pub_toi_message[tel]
-                                    data = {"tel":tel,"info":"STOP"}
-                                    await s.publish(data=data, timeout=10)
+                                    info = f"STOP on {tel}"
+                                    label = "PROGRAM STOP"
+                                    await self.send_ocm_message(info, label=label)
+                                    await self.update_log(f'STOP reached ', "TOI", tel)
                                 except Exception as e:
                                     logger.warning(f'TOI: EXCEPTION 45: {e}')
 
@@ -1801,9 +1843,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if self.ob[tel]["type"] == "BELL":
 
                                 try:
-                                    s = self.nats_pub_toi_message[tel]
-                                    data = {"tel":tel,"info":"BELL"}
-                                    await s.publish(data=data, timeout=10)
+
+                                    info = f"BELL on {tel}"
+                                    label = "PROGRAM BELL"
+                                    await self.send_ocm_message(info, label=label)
                                     await self.update_log(f'BELL reached ', "TOI", tel)
 
                                     time = self.ut.split()[0] + "T" + self.ut.split()[1]
@@ -3262,16 +3305,24 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     @qs.asyncSlot()
     async def ping(self):
         await self.update_log(f'send annoying PING', "OPERATOR", self.active_tel)
-        if self.telescope is not None:
-            try:
-                data = {"tel": self.active_tel, "info": "PING"}
-                await self.nats_pub_toi_message[self.active_tel].publish(data=data, timeout=10)
-                await self.update_log(f'sending annoying PING', "TOI RESPONDER", self.active_tel)
+        info = "send annoying PING"
+        label = "PING"
+        await self.send_ocm_message(info,label=label)
 
-            except Exception as e:
-                logger.warning(f'TOI: EXCEPTION 43: {e}')
-        else:
-            txt = f"WARNING: telescope PING but telescope is not selected"
+    # DUPA
+    @qs.asyncSlot()
+    async def send_ocm_message(self,info,label="INFO"):
+        try:
+            data = {}
+            data["ut"] = f"{time.strftime('%H:%M:%S', time.gmtime())}"
+            data["user"] = f'TOI by {self.myself}'
+            data["info"] = info
+            data["label"] = label
+            self.publisher_ocm_message = get_publisher(f'tic.status.ocm.messages')
+            await self.publisher_ocm_message.publish(data=data, timeout=10)
+        except Exception as e:
+            logger.warning(f'EXCEPTION send_ocm_message: {e}')
+
 
     @qs.asyncSlot()
     async def shutdown(self):
@@ -3416,7 +3467,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             print(f"TOI EXCEPTION (update_log): {e}")
 
-
+    # DUPA
     @qs.asyncSlot()
     async def msg(self, txt, color):
         c = QtCore.Qt.black
@@ -3732,7 +3783,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.nats_toi_plan_log = {}
         self.nats_pub_toi_status = {}
         self.nats_toi_log = {}
-        self.nats_pub_toi_message = {}
+        #self.nats_pub_toi_message = {}
 
         self.planrunners = {}
         self.tic_telescopes = {k:self.observatory_model.get_telescope(k) for k in self.local_cfg["toi"]["telescopes"]}
