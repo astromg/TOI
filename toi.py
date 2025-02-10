@@ -136,7 +136,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.reader_ocm_messages())
 
         for t in self.oca_tel_state.keys():   # statusy wszystkich teleskopow
-            #self.add_background_task(self.nats_pub_toi_message_reader(t))
 
             self.add_background_task(self.nats_ffs_reader(t))
 
