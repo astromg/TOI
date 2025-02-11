@@ -1202,6 +1202,7 @@ class PhaseWindow(QWidget):
             t = ephem.julian_date(s)
             mag = []
             jd = []
+            flag = []
             #print(file)
             with open(file, "r") as plik:
                 if plik != None:
@@ -1210,6 +1211,10 @@ class PhaseWindow(QWidget):
                             try:
                                 mag.append(float(line.split()[1]))
                                 jd.append(float(line.split()[3]))
+                                try:
+                                    flag.append(int(line.split()[9]))
+                                except ValueError:
+                                    pass
                             except ValueError:
                                 pass
             if len(mag) == len(jd) and len(jd)>0:
@@ -1248,7 +1253,31 @@ class PhaseWindow(QWidget):
                 else:
                     self.axes.set_title(f"{self.ut} {self.name}")
 
-                self.axes.plot(jd,mag,".c")
+                if len(flag) == len(jd):
+                    jd = numpy.array(jd)
+                    mag = numpy.array(mag)
+                    flag = numpy.array(flag)
+
+                    mk = flag == 0
+                    x = jd[mk]
+                    y = mag[mk]
+                    self.axes.plot(x, y, ".g")
+
+                    mk = flag == 1
+                    x = jd[mk]
+                    y = mag[mk]
+                    self.axes.plot(x, y, ".c", alpha = 0.5)
+
+                    mk = flag == 2
+                    x = jd[mk]
+                    y = mag[mk]
+                    self.axes.plot(x, y, ".k", alpha = 0.3)
+
+                else:
+                    x = jd
+                    y = mag
+                    self.axes.plot(x,y,".g")
+
                 d = 0.1*(max(mag)-min(mag))
                 self.axes.set_ylim(max(mag)+d,min(mag)-d)
                 self.axes.axvline(x=t, color="red")
