@@ -48,6 +48,12 @@ class FocusWindow(QWidget):
 
     def updateUI(self):
         if self.parent.active_tel != None:
+            self.tel_e.setText(self.parent.active_tel)
+            self.tel_e.setAlignment(Qt.AlignCenter)
+            font = QFont("Courier New",9)
+            font.setBold(True)
+            self.tel_e.setFont(font)
+            self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[self.parent.active_tel]['color']};")
             if "focus_def_step" in self.parent.nats_cfg[self.parent.active_tel].keys():
                 self.steps_e.setText(str(self.parent.nats_cfg[self.parent.active_tel]["focus_def_step"]))
             if "focus_def_pos" in self.parent.nats_cfg[self.parent.active_tel].keys():
@@ -63,6 +69,10 @@ class FocusWindow(QWidget):
 
         grid = QGridLayout()
         w = 0
+        self.tel_e = QLineEdit()
+        self.tel_e.setReadOnly(True)
+        grid.addWidget(self.tel_e, w, 0,1,6)
+        w = w + 1
         self.fig = Figure((1, 1), linewidth=1, dpi=100)
         self.canvas = FigureCanvas(self.fig)
         self.axes = self.fig.add_axes([0.1, 0.2, 0.8, 0.75])

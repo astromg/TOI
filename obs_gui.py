@@ -554,7 +554,7 @@ class ReportWindow(QWidget):
         with open(self.dir_name + "/telemetry.txt", "w") as file3:
             file3.write(txt)
 
-        txt="Report created. Please inform mgorski on Slack"
+        txt=f"Report created. Please send email to mgorski and mkicia with files located in {self.dir_name}"
         self.parent.WarningWindow(txt)
         self.close()
 
