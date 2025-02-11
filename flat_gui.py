@@ -43,6 +43,7 @@ class FlatWindow(QWidget):
                 txt = txt + f'   {r["filter"]:12} {r["exp_time"]:.2f}      {r["h_sun"]}      {r["mean"]}'
                 self.info_e.append(txt)
             self.info_e.moveCursor(QTextCursor.End)
+            self.info_e.repaint()
             self.show()
             self.raise_()
 

@@ -2694,14 +2694,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     await self.mount.aput_unpark()
 
                     if self.mntGui.setAltAz_r.isChecked():
-                       az=float(self.mntGui.nextAz_e.text())
-                       alt=float(self.mntGui.nextAlt_e.text())
+                       az=float(self.mntGui.nextAz_e.text().strip())
+                       alt=float(self.mntGui.nextAlt_e.text().strip())
                        await self.mount.aput_slewtoaltaz_async(az,alt)
                        await self.update_log(f'slewing to alt az {alt} {az}', "TOI RESPONDER", self.active_tel)
 
                     elif self.mntGui.setEq_r.isChecked():
-                       ra = self.mntGui.nextRa_e.text()
-                       dec = self.mntGui.nextDec_e.text()
+                       ra = self.mntGui.nextRa_e.text().strip()
+                       dec = self.mntGui.nextDec_e.text().strip()
                        epoch = str(self.mntGui.mntEpoch_e.text())
                        self.req_ra=ra
                        self.req_dec=dec
