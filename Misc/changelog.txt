@@ -3,7 +3,8 @@
 
 
 --- 30.01.2025 --- <br>
-Flat Log Window is again available.
+Report mechanism is now available.
+Flat Log Window is again available, and is reporting last flats is filters.
 Log of operations and planrunner is now displayed in Plan Window.
 Conditions Window with record of telescopes fwhm is now avialable.
 Log of autofocus is displayed in Autofocus Window.
