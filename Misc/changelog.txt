@@ -2,10 +2,10 @@
 
 
 
---- 30.01.2025 --- <br>
+--- 12.02.2025 --- <br>
 Report mechanism is now available.
-Flat Log Window is again available, and is reporting last flats is filters.
-Log of operations and planrunner is now displayed in Plan Window.
+Flat Log Window is again available, and it is reporting when last flats for filter were obtained, and when las science observations for filter were obtained.
+Log of TOI operations and planrunner is now displayed in Plan Window.
 Conditions Window with record of telescopes fwhm is now avialable.
 Log of autofocus is displayed in Autofocus Window.
 FFS in Fits Window is in separate Qthread not to block Main Window.

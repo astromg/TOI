@@ -124,7 +124,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.alpaca_con_loop())
         self.add_background_task(self.tel_con_loop())
         self.add_background_task(self.tel_progress_loop())
-        self.add_background_task(self.check_lights_loop())
+        #self.add_background_task(self.check_lights_loop())
 
 
 
@@ -292,18 +292,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 110b: {e}')
 
-    # DUPA
-    # async def nats_pub_toi_message_reader(self,tel):
-    #     try:
-    #         reader = get_reader(f'tic.status.{tel}.toi.message', deliver_policy='new')
-    #         async for msg, meta in reader:
-    #             txt = f'{self.ut}    {msg["tel"]}:    {msg["info"]}'
-    #             self.obsGui.main_form.msg_e.append(txt)
-    #     except (asyncio.CancelledError, asyncio.TimeoutError):
-    #         raise
-    #     except Exception as e:
-    #         logger.warning(f'EXCEPTION 101: {e}')
-
 
     # NATS Conditions reader
     async def nats_ffs_reader(self,tel):
@@ -321,7 +309,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             logger.warning(f'EXCEPTION 778b: {e}')
 
 
-    # DUPA
     async def reader_ocm_messages(self):
         try:
             r = get_reader(f'tic.status.ocm.messages', deliver_policy='new')
@@ -396,8 +383,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def telescope_switched(self):
 
-        print("* TEL SWITCH")
-        t0 = time.time()
 
         #self.fitsGui.clear()
         self.telescope_switch_status["plan"] = False
@@ -413,8 +398,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except (AttributeError, RuntimeError):
             pass
 
-        t1 = time.time()
-        print(f'* a {t1-t0}')
 
         # to sa zmienne dla guidera
         self.pulseRa = 0
@@ -442,7 +425,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cfg_inst_rm_i = self.nats_cfg[self.active_tel]["rm_list"]
         self.cfg_inst_temp = self.nats_cfg[self.active_tel]["ccd_temp"]
         self.cfg_focuser_defpos = f'{self.nats_cfg[self.active_tel]["focus_def_pos"]}/{self.nats_cfg[self.active_tel]["focus_def_step"]}'
-        self.cfg_focuser_seq = "8/V/5" # DUPA
+        self.cfg_focuser_seq = "8/V/5"
 
         self.cfg_tel_directory = self.local_cfg[self.active_tel]["tel_directory"]
         self.cfg_tel_ob_list = self.local_cfg[self.active_tel]["tel_ob_list"]
@@ -479,8 +462,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
             self.cfg_inst_defSetUp = {"gain": "Gain 2", "rm": "0,1MHz 18-bit","bin":"1x1", "temp":-58}
 
-        t2 = time.time()
-        print(f'* b {t2-t1}')
 
         # obsluga subskrypcji
 
@@ -505,8 +486,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ephemeris = self.observatory_model.get_ephemeris()
         self.ctc = self.telescope.get_cycle_time_calculator(client_config_dict=self.client_cfg) # cycle time calculator
 
-        t3 = time.time()
-        print(f'* c {t3-t2}')
+        # updating things before starting subsriptions
+        # bo na te dzialaja subskrypcje
+        self.mntGui.updateUI()
+        self.instGui.updateUI()
+
 
         # ---------------------- run subscriptions from ocabox ----------------------
         await self.run_method_in_background(self.ephemeris.asubscribe_utc(self.ephem_update,time_of_data_tolerance=0.25),group="subscribe")
@@ -556,9 +540,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.run_method_in_background(self.ccd.asubscribe_imageready(self.ccd_imageready), group="subscribe")
 
 
-        t4 = time.time()
-        print(f'* d {t4-t3}')
-
         # background task specific for selected telescope
 
         #self.add_background_task(self.nats_log_loop_reader(), group="telescope_task")
@@ -578,21 +559,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.reader_nats_flat_overwatch(), group="telescope_task")
 
 
-
-
-
-
         await self.run_background_tasks(group="telescope_task")
 
-        t5 = time.time()
-        print(f'* e {t5-t4}')
 
         try:
-            self.mntGui.updateUI()
+            # nie wiem czy to tez nie powinno byc jednak przed add_background_task
+            #self.mntGui.updateUI()
             self.update_dome_temp()
             self.skyGui.updateUI()
             self.planGui.updateUI()
-            self.instGui.updateUI()
+            #self.instGui.updateUI()
             self.planrunnerGui.updateUI()
             self.flatGui.updateUI()
             self.focusGui.updateUI()
@@ -603,19 +579,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.mntGui.comRotator1_l.setStyleSheet("color: rgb(190,190,190);")
                 self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
 
-            t6 = time.time()
-            print(f'* f {t6 - t5}')
-
-
             self.updateWeather()
         except Exception as e:
             logger.warning(f'EXCEPTION 0: {e}')
 
-        t7 = time.time()
         await self.update_log(f'{self.active_tel} telescope selected', "OPERATOR", self.active_tel)
 
-        t8 = time.time()
-        print(f'* g {t8-t7}')
 
     # ################### METODY POD NATS READERY ##################
 
@@ -709,24 +678,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 106c: {e}')
 
-    # async def nats_log_loop_reader(self):
-    #     try:
-    #         tel = self.active_tel
-    #         time = datetime.datetime.now() - datetime.timedelta(hours=int(self.local_cfg["toi"]["log_display_h"]))
-    #         r = get_reader(f'tic.status.{tel}.planner.command.log', deliver_policy='by_start_time',opt_start_time=time)
-    #         async for data, meta in r:
-    #             self.ob_log.append(data)
-    #             if "uobi" in data.keys():
-    #                 if data["uobi"] not in self.done_uobi:
-    #                     #self.planGui.done.append(data["uobi"])
-    #                     self.done_uobi.append(data["uobi"])
-    #             self.planGui.update_log_table()
-    #     except (asyncio.CancelledError, asyncio.TimeoutError):
-    #         raise
-    #     except Exception as e:
-    #         logger.warning(f'TOI: EXCEPTION 3: {e}')
-    #     except Exception as e:
-    #         logger.warning(f'EXCEPTION 109: {e}')
 
     async def nats_downloader_reader(self):
         try:
@@ -876,18 +827,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await asyncio.sleep(3)
 
 
-    async def check_lights_loop(self):
-        while True:
-            if self.telescope:
-                req = requests.get('http://' + self.local_cfg[self.active_tel]["light_ip"] + '/api/rgbw/state', timeout=0.5)
-
-                if req.status_code != 200:
-                    val = int(req.json()["rgbw"]["desiredColor"], 16)
-                    if val > 0:
-                        self.mntGui.domeLights_c.setChecked(True)
-                    else:
-                        self.mntGui.domeLights_c.setChecked(False)
-            await asyncio.sleep(3)
+    # async def check_lights_loop(self):
+    #     while True:
+    #         if self.telescope:
+    #             req = requests.get('http://' + self.local_cfg[self.active_tel]["light_ip"] + '/api/rgbw/state', timeout=0.5)
+    #
+    #             if req.status_code != 200:
+    #                 val = int(req.json()["rgbw"]["desiredColor"], 16)
+    #                 if val > 0:
+    #                     self.mntGui.domeLights_c.setChecked(True)
+    #                 else:
+    #                     self.mntGui.domeLights_c.setChecked(False)
+    #         await asyncio.sleep(3)
 
 
 
@@ -1052,7 +1003,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if "name" in self.ob[self.active_tel].keys():
                         self.instGui.ccd_tab.inst_object_e.setText(self.ob[self.active_tel]["name"])
             except Exception as e:
-                logger.warning(f'TOI: EXCEPTION 5: {e}')
+                logger.warning(f'TOI: EXCEPTION 5w : {e}')
             await asyncio.sleep(1)
 
 
@@ -1871,22 +1822,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                             if self.ob[tel]["type"] == "WAIT":
                                 if "wait" in self.ob[tel].keys():
-                                    self.ob[tel]["start_time"] = self.time
-                                    self.ob[tel]["done"]=False
-                                    self.ob[tel]["run"]=True
-                                    await self.update_log(f'starting WAIT ', "TOI", tel)
+                                    if len(str(self.ob[tel]["wait"]))>0:
+                                        self.ob[tel]["start_time"] = self.time
+                                        self.ob[tel]["done"]=False
+                                        self.ob[tel]["run"]=True
+                                        await self.update_log(f'starting WAIT ', "TOI", tel)
                                 if "wait_ut" in self.ob[tel].keys():
-                                    self.ob[tel]["done"]=False
-                                    self.ob[tel]["run"]=True
-                                    await self.update_log(f'starting WAIT ', "TOI", tel)
+                                    if len(str(self.ob[tel]["wait_ut"]))>0:
+                                        self.ob[tel]["done"]=False
+                                        self.ob[tel]["run"]=True
+                                        await self.update_log(f'starting WAIT ', "TOI", tel)
                                 if "wait_sunset" in self.ob[tel].keys():
-                                    self.ob[tel]["done"]=False
-                                    self.ob[tel]["run"]=True
-                                    await self.update_log(f'starting WAIT ', "TOI", tel)
+                                    if len(str(self.ob[tel]["wait_sunset"]))>0:
+                                        self.ob[tel]["done"]=False
+                                        self.ob[tel]["run"]=True
+                                        await self.update_log(f'starting WAIT ', "TOI", tel)
                                 if "wait_sunrise" in self.ob[tel].keys():
-                                    self.ob[tel]["done"]=False
-                                    self.ob[tel]["run"]=True
-                                    await self.update_log(f'starting WAIT ', "TOI", tel)
+                                    if len(str(self.ob[tel]["wait_sunrise"]))>0:
+                                        self.ob[tel]["done"]=False
+                                        self.ob[tel]["run"]=True
+                                        await self.update_log(f'starting WAIT ', "TOI", tel)
                                 self.ob[tel]["continue_plan"] = True
                                 self.ob[tel]["origin"] = "plan"
 
@@ -3074,14 +3029,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.dome_fanStatus:
             self.mntGui.ventilators_c.setChecked(True)
             if self.tel_acces[self.active_tel]:
-                self.toi_op_status["dome_ventilators"]["state"] = True
-                await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
+                self.toi_op_status[self.active_tel]["dome_ventilators"]["state"] = True
+                await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
             txt="VENT ON"
         else:
             self.mntGui.ventilators_c.setChecked(False)
             if self.tel_acces[self.active_tel]:
-                self.toi_op_status["dome_ventilators"]["state"] = False
-                await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
+                self.toi_op_status[self.active_tel]["dome_ventilators"]["state"] = False
+                await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
             txt="VENT OFF"
         self.mntGui.ventilators_e.setText(txt)
         self.mntGui.ventilators_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
@@ -3114,14 +3069,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            if self.dome_fanStatus:
                self.mntGui.mirrorFans_c.setChecked(True)
                if self.tel_acces[self.active_tel]:
-                   self.toi_op_status["mirror_fans"]["state"] = True
-                   await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
+                   self.toi_op_status[self.active_tel]["mirror_fans"]["state"] = True
+                   await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
                txt="FANS ON"
            else:
                self.mntGui.mirrorFans_c.setChecked(False)
                if self.tel_acces[self.active_tel]:
-                   self.toi_op_status["mirror_fans"]["state"] = False
-                   await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
+                   self.toi_op_status[self.active_tel]["mirror_fans"]["state"] = False
+                   await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
                txt="FANS OFF"
            self.mntGui.mirrorFans_e.setText(txt)
            self.mntGui.mirrorFans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
@@ -3138,16 +3093,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                self.mntGui.flatLights_e.setText("no feedback")
                self.mntGui.flatLights_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
                if self.tel_acces[self.active_tel]:
-                   self.toi_op_status["flat_lamps"]["state"] = True
-                   await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
+                   self.toi_op_status[self.active_tel]["flat_lamps"]["state"] = True
+                   await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
            else:
                await self.mount.aput_domelamp_off()
                await self.update_log(f'turning flat lamps OFF', "TOI RESPONDER", self.active_tel)
                self.mntGui.flatLights_e.setText("")
                self.mntGui.flatLights_e.setStyleSheet("color: rgb(0,0,0); background-color: rgb(233, 233, 233);")
                if self.tel_acces[self.active_tel]:
-                   self.toi_op_status["flat_lamps"]["state"] = False
-                   await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
+                   self.toi_op_status[self.active_tel]["flat_lamps"]["state"] = False
+                   await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
@@ -3163,16 +3118,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     val = '0' + val
                 requests.post('http://' + self.local_cfg[self.active_tel]["light_ip"] + '/api/rgbw/set', json={"rgbw": {"desiredColor": val}})
                 if self.tel_acces[self.active_tel]:
-                    self.toi_op_status["dome_lights"]["state"] = True
-                    await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
+                    self.toi_op_status[self.active_tel]["dome_lights"]["state"] = True
+                    await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
             else:
                 val = str(hex(int(0))).replace('0x', '', 1)
                 if len(val) == 1:
                     val = '0' + val
                 requests.post('http://' + self.local_cfg[self.active_tel]["light_ip"] + '/api/rgbw/set', json={"rgbw": {"desiredColor": val}})
                 if self.tel_acces[self.active_tel]:
-                    self.toi_op_status["dome_lights"]["state"] = False
-                    await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status, timeout=10)
+                    self.toi_op_status[self.active_tel]["dome_lights"]["state"] = False
+                    await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
@@ -3308,7 +3263,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         label = "PING"
         await self.send_ocm_message(info,label=label)
 
-    # DUPA
     @qs.asyncSlot()
     async def send_ocm_message(self,info,label="INFO"):
         try:
@@ -3464,9 +3418,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
         except Exception as e:
-            print(f"TOI EXCEPTION (update_log): {e}")
+            pass
+            #print(f"TOI EXCEPTION (update_log): {e}")
 
-    # DUPA
     @qs.asyncSlot()
     async def msg(self, txt, color):
         c = QtCore.Qt.black
@@ -3483,7 +3437,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     def reset_ob(self,tel):
         templeate = {"run":False,"done":False,"uobi":None,"origin":None,"slot_time":None,"start_time":None,"continue_plan":False}
         self.ob[tel] = copy.deepcopy(templeate)
-
 
     def variables_init(self):
 
@@ -3600,7 +3553,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.oca_tel_state = {k:copy.deepcopy(templeate) for k in self.local_cfg["toi"]["telescopes"]}
 
-        self.toi_op_status = {"dome_ventilators":{"state":False,"defoult":False}, "mirror_fans":{"state":False,"defoult":False},"flat_lamps":{"state":False,"defoult":False},"dome_lights":{"state":False,"defoult":False}}
+        tmp = {"dome_ventilators":{"state":False,"defoult":False}, "mirror_fans":{"state":False,"defoult":False},"flat_lamps":{"state":False,"defoult":False},"dome_lights":{"state":False,"defoult":False}}
+        self.toi_op_status = {t:copy.deepcopy(tmp) for t in self.local_cfg["toi"]["telescopes"]}
 
         self.cfg_showRotator = True   # potrzebne do pierwszego wyswietlenia
         self.tel_alpaca_con = False

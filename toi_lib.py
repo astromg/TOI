@@ -8,6 +8,16 @@ import time
 
 from PyQt5.QtCore import QThread,pyqtSignal
 
+def get_dic(dc,keys,fail=None):
+    x = dc
+    for k in keys:
+        if k in x.keys():
+            x = x[k]
+        else:
+            x = fail
+    if len(str(x).strip()) == 0:
+        x = fail
+    return(x)
 
 def xy2rt(x,y):
     x=float(x)

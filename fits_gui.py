@@ -12,6 +12,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 import numpy
 from ffs_lib.ffs import FFS
+from toi_lib import *
 
 
   # ######### Fits GUI #############
@@ -145,15 +146,21 @@ class FitsWindow(QWidget):
             except Exception as e:
                 print(f"TOI FITS EXCEPTION 1: {e}")
 
-
+    #DUPA
             try:
                 ofp_name = self.parent.fits_ofp_data["raw"]["file_name"]
                 if ofp_name == fname:
                     ok = True
-                    alt = self.parent.fits_ofp_data["raw"]["header"]["ALT_TEL"]
-                    airmass = self.parent.fits_ofp_data["raw"]["header"]["AIRMASS"]
+                    alt = get_dic(self.parent.fits_ofp_data,["raw","header","ALT_TEL"],fail = "--")
+                    if alt != "--":
+                        alt = f'{float(alt):.0f}'
+                    airmass = get_dic(self.parent.fits_ofp_data,["raw","header","AIRMASS"],fail = "--")
+                    if airmass != "--":
+                        airmass = f'{float(airmass):.1f}'
                     exptime = self.parent.fits_ofp_data["raw"]["header"]["EXPTIME"]
-                    ccd_temp = self.parent.fits_ofp_data["raw"]["header"]["CCD-TEMP"]
+                    ccd_temp = get_dic(self.parent.fits_ofp_data,["raw","header","CCD-TEMP"],fail = "--")
+                    if ccd_temp != "--":
+                        ccd_temp = f'{float(ccd_temp):.0f}'
                     gain = self.parent.fits_ofp_data["raw"]["header"]["GAIN"]
                     rm = self.parent.fits_ofp_data["raw"]["header"]["READ-MOD"]
                     xbin = self.parent.fits_ofp_data["raw"]["header"]["XBINNING"]
@@ -219,10 +226,10 @@ class FitsWindow(QWidget):
             try:
                 if ok:
                     txt = txt + " <b>OFP INFO</b>  <br>"
-                    txt = txt + f"alt:  <b>{alt:.0f}</b> <br>"
-                    txt = txt + f"airmass:  <b>{airmass:.1f}</b> <br>"
+                    txt = txt + f"alt:  <b>{alt}</b> <br>"
+                    txt = txt + f"airmass:  <b>{airmass}</b> <br>"
                     txt = txt + f"focus:  <b>{focus}</b> <br>"
-                    txt = txt + f"CCD temp:  <b>{ccd_temp:.0f}</b> <br>"
+                    txt = txt + f"CCD temp:  <b>{ccd_temp}</b> <br>"
                     txt = txt + f"gain:  <i>{gain}</i> <br>"
                     txt = txt + f"read mode:  <i>{rm}</i> <br>"
                     txt = txt + f"bin:  <i>{xbin}</i>x<i>{ybin}</i> <br>"
@@ -230,7 +237,7 @@ class FitsWindow(QWidget):
                     txt = txt + " <b>OFP TARGETS</b>  <br>"
                     txt = txt + txt2
             except Exception as e:
-                print(f"TOI FITS EXCEPTION 5: {e}")
+                print(f"TOI FITS EXCEPTION 5 fits: {e}")
 
             self.tel_e.setText(tel)
             self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[tel]['color']};")

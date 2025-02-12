@@ -82,9 +82,9 @@ class MainForm(QWidget):
             acces = self.parent.tel_acces[t]
             if acces:
                 #txt = txt +  "\U0001F513"
-                txt = txt + " \u2328" # klawiatura
+                #txt = txt + " \u2328" # klawiatura
                 #txt = txt + " \u2301" #   blyskawica
-                #txt = txt + " \u2713" # check ok
+                txt = txt + " \u2713" # check ok
                 item = QTableWidgetItem(txt)
                 rgb = (0, 150, 0)
             else:
