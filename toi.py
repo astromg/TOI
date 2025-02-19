@@ -383,9 +383,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def telescope_switched(self):
 
+        # DUPA
+        #print(self.telescope_switch_status)
 
         #self.fitsGui.clear()
         self.telescope_switch_status["plan"] = False
+        self.telescope_switch_status["mntGui"] = False
+        self.telescope_switch_status["instGui"] = False
+        self.telescope_switch_status["filters"] = False
+        self.telescope_switch_status["rm"] = False
+        self.telescope_switch_status["gain"] = False
 
 
         try:
@@ -2482,6 +2489,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
                 else: self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
             except Exception as e: pass
+        self.telescope_switch_status["gain"] = True
 
     async def ccd_rm_update(self, event):
         self.ccd_readoutmode = await self.ccd.aget_readoutmode()
@@ -2496,7 +2504,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if self.cfg_inst_defSetUp["rm"] in txt:
                 self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             else: self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
-
+        self.telescope_switch_status["gain"] = True
 
 
     async def ccd_binx_update(self, event):
@@ -3214,6 +3222,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if int(self.fw.position) == -1:
                 self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
             else: self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            self.telescope_switch_status["filters"] = True
+
 
 
     # ############### ROTATOR #####################

@@ -713,6 +713,8 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
         del tmp
+        self.parent.telescope_switch_status["mntGui"] = True
+
 
 
 

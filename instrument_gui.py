@@ -50,6 +50,8 @@ class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
               self.ccd_tab.inst_setRead_e.addItems(self.parent.cfg_inst_rm)
 
           del tmp
+          self.parent.telescope_switch_status["instGui"] = True
+
 
       async def on_start_app(self):
           await self.run_background_tasks()

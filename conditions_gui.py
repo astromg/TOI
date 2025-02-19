@@ -47,29 +47,31 @@ class ConditionsWindow(QWidget):
         if self.parent.jd:
             for t in self.parent.fits_ffs_data.keys():
                 for x in self.parent.fits_ffs_data[t]:
-                    if x["raw"]["header"]["OBSTYPE"] != "focus":
-                        if str(self.filter_e.text()) in x["raw"]["header"]["FILTER"]:
-                            if "fwhm" in x["raw"].keys():
-                                airmass = float(x["raw"]["header"]["AIRMASS"])
-                                cond = True
-                                try:
-                                    if len(str(self.airmass_e.text())) > 0:
-                                        cond = float(self.airmass_e.text()) > airmass
-                                except ValueError:
-                                    pass
-                                if cond:
-                                    self.airmass[t].append(airmass)
-                                    fwhm = (float(x["raw"]["fwhm"]["fwhm_x"])+float(x["raw"]["fwhm"]["fwhm_y"]))/2.
-                                    fwhm = fwhm *  self.parent.nats_cfg[t]["pixel_scale"]
-                                    self.fwhm[t].append(fwhm)
-                                    time = float(x["raw"]["header"]["JD"])
-                                    #time = datetime.fromisoformat(x["raw"]["header"]["DATE-OBS"])
-                                    self.time[t].append(time)
+                    try:
+                        if x["raw"]["header"]["OBSTYPE"] != "focus":
+                            if str(self.filter_e.text()) in x["raw"]["header"]["FILTER"]:
+                                if "fwhm" in x["raw"].keys():
+                                    airmass = float(x["raw"]["header"]["AIRMASS"])
+                                    cond = True
+                                    try:
+                                        if len(str(self.airmass_e.text())) > 0:
+                                            cond = float(self.airmass_e.text()) > airmass
+                                    except ValueError:
+                                        pass
+                                    if cond:
+                                        self.airmass[t].append(airmass)
+                                        fwhm = (float(x["raw"]["fwhm"]["fwhm_x"])+float(x["raw"]["fwhm"]["fwhm_y"]))/2.
+                                        fwhm = fwhm *  self.parent.nats_cfg[t]["pixel_scale"]
+                                        self.fwhm[t].append(fwhm)
+                                        time = float(x["raw"]["header"]["JD"])
+                                        #time = datetime.fromisoformat(x["raw"]["header"]["DATE-OBS"])
+                                        self.time[t].append(time)
 
-                    if "OBSTYPE" in x["raw"]["header"].keys() and "NLOOPS" in x["raw"]["header"].keys() and "LOOP" in x["raw"]["header"].keys():
-                        if x["raw"]["header"]["OBSTYPE"] == "focus" and float(x["raw"]["header"]["NLOOPS"]) == float(x["raw"]["header"]["LOOP"]):
-                            self.focus_time[t].append(float(x["raw"]["header"]["JD"]))
-
+                        if "OBSTYPE" in x["raw"]["header"].keys() and "NLOOPS" in x["raw"]["header"].keys() and "LOOP" in x["raw"]["header"].keys():
+                            if x["raw"]["header"]["OBSTYPE"] == "focus" and float(x["raw"]["header"]["NLOOPS"]) == float(x["raw"]["header"]["LOOP"]):
+                                self.focus_time[t].append(float(x["raw"]["header"]["JD"]))
+                    except ValueError:
+                        pass
 
             x0 = float(str(self.parent.jd).split(".")[0])+0.5
             x1 = x0 + 0.4

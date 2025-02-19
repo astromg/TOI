@@ -1,6 +1,6 @@
 toi:
   telescopes: ["wk06","zb08","jk15"]
-  nats_host: nats.oca.lan
+  nats_host: 192.168.7.38
   nats_port: 4222
 
   mark_saturated_stars: True
