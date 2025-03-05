@@ -1484,6 +1484,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.ctc_time = self.ctc.calc_time(self.ob[tel]["block"])
                             self.ob[tel]["slot_time"] = self.ctc_time
                             if self.ob[tel]["slot_time"] == 0:
+                                print("** CTC time estimation = 0!")
+                                print("** OB: ",self.ob[tel]["block"])
                                 self.ob[tel]["slot_time"] = 0.1
                         except ValueError:
                             self.ob[tel]["slot_time"] = 0.1
@@ -1985,7 +1987,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 if i == self.current_i[tel]:
                                     if self.ob[tel]["start_time"] and self.ob[tel]["slotTime"]:
                                         t1 = self.time-self.ob[tel]["start_time"]
-                                        t2 = self.ob[tel]["slotTime"] - t2
+                                        t2 = self.ob[tel]["slotTime"] - t1
                                         if t2 < 0:
                                             t2 = 0
                                         ob_time = ob_time - t2
