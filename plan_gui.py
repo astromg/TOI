@@ -1798,7 +1798,7 @@ class EditWindow(QWidget):
           i = self.parent.i
           ob = self.parent.plan[i]
           txt = ob["block"]
-          if "STOP" not in txt  # DUPA
+          if "STOP" not in txt:  # DUPA
               try:
                   if "uobi=" not in txt:
                       txt = txt + f" uobi={ob['uobi']}"
