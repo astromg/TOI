@@ -120,51 +120,52 @@ class ConditionsWindow(QWidget):
             self.ax1.set_ylabel("fwhm [arcsec]")
 
             # zero point
-            for t in self.parent.fits_photo_z0_data.keys():
-                for x in self.parent.fits_photo_z0_data[t]:
-                    points = x["points"]
-                    for k in points.keys():
-                        if k not in self.z0_time[t]:
-                            self.z0[t].append(points[k]["zero_to_predict_value"])
-                            self.z0_time[t].append(k)
+            try:
+                for t in self.parent.fits_photo_z0_data.keys():
+                    for x in self.parent.fits_photo_z0_data[t]:
+                        points = x["points"]
+                        for k in points.keys():
+                            if k not in self.z0_time[t]:
+                                self.z0[t].append(points[k]["zero_to_predict_value"])
+                                self.z0_time[t].append(k)
 
-            for t in self.parent.fits_photo_z0_data.keys():
-                x = [ ephem.julian_date(ephem.Date(str(q).replace("T"," ").replace("-","/"))) for q in self.z0_time[t]]
-                y = self.z0[t]
+                for t in self.parent.fits_photo_z0_data.keys():
+                    x = [ ephem.julian_date(ephem.Date(str(q).replace("T"," ").replace("-","/"))) for q in self.z0_time[t]]
+                    y = self.z0[t]
 
-                x = numpy.array(x)
-                y = numpy.array(y)
+                    x = numpy.array(x)
+                    y = numpy.array(y)
 
-                self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=1, s=100, label=t)
+                    self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=1, s=100, label=t)
 
-                mk = x < x0
-                x = x[mk]
-                y = y[mk]
-                x = x + 1
-                self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
+                    mk = x < x0
+                    x = x[mk]
+                    y = y[mk]
+                    x = x + 1
+                    self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
 
-            xtics = []
-            t =  ephem.Date(x0)
-            while t < ephem.Date(x1):
-                t = ephem.Date(t) + ephem.hour
-                h = str(ephem.Date(t)).split()
-                xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
-            xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
-            self.ax2.set_xticks(xtics)
-            self.ax2.set_xticklabels(xtics_labels,rotation=45,minor=False)
+                xtics = []
+                t =  ephem.Date(x0)
+                while t < ephem.Date(x1):
+                    t = ephem.Date(t) + ephem.hour
+                    h = str(ephem.Date(t)).split()
+                    xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
+                xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
+                self.ax2.set_xticks(xtics)
+                self.ax2.set_xticklabels(xtics_labels,rotation=45,minor=False)
 
-            self.ax2.set_xlim(x0,x1)
-            #self.ax1.set_ylim(0,5)
-            self.ax2.legend()
-            self.ax2.set_xlabel("UT")
-            self.ax2.set_ylabel("zero point [mag]")
+                self.ax2.set_xlim(x0,x1)
+                #self.ax1.set_ylim(0,5)
+                self.ax2.legend()
+                self.ax2.set_xlabel("UT")
+                self.ax2.set_ylabel("zero point [mag]")
 
-            self.fig.subplots_adjust(bottom=0.1,top=0.945,left=0.08,right=0.988)
+                self.fig.subplots_adjust(bottom=0.1,top=0.945,left=0.08,right=0.988)
+                self.canvas.draw()
 
-            self.canvas.draw()
-
-            self.fig.tight_layout()
-
+                self.fig.tight_layout()
+            except Exception as e:
+                print(f'EXCEPTION plot_zero_point: {e}')
 
 
     # {'raw': {'min': 17467.0, 'max': 64450.0, 'mean': 19888.754051923752, 'median': 19896.0, 'std': 294.58467735596946,
