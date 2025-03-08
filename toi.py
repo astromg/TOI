@@ -138,6 +138,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         for t in self.oca_tel_state.keys():   # statusy wszystkich teleskopow
 
             self.add_background_task(self.nats_ffs_reader(t))
+            self.add_background_task(self.nats_photo_zo_reader(t))
 
             self.add_background_task(self.nats_journal_planner_reader(t))
             self.add_background_task(self.nats_journal_ofp_reader(t))
@@ -307,6 +308,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             logger.warning(f'TOI: EXCEPTION 778: {e}')
         except Exception as e:
             logger.warning(f'EXCEPTION 778b: {e}')
+
+    async def nats_photo_zo_reader(self,tel):
+        try:
+            time = datetime.datetime.now() - datetime.timedelta(hours=24)
+            r = get_reader(f'tic.status.{tel}.zero_monitor',  deliver_policy='by_start_time',opt_start_time=time)
+            async for data, meta in r:
+                self.fits_photo_z0_data[tel].append(data)
+                #self.conditionsGui.update()
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'TOI: EXCEPTION 778: {e}')
+        except Exception as e:
+            logger.warning(f'EXCEPTION 778b: {e}')
+
+
 
 
     async def reader_ocm_messages(self):
@@ -1076,30 +1093,31 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             try:
                 for tel in self.local_cfg["toi"]["telescopes"]:
                     if tel in self.planrunners.keys():
-                        if not self.ob[tel]["done"] and self.ob[tel]["run"] and "seq" in self.ob[tel]["block"]:
-                            if not self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]):
-                                try:
-                                    self.ob_progress[tel]["ob_started"] = self.ob[tel]["run"]
-                                    self.ob_progress[tel]["ob_done"] = self.ob[tel]["done"]
-                                    self.ob_progress[tel]["ob_start_time"] = self.ob_start_time
-                                    self.ob_progress[tel]["ob_expected_time"] = self.ob[tel]["slot_time"]
-                                    self.ob_progress[tel]["ob_program"] = self.ob[tel]["block"]
-                                    self.ob_progress[tel]["error"] = True
+                        if "done" in self.ob[tel].keys() and "run" in self.ob[tel].keys() and "seq" in self.ob[tel].keys():
+                            if not self.ob[tel]["done"] and self.ob[tel]["run"] and "seq" in self.ob[tel]["block"]:
+                                if not self.planrunners[tel].is_nightplan_running(self.ob[tel]["origin"]):
+                                    try:
+                                        self.ob_progress[tel]["ob_started"] = self.ob[tel]["run"]
+                                        self.ob_progress[tel]["ob_done"] = self.ob[tel]["done"]
+                                        self.ob_progress[tel]["ob_start_time"] = self.ob_start_time
+                                        self.ob_progress[tel]["ob_expected_time"] = self.ob[tel]["slot_time"]
+                                        self.ob_progress[tel]["ob_program"] = self.ob[tel]["block"]
+                                        self.ob_progress[tel]["error"] = True
 
-                                    await self.nats_toi_ob_status[tel].publish(data=self.ob_progress[tel], timeout=10)
-                                except Exception as e:
-                                    logger.warning(f'TOI: EXCEPTION 8a: {e}')
+                                        await self.nats_toi_ob_status[tel].publish(data=self.ob_progress[tel], timeout=10)
+                                    except Exception as e:
+                                        logger.warning(f'TOI: EXCEPTION 8a: {e}')
 
-                                try:
-                                    info = f"program error on {tel}"
-                                    label = "PROGRAM ERROR"
-                                    await self.send_ocm_message(info, label=label)
-                                except Exception as e:
-                                    logger.warning(f'TOI: EXCEPTION 8b: {e}')
-                                self.ob[tel]["done"] = False
-                                self.ob[tel]["run"] = False
-                                self.ob[tel]["continue_plan"] = False
-                                await self.update_log(f'planrunner STOPPED', "ERROR", tel)
+                                    try:
+                                        info = f"program error on {tel}"
+                                        label = "PROGRAM ERROR"
+                                        await self.send_ocm_message(info, label=label)
+                                    except Exception as e:
+                                        logger.warning(f'TOI: EXCEPTION 8b: {e}')
+                                    self.ob[tel]["done"] = False
+                                    self.ob[tel]["run"] = False
+                                    self.ob[tel]["continue_plan"] = False
+                                    await self.update_log(f'planrunner STOPPED', "ERROR", tel)
 
                     if self.telescope and not self.tel_acces[tel]:    # obsluga tego ze w czasie realizacji planu, ktos inny przejal kontrole
                         if "continue_plan" in self.ob[tel].keys():
@@ -1113,65 +1131,66 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                     if self.telescope and self.tel_acces[tel]:
                         if self.ob[tel]["origin"]:
-                            if self.ob[tel]["done"] and "plan" in self.ob[tel]["origin"] and self.ob[tel]["continue_plan"]:
-                                await self.plan_start(tel)
-                            elif "plan" in self.ob[tel]["origin"] and self.ob[tel]["continue_plan"]:
-                                if "wait" in self.ob[tel].keys() and "start_time" in self.ob[tel].keys():
-                                    if self.ob[tel]["wait"] != "":
-                                        dt = self.time - self.ob[tel]["start_time"]
-                                        if float(dt) > float(self.ob[tel]["wait"]):
-                                            self.ob[tel]["done"] = True
-                                            await self.msg(f" {tel} PLAN: {self.ob[tel]['name']} {self.ob[tel]['wait']} s DONE", "green")
+                            if "done" in self.ob[tel].keys() and "origin" in self.ob[tel].keys() and "continue_plan" in self.ob[tel].keys():
+                                if self.ob[tel]["done"] and "plan" in self.ob[tel]["origin"] and self.ob[tel]["continue_plan"]:
+                                    await self.plan_start(tel)
+                                elif "plan" in self.ob[tel]["origin"] and self.ob[tel]["continue_plan"]:
+                                    if "wait" in self.ob[tel].keys() and "start_time" in self.ob[tel].keys():
+                                        if self.ob[tel]["wait"] != "":
+                                            dt = self.time - self.ob[tel]["start_time"]
+                                            if float(dt) > float(self.ob[tel]["wait"]):
+                                                self.ob[tel]["done"] = True
+                                                await self.msg(f" {tel} PLAN: {self.ob[tel]['name']} {self.ob[tel]['wait']} s DONE", "green")
 
-                                            self.next_i[tel] = self.current_i[tel]
-                                            self.plan[tel].pop(self.current_i[tel])
-                                            self.current_i[tel] = -1
-                                            self.update_plan(tel)
-                                            time = self.ut.split()[0] + "T" + self.ut.split()[1]
-                                            tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sec={self.ob[tel]["wait"]}'}},"time": {"end_dt": time}}
-                                            self.plan_log_agregator(tel, tmp)
-                                if "wait_ut" in self.ob[tel].keys():
-                                    if self.ob[tel]["wait_ut"] != "":
-                                        req_ut = str(self.ob[tel]["wait_ut"])
-                                        ut = str(self.almanac["ut"]).split()[1]
-                                        ut = 3600 * float(ut.split(":")[0]) + 60 * float(ut.split(":")[1]) + float(ut.split(":")[2])
-                                        req_ut = 3600 * float(req_ut.split(":")[0]) + 60 * float(req_ut.split(":")[1]) + float(
-                                            req_ut.split(":")[2])
-                                        if req_ut < ut:
-                                            self.ob[tel]["done"] = True
-                                            await self.msg(f" {tel} PLAN: {self.ob[tel]['name']} UT {self.ob[tel]['wait_ut']} DONE", "green")
-                                            self.next_i[tel] = self.current_i[tel]
-                                            self.plan[tel].pop(self.current_i[tel])
-                                            self.current_i[tel] = -1
-                                            self.update_plan(tel)
-                                            time = self.ut.split()[0] + "T" + self.ut.split()[1]
-                                            tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'ut={self.ob[tel]["wait_ut"]}'}},"time": {"end_dt": time}}
-                                            self.plan_log_agregator(tel, tmp)
-                                if "wait_sunrise" in self.ob[tel].keys():
-                                    if self.ob[tel]["wait_sunrise"] != "":
-                                        if deg_to_decimal_deg(self.almanac["sun_alt"]) > float(self.ob[tel]["wait_sunrise"]):
-                                            self.ob[tel]["done"] = True
-                                            await self.msg(f" {tel} PLAN: {self.ob[tel]['name']} sunrise {self.ob[tel]['wait_sunrise']} DONE", "green")
-                                            self.next_i[tel] = self.current_i[tel]
-                                            self.plan[tel].pop(self.current_i[tel])
-                                            self.current_i[tel] = -1
-                                            self.update_plan(tel)
-                                            time = self.ut.split()[0] + "T" + self.ut.split()[1]
-                                            tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sunrise={self.ob[tel]["wait_sunrise"]}'}},"time": {"end_dt": time}}
-                                            self.plan_log_agregator(tel, tmp)
-                                if "wait_sunset" in self.ob[tel].keys():
-                                    if self.ob[tel]["wait_sunset"] != "":
-                                        if deg_to_decimal_deg(self.almanac["sun_alt"]) < float(self.ob[tel]["wait_sunset"]):
-                                            self.ob[tel]["done"] = True
-                                            await self.msg(f" {tel} PLAN: {self.ob[tel]['name']} sunset {self.ob[tel]['wait_sunset']} DONE", "green")
+                                                self.next_i[tel] = self.current_i[tel]
+                                                self.plan[tel].pop(self.current_i[tel])
+                                                self.current_i[tel] = -1
+                                                self.update_plan(tel)
+                                                time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                                tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sec={self.ob[tel]["wait"]}'}},"time": {"end_dt": time}}
+                                                self.plan_log_agregator(tel, tmp)
+                                    if "wait_ut" in self.ob[tel].keys():
+                                        if self.ob[tel]["wait_ut"] != "":
+                                            req_ut = str(self.ob[tel]["wait_ut"])
+                                            ut = str(self.almanac["ut"]).split()[1]
+                                            ut = 3600 * float(ut.split(":")[0]) + 60 * float(ut.split(":")[1]) + float(ut.split(":")[2])
+                                            req_ut = 3600 * float(req_ut.split(":")[0]) + 60 * float(req_ut.split(":")[1]) + float(
+                                                req_ut.split(":")[2])
+                                            if req_ut < ut:
+                                                self.ob[tel]["done"] = True
+                                                await self.msg(f" {tel} PLAN: {self.ob[tel]['name']} UT {self.ob[tel]['wait_ut']} DONE", "green")
+                                                self.next_i[tel] = self.current_i[tel]
+                                                self.plan[tel].pop(self.current_i[tel])
+                                                self.current_i[tel] = -1
+                                                self.update_plan(tel)
+                                                time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                                tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'ut={self.ob[tel]["wait_ut"]}'}},"time": {"end_dt": time}}
+                                                self.plan_log_agregator(tel, tmp)
+                                    if "wait_sunrise" in self.ob[tel].keys():
+                                        if self.ob[tel]["wait_sunrise"] != "":
+                                            if deg_to_decimal_deg(self.almanac["sun_alt"]) > float(self.ob[tel]["wait_sunrise"]):
+                                                self.ob[tel]["done"] = True
+                                                await self.msg(f" {tel} PLAN: {self.ob[tel]['name']} sunrise {self.ob[tel]['wait_sunrise']} DONE", "green")
+                                                self.next_i[tel] = self.current_i[tel]
+                                                self.plan[tel].pop(self.current_i[tel])
+                                                self.current_i[tel] = -1
+                                                self.update_plan(tel)
+                                                time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                                tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sunrise={self.ob[tel]["wait_sunrise"]}'}},"time": {"end_dt": time}}
+                                                self.plan_log_agregator(tel, tmp)
+                                    if "wait_sunset" in self.ob[tel].keys():
+                                        if self.ob[tel]["wait_sunset"] != "":
+                                            if deg_to_decimal_deg(self.almanac["sun_alt"]) < float(self.ob[tel]["wait_sunset"]):
+                                                self.ob[tel]["done"] = True
+                                                await self.msg(f" {tel} PLAN: {self.ob[tel]['name']} sunset {self.ob[tel]['wait_sunset']} DONE", "green")
 
-                                            self.next_i[tel] = self.current_i[tel]
-                                            self.plan[tel].pop(self.current_i[tel])
-                                            self.current_i[tel] = -1
-                                            self.update_plan(tel)
-                                            time = self.ut.split()[0] + "T" + self.ut.split()[1]
-                                            tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sunset={self.ob[tel]["wait_sunset"]}'}},"time": {"end_dt": time}}
-                                            self.plan_log_agregator(tel, tmp)
+                                                self.next_i[tel] = self.current_i[tel]
+                                                self.plan[tel].pop(self.current_i[tel])
+                                                self.current_i[tel] = -1
+                                                self.update_plan(tel)
+                                                time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                                tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sunset={self.ob[tel]["wait_sunset"]}'}},"time": {"end_dt": time}}
+                                                self.plan_log_agregator(tel, tmp)
 
             except Exception as e:
                 logger.warning(f'TOI: EXCEPTION 8: {e}')
@@ -1990,7 +2009,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         t2 = self.ob[tel]["slotTime"] - t1
                                         if t2 < 0:
                                             t2 = 0
-                                        ob_time = ob_time - t2
+                                        print("OB time: ", t2, ob_time)
+                                        ob_time = ob_time - t2 * ephem.second
+                                        print("time: ", str(ob_time))
                             if "uobi" not in self.plan[tel][i].keys():  # nadaje uobi jak nie ma
                                 self.plan[tel][i]["uobi"] = str(uuid.uuid4())[:8]
                             if len(self.plan[tel][i]["uobi"]) < 1:
@@ -3638,6 +3659,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.log_record = {t:"" for t in self.local_cfg["toi"]["telescopes"]}
 
         self.fits_ffs_data = {t:[] for t in self.local_cfg["toi"]["telescopes"]}
+        self.fits_photo_z0_data = {t:[] for t in self.local_cfg["toi"]["telescopes"]}
+
 
         templeate = {"ob_started":False,"ob_done":False,"ob_expected_time":None,"ob_start_time":None,"ob_program":None,"error":False,"status":"","ndit_req":None,"ndit":None,"dit_exp":None,"dit_start":None}
         self.ob_progress = {t:copy.deepcopy(templeate) for t in self.local_cfg["toi"]["telescopes"]}

@@ -22,7 +22,7 @@ class ConditionsWindow(QWidget):
     def __init__(self, parent):
         super(ConditionsWindow, self).__init__()
         self.parent = parent
-        self.setGeometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 1300, 500)
+        self.setGeometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 1300, 1000)
         self.mkUI()
         self.setWindowTitle('Conditions')
 
@@ -35,6 +35,9 @@ class ConditionsWindow(QWidget):
         self.update()
 
     def update(self):
+        self.z0 = {t:[] for t in self.parent.fits_photo_z0_data.keys()}
+        self.z0_time = {t: [] for t in self.parent.fits_photo_z0_data.keys()}
+
         self.fwhm = {t:[] for t in self.parent.fits_ffs_data.keys()}
         self.time = {t: [] for t in self.parent.fits_ffs_data.keys()}
         self.airmass = {t: [] for t in self.parent.fits_ffs_data.keys()}
@@ -42,7 +45,7 @@ class ConditionsWindow(QWidget):
         self.focus_time = {t: [] for t in self.parent.fits_ffs_data.keys()}
 
         self.ax1.clear()
-        #self.ax2.clear()
+        self.ax2.clear()
 
         if self.parent.jd:
             for t in self.parent.fits_ffs_data.keys():
@@ -110,18 +113,57 @@ class ConditionsWindow(QWidget):
             self.ax1.set_xticks(xtics)
             self.ax1.set_xticklabels(xtics_labels,rotation=45,minor=False)
 
-
             self.ax1.set_xlim(x0,x1)
             self.ax1.set_ylim(0,5)
             self.ax1.legend()
-            self.ax1.set_xlabel("UT")
+            #self.ax1.set_xlabel("UT")
             self.ax1.set_ylabel("fwhm [arcsec]")
 
-            self.fig.subplots_adjust(bottom=0.222,top=0.945,left=0.042,right=0.988)
+            # zero point
+            for t in self.parent.fits_photo_z0_data.keys():
+                for x in self.parent.fits_photo_z0_data[t]:
+                    points = x["points"]
+                    for k in points.keys():
+                        if k not in self.z0_time[t]:
+                            self.z0[t].append(points[k]["zero_to_predict_value"])
+                            self.z0_time[t].append(k)
+
+            for t in self.parent.fits_photo_z0_data.keys():
+                x = [ ephem.julian_date(ephem.Date(str(q).replace("T"," ").replace("-","/"))) for q in self.z0_time[t]]
+                y = self.z0[t]
+
+                x = numpy.array(x)
+                y = numpy.array(y)
+
+                self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=1, s=100, label=t)
+
+                mk = x < x0
+                x = x[mk]
+                y = y[mk]
+                x = x + 1
+                self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
+
+            xtics = []
+            t =  ephem.Date(x0)
+            while t < ephem.Date(x1):
+                t = ephem.Date(t) + ephem.hour
+                h = str(ephem.Date(t)).split()
+                xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
+            xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
+            self.ax2.set_xticks(xtics)
+            self.ax2.set_xticklabels(xtics_labels,rotation=45,minor=False)
+
+            self.ax2.set_xlim(x0,x1)
+            #self.ax1.set_ylim(0,5)
+            self.ax2.legend()
+            self.ax2.set_xlabel("UT")
+            self.ax2.set_ylabel("zero point [mag]")
+
+            self.fig.subplots_adjust(bottom=0.1,top=0.945,left=0.08,right=0.988)
 
             self.canvas.draw()
 
-            #self.fig.tight_layout()
+            self.fig.tight_layout()
 
 
 
@@ -160,10 +202,10 @@ class ConditionsWindow(QWidget):
 
         w = w + 1
 
-        self.fig = Figure((1, 0.3), linewidth=1, dpi=100)
+        self.fig = Figure((1, 1), linewidth=1, dpi=100)
         self.canvas = FigureCanvas(self.fig)
-        self.ax1 = self.fig.add_subplot(111)
-        #self.ax2 = self.fig.add_subplot(212)
+        self.ax1 = self.fig.add_subplot(211)
+        self.ax2 = self.fig.add_subplot(212)
 
         grid.addWidget(self.canvas, w, 0, 1, 4)
 
