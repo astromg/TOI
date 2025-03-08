@@ -163,7 +163,7 @@ class ConditionsWindow(QWidget):
                 self.fig.subplots_adjust(bottom=0.1,top=0.945,left=0.08,right=0.988)
                 self.canvas.draw()
 
-                self.fig.tight_layout()
+                #self.fig.tight_layout()
             except Exception as e:
                 print(f'EXCEPTION plot_zero_point: {e}')
 
