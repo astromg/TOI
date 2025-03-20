@@ -57,23 +57,23 @@ import requests
 # r = requests.put(quest, data=data).json()
 # print(f"ALPACA: {quest}\n {r}\n")
 
-# quest = "http://192.168.7.110:11111/api/v1/rotator/0/position"
-# r = requests.get(quest)
-# r = r.json()
-# r = r["Value"]
-# print(f"ALPACA: {quest}\n {r}\n")
+quest = "http://192.168.7.110:11111/api/v1/rotator/0/position"
+r = requests.get(quest)
+r = r.json()
+r = r["Value"]
+print(f"ALPACA: {quest}\n {r}\n")
 #
-# quest = "http://192.168.7.110:11111/api/v1/rotator/0/mechanicalposition"
-# r = requests.get(quest)
-# r = r.json()
-# r = r["Value"]
-# print(f"ALPACA: {quest}\n {r}\n")
+quest = "http://192.168.7.110:11111/api/v1/rotator/0/mechanicalposition"
+r = requests.get(quest)
+r = r.json()
+r = r["Value"]
+print(f"ALPACA: {quest}\n {r}\n")
 
 # CCD
 
 
 # quest="http://192.168.7.120:11111/api/v1/camera/0/gain"
-quest="http://192.168.7.120:11111/api/v1/camera/0/camerastate"
+#quest="http://192.168.7.120:11111/api/v1/camera/0/camerastate"
 # quest="http://192.168.7.120:11111/api/v1/camera/0/setccdtemperature"
 #quest="http://192.168.7.120:11111/api/v1/camera/0/description"
 #quest="http://192.168.7.120:11111/api/v1/camera/0/numx"
@@ -84,10 +84,10 @@ quest="http://192.168.7.120:11111/api/v1/camera/0/camerastate"
 #quest="http://192.168.7.120:11111/api/v1/camera/0/readoutmodes"
 #quest="http://192.168.7.120:11111/api/v1/camera/0/readoutmode"
 
-r = requests.get(quest)
-r = r.json()
-r = r["Value"]
-print(f"ALPACA: {quest}\n {r}\n")
+#r = requests.get(quest)
+#r = r.json()
+#r = r["Value"]
+#print(f"ALPACA: {quest}\n {r}\n")
 
 
 # awaryjny

@@ -805,6 +805,32 @@ class PulseWindow(QWidget):
             grid.addWidget(self.sumDec_e, w, 3)
             grid.addWidget(self.unitsDec_l, w, 4)
 
+            self.line3_l = QFrame()
+            self.line3_l.setFrameShape(QFrame.HLine)
+            self.line3_l.setFrameShadow(QFrame.Raised)
+            w = w + 1
+            grid.addWidget(self.line3_l, w, 0, 1, 5)
+
+            w = w + 1
+
+            self.rot_l = QLabel("ROTATOR:")
+            #self.rotpos_e = QLineEdit()
+            self.rotminus_p = QPushButton('-')
+            self.rotminus_p.clicked.connect(self.parent.rotator_minus)
+
+            self.rotstep_e = QLineEdit()
+            self.rotstep_e.setText("5")
+            self.rotstep_e.setMaximumWidth(70)
+            self.rotplus_p = QPushButton('+')
+            self.rotplus_p.clicked.connect(self.parent.rotator_plus)
+
+
+            grid.addWidget(self.rot_l, w, 0)
+            #grid.addWidget(self.rotpos_e, w, 1)
+            grid.addWidget(self.rotminus_p, w, 1)
+            grid.addWidget(self.rotstep_e, w, 2)
+            grid.addWidget(self.rotplus_p, w, 3)
+
 
             #grid.setColumnMinimumWidth(0, 100)
             #grid.setColumnMinimumWidth(1, 100)

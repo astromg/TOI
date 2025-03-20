@@ -2889,6 +2889,30 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
 
+    @qs.asyncSlot()
+    async def rotator_minus(self):
+        if self.tel_acces[self.active_tel]:
+            try:
+                step = -1*float(self.mntGui.pulse_window.rotstep_e.text())
+                await self.rotator.aput_move(step)
+            except:
+                pass
+        else:
+            txt="WARNING: U don't have control"
+            self.WarningWindow(txt)
+
+    @qs.asyncSlot()
+    async def rotator_plus(self):
+        if self.tel_acces[self.active_tel]:
+            try:
+                step = float(self.mntGui.pulse_window.rotstep_e.text())
+                await self.rotator.aput_move(step)
+            except:
+                pass
+        else:
+            txt="WARNING: U don't have control"
+            self.WarningWindow(txt)
+
     # ################# DOME ########################
 
     async def dome_con_update(self, event):
