@@ -128,7 +128,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 
-        self.add_background_task(self.guider_loop())
+        #self.add_background_task(self.guider_loop())
 
         self.add_background_task(self.TOItimer())
 
