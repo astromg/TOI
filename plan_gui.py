@@ -1205,12 +1205,14 @@ class PhaseWindow(QWidget):
             jd = []
             flag = []
             #print(file)
-            with open(file, "r") as plik:
-                if plik != None:
-                    lc_tab = Table.read(plik,format="ascii")
-                    mag = lc_tab["mag"]
-                    jd = lc_tab["jd_obs"]
-                    flag = lc_tab["quality"]
+            if plik != None:
+                lc_tab = Table.read(plik, format="ascii")
+                mag = lc_tab["mag"]
+                jd = lc_tab["jd_obs"]
+                flag = lc_tab["quality"]
+
+            # with open(file, "r") as plik:
+            #     if plik != None:
                     # for line in plik:
                     #     if len(line.strip()) > 0:
                     #         try:
