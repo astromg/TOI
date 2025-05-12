@@ -24,6 +24,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib
 
+from astropy.table import Table
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from pyaraucaria.coordinates import *
@@ -1206,17 +1207,21 @@ class PhaseWindow(QWidget):
             #print(file)
             with open(file, "r") as plik:
                 if plik != None:
-                    for line in plik:
-                        if len(line.strip()) > 0:
-                            try:
-                                mag.append(float(line.split()[1]))
-                                jd.append(float(line.split()[3]))
-                                try:
-                                    flag.append(int(line.split()[9]))
-                                except ValueError:
-                                    pass
-                            except ValueError:
-                                pass
+                    lc_tab = Table.read(plik,format="ascii")
+                    mag = lc_tab["mag"]
+                    jd = lc_tab["jd_obs"]
+                    flag = lc_tab["quality"]
+                    # for line in plik:
+                    #     if len(line.strip()) > 0:
+                    #         try:
+                    #             mag.append(float(line.split()[1]))
+                    #             jd.append(float(line.split()[3]))
+                    #             try:
+                    #                 flag.append(int(line.split()[9]))
+                    #             except ValueError:
+                    #                 pass
+                    #         except ValueError:
+                    #             pass
             if len(mag) == len(jd) and len(jd)>0:
                 #print(mag,jd)
                 if self.phase_c.isChecked():
