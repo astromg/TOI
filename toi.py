@@ -484,7 +484,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_mode = ["Normal", "Sky", "JitterBox", "JitterRandom"]
             self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
             self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
-            self.cfg_inst_defSetUp = {"gain": "Gain 2", "rm": "0,1MHz 18-bit","bin":"1x1", "temp":-58}
+            self.cfg_inst_defSetUp = {"gain": "Gain 2", "rm": "1MHz 18-bit","bin":"1x1", "temp":-58}
 
 
         # obsluga subskrypcji
@@ -2527,7 +2527,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if self.cfg_inst_defSetUp["rm"] in txt:
                 self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             else: self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
-        self.telescope_switch_status["gain"] = True
+        self.telescope_switch_status["rm"] = True
 
 
     async def ccd_binx_update(self, event):
