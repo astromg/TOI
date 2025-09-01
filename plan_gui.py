@@ -996,7 +996,6 @@ class TPG_Worker(QtCore.QObject):
         self.uobi_done=uobi_done
 
     def run(self):
-        print(self.date)
         p = tpg(self.tel, self.date, wind=self.wind,done_uobi=self.uobi_done)
 
         p.Initiate()
@@ -1049,6 +1048,7 @@ class TPGWindow(QWidget):
             date = [str(local_time.datetime()).split()[0]]
         else:
             date = [ut.split()[0], ut.split()[1]]
+        date = date.replace("-","/")
         if self.wind_c.isChecked():
             wind = float(self.wind_e.text())
         else:
