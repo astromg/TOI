@@ -1011,6 +1011,8 @@ class TPG_Worker(QtCore.QObject):
         self.update_signal.emit("Moon masking <span style='color: green;'>\u2714</span>")
         p.MaskWind()
         self.update_signal.emit("wind masking <span style='color: green;'>\u2714</span>")
+        p.MaskCycle()
+        self.update_signal.emit("cycle masking <span style='color: green;'>\u2714</span>")
         p.MaskPhase()
         self.update_signal.emit("database masking <span style='color: green;'>\u2714</span>")
         p.MaskStartEnd()
