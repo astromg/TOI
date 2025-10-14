@@ -1,7 +1,8 @@
 
 STOP                        comment=cos tam
 BELL                        comment="cos innego"
-ZERO seq=1/Ic/0            comment='cos2'
+ZERO seq=1/Ic/0            comment='cos2' sciprog=test pi=ocm test=1
+STOP
 DARK seq=1/Ic/5
 ZERO seq=1/Ic/0
 STOP

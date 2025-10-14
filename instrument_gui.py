@@ -255,12 +255,18 @@ class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
           w=w+1
 
+          self.test_c = QCheckBox("Test")
+          self.test_c.setChecked(False)
+          self.test_c.setLayoutDirection(Qt.LeftToRight)
+          self.test_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
+
           self.cooler_c = QCheckBox("Cooler")
           self.cooler_c.setChecked(False)
           self.cooler_c.setLayoutDirection(Qt.RightToLeft)
           self.cooler_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
           self.cooler_c.clicked.connect(self.parent.ccd_coolerOnOf)
 
+          grid.addWidget(self.test_c, w, 0)
           grid.addWidget(self.cooler_c, w,3)
 
           w=w+1          

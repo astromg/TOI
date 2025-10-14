@@ -2357,6 +2357,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     await self.update_log(f'not implemented yet', "WARNING", self.active_tel)
 
             if ok:
+
+                if self.instGui.ccd_tab.test_c.checkState():
+                    txt = txt + " test=1"
+
                 uobi = str(uuid.uuid4())[:8]
                 self.ob[self.active_tel]["block"] = txt + f' uobi={uobi}'
                 self.ob[self.active_tel]["origin"] = "manual"

@@ -1,7 +1,9 @@
 <h4>Whats New?</h4>
 
 
-
+--- 14.10.2025 --- <br>
+integration with tpg v1.0.0, test toggle is avialable and sciprog with pi can be processed by toi.
+<br><br>
 --- 12.02.2025 --- <br>
 Report mechanism is now available.
 Flat Log Window is again available, and it is reporting when last flats for filter were obtained, and when las science observations for filter were obtained.
