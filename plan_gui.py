@@ -1014,6 +1014,7 @@ class TPG_Worker(QtCore.QObject):
         p.MaskCycle()
         self.update_signal.emit("cycle masking <span style='color: green;'>\u2714</span>")
         p.MaskStartEnd()
+        self.update_signal.emit("start/end masking <span style='color: green;'>\u2714</span>")
         p.MaskPhaseStartEnd()
         self.update_signal.emit("phase and time masking <span style='color: green;'>\u2714</span>")
         p.MaskPhase()
