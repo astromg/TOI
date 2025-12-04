@@ -30,7 +30,7 @@ from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from pyaraucaria.coordinates import *
 
 from toi_lib import *
-from telescope_plan_generator import telescope_plan_generator as tpg
+from tpg.telescope_plan_generator import TelescopePlanGenerator as tpg
 from ctc import CycleTimeCalc
 
 
