@@ -996,7 +996,7 @@ class TPG_Worker(QtCore.QObject):
         self.uobi_done=uobi_done
 
     def run(self):
-        p = tpg(self.tel, self.date, wind=self.wind,done_uobi=self.uobi_done)
+        p = tpg.TelescopePlanGenerator(self.tel, self.date, wind=self.wind,done_uobi=self.uobi_done)
 
         p.Initiate()
         self.update_signal.emit("TPG init <span style='color: green;'>\u2714</span>")
