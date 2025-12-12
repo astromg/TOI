@@ -30,7 +30,7 @@ from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from pyaraucaria.coordinates import *
 
 from toi_lib import *
-from tpg import telescope_plan_generator as tpg
+from tpg.telescope_plan_generator import TelescopePlanGenerator as tpg
 from ctc import CycleTimeCalc
 
 
@@ -996,7 +996,7 @@ class TPG_Worker(QtCore.QObject):
         self.uobi_done=uobi_done
 
     def run(self):
-        p = tpg.TelescopePlanGenerator(self.tel, self.date, wind=self.wind,done_uobi=self.uobi_done)
+        p = tpg(self.tel, self.date, wind=self.wind,done_uobi=self.uobi_done)
 
         p.Initiate()
         self.update_signal.emit("TPG init <span style='color: green;'>\u2714</span>")
@@ -1014,6 +1014,7 @@ class TPG_Worker(QtCore.QObject):
         p.MaskCycle()
         self.update_signal.emit("cycle masking <span style='color: green;'>\u2714</span>")
         p.MaskStartEnd()
+        self.update_signal.emit("start/end masking <span style='color: green;'>\u2714</span>")
         p.MaskPhaseStartEnd()
         self.update_signal.emit("phase and time masking <span style='color: green;'>\u2714</span>")
         p.MaskPhase()
