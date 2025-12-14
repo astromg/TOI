@@ -13,8 +13,8 @@ import time
 import ephem
 import qasync as qs
 from qasync import QEventLoop
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
+from PyQtX import QtCore, QtGui
+from PyQtX.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
                              QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout,
                              QVBoxLayout, QTableWidget, QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame,
                              QComboBox, QProgressBar, QHeaderView)

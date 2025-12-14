@@ -9,12 +9,12 @@ import time
 from typing import Tuple
 
 import qasync as qs
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QCompleter, QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QSpinBox, QGridLayout, QFrame, QComboBox, QRadioButton
+from PyQtX.QtCore import Qt
+from PyQtX.QtWidgets import QCompleter, QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QSpinBox, QGridLayout, QFrame, QComboBox, QRadioButton
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQtX import QtWidgets, QtCore, QtGui
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from toi_lib import *

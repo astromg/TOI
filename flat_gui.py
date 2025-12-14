@@ -2,10 +2,10 @@
 
 import datetime
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QTextCursor
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
+from PyQtX.QtCore import Qt
+from PyQtX.QtGui import QFont, QTextCursor
+from PyQtX import QtCore, QtGui
+from PyQtX.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
                              QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout,
                              QVBoxLayout, QTableWidget, QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame,
                              QComboBox, QProgressBar, QHeaderView)

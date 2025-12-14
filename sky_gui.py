@@ -5,10 +5,10 @@
 # Marek Gorski
 # ----------------
 
-from PyQt5.QtCore import Qt
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
+from PyQtX.QtCore import Qt
+from PyQtX import QtCore, QtGui
+from PyQtX.QtGui import QFont
+from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
     QVBoxLayout, QTableWidget, QTableWidgetItem
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure

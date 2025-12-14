@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QSlider, QFrame, QComboBox
+from PyQtX.QtCore import Qt
+from PyQtX.QtGui import QFont
+from PyQtX import QtCore, QtGui
+from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QSlider, QFrame, QComboBox
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas

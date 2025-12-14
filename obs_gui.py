@@ -2,9 +2,9 @@
 
 import os.path
 import qasync as qs
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
+from PyQtX import QtCore, QtGui
+from PyQtX.QtCore import Qt
+from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
     QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure

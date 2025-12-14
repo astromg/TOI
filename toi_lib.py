@@ -6,7 +6,7 @@ import numpy
 
 import time
 
-from PyQt5.QtCore import QThread,pyqtSignal
+from PyQtX.QtCore import QThread,pyqtSignal
 
 def get_dic(dc,keys,fail=None):
     x = dc

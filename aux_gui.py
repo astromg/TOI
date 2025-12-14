@@ -5,9 +5,9 @@
 # Marek Gorski
 # ----------------
 
-from PyQt5.QtCore import Qt
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QTabWidget, QApplication, QWidget, QLabel, QCheckBox, QTextEdit, QLineEdit, QDialog, \
+from PyQtX.QtCore import Qt
+from PyQtX import QtCore, QtGui
+from PyQtX.QtWidgets import QTabWidget, QApplication, QWidget, QLabel, QCheckBox, QTextEdit, QLineEdit, QDialog, \
     QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget, QTableWidgetItem, \
     QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
 
