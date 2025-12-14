@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "toi"
-version = "0.1.1"
+version = "0.1.2"
 description = "Telescope Operator Interface"
 authors = ["Marek Górski <you@example.com>"]
 readme = "README.md"
@@ -11,11 +11,11 @@ keywords = ["astronomy", "telescopes"]
 python = "^3.10"
 pyaraucaria = {git = "https://github.com/araucaria-project/pyaraucaria.git"}
 serverish = {version="^1.1.0", extras=["messenger"]}
-#astropy = ">=5.0.4,<5.1.0"
+astropy = ">=5.0.4"
 requests = "^2.28.1"
-ephem = "^4.1.4"
-matplotlib = "^3.6.3"
-numpy = "^1.24.1"
+ephem = ">=4.1.4"
+matplotlib = ">=3.6.3"
+numpy = ">=1.24.1"
 qasync = "^0.27.1"
 # ocabox = {git = "https://github.com/araucaria-project/ocabox.git"}
 ocabox = {path = "../ocabox", develop = true}
@@ -23,8 +23,8 @@ ocabox-common = {git = "https://github.com/araucaria-project/ocabox-common.git"}
 #ocabox-common = {path = "../ocabox-common", develop = true}
 tpg = {path = "../tpg", develop = true}
 ctc = {git = "https://github.com/araucaria-project/ctc.git"}
-paho-mqtt = "^1.6.1"
-scipy = "^1.9.0"
+paho-mqtt = ">=1.6.1"
+scipy = ">=1.9.0"
 pyqt5-qt5 = "5.15.2"  # TODO: switch to pyQt6. 5 is a mess, 5.15.2 does not work on Mac, 5.15.13 does not work on Ubuntu...
 pyqt5 = "^5.15.10"
 
