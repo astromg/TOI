@@ -9,7 +9,7 @@ try:
         def screenGeometry(index=0):
             screens = QGuiApplication.screens()
             if index < len(screens):
-                return screens[index].availableGeometry()
+                return screens[index].geometry()
             return None
     # Compatibility aliases for selection behaviors and modes
     QTableWidget.SelectRows = QTableWidget.SelectionBehavior.SelectRows
