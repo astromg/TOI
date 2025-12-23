@@ -12,15 +12,14 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 import numpy
 from ffs_lib.ffs import FFS
+from base_window import BaseWindow
 
-class PlanrunnerWindow(QWidget):
+class PlanrunnerWindow(BaseWindow):
     def __init__(self, parent):
         super(PlanrunnerWindow, self).__init__()
         self.parent = parent
         self.setWindowTitle('Plan Runner')
-        # self.setGeometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1]+500, 400, 500)
-        self.resize(400, 500)
-        self.move(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1]+500)
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1]+500, 400, 500)
         self.mkUI()
         self.text = {k:"" for k in self.parent.local_cfg["toi"]["telescopes"]}
 

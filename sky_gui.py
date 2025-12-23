@@ -14,17 +14,15 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from pyaraucaria.coordinates import *
 from toi_lib import *
+from base_window import BaseWindow
 
 
 
-class SkyGui(QWidget):
+class SkyGui(BaseWindow):
     def __init__(self, parent):
         super(SkyGui, self).__init__()
         self.parent = parent
-        #self.setStyleSheet("font-size: 11pt;")
-        # self.setGeometry(self.parent.obs_window_geometry[0]+910,self.parent.obs_window_geometry[1],500,500)
-        self.resize(500, 500)
-        self.move(self.parent.obs_window_geometry[0]+910, self.parent.obs_window_geometry[1])
+        self.set_initial_geometry(self.parent.obs_window_geometry[0]+910,self.parent.obs_window_geometry[1],500,500)
 
         self.updateUI()
         self.show()

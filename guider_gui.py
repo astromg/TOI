@@ -13,15 +13,14 @@ import matplotlib
 
 import numpy
 from ffs_lib.ffs import FFS
+from base_window import BaseWindow
 
-class GuiderWindow(QWidget):
+class GuiderWindow(BaseWindow):
     def __init__(self, parent):
         super(GuiderWindow, self).__init__()
         self.parent = parent
         self.setWindowTitle('Guider')
-        # self.setGeometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1], 300, 300)
-        self.resize(300, 300)
-        self.move(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1])
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1], 300, 300)
 
         self.mkUI()
 
@@ -32,7 +31,7 @@ class GuiderWindow(QWidget):
         grid.addWidget(self.guiderView, w, 0)
         self.setLayout(grid)
 
-class GuiderView(QWidget):
+class GuiderView(BaseWindow):
     def __init__(self, parent):
         super(GuiderView, self).__init__()
         self.parent = parent

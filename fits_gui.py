@@ -13,19 +13,18 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 import numpy
 from ffs_lib.ffs import FFS
 from toi_lib import *
+from base_window import BaseWindow
 
 
   # ######### Fits GUI #############
 
-class FitsWindow(QWidget):
+class FitsWindow(BaseWindow):
     def __init__(self, parent):
-        QWidget.__init__(self)
+        super().__init__(parent)
         self.parent = parent
         self.setWindowTitle('Fits')
         self.mkUI()
-        # self.setGeometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1], 1000, 700)
-        self.resize(1000, 700)
-        self.move(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1])
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1], 1000, 700)
         self.colorbar = None
         self.image=[]
         self.coo = []

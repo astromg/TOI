@@ -12,17 +12,16 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 import numpy
 from ffs_lib.ffs import FFS
+from base_window import BaseWindow
 
 
 # ############### FOCUS ##########################
 
-class FocusWindow(QWidget):
+class FocusWindow(BaseWindow):
     def __init__(self, parent):
         super(FocusWindow, self).__init__()
         self.parent = parent
-        # self.setGeometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1]+810, 900, 500)
-        self.resize(900, 500)
-        self.move(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1]+810)
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1]+810, 900, 500)
         self.mkUI()
         self.setWindowTitle('Focus')
         self.x = []

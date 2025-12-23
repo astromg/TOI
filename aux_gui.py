@@ -20,17 +20,19 @@ import datetime
 import numpy
 import paho.mqtt.client as mqtt
 import json
+from base_window import BaseWindow
 
 
-class AuxGui(QWidget):
+class AuxGui(BaseWindow):
     def __init__(self, parent):
         super(AuxGui, self).__init__()
         self.parent = parent
-        #self.setStyleSheet("font-size: 11pt;")
-        # self.setGeometry(self.parent.aux_geometry[0], self.parent.aux_geometry[1], self.parent.aux_geometry[2],
-        #                  self.parent.aux_geometry[3])
-        self.resize(self.parent.aux_geometry[2], self.parent.aux_geometry[3])
-        self.move(self.parent.aux_geometry[0], self.parent.aux_geometry[1])
+        self.set_initial_geometry(
+            self.parent.aux_geometry[0],
+            self.parent.aux_geometry[1],
+            self.parent.aux_geometry[2],
+            self.parent.aux_geometry[3]
+        )
 
         self.updateUI()
         self.show()
@@ -82,7 +84,7 @@ class AuxGui(QWidget):
         del tmp
 
 
-class WelcomeGui(QWidget):
+class WelcomeGui(BaseWindow):
     def __init__(self, parent):
         super(WelcomeGui, self).__init__()
         self.parent = parent
@@ -177,7 +179,7 @@ class WelcomeGui(QWidget):
         self.setLayout(grid)
 
 # ############### FLAT ############################
-class FlatGui(QWidget):
+class FlatGui(BaseWindow):
     def __init__(self, parent):
         super(FlatGui, self).__init__()
         self.parent = parent
@@ -204,7 +206,7 @@ class FlatGui(QWidget):
 
 # ############### FOCUS ##########################
 
-class FocusGui(QWidget):
+class FocusGui(BaseWindow):
     def __init__(self, parent):
         super(FocusGui, self).__init__()
         self.parent = parent
@@ -298,7 +300,7 @@ class FocusGui(QWidget):
 # ############### GUIDER ###################
 
 
-class GuiderGui(QWidget):
+class GuiderGui(BaseWindow):
     def __init__(self, parent):
         super(GuiderGui, self).__init__()
         self.parent = parent
@@ -311,7 +313,7 @@ class GuiderGui(QWidget):
         grid.addWidget(self.guiderView, w, 0)
         self.setLayout(grid)
 
-class GuiderView(QWidget):
+class GuiderView(BaseWindow):
     def __init__(self, parent):
         super(GuiderView, self).__init__()
         self.parent = parent
@@ -455,7 +457,7 @@ class GuiderView(QWidget):
             self.canvas2.draw()
 
 
-class CctvGui(QWidget):
+class CctvGui(BaseWindow):
     def __init__(self, parent):
         super(CctvGui, self).__init__()
         self.parent = parent
@@ -467,7 +469,7 @@ class CctvGui(QWidget):
         self.setLayout(grid)
 
 
-class FitsGui(QWidget):
+class FitsGui(BaseWindow):
     def __init__(self, parent):
         super(FitsGui, self).__init__()
         self.parent = parent
@@ -483,9 +485,9 @@ class FitsGui(QWidget):
 
   # ######### Fits GUI #############
 
-class FitsView(QWidget):
+class FitsView(BaseWindow):
     def __init__(self, parent):
-        QWidget.__init__(self)
+        super().__init__(parent)
         self.parent = parent
         self.mkUI()
         self.colorbar = None

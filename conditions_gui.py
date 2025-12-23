@@ -14,17 +14,16 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 import numpy
 from ffs_lib.ffs import FFS
+from base_window import BaseWindow
 
 
 # ############### FOCUS ##########################
 
-class ConditionsWindow(QWidget):
+class ConditionsWindow(BaseWindow):
     def __init__(self, parent):
         super(ConditionsWindow, self).__init__()
         self.parent = parent
-        # self.setGeometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 1300, 1000)
-        self.resize(1300, 1000)
-        self.move(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100)
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 1300, 1000)
         self.mkUI()
         self.setWindowTitle('Conditions')
 

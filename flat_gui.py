@@ -17,15 +17,14 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 import numpy
 from ffs_lib.ffs import FFS
+from base_window import BaseWindow
 
-class FlatWindow(QWidget):
+class FlatWindow(BaseWindow):
     def __init__(self, parent):
         super(FlatWindow, self).__init__()
         self.parent = parent
         self.setWindowTitle('Flat Log')
-        # self.setGeometry(self.parent.obs_window_geometry[0] + 1940, self.parent.obs_window_geometry[1]+810, 900, 500)
-        self.resize(900, 500)
-        self.move(self.parent.obs_window_geometry[0] + 1940, self.parent.obs_window_geometry[1]+810)
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1940, self.parent.obs_window_geometry[1]+810, 900, 500)
         self.mkUI()
         self.text = {k:"" for k in self.parent.local_cfg["toi"]["telescopes"]}
 
