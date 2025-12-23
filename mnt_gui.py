@@ -30,7 +30,9 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.subscriber_time_of_data_tolerance = 0.5
 
         self.parent = parent
-        self.setGeometry(self.parent.mnt_geometry[0],self.parent.mnt_geometry[1],self.parent.mnt_geometry[2],self.parent.mnt_geometry[3])
+        # self.setGeometry(self.parent.mnt_geometry[0],self.parent.mnt_geometry[1],self.parent.mnt_geometry[2],self.parent.mnt_geometry[3])
+        self.resize(self.parent.mnt_geometry[2], self.parent.mnt_geometry[3])
+        self.move(self.parent.mnt_geometry[0], self.parent.mnt_geometry[1])
         self.updateUI()
         self.show()
         self.raise_()

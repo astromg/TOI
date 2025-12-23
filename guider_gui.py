@@ -9,6 +9,7 @@ from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdi
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+import matplotlib
 
 import numpy
 from ffs_lib.ffs import FFS
@@ -18,7 +19,9 @@ class GuiderWindow(QWidget):
         super(GuiderWindow, self).__init__()
         self.parent = parent
         self.setWindowTitle('Guider')
-        self.setGeometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1], 300, 300)
+        # self.setGeometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1], 300, 300)
+        self.resize(300, 300)
+        self.move(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1])
 
         self.mkUI()
 
@@ -171,6 +174,3 @@ class GuiderView(QWidget):
 
             self.axes2.clear()
             self.canvas2.draw()
-
-
-

@@ -11,6 +11,14 @@ try:
             if index < len(screens):
                 return screens[index].geometry()
             return None
+
+        @staticmethod
+        def availableGeometry(index=0):
+            screens = QGuiApplication.screens()
+            if index < len(screens):
+                return screens[index].availableGeometry()
+            return None
+
     # Compatibility aliases for selection behaviors and modes
     QTableWidget.SelectRows = QTableWidget.SelectionBehavior.SelectRows
     QTableWidget.SelectColumns = QTableWidget.SelectionBehavior.SelectColumns

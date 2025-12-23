@@ -27,8 +27,10 @@ class AuxGui(QWidget):
         super(AuxGui, self).__init__()
         self.parent = parent
         #self.setStyleSheet("font-size: 11pt;")
-        self.setGeometry(self.parent.aux_geometry[0], self.parent.aux_geometry[1], self.parent.aux_geometry[2],
-                         self.parent.aux_geometry[3])
+        # self.setGeometry(self.parent.aux_geometry[0], self.parent.aux_geometry[1], self.parent.aux_geometry[2],
+        #                  self.parent.aux_geometry[3])
+        self.resize(self.parent.aux_geometry[2], self.parent.aux_geometry[3])
+        self.move(self.parent.aux_geometry[0], self.parent.aux_geometry[1])
 
         self.updateUI()
         self.show()

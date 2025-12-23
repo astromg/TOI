@@ -22,7 +22,9 @@ class ConditionsWindow(QWidget):
     def __init__(self, parent):
         super(ConditionsWindow, self).__init__()
         self.parent = parent
-        self.setGeometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 1300, 1000)
+        # self.setGeometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 1300, 1000)
+        self.resize(1300, 1000)
+        self.move(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100)
         self.mkUI()
         self.setWindowTitle('Conditions')
 

@@ -432,7 +432,9 @@ class ReportWindow(QWidget):
     def __init__(self, parent):
         super(ReportWindow, self).__init__()
         self.parent = parent
-        self.setGeometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 500, 500)
+        # self.setGeometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 500, 500)
+        self.resize(500, 500)
+        self.move(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100)
         self.mkUI()
         self.setWindowTitle('Report')
 

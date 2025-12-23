@@ -18,7 +18,9 @@ class PlanrunnerWindow(QWidget):
         super(PlanrunnerWindow, self).__init__()
         self.parent = parent
         self.setWindowTitle('Plan Runner')
-        self.setGeometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1]+500, 400, 500)
+        # self.setGeometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1]+500, 400, 500)
+        self.resize(400, 500)
+        self.move(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1]+500)
         self.mkUI()
         self.text = {k:"" for k in self.parent.local_cfg["toi"]["telescopes"]}
 

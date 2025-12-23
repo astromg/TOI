@@ -46,7 +46,9 @@ class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
           #self.setStyleSheet("font-size: 11pt;")
-          self.setGeometry(self.parent.plan_geometry[0],self.parent.plan_geometry[1],self.parent.plan_geometry[2],self.parent.plan_geometry[3])
+          # self.setGeometry(self.parent.plan_geometry[0],self.parent.plan_geometry[1],self.parent.plan_geometry[2],self.parent.plan_geometry[3])
+          self.resize(self.parent.plan_geometry[2], self.parent.plan_geometry[3])
+          self.move(self.parent.plan_geometry[0], self.parent.plan_geometry[1])
 
           self.table_header = ["","Object","Alt @ UT","Comment"]
           self.show_seq = False      # zmienne decydujaca o wyswietlaniu co jest w kolumnach w tabelce

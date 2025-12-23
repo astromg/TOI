@@ -20,7 +20,9 @@ class FocusWindow(QWidget):
     def __init__(self, parent):
         super(FocusWindow, self).__init__()
         self.parent = parent
-        self.setGeometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1]+810, 900, 500)
+        # self.setGeometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1]+810, 900, 500)
+        self.resize(900, 500)
+        self.move(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1]+810)
         self.mkUI()
         self.setWindowTitle('Focus')
         self.x = []
@@ -122,4 +124,3 @@ class FocusWindow(QWidget):
         grid.addWidget(self.autoFocus_p, w, 2, 1, 2)
 
         self.setLayout(grid)
-

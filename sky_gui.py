@@ -22,7 +22,9 @@ class SkyGui(QWidget):
         super(SkyGui, self).__init__()
         self.parent = parent
         #self.setStyleSheet("font-size: 11pt;")
-        self.setGeometry(self.parent.obs_window_geometry[0]+910,self.parent.obs_window_geometry[1],500,500)
+        # self.setGeometry(self.parent.obs_window_geometry[0]+910,self.parent.obs_window_geometry[1],500,500)
+        self.resize(500, 500)
+        self.move(self.parent.obs_window_geometry[0]+910, self.parent.obs_window_geometry[1])
 
         self.updateUI()
         self.show()
