@@ -16,17 +16,15 @@ from base_window import BaseWindow
 from toi_lib import *
 
 
-class ObsGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     def __init__(self, parent, loop: QEventLoop = None, client_api=None):
-        BaseWindow.__init__(self)
+        QMainWindow.__init__(self)
         BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
         self.parent = parent
+        self._geometry = None
         self.setWindowTitle('Telescope Operator Interface')
         self.main_form = MainForm(self.parent)
-        layout = QVBoxLayout()
-        layout.addWidget(self.main_form)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.setLayout(layout)
+        self.setCentralWidget(self.main_form)
         self.set_initial_geometry(
             self.parent.obs_window_geometry[0],
             self.parent.obs_window_geometry[1],
@@ -35,6 +33,15 @@ class ObsGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         )
         self.show()
         self.raise_()
+
+    def set_initial_geometry(self, x, y, width, height):
+        self._geometry = (x, y, width, height)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self._geometry:
+            self.setGeometry(*self._geometry)
+            self._geometry = None
 
     async def on_start_app(self):
         await self.run_background_tasks()
