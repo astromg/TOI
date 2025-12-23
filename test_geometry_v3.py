@@ -78,6 +78,10 @@ def run_suite():
     if not app:
         app = QApplication(sys.argv)
 
+    print(f"[DIAGNOSTIC] Qt Platform: {app.platformName()}")
+    screen_geo = app.primaryScreen().availableGeometry()
+    print(f"[DIAGNOSTIC] Screen Geometry: {screen_geo.x()},{screen_geo.y()} {screen_geo.width()}x{screen_geo.height()}")
+
     # Test 1: WindowHandle
     t1 = AggressiveWindow("WindowHandle")
     t1.show()
