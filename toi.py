@@ -3885,6 +3885,13 @@ async def run_qt_app():
 
 
 def main():
+    # Force xcb on Linux if Wayland is detected to allow window positioning
+    if sys.platform == 'linux':
+        if os.environ.get("XDG_SESSION_TYPE") == "wayland":
+            if "QT_QPA_PLATFORM" not in os.environ:
+                os.environ["QT_QPA_PLATFORM"] = "xcb"
+                logger.info("Wayland detected. Forcing QT_QPA_PLATFORM=xcb for correct window positioning.")
+
     try:
         qs.run(run_qt_app())
     except asyncio.exceptions.CancelledError:
