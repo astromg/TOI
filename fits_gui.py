@@ -47,7 +47,7 @@ class FitsWindow(BaseWindow):
     def plot_image(self):
         self.axes.clear()
         self.axes.axis("off")
-        if len(self.image)>0:
+        if self.image and len(self.image)>0:
 
             vmin = numpy.mean(self.image) - 1 * numpy.std(self.image)
             vmax = numpy.mean(self.image) + 1 * numpy.std(self.image)
