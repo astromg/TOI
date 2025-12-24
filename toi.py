@@ -2206,7 +2206,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             hdul = fits.open(self.cfg_tel_directory + "last_shoot.fits")
             self.image = hdul[0].data
         else:
-            self.image = await self.ccd.aget_imagearray()
+            logger.warning(f'Attepmt to download image directly, no {self.cfg_tel_directory}')
+            self.image = None
+            # self.image = await self.ccd.aget_imagearray()
+            # logger.warning(f'Image download finished, image= {self.image}')
         image = self.image
         image = numpy.asarray(image)
         self.fitsGui.updateImage(image)
@@ -3087,7 +3090,20 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def Ventilators_update(self,event):
-        r = await self.dome.aget_dome_fans_running()
+        if (event):
+            logger.error(f'========DOME FANS RUNNING event: {event.type}:{event.what}:{event.name}')
+        else:
+            logger.error(f'========DOME FANS RUNNING event: None')
+        logger.error(f'========DOME FANS RUNNING pre var_time: {self.dome._domefansrunning_timestamp}')
+        logger.error(f'========DOME FANS RUNNING pre var_inter: {self.dome._domefansrunning_value}')
+        r = self.dome.domefansrunning
+        logger.error(f'========DOME FANS RUNNING var: {type(r)}:{r}')
+        logger.error(f'========DOME FANS RUNNING post var_time: {self.dome._domefansrunning_timestamp}')
+        logger.error(f'========DOME FANS RUNNING post var_inter: {self.dome._domefansrunning_value}')
+        if (event):
+            logger.error(f'========DOME FANS RUNNING post event: {event.old} -> {event.new}')
+
+        # r = await self.dome.aget_dome_fans_running()
         if r:
             self.dome_fanStatus=True
         else:
