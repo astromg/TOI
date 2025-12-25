@@ -2207,7 +2207,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.image = hdul[0].data
         else:
             logger.warning(f'Attepmt to download image directly, no {self.cfg_tel_directory}')
-            self.image = None
+            self.image = numpy.zeros((100,100))
             # self.image = await self.ccd.aget_imagearray()
             # logger.warning(f'Image download finished, image= {self.image}')
         image = self.image
