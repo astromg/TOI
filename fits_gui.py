@@ -20,11 +20,11 @@ from base_window import BaseWindow
 
 class FitsWindow(BaseWindow):
     def __init__(self, parent):
-        super().__init__(parent)
+        super().__init__()
         self.parent = parent
         self.setWindowTitle('Fits')
-        self.mkUI()
         self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1], 1000, 700)
+        self.mkUI()
         self.colorbar = None
         self.image=[]
         self.coo = []
