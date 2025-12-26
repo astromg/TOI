@@ -3100,18 +3100,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # his callback uses direct value gaet instead of asget,
         # this was intendent way. When its confirmed, that it works seamlessly,
         # other callbacks will be modified to use direct value get too.
-        # if (event):
-        #     logger.error(f'========DOME FANS RUNNING event: {event.type}:{event.what}:{event.name}')
-        # else:
-        #     logger.error(f'========DOME FANS RUNNING event: None')
-        # logger.error(f'========DOME FANS RUNNING pre var_time: {self.dome._domefansrunning_timestamp}')
-        # logger.error(f'========DOME FANS RUNNING pre var_inter: {self.dome._domefansrunning_value}')
+        if (event):
+            logger.error(f'========DOME FANS RUNNING event: {event.type}:{event.what}:{event.name}')
+        else:
+            logger.error(f'========DOME FANS RUNNING event: None')
+        logger.error(f'========DOME FANS RUNNING pre var_time: {self.dome._domefansrunning_timestamp}')
+        logger.error(f'========DOME FANS RUNNING pre var_inter: {self.dome._domefansrunning_value}')
         r = self.dome.domefansrunning
-        # logger.error(f'========DOME FANS RUNNING var: {type(r)}:{r}')
-        # logger.error(f'========DOME FANS RUNNING post var_time: {self.dome._domefansrunning_timestamp}')
-        # logger.error(f'========DOME FANS RUNNING post var_inter: {self.dome._domefansrunning_value}')
-        # if (event):
-        #     logger.error(f'========DOME FANS RUNNING post event: {event.old} -> {event.new}')
+        logger.error(f'========DOME FANS RUNNING var: {type(r)}:{r}')
+        logger.error(f'========DOME FANS RUNNING post var_time: {self.dome._domefansrunning_timestamp}')
+        logger.error(f'========DOME FANS RUNNING post var_inter: {self.dome._domefansrunning_value}')
+        if (event):
+            logger.error(f'========DOME FANS RUNNING post event: {event.old} -> {event.new}')
 
         # r = await self.dome.aget_dome_fans_running()
         if r:

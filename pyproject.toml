@@ -26,6 +26,7 @@ ctc = {git = "https://github.com/araucaria-project/ctc.git"}
 paho-mqtt = ">=1.6.1"
 scipy = ">=1.9.0"
 pyqt6 = {version="*"}
+pylint = "^4.0.4"
 
 
 [tool.poetry.scripts]
