@@ -494,6 +494,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.telescope.unsubscribe_all_component()
             self.telescope.unwatch_all_component()
             await self.stop_background_tasks(group="telescope_task")
+            # remove this telecpe object from observatory, let have fresh one next time
+            # this should fix non-calling callbacks after switching telescope few times
+            # for unchanged vlues
+            try:
+                self.observatory_model.dischard_cached_telescope(self)
+            except AttributeError:
+                logger.error('ocaboc version >= 2.3.3 needed')
 
         self.telescope = self.observatory_model.get_telescope(self.active_tel)
         self.user = self.telescope.get_access_grantor()
@@ -3090,18 +3097,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def Ventilators_update(self,event):
-        if (event):
-            logger.error(f'========DOME FANS RUNNING event: {event.type}:{event.what}:{event.name}')
-        else:
-            logger.error(f'========DOME FANS RUNNING event: None')
-        logger.error(f'========DOME FANS RUNNING pre var_time: {self.dome._domefansrunning_timestamp}')
-        logger.error(f'========DOME FANS RUNNING pre var_inter: {self.dome._domefansrunning_value}')
+        # his callback uses direct value gaet instead of asget,
+        # this was intendent way. When its confirmed, that it works seamlessly,
+        # other callbacks will be modified to use direct value get too.
+        # if (event):
+        #     logger.error(f'========DOME FANS RUNNING event: {event.type}:{event.what}:{event.name}')
+        # else:
+        #     logger.error(f'========DOME FANS RUNNING event: None')
+        # logger.error(f'========DOME FANS RUNNING pre var_time: {self.dome._domefansrunning_timestamp}')
+        # logger.error(f'========DOME FANS RUNNING pre var_inter: {self.dome._domefansrunning_value}')
         r = self.dome.domefansrunning
-        logger.error(f'========DOME FANS RUNNING var: {type(r)}:{r}')
-        logger.error(f'========DOME FANS RUNNING post var_time: {self.dome._domefansrunning_timestamp}')
-        logger.error(f'========DOME FANS RUNNING post var_inter: {self.dome._domefansrunning_value}')
-        if (event):
-            logger.error(f'========DOME FANS RUNNING post event: {event.old} -> {event.new}')
+        # logger.error(f'========DOME FANS RUNNING var: {type(r)}:{r}')
+        # logger.error(f'========DOME FANS RUNNING post var_time: {self.dome._domefansrunning_timestamp}')
+        # logger.error(f'========DOME FANS RUNNING post var_inter: {self.dome._domefansrunning_value}')
+        # if (event):
+        #     logger.error(f'========DOME FANS RUNNING post event: {event.old} -> {event.new}')
 
         # r = await self.dome.aget_dome_fans_running()
         if r:
