@@ -3378,8 +3378,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.telescope is not None:
             if self.tel_acces[self.active_tel]:
                 self.mntGui.domeAuto_c.setChecked(False)
-                await self.dome.aput_slewtoazimuth(180.)
-                await self.tic_telescopes[self.active_tel].shutdown()
+                # await self.dome.aput_slewtoazimuth(180.)
+                await self.tic_telescopes[self.active_tel].shutdown(dome_park_az=180)
                 await self.update_log(f'shutdowning', "TOI RESPONDER", self.active_tel)
             else:
                 txt = "WARNING: U don't have control"
@@ -3392,7 +3392,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.update_log(f'WEATHER STOP', "OPERATOR", self.active_tel)
         if self.telescope is not None:
             if self.tel_acces[self.active_tel]:
-                await self.tic_telescopes[self.active_tel].weather_stop()
+                await self.tic_telescopes[self.active_tel].weather_stop(dome_park_az=180)
                 await self.update_log(f'weather stopping', "TOI RESPONDER", self.active_tel)
 
             else:
