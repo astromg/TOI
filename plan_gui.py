@@ -13,8 +13,8 @@ import time
 import ephem
 import qasync as qs
 from qasync import QEventLoop
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
+from PyQtX import QtCore, QtGui
+from PyQtX.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
                              QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout,
                              QVBoxLayout, QTableWidget, QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame,
                              QComboBox, QProgressBar, QHeaderView)
@@ -28,6 +28,7 @@ from astropy.table import Table
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from pyaraucaria.coordinates import *
+from base_window import BaseWindow
 
 from toi_lib import *
 from tpg.telescope_plan_generator import TelescopePlanGenerator as tpg
@@ -35,18 +36,23 @@ from ctc import CycleTimeCalc
 
 
 
-class PlanGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def __init__(self, parent, loop: QEventLoop = None, client_api=None):
-          super().__init__(loop=loop, client_api=client_api)
+          BaseWindow.__init__(self)
+          BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
           self.subscriber_delay = 1
           self.subscriber_time_of_data_tolerance = 0.5
 
           self.parent=parent
 
 
-          #self.setStyleSheet("font-size: 11pt;")
-          self.setGeometry(self.parent.plan_geometry[0],self.parent.plan_geometry[1],self.parent.plan_geometry[2],self.parent.plan_geometry[3])
+          self.set_initial_geometry(
+              self.parent.plan_geometry[0],
+              self.parent.plan_geometry[1],
+              self.parent.plan_geometry[2],
+              self.parent.plan_geometry[3]
+          )
 
           self.table_header = ["","Object","Alt @ UT","Comment"]
           self.show_seq = False      # zmienne decydujaca o wyswietlaniu co jest w kolumnach w tabelce
@@ -1030,13 +1036,13 @@ class TPG_Worker(QtCore.QObject):
         self.plan_ready_signal.emit(p.plan)
         self.done_signal.emit()
 
-class TPGWindow(QWidget):
+class TPGWindow(BaseWindow):
     def __init__(self, parent):
         super(TPGWindow, self).__init__()
         self.parent = parent
         self.setStyleSheet("font-size: 11pt;")
+        self.set_initial_geometry(100,100,400,100)
         self.setMinimumSize(200,450)
-        #self.setGeometry(100,100,400,100)
         self.mkUI()
 
 
@@ -1168,13 +1174,13 @@ class TPGWindow(QWidget):
 # ######### OKNO WYKRESU (PHASE) ##########
 # #############################################
 
-class PhaseWindow(QWidget):
+class PhaseWindow(BaseWindow):
     def __init__(self, parent):
         super(PhaseWindow, self).__init__()
         self.parent = parent
         self.setStyleSheet("font-size: 11pt;")
+        self.set_initial_geometry(100,100,800,400)
         self.setMinimumSize(800,400)
-        #self.setGeometry(100,100,400,100)
         self.mkUI()
         try:
             self.get_object()
@@ -1344,13 +1350,13 @@ class PhaseWindow(QWidget):
 # ######### OKNO WYKRESU (PLOT PLAN) ##########
 # #############################################
 
-class PlotWindow(QWidget):
+class PlotWindow(BaseWindow):
     def __init__(self, parent):
         super(PlotWindow, self).__init__()
         self.parent = parent
         self.setStyleSheet("font-size: 11pt;")
+        self.set_initial_geometry(100,100,1800,600)
         self.setMinimumSize(1800,600)
-        #self.setGeometry(100,100,400,100)
         self.mkUI()
         self.refresh()
         self.close_p.clicked.connect(lambda: self.close())
@@ -1562,7 +1568,7 @@ class PlotWindow(QWidget):
 ###             ADD WINDOW              ###
 ###########################################
 
-class AddWindow(QWidget):
+class AddWindow(BaseWindow):
     def __init__(self, parent):
         super(AddWindow, self).__init__()
         self.setWindowTitle("ADD OB WINDOW")
@@ -1677,7 +1683,7 @@ class AddWindow(QWidget):
 # ######### OKNO EDYCJI #######################
 # #############################################
 
-class EditWindow(QWidget):
+class EditWindow(BaseWindow):
     def __init__(self, parent):
           super(EditWindow, self).__init__()
           self.setWindowTitle("EDIT WINDOW")

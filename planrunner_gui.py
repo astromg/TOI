@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QTextCursor
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QSlider, QFrame, QComboBox
+from PyQtX.QtCore import Qt
+from PyQtX.QtGui import QFont, QTextCursor
+from PyQtX import QtCore, QtGui
+from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QSlider, QFrame, QComboBox
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -12,13 +12,14 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 import numpy
 from ffs_lib.ffs import FFS
+from base_window import BaseWindow
 
-class PlanrunnerWindow(QWidget):
+class PlanrunnerWindow(BaseWindow):
     def __init__(self, parent):
         super(PlanrunnerWindow, self).__init__()
         self.parent = parent
         self.setWindowTitle('Plan Runner')
-        self.setGeometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1]+500, 400, 500)
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1]+500, 400, 500)
         self.mkUI()
         self.text = {k:"" for k in self.parent.local_cfg["toi"]["telescopes"]}
 

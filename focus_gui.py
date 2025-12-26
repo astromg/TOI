@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QComboBox, QPushButton
+from PyQtX.QtCore import Qt
+from PyQtX.QtGui import QFont
+from PyQtX import QtCore, QtGui
+from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QComboBox, QPushButton
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -12,15 +12,16 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 import numpy
 from ffs_lib.ffs import FFS
+from base_window import BaseWindow
 
 
 # ############### FOCUS ##########################
 
-class FocusWindow(QWidget):
+class FocusWindow(BaseWindow):
     def __init__(self, parent):
         super(FocusWindow, self).__init__()
         self.parent = parent
-        self.setGeometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1]+810, 900, 500)
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1]+810, 900, 500)
         self.mkUI()
         self.setWindowTitle('Focus')
         self.x = []
@@ -122,4 +123,3 @@ class FocusWindow(QWidget):
         grid.addWidget(self.autoFocus_p, w, 2, 1, 2)
 
         self.setLayout(grid)
-

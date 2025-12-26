@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
 
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QSlider, QFrame, QComboBox
+from PyQtX.QtCore import Qt
+from PyQtX.QtGui import QFont
+from PyQtX import QtCore, QtGui
+from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QSlider, QFrame, QComboBox
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+import matplotlib
 
 import numpy
 from ffs_lib.ffs import FFS
+from base_window import BaseWindow
 
-class GuiderWindow(QWidget):
+class GuiderWindow(BaseWindow):
     def __init__(self, parent):
         super(GuiderWindow, self).__init__()
         self.parent = parent
         self.setWindowTitle('Guider')
-        self.setGeometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1], 300, 300)
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1900, self.parent.obs_window_geometry[1], 300, 300)
 
         self.mkUI()
 
@@ -29,7 +31,7 @@ class GuiderWindow(QWidget):
         grid.addWidget(self.guiderView, w, 0)
         self.setLayout(grid)
 
-class GuiderView(QWidget):
+class GuiderView(BaseWindow):
     def __init__(self, parent):
         super(GuiderView, self).__init__()
         self.parent = parent
@@ -171,6 +173,3 @@ class GuiderView(QWidget):
 
             self.axes2.clear()
             self.canvas2.draw()
-
-
-

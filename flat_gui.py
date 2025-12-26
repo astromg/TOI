@@ -2,10 +2,10 @@
 
 import datetime
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QTextCursor
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
+from PyQtX.QtCore import Qt
+from PyQtX.QtGui import QFont, QTextCursor
+from PyQtX import QtCore, QtGui
+from PyQtX.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
                              QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout,
                              QVBoxLayout, QTableWidget, QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame,
                              QComboBox, QProgressBar, QHeaderView)
@@ -17,13 +17,14 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 import numpy
 from ffs_lib.ffs import FFS
+from base_window import BaseWindow
 
-class FlatWindow(QWidget):
+class FlatWindow(BaseWindow):
     def __init__(self, parent):
         super(FlatWindow, self).__init__()
         self.parent = parent
         self.setWindowTitle('Flat Log')
-        self.setGeometry(self.parent.obs_window_geometry[0] + 1940, self.parent.obs_window_geometry[1]+810, 900, 500)
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1940, self.parent.obs_window_geometry[1]+810, 900, 500)
         self.mkUI()
         self.text = {k:"" for k in self.parent.local_cfg["toi"]["telescopes"]}
 

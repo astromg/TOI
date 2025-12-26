@@ -9,28 +9,35 @@ import time
 from typing import Tuple
 
 import qasync as qs
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QCompleter, QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QSpinBox, QGridLayout, QFrame, QComboBox, QRadioButton
+from PyQtX.QtCore import Qt
+from PyQtX.QtWidgets import QCompleter, QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QSpinBox, QGridLayout, QFrame, QComboBox, QRadioButton
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQtX import QtWidgets, QtCore, QtGui
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from toi_lib import *
+from base_window import BaseWindow
 
 logger = logging.getLogger(__name__)
 
 
-class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def __init__(self, parent, loop: QEventLoop = None, client_api=None):
-        super().__init__(loop=loop, client_api=client_api)
+        BaseWindow.__init__(self)
+        BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
         self.subscriber_delay = 1
         self.subscriber_time_of_data_tolerance = 0.5
 
         self.parent = parent
-        self.setGeometry(self.parent.mnt_geometry[0],self.parent.mnt_geometry[1],self.parent.mnt_geometry[2],self.parent.mnt_geometry[3])
+        self.set_initial_geometry(
+            self.parent.mnt_geometry[0],
+            self.parent.mnt_geometry[1],
+            self.parent.mnt_geometry[2],
+            self.parent.mnt_geometry[3]
+        )
         self.updateUI()
         self.show()
         self.raise_()
@@ -728,11 +735,16 @@ class MntGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         await self.stop_background_methods()
         super().closeEvent(event)
 
-class PulseWindow(QWidget):
+class PulseWindow(BaseWindow):
     def __init__(self, parent):
         super(PulseWindow, self).__init__()
         self.parent = parent
-        #self.setGeometry(self.parent.aux_geometry[0], self.parent.aux_geometry[1], self.parent.aux_geometry[2],self.parent.aux_geometry[3])
+        self.set_initial_geometry(
+            self.parent.aux_geometry[0],
+            self.parent.aux_geometry[1],
+            self.parent.aux_geometry[2],
+            self.parent.aux_geometry[3]
+        )
         self.mkUI()
         self.sumDec_e.setText(str(self.parent.pulseDec))
         self.sumRa_e.setText(str(self.parent.pulseRa))

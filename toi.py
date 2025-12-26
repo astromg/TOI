@@ -26,7 +26,7 @@ import yaml
 from pathlib import Path
 from typing import Optional
 import qasync as qs
-from PyQt5 import QtWidgets, QtCore
+from PyQtX import QtWidgets, QtCore
 from astropy.io import fits
 from obcom.comunication.base_client_api import BaseClientAPI
 from ocaboxapi import Observatory, Telescope, AccessGrantor, Dome, Mount, CoverCalibrator, Focuser, Camera, \
@@ -494,6 +494,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.telescope.unsubscribe_all_component()
             self.telescope.unwatch_all_component()
             await self.stop_background_tasks(group="telescope_task")
+            # remove this telecpe object from observatory, let have fresh one next time
+            # this should fix non-calling callbacks after switching telescope few times
+            # for unchanged vlues
+            try:
+                self.observatory_model.dischard_cached_telescope(self.telescope)
+            except AttributeError:
+                logger.error('ocaboc version >= 2.3.3 needed')
 
         self.telescope = self.observatory_model.get_telescope(self.active_tel)
         self.user = self.telescope.get_access_grantor()
@@ -508,7 +515,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.rotator = self.telescope.get_rotator()
         self.cctv = self.telescope.get_cctv()
         self.ephemeris = self.observatory_model.get_ephemeris()
-        self.ctc = self.telescope.get_cycle_time_calculator(client_config_dict=self.client_cfg) # cycle time calculator
+        try:
+            self.ctc = self.telescope.get_cycle_time_calculator(client_config_dict=self.client_cfg) # cycle time calculator
+        except Exception as e:
+            logger.warning(f'CTC not instanted: {e}')
+            self.ctc = None
 
         # updating things before starting subsriptions
         # bo na te dzialaja subskrypcje
@@ -1495,10 +1506,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.ob[tel]["done"] = False
                         self.ob_start_time = self.time
 
-                        self.ctc.reset_time()
-                        self.ctc.set_start_rmode(self.ccd_readoutmode)
-                        self.ctc.set_telescope_start_az_alt(az=self.mount_az, alt=self.mount_alt)
                         try:
+                            self.ctc.reset_time()
+                            self.ctc.set_start_rmode(self.ccd_readoutmode)
+                            self.ctc.set_telescope_start_az_alt(az=self.mount_az, alt=self.mount_alt)
 
                             self.ctc_time = self.ctc.calc_time(self.ob[tel]["block"])
                             self.ob[tel]["slot_time"] = self.ctc_time
@@ -1508,6 +1519,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob[tel]["slot_time"] = 0.1
                         except ValueError:
                             self.ob[tel]["slot_time"] = 0.1
+                            logger.warning(f'TOI: EXCEPTION 44: {e}')
+                        except Exception as e:
+                            self.ob[tel]["slot_time"] = 0.1
+                            logger.warning(f'TOI: CTC malfunction')
                             logger.warning(f'TOI: EXCEPTION 44: {e}')
 
                         txt = self.ob[tel]["block"]
@@ -2198,7 +2213,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             hdul = fits.open(self.cfg_tel_directory + "last_shoot.fits")
             self.image = hdul[0].data
         else:
-            self.image = await self.ccd.aget_imagearray()
+            logger.warning(f'Attepmt to download image directly, no {self.cfg_tel_directory}')
+            self.image = numpy.zeros((100,100))
+            # self.image = await self.ccd.aget_imagearray()
+            # logger.warning(f'Image download finished, image= {self.image}')
         image = self.image
         image = numpy.asarray(image)
         self.fitsGui.updateImage(image)
@@ -3079,7 +3097,23 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def Ventilators_update(self,event):
-        r = await self.dome.aget_dome_fans_running()
+        # his callback uses direct value gaet instead of asget,
+        # this was intendent way. When its confirmed, that it works seamlessly,
+        # other callbacks will be modified to use direct value get too.
+        if (event):
+            logger.error(f'========DOME FANS RUNNING event: {event.type}:{event.what}:{event.name}')
+        else:
+            logger.error(f'========DOME FANS RUNNING event: None')
+        logger.error(f'========DOME FANS RUNNING pre var_time: {self.dome._domefansrunning_timestamp}')
+        logger.error(f'========DOME FANS RUNNING pre var_inter: {self.dome._domefansrunning_value}')
+        r = self.dome.domefansrunning
+        logger.error(f'========DOME FANS RUNNING var: {type(r)}:{r}')
+        logger.error(f'========DOME FANS RUNNING post var_time: {self.dome._domefansrunning_timestamp}')
+        logger.error(f'========DOME FANS RUNNING post var_inter: {self.dome._domefansrunning_value}')
+        if (event):
+            logger.error(f'========DOME FANS RUNNING post event: {event.old} -> {event.new}')
+
+        # r = await self.dome.aget_dome_fans_running()
         if r:
             self.dome_fanStatus=True
         else:
@@ -3344,8 +3378,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.telescope is not None:
             if self.tel_acces[self.active_tel]:
                 self.mntGui.domeAuto_c.setChecked(False)
-                await self.dome.aput_slewtoazimuth(180.)
-                await self.tic_telescopes[self.active_tel].shutdown()
+                # await self.dome.aput_slewtoazimuth(180.)
+                await self.tic_telescopes[self.active_tel].shutdown(dome_park_az=180)
                 await self.update_log(f'shutdowning', "TOI RESPONDER", self.active_tel)
             else:
                 txt = "WARNING: U don't have control"
@@ -3358,7 +3392,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.update_log(f'WEATHER STOP', "OPERATOR", self.active_tel)
         if self.telescope is not None:
             if self.tel_acces[self.active_tel]:
-                await self.tic_telescopes[self.active_tel].weather_stop()
+                await self.tic_telescopes[self.active_tel].weather_stop(dome_park_az=180)
                 await self.update_log(f'weather stopping', "TOI RESPONDER", self.active_tel)
 
             else:
@@ -3877,6 +3911,13 @@ async def run_qt_app():
 
 
 def main():
+    # Force xcb on Linux if Wayland is detected to allow window positioning
+    if sys.platform == 'linux':
+        if os.environ.get("XDG_SESSION_TYPE") == "wayland":
+            if "QT_QPA_PLATFORM" not in os.environ:
+                os.environ["QT_QPA_PLATFORM"] = "xcb"
+                logger.info("Wayland detected. Forcing QT_QPA_PLATFORM=xcb for correct window positioning.")
+
     try:
         qs.run(run_qt_app())
     except asyncio.exceptions.CancelledError:
