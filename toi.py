@@ -498,7 +498,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             # this should fix non-calling callbacks after switching telescope few times
             # for unchanged vlues
             try:
-                self.observatory_model.dischard_cached_telescope(self)
+                self.observatory_model.dischard_cached_telescope(self.telescope)
             except AttributeError:
                 logger.error('ocaboc version >= 2.3.3 needed')
 
