@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
 
 import qasync as qs
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QRadioButton, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
+from PyQtX.QtCore import Qt
+from PyQtX.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QRadioButton, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
 from qasync import QEventLoop
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
+from base_window import BaseWindow
 
-class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
       def __init__(self, parent, loop: QEventLoop = None, client_api=None):
-          super().__init__(loop=loop, client_api=client_api)
+          BaseWindow.__init__(self)
+          BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
           self.subscriber_delay = 1
           self.subscriber_time_of_data_tolerance = 0.5
 
           self.parent = parent
           self.setStyleSheet("font-size: 11pt;")
-          self.setGeometry(self.parent.instrument_geometry[0],self.parent.instrument_geometry[1],self.parent.instrument_geometry[2],self.parent.instrument_geometry[3])
+          self.set_initial_geometry(
+              self.parent.instrument_geometry[0],
+              self.parent.instrument_geometry[1],
+              self.parent.instrument_geometry[2],
+              self.parent.instrument_geometry[3]
+          )
           self.updateUI()
           self.show()
           self.raise_()
@@ -63,9 +70,10 @@ class InstrumentGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
           super().closeEvent(event)
 
 
-class CCDGui(QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+class CCDGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
       def __init__(self, parent, loop: QEventLoop = None, client_api=None):
-          super().__init__(loop=loop, client_api=client_api)
+          BaseWindow.__init__(self)
+          BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
 
           self.parent=parent
           self.mkUI()

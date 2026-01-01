@@ -144,3 +144,4 @@ ob/configuration/*
 # poetry 
 poetry.lock
 
+.aider*

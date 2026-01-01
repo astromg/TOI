@@ -2,9 +2,9 @@
 
 import os.path
 import qasync as qs
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
+from PyQtX import QtCore, QtGui
+from PyQtX.QtCore import Qt
+from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
     QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -12,20 +12,36 @@ from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
+from base_window import BaseWindow
 from toi_lib import *
 
 
 class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     def __init__(self, parent, loop: QEventLoop = None, client_api=None):
-        super().__init__(loop=loop, client_api=client_api)
+        QMainWindow.__init__(self)
+        BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
         self.parent = parent
+        self._geometry = None
         self.setWindowTitle('Telescope Operator Interface')
         self.main_form = MainForm(self.parent)
         self.setCentralWidget(self.main_form)
-        self.move(self.parent.obs_window_geometry[0], self.parent.obs_window_geometry[1])
-        self.resize(self.parent.obs_window_geometry[2], self.parent.obs_window_geometry[3])
+        self.set_initial_geometry(
+            self.parent.obs_window_geometry[0],
+            self.parent.obs_window_geometry[1],
+            self.parent.obs_window_geometry[2],
+            self.parent.obs_window_geometry[3]
+        )
         self.show()
         self.raise_()
+
+    def set_initial_geometry(self, x, y, width, height):
+        self._geometry = (x, y, width, height)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self._geometry:
+            self.setGeometry(*self._geometry)
+            self._geometry = None
 
     async def on_start_app(self):
         await self.run_background_tasks()
@@ -428,11 +444,11 @@ class MainForm(QWidget):
 
 # ############### FOCUS ##########################
 
-class ReportWindow(QWidget):
+class ReportWindow(BaseWindow):
     def __init__(self, parent):
         super(ReportWindow, self).__init__()
         self.parent = parent
-        self.setGeometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 500, 500)
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 500, 500)
         self.mkUI()
         self.setWindowTitle('Report')
 

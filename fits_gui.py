@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import time
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit
+from PyQtX.QtCore import Qt
+from PyQtX.QtGui import QFont
+from PyQtX import QtCore, QtGui
+from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -13,17 +13,18 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 import numpy
 from ffs_lib.ffs import FFS
 from toi_lib import *
+from base_window import BaseWindow
 
 
   # ######### Fits GUI #############
 
-class FitsWindow(QWidget):
+class FitsWindow(BaseWindow):
     def __init__(self, parent):
-        QWidget.__init__(self)
+        super().__init__()
         self.parent = parent
         self.setWindowTitle('Fits')
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1], 1000, 700)
         self.mkUI()
-        self.setGeometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1], 1000, 700)
         self.colorbar = None
         self.image=[]
         self.coo = []
@@ -46,7 +47,7 @@ class FitsWindow(QWidget):
     def plot_image(self):
         self.axes.clear()
         self.axes.axis("off")
-        if len(self.image)>0:
+        if self.image is not None and len(self.image)>0:
 
             vmin = numpy.mean(self.image) - 1 * numpy.std(self.image)
             vmax = numpy.mean(self.image) + 1 * numpy.std(self.image)

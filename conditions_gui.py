@@ -2,10 +2,10 @@
 from datetime import datetime
 
 import ephem
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QComboBox, QPushButton
+from PyQtX.QtCore import Qt
+from PyQtX.QtGui import QFont
+from PyQtX import QtCore, QtGui
+from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QComboBox, QPushButton
 
 from matplotlib.figure import Figure
 from matplotlib.dates import date2num
@@ -14,15 +14,16 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 import numpy
 from ffs_lib.ffs import FFS
+from base_window import BaseWindow
 
 
 # ############### FOCUS ##########################
 
-class ConditionsWindow(QWidget):
+class ConditionsWindow(BaseWindow):
     def __init__(self, parent):
         super(ConditionsWindow, self).__init__()
         self.parent = parent
-        self.setGeometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 1300, 1000)
+        self.set_initial_geometry(self.parent.obs_window_geometry[0] + 200, self.parent.obs_window_geometry[1]+100, 1300, 1000)
         self.mkUI()
         self.setWindowTitle('Conditions')
 

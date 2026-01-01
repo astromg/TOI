@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from asyncio import Task
 from dataclasses import dataclass
 from typing import List, Coroutine, Dict
-from PyQt5.QtGui import QStandardItem
+from PyQtX.QtGui import QStandardItem
 from obcom.comunication.base_client_api import BaseClientAPI
 from obcom.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 from obcom.comunication.cycle_query import BaseCycleQuery
