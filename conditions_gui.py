@@ -155,7 +155,7 @@ class ConditionsWindow(BaseWindow):
             today_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['today']))
             color = {'V': 'green', 'B': 'blue', 'Ic': 'red'}
             s = 30
-            linewidths=3
+            linewidths=2
             try:
                 for t in self.parent.fits_photo_z0_data.keys():
                     val_td = []
