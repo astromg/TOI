@@ -24,7 +24,7 @@ import numpy
 import requests
 import yaml
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 import qasync as qs
 from PyQtX import QtWidgets, QtCore
 from astropy.io import fits
@@ -309,13 +309,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 778b: {e}')
 
+    @staticmethod
+    def time_ranges(break_hour_utc: int = 17) -> Dict[str, datetime.datetime]:
+        time_now = datetime.datetime.now(datetime.timezone.utc)
+        if time_now.hour >= break_hour_utc:
+            today_range = time_now.replace(hour=break_hour_utc)
+        else:
+            day_back = time_now - datetime.timedelta(days=1)
+            today_range = day_back.replace(hour=break_hour_utc)
+        return {
+            'today': today_range,
+            'yesterday': today_range - datetime.timedelta(days=1)
+        }
+
     async def nats_photo_zo_reader(self,tel):
+        tim_range_max = self.time_ranges()
         try:
-            tim = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=14)
             r = get_reader(
                 f'tic.status.{tel}.zero_monitor.lc',
                 deliver_policy='by_start_time',
-                opt_start_time=tim
+                opt_start_time=tim_range_max['yesterday']
             )
             async for data, meta in r:
                 self.fits_photo_z0_data[tel].append(data)

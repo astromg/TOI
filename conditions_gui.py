@@ -15,6 +15,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 import numpy
 from ffs_lib.ffs import FFS
 from base_window import BaseWindow
+from pyaraucaria.date import datetime_to_julian, get_oca_jd
 
 
 # ############### FOCUS ##########################
@@ -150,18 +151,32 @@ class ConditionsWindow(BaseWindow):
             #         y = y[mk]
             #         x = x + 1
             #         self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
-
+            tim_ranges = self.parent.time_ranges()
+            today_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['today']))
             try:
                 for t in self.parent.fits_photo_z0_data.keys():
-                    val = []
-                    dat = []
+                    val_today = []
+                    dat_today = []
+                    filter_today = []
+                    val_yesterday = []
+                    dat_yesterday = []
+                    filter_yesterday = []
                     for x in self.parent.fits_photo_z0_data[t]:
-                        val.append(x["zero_value"])
-                        filter_ = x["filter"]
-                        # mode = x["mode"]
-                        dat.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
+                        if x["oca_jd"] >= today_oca_jd:
+                            val_today.append(x["zero_value"])
+                            filter_today.append(x["filter"])
+                            # mode = x["mode"]
+                            dat_today.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
+                        else:
+                            val_yesterday.append(x["zero_value"])
+                            filter_yesterday.append(x["filter"])
+                            # mode = x["mode"]
+                            dat_yesterday.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
                     self.ax2.scatter(
-                        dat, val, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.7, label=t
+                        dat_today, val_today, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.9, label=t
+                    )
+                    self.ax2.scatter(
+                        dat_yesterday, val_yesterday, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3, label=t
                     )
                         # for k in points.keys():
                         #     if k not in self.z0_time[t]:
