@@ -153,6 +153,7 @@ class ConditionsWindow(BaseWindow):
             #         self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
             tim_ranges = self.parent.time_ranges()
             today_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['today']))
+            yesterday_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['yesterday']))
             color = {'V': 'green', 'B': 'blue', 'Ic': 'red'}
             s = 30
             linewidths=2
@@ -169,10 +170,12 @@ class ConditionsWindow(BaseWindow):
                             val_td.append(x["zero_value"])
                             filter_td.append(color[x["filter"]])
                             dat_td.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
-                        else:
+                        if today_oca_jd > x["oca_jd"] >= yesterday_oca_jd:
                             val_yd.append(x["zero_value"])
                             filter_yd.append(color[x["filter"]])
                             dat_yd.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
+                        else:
+                            pass
                     self.ax2.scatter(
                         dat_td, val_td, edgecolor=filter_td, alpha=0.8,
                         facecolors="none", linewidths=linewidths, s=s
