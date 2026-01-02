@@ -159,7 +159,7 @@ class ConditionsWindow(BaseWindow):
                         # mode = x["mode"]
                         oca_jd = x["oca_jd"] - numpy.floor(x["oca_jd"])
                         self.ax2.scatter(
-                            oca_jd, zero_value, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3
+                            oca_jd, zero_value, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.7, label=t
                         )
                         # for k in points.keys():
                         #     if k not in self.z0_time[t]:
