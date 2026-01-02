@@ -174,12 +174,11 @@ class ConditionsWindow(BaseWindow):
                             filter_yd.append(color[x["filter"]])
                             dat_yd.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
                     self.ax2.scatter(
-                        dat_td, val_td, edgecolor=filter_td, alpha=0.8, label=t,
+                        dat_td, val_td, edgecolor=filter_td, alpha=0.8,
                         facecolors="none", linewidths=linewidths, s=s
                     )
                     self.ax2.scatter(
-                        dat_td, val_td, c=self.parent.nats_cfg[t]['color'], alpha=0.7,
-                        s=s
+                        dat_td, val_td, c=self.parent.nats_cfg[t]['color'], alpha=0.7, label=t, s=s
                     )
                     self.ax2.scatter(
                         dat_yd, val_yd, edgecolor=filter_td, alpha=0.3,
