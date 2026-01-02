@@ -182,7 +182,7 @@ class ConditionsWindow(BaseWindow):
                         s=s
                     )
                     self.ax2.scatter(
-                        dat_yd, val_yd, edgecolor=filter_td, alpha=0.3, label=t,
+                        dat_yd, val_yd, edgecolor=filter_td, alpha=0.3,
                         facecolors="none", linewidths=linewidths, s=s
                     )
                     self.ax2.scatter(
