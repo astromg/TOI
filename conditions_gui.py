@@ -6,7 +6,7 @@ from PyQtX.QtCore import Qt
 from PyQtX.QtGui import QFont
 from PyQtX import QtCore, QtGui
 from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QComboBox, QPushButton
-
+import copy
 from matplotlib.figure import Figure
 from matplotlib.dates import date2num
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -37,8 +37,9 @@ class ConditionsWindow(BaseWindow):
         self.update()
 
     def update(self):
-        self.z0 = {t:[] for t in self.parent.fits_photo_z0_data.keys()}
-        self.z0_time = {t: [] for t in self.parent.fits_photo_z0_data.keys()}
+        fits_photo_z0_data_copy = copy.deepcopy(self.parent.fits_photo_z0_data)
+        self.z0 = {t:[] for t in fits_photo_z0_data_copy.keys()}
+        self.z0_time = {t: [] for t in fits_photo_z0_data_copy.keys()}
 
         self.fwhm = {t:[] for t in self.parent.fits_ffs_data.keys()}
         self.time = {t: [] for t in self.parent.fits_ffs_data.keys()}
@@ -158,14 +159,14 @@ class ConditionsWindow(BaseWindow):
             s = 30
             linewidths=2
             try:
-                for t in self.parent.fits_photo_z0_data.keys():
+                for t in fits_photo_z0_data_copy.keys():
                     val_td = []
                     filter_td = []
                     dat_td = []
                     val_yd = []
                     filter_yd = []
                     dat_yd = []
-                    for x in self.parent.fits_photo_z0_data[t]:
+                    for x in fits_photo_z0_data_copy[t]:
                         if x["oca_jd"] >= today_oca_jd:
                             val_td.append(x["zero_value"])
                             filter_td.append(color[x["filter"]])
