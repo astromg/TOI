@@ -178,17 +178,17 @@ class ConditionsWindow(BaseWindow):
                             pass
                     self.ax2.scatter(
                         dat_td, val_td, edgecolor=filter_td, alpha=0.8,
-                        facecolors="none", linewidths=linewidths, s=s
+                        facecolors="none", linewidths=linewidths, s=s + 2 * linewidths
                     )
                     self.ax2.scatter(
                         dat_td, val_td, c=self.parent.nats_cfg[t]['color'], alpha=0.7, label=t, s=s
                     )
                     self.ax2.scatter(
-                        dat_yd, val_yd, edgecolor=filter_td, alpha=0.3,
+                        dat_yd, val_yd, edgecolor=filter_td, alpha=0.1,
                         facecolors="none", linewidths=linewidths, s=s
                     )
                     self.ax2.scatter(
-                        dat_yd, val_yd, c=self.parent.nats_cfg[t]['color'], alpha=0.2,
+                        dat_yd, val_yd, c=self.parent.nats_cfg[t]['color'], alpha=0.1,
                         s=s
                     )
                         # for k in points.keys():
