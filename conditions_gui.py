@@ -154,7 +154,7 @@ class ConditionsWindow(BaseWindow):
             tim_ranges = self.parent.time_ranges()
             today_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['today']))
             color = {'V': 'green', 'B': 'blue', 'Ic': 'red'}
-            s = 20
+            s = 30
             linewidths=3
             try:
                 for t in self.parent.fits_photo_z0_data.keys():
@@ -174,7 +174,7 @@ class ConditionsWindow(BaseWindow):
                             filter_yd.append(color[x["filter"]])
                             dat_yd.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
                     self.ax2.scatter(
-                        dat_td, val_td, edgecolor=filter_td, alpha=0.9, label=t,
+                        dat_td, val_td, edgecolor=filter_td, alpha=0.8, label=t,
                         facecolors="none", linewidths=linewidths, s=s
                     )
                     self.ax2.scatter(
