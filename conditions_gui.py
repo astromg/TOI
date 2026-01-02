@@ -153,30 +153,39 @@ class ConditionsWindow(BaseWindow):
             #         self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
             tim_ranges = self.parent.time_ranges()
             today_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['today']))
+            color = {'V': 'green', 'B': 'blue', 'Ic': 'red'}
             try:
                 for t in self.parent.fits_photo_z0_data.keys():
-                    val_today = []
-                    dat_today = []
-                    filter_today = []
-                    val_yesterday = []
-                    dat_yesterday = []
-                    filter_yesterday = []
+                    val_td = []
+                    filter_td = []
+                    dat_td = []
+                    val_yd = []
+                    filter_yd = []
+                    dat_yd = []
                     for x in self.parent.fits_photo_z0_data[t]:
                         if x["oca_jd"] >= today_oca_jd:
-                            val_today.append(x["zero_value"])
-                            filter_today.append(x["filter"])
-                            # mode = x["mode"]
-                            dat_today.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
+                            val_td.append(x["zero_value"])
+                            filter_td.append(color[x["filter"]])
+                            dat_td.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
                         else:
-                            val_yesterday.append(x["zero_value"])
-                            filter_yesterday.append(x["filter"])
-                            # mode = x["mode"]
-                            dat_yesterday.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
+                            val_yd.append(x["zero_value"])
+                            filter_yd.append(color[x["filter"]])
+                            dat_yd.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
                     self.ax2.scatter(
-                        dat_today, val_today, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.9, label=t
+                        dat_td, val_td, edgecolor=filter_td, alpha=0.9, label=t,
+                        facecolors="none", linewidths=1.5, s=10
                     )
                     self.ax2.scatter(
-                        dat_yesterday, val_yesterday, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3, label=t
+                        dat_td, val_td, c=self.parent.nats_cfg[t]['color'], alpha=0.7,
+                        s=10
+                    )
+                    self.ax2.scatter(
+                        dat_yd, val_yd, edgecolor=filter_td, alpha=0.3, label=t,
+                        facecolors="none", linewidths=1.5, s=10
+                    )
+                    self.ax2.scatter(
+                        dat_yd, val_yd, c=self.parent.nats_cfg[t]['color'], alpha=0.2,
+                        s=10
                     )
                         # for k in points.keys():
                         #     if k not in self.z0_time[t]:
