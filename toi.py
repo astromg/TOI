@@ -311,8 +311,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_photo_zo_reader(self,tel):
         try:
-            time = datetime.datetime.now() - datetime.timedelta(hours=24)
-            r = get_reader(f'tic.status.{tel}.zero_monitor',  deliver_policy='by_start_time',opt_start_time=time)
+            time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24)
+            r = get_reader(
+                f'tic.status.{tel}.zero_monitor.lc',
+                deliver_policy='by_start_time',
+                opt_start_time=time
+            )
             async for data, meta in r:
                 self.fits_photo_z0_data[tel].append(data)
                 #self.conditionsGui.update()

@@ -121,29 +121,59 @@ class ConditionsWindow(BaseWindow):
             self.ax1.set_ylabel("fwhm [arcsec]")
 
             # zero point
+            # {
+            #     'filter': filter_,
+            #     'zero_value': zero_value,
+            #     'oca_jd': oca_jd,
+            #     'mode': mode,
+            # }
+            # try:
+            #     for t in self.parent.fits_photo_z0_data.keys():
+            #         for x in self.parent.fits_photo_z0_data[t]:
+            #             points = x["points"]
+            #             for k in points.keys():
+            #                 if k not in self.z0_time[t]:
+            #                     self.z0[t].append(points[k]["zero_to_predict_value"])
+            #                     self.z0_time[t].append(k)
+            #
+            #     for t in self.parent.fits_photo_z0_data.keys():
+            #         x = [ ephem.julian_date(ephem.Date(str(q).replace("T"," ").replace("-","/"))) for q in self.z0_time[t]]
+            #         y = self.z0[t]
+            #
+            #         x = numpy.array(x)
+            #         y = numpy.array(y)
+            #
+            #         self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=1, s=100, label=t)
+            #
+            #         mk = x < x0
+            #         x = x[mk]
+            #         y = y[mk]
+            #         x = x + 1
+            #         self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
+
             try:
-                for t in self.parent.fits_photo_z0_data.keys():
-                    for x in self.parent.fits_photo_z0_data[t]:
-                        points = x["points"]
-                        for k in points.keys():
-                            if k not in self.z0_time[t]:
-                                self.z0[t].append(points[k]["zero_to_predict_value"])
-                                self.z0_time[t].append(k)
-
-                for t in self.parent.fits_photo_z0_data.keys():
-                    x = [ ephem.julian_date(ephem.Date(str(q).replace("T"," ").replace("-","/"))) for q in self.z0_time[t]]
-                    y = self.z0[t]
-
-                    x = numpy.array(x)
-                    y = numpy.array(y)
-
-                    self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=1, s=100, label=t)
-
-                    mk = x < x0
-                    x = x[mk]
-                    y = y[mk]
-                    x = x + 1
-                    self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
+                # for t in self.parent.fits_photo_z0_data.keys():
+                #     for x in self.parent.fits_photo_z0_data[t]:
+                #         points = x["points"]
+                #         for k in points.keys():
+                #             if k not in self.z0_time[t]:
+                #                 self.z0[t].append(points[k]["zero_to_predict_value"])
+                #                 self.z0_time[t].append(k)
+                #
+                # for t in self.parent.fits_photo_z0_data.keys():
+                #     x = [ ephem.julian_date(ephem.Date(str(q).replace("T"," ").replace("-","/"))) for q in self.z0_time[t]]
+                #     y = self.z0[t]
+                #
+                #     x = numpy.array(x)
+                #     y = numpy.array(y)
+                #
+                #     self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=1, s=100, label=t)
+                #
+                #     mk = x < x0
+                #     x = x[mk]
+                #     y = y[mk]
+                #     x = x + 1
+                #     self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
 
                 xtics = []
                 t =  ephem.Date(x0)
