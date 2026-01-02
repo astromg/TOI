@@ -152,13 +152,15 @@ class ConditionsWindow(BaseWindow):
             #         self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
 
             try:
-                # for t in self.parent.fits_photo_z0_data.keys():
-                #     for x in self.parent.fits_photo_z0_data[t]:
-                #         points = x["points"]
-                #         for k in points.keys():
-                #             if k not in self.z0_time[t]:
-                #                 self.z0[t].append(points[k]["zero_to_predict_value"])
-                #                 self.z0_time[t].append(k)
+                for t in self.parent.fits_photo_z0_data.keys():
+                    for x in self.parent.fits_photo_z0_data[t]:
+                        zero_value = x["zero_value"]
+                        oca_jd = x["oca_jd"]
+                        self.ax2.scatter(oca_jd, zero_value, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
+                        # for k in points.keys():
+                        #     if k not in self.z0_time[t]:
+                        #         self.z0[t].append(points[k]["zero_to_predict_value"])
+                        #         self.z0_time[t].append(k)
                 #
                 # for t in self.parent.fits_photo_z0_data.keys():
                 #     x = [ ephem.julian_date(ephem.Date(str(q).replace("T"," ").replace("-","/"))) for q in self.z0_time[t]]
@@ -175,17 +177,17 @@ class ConditionsWindow(BaseWindow):
                 #     x = x + 1
                 #     self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
 
-                xtics = []
-                t =  ephem.Date(x0)
-                while t < ephem.Date(x1):
-                    t = ephem.Date(t) + ephem.hour
-                    h = str(ephem.Date(t)).split()
-                    xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
-                xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
-                self.ax2.set_xticks(xtics)
-                self.ax2.set_xticklabels(xtics_labels,rotation=45,minor=False)
-
-                self.ax2.set_xlim(x0,x1)
+                # xtics = []
+                # t =  ephem.Date(x0)
+                # while t < ephem.Date(x1):
+                #     t = ephem.Date(t) + ephem.hour
+                #     h = str(ephem.Date(t)).split()
+                #     xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
+                # xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
+                # self.ax2.set_xticks(xtics)
+                # self.ax2.set_xticklabels(xtics_labels,rotation=45,minor=False)
+                #
+                # self.ax2.set_xlim(x0,x1)
                 #self.ax1.set_ylim(0,5)
                 self.ax2.legend()
                 self.ax2.set_xlabel("UT")
