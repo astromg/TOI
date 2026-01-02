@@ -155,8 +155,12 @@ class ConditionsWindow(BaseWindow):
                 for t in self.parent.fits_photo_z0_data.keys():
                     for x in self.parent.fits_photo_z0_data[t]:
                         zero_value = x["zero_value"]
-                        oca_jd = x["oca_jd"]
-                        self.ax2.scatter(oca_jd, zero_value, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
+                        filter_ = x["filter"]
+                        # mode = x["mode"]
+                        oca_jd = x["oca_jd"] - numpy.floor(x["oca_jd"])
+                        self.ax2.scatter(
+                            oca_jd, zero_value, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3
+                        )
                         # for k in points.keys():
                         #     if k not in self.z0_time[t]:
                         #         self.z0[t].append(points[k]["zero_to_predict_value"])
