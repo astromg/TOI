@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-from datetime import datetime
+import datetime
 
 import ephem
 from PyQtX.QtCore import Qt
 from PyQtX.QtGui import QFont
 from PyQtX import QtCore, QtGui
 from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QComboBox, QPushButton
-
+import copy
 from matplotlib.figure import Figure
 from matplotlib.dates import date2num
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -15,6 +15,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 import numpy
 from ffs_lib.ffs import FFS
 from base_window import BaseWindow
+from pyaraucaria.date import datetime_to_julian, get_oca_jd
 
 
 # ############### FOCUS ##########################
@@ -36,8 +37,9 @@ class ConditionsWindow(BaseWindow):
         self.update()
 
     def update(self):
-        self.z0 = {t:[] for t in self.parent.fits_photo_z0_data.keys()}
-        self.z0_time = {t: [] for t in self.parent.fits_photo_z0_data.keys()}
+        fits_photo_z0_data_copy = copy.deepcopy(self.parent.fits_photo_z0_data)
+        self.z0 = {t:[] for t in fits_photo_z0_data_copy.keys()}
+        self.z0_time = {t: [] for t in fits_photo_z0_data_copy.keys()}
 
         self.fwhm = {t:[] for t in self.parent.fits_ffs_data.keys()}
         self.time = {t: [] for t in self.parent.fits_ffs_data.keys()}
@@ -150,50 +152,68 @@ class ConditionsWindow(BaseWindow):
             #         y = y[mk]
             #         x = x + 1
             #         self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
+            tim_ranges = self.parent.time_ranges()
+            today_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['today']))
+            yesterday_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['yesterday']))
+            color = {'V': 'green', 'B': 'blue', 'Ic': 'red'}
 
             try:
-                for t in self.parent.fits_photo_z0_data.keys():
-                    val = []
-                    dat = []
-                    for x in self.parent.fits_photo_z0_data[t]:
-                        val.append(x["zero_value"])
-                        filter_ = x["filter"]
-                        # mode = x["mode"]
-                        dat.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
+                for t in fits_photo_z0_data_copy.keys():
+                    val_td = []
+                    filter_td = []
+                    dat_td = []
+                    val_yd = []
+                    filter_yd = []
+                    dat_yd = []
+                    for x in fits_photo_z0_data_copy[t]:
+                        if x["oca_jd"] >= today_oca_jd:
+                            val_td.append(x["zero_value"])
+                            filter_td.append(color[x["filter"]])
+                            dat_td.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
+                        if today_oca_jd > x["oca_jd"] >= yesterday_oca_jd:
+                            val_yd.append(x["zero_value"])
+                            filter_yd.append(color[x["filter"]])
+                            dat_yd.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
+                        else:
+                            pass
                     self.ax2.scatter(
-                        dat, val, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.7, label=t
+                        dat_td, val_td, edgecolor=filter_td, alpha=0.8,
+                        facecolors="none", linewidths=1, s=30
                     )
-                        # for k in points.keys():
-                        #     if k not in self.z0_time[t]:
-                        #         self.z0[t].append(points[k]["zero_to_predict_value"])
-                        #         self.z0_time[t].append(k)
-                #
-                # for t in self.parent.fits_photo_z0_data.keys():
-                #     x = [ ephem.julian_date(ephem.Date(str(q).replace("T"," ").replace("-","/"))) for q in self.z0_time[t]]
-                #     y = self.z0[t]
-                #
-                #     x = numpy.array(x)
-                #     y = numpy.array(y)
-                #
-                #     self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=1, s=100, label=t)
-                #
-                #     mk = x < x0
-                #     x = x[mk]
-                #     y = y[mk]
-                #     x = x + 1
-                #     self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
+                    self.ax2.scatter(
+                        dat_td, val_td, c=self.parent.nats_cfg[t]['color'], alpha=0.7, label=t, s=13
+                    )
+                    self.ax2.scatter(
+                        dat_yd, val_yd, edgecolor=filter_td, alpha=0.1,
+                        facecolors="none", linewidths=1, s=30
+                    )
+                    self.ax2.scatter(
+                        dat_yd, val_yd, c=self.parent.nats_cfg[t]['color'], alpha=0.1, s=13
+                    )
+                    self.ax2.axhline(
+                        y=0,
+                        color="black",
+                        linewidth=0.5
+                    )
+                    self.ax2.axhline(
+                        y=-0.1,
+                        color="orange",
+                        linestyle="--",
+                        linewidth=1
+                    )
 
-                # xtics = []
-                # t =  ephem.Date(x0)
-                # while t < ephem.Date(x1):
-                #     t = ephem.Date(t) + ephem.hour
-                #     h = str(ephem.Date(t)).split()
-                #     xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
-                # xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
-                # self.ax2.set_xticks(xtics)
-                # self.ax2.set_xticklabels(xtics_labels,rotation=45,minor=False)
-                #
-                # self.ax2.set_xlim(x0,x1)
+                x0 = 0.5
+                x1 = 0.8958
+                xtics = []
+                t = ephem.Date(x0)
+                while t < ephem.Date(x1):
+                    t = ephem.Date(t) + ephem.hour
+                    h = str(ephem.Date(t)).split()
+                    xtics.append(ephem.Date(h[0] + " " + h[1].split(":")[0] + ":00:00"))
+                xtics_labels = [str(x).split()[1].split(":")[0] + ":" + str(x).split()[1].split(":")[1] for x in xtics]
+                self.ax2.set_xticks(xtics)
+                self.ax2.set_xticklabels(xtics_labels, rotation=45, minor=False)
+                self.ax2.set_xlim(x0, x1)
                 #self.ax1.set_ylim(0,5)
                 self.ax2.legend()
                 self.ax2.set_xlabel("UT")
