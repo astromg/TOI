@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from datetime import datetime
+import datetime
 
 import ephem
 from PyQtX.QtCore import Qt
@@ -156,8 +156,7 @@ class ConditionsWindow(BaseWindow):
             today_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['today']))
             yesterday_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['yesterday']))
             color = {'V': 'green', 'B': 'blue', 'Ic': 'red'}
-            s = 30
-            linewidths=2
+
             try:
                 for t in fits_photo_z0_data_copy.keys():
                     val_td = []
@@ -179,62 +178,32 @@ class ConditionsWindow(BaseWindow):
                             pass
                     self.ax2.scatter(
                         dat_td, val_td, edgecolor=filter_td, alpha=0.8,
-                        facecolors="none", linewidths=linewidths, s=s + 4 * linewidths
+                        facecolors="none", linewidths=1, s=30
                     )
                     self.ax2.scatter(
-                        dat_td, val_td, c=self.parent.nats_cfg[t]['color'], alpha=0.7, label=t, s=s
+                        dat_td, val_td, c=self.parent.nats_cfg[t]['color'], alpha=0.7, label=t, s=13
                     )
                     self.ax2.scatter(
                         dat_yd, val_yd, edgecolor=filter_td, alpha=0.1,
-                        facecolors="none", linewidths=linewidths, s=s
+                        facecolors="none", linewidths=1, s=30
                     )
                     self.ax2.scatter(
-                        dat_yd, val_yd, c=self.parent.nats_cfg[t]['color'], alpha=0.1,
-                        s=s
+                        dat_yd, val_yd, c=self.parent.nats_cfg[t]['color'], alpha=0.1, s=13
                     )
                     self.ax2.axhline(
                         y=0,
                         color="black",
-                        linewidth=1
+                        linewidth=0.5
                     )
                     self.ax2.axhline(
                         y=-0.1,
                         color="orange",
                         linestyle="--",
-                        linewidth=2
+                        linewidth=1
                     )
-                        # for k in points.keys():
-                        #     if k not in self.z0_time[t]:
-                        #         self.z0[t].append(points[k]["zero_to_predict_value"])
-                        #         self.z0_time[t].append(k)
-                #
-                # for t in self.parent.fits_photo_z0_data.keys():
-                #     x = [ ephem.julian_date(ephem.Date(str(q).replace("T"," ").replace("-","/"))) for q in self.z0_time[t]]
-                #     y = self.z0[t]
-                #
-                #     x = numpy.array(x)
-                #     y = numpy.array(y)
-                #
-                #     self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=1, s=100, label=t)
-                #
-                #     mk = x < x0
-                #     x = x[mk]
-                #     y = y[mk]
-                #     x = x + 1
-                #     self.ax2.scatter(x, y, marker="o", color=self.parent.nats_cfg[t]['color'], alpha=0.3)
 
-                # xtics = []
-                # t =  ephem.Date(x0)
-                # while t < ephem.Date(x1):
-                #     t = ephem.Date(t) + ephem.hour
-                #     h = str(ephem.Date(t)).split()
-                #     xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
-                # xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
-                # self.ax2.set_xticks(xtics)
-                # self.ax2.set_xticklabels(xtics_labels,rotation=45,minor=False)
-                #
-                x0 = float(str(self.parent.jd).split(".")[0]) + 0.5
-                x1 = x0 + 0.4
+                x0 = 0.5
+                x1 = 0.8958
                 xtics = []
                 t = ephem.Date(x0)
                 while t < ephem.Date(x1):
@@ -244,7 +213,7 @@ class ConditionsWindow(BaseWindow):
                 xtics_labels = [str(x).split()[1].split(":")[0] + ":" + str(x).split()[1].split(":")[1] for x in xtics]
                 self.ax2.set_xticks(xtics)
                 self.ax2.set_xticklabels(xtics_labels, rotation=45, minor=False)
-                self.ax2.set_xlim(x0,x1)
+                self.ax2.set_xlim(x0, x1)
                 #self.ax1.set_ylim(0,5)
                 self.ax2.legend()
                 self.ax2.set_xlabel("UT")

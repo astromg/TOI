@@ -3873,6 +3873,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 async def run_qt_app():
+
     # added KeyboardInterrupt to loop let close application by ctrl+c in console
     def ask_exit():
         raise KeyboardInterrupt
@@ -3915,8 +3916,8 @@ async def run_qt_app():
             functools.partial(close_future, future, loop)
         )
 
-
     toi = TOI(loop=loop, observatory_model=observatory_model, client_api=api, local_cfg=local_cfg, app=app)
+
     await toi.on_start_app()
     await future
     await msg.close()
