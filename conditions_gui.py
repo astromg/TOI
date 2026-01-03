@@ -179,7 +179,7 @@ class ConditionsWindow(BaseWindow):
                             pass
                     self.ax2.scatter(
                         dat_td, val_td, edgecolor=filter_td, alpha=0.8,
-                        facecolors="none", linewidths=linewidths, s=s + 2 * linewidths
+                        facecolors="none", linewidths=linewidths, s=s + 4 * linewidths
                     )
                     self.ax2.scatter(
                         dat_td, val_td, c=self.parent.nats_cfg[t]['color'], alpha=0.7, label=t, s=s
@@ -191,6 +191,17 @@ class ConditionsWindow(BaseWindow):
                     self.ax2.scatter(
                         dat_yd, val_yd, c=self.parent.nats_cfg[t]['color'], alpha=0.1,
                         s=s
+                    )
+                    self.ax2.axhline(
+                        y=0,
+                        color="black",
+                        linewidth=1
+                    )
+                    self.ax2.axhline(
+                        y=-0.1,
+                        color="orange",
+                        linestyle="--",
+                        linewidth=2
                     )
                         # for k in points.keys():
                         #     if k not in self.z0_time[t]:
@@ -222,7 +233,18 @@ class ConditionsWindow(BaseWindow):
                 # self.ax2.set_xticks(xtics)
                 # self.ax2.set_xticklabels(xtics_labels,rotation=45,minor=False)
                 #
-                # self.ax2.set_xlim(x0,x1)
+                x0 = float(str(self.parent.jd).split(".")[0]) + 0.5
+                x1 = x0 + 0.4
+                xtics = []
+                t = ephem.Date(x0)
+                while t < ephem.Date(x1):
+                    t = ephem.Date(t) + ephem.hour
+                    h = str(ephem.Date(t)).split()
+                    xtics.append(ephem.Date(h[0] + " " + h[1].split(":")[0] + ":00:00"))
+                xtics_labels = [str(x).split()[1].split(":")[0] + ":" + str(x).split()[1].split(":")[1] for x in xtics]
+                self.ax2.set_xticks(xtics)
+                self.ax2.set_xticklabels(xtics_labels, rotation=45, minor=False)
+                self.ax2.set_xlim(x0,x1)
                 #self.ax1.set_ylim(0,5)
                 self.ax2.legend()
                 self.ax2.set_xlabel("UT")
