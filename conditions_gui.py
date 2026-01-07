@@ -159,6 +159,8 @@ class ConditionsWindow(BaseWindow):
             yesterday_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['yesterday']))
             color = {'V': 'green', 'B': 'blue', 'Ic': 'red'}
 
+            all_val_td = []
+            all_dat_td = []
             try:
                 for t in fits_photo_z0_data_copy.keys():
                     val_td = []
@@ -170,8 +172,10 @@ class ConditionsWindow(BaseWindow):
                     for x in fits_photo_z0_data_copy[t]:
                         if x["oca_jd"] >= today_oca_jd:
                             val_td.append(x["zero_value"])
+                            all_val_td.append(x["zero_value"])
                             filter_td.append(color[x["filter"]])
                             dat_td.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
+                            all_dat_td.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
                         if today_oca_jd > x["oca_jd"] >= yesterday_oca_jd:
                             val_yd.append(x["zero_value"])
                             filter_yd.append(color[x["filter"]])
@@ -193,13 +197,6 @@ class ConditionsWindow(BaseWindow):
                         dat_yd, val_yd, c=self.parent.nats_cfg[t]['color'], alpha=0.1, s=13
                     )
 
-                    self.ax2.plot(
-                        dat_yd,
-                        gaussian_filter1d(val_yd, sigma=3),
-                        color='purple',
-                        linewidth=1
-                    )
-
                     self.ax2.axhline(
                         y=0,
                         color="black",
@@ -211,6 +208,22 @@ class ConditionsWindow(BaseWindow):
                         linestyle="--",
                         linewidth=1
                     )
+
+                x = numpy.asarray(all_dat_td)
+                y = numpy.asarray(all_val_td)
+
+                idx = numpy.argsort(x)
+
+                x_sorted = x[idx]
+                y_sorted = y[idx]
+
+                self.ax2.plot(
+                    x_sorted,
+                    gaussian_filter1d(y_sorted, sigma=10),
+                    # y_sorted,
+                    color='#2E8B57',
+                    linewidth=1
+                )
 
                 x0 = 0.5
                 x1 = 0.8958
