@@ -2,6 +2,8 @@
 import datetime
 
 import ephem
+from scipy.ndimage import gaussian_filter1d
+
 from PyQtX.QtCore import Qt
 from PyQtX.QtGui import QFont
 from PyQtX import QtCore, QtGui
@@ -190,6 +192,14 @@ class ConditionsWindow(BaseWindow):
                     self.ax2.scatter(
                         dat_yd, val_yd, c=self.parent.nats_cfg[t]['color'], alpha=0.1, s=13
                     )
+
+                    self.ax2.plot(
+                        dat_yd,
+                        gaussian_filter1d(val_yd, sigma=3),
+                        color='purple',
+                        linewidth=1
+                    )
+
                     self.ax2.axhline(
                         y=0,
                         color="black",
