@@ -220,9 +220,9 @@ class ConditionsWindow(BaseWindow):
                 x = numpy.asarray(all_dat_td)
                 y = numpy.asarray(all_val_td)
 
-                rem_nan_x = ~numpy.isnan(all_dat_td)
-                x = x[rem_nan_x]
-                y = y[rem_nan_x]
+                rem_nan_y = ~numpy.isnan(y)
+                x = x[rem_nan_y]
+                y = y[rem_nan_y]
 
                 idx = numpy.argsort(x)
 
