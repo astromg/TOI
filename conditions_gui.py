@@ -197,20 +197,32 @@ class ConditionsWindow(BaseWindow):
                         dat_yd, val_yd, c=self.parent.nats_cfg[t]['color'], alpha=0.1, s=13
                     )
 
-                    self.ax2.axhline(
-                        y=0,
-                        color="black",
-                        linewidth=0.5
-                    )
-                    self.ax2.axhline(
-                        y=-0.1,
-                        color="orange",
-                        linestyle="--",
-                        linewidth=1
-                    )
+                self.ax2.axhline(
+                    y=0,
+                    color="black",
+                    linewidth=0.5
+                )
+
+                self.ax2.axhline(
+                    y=-0.05,
+                    color="orange",
+                    linestyle="--",
+                    linewidth=1
+                )
+
+                self.ax2.axhline(
+                    y=-0.1,
+                    color="red",
+                    linestyle="--",
+                    linewidth=1
+                )
 
                 x = numpy.asarray(all_dat_td)
                 y = numpy.asarray(all_val_td)
+
+                rem_nan_y = ~numpy.isnan(y)
+                x = x[rem_nan_y]
+                y = y[rem_nan_y]
 
                 idx = numpy.argsort(x)
 
@@ -219,7 +231,7 @@ class ConditionsWindow(BaseWindow):
 
                 self.ax2.plot(
                     x_sorted,
-                    gaussian_filter1d(y_sorted, sigma=10),
+                    gaussian_filter1d(y_sorted, sigma=6),
                     # y_sorted,
                     color='#2E8B57',
                     linewidth=1
