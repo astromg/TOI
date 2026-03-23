@@ -74,7 +74,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                             self.nextRa_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
                     except ValueError: pass
                 else:
-                    if float(ra) < 0 or float(ra) > 24:
+                    if True:
                         self.parent.nextOB_ok = False
                         self.nextRa_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
                 if ":" in dec:
@@ -84,7 +84,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                             self.nextDec_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
                     except ValueError: pass
                 else:
-                    if float(dec) < 0 or float(dec) > 24:
+                    if True:
                         self.parent.nextOB_ok = False
                         self.nextDec_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
 
@@ -739,12 +739,12 @@ class PulseWindow(BaseWindow):
     def __init__(self, parent):
         super(PulseWindow, self).__init__()
         self.parent = parent
-        self.set_initial_geometry(
-            self.parent.aux_geometry[0],
-            self.parent.aux_geometry[1],
-            self.parent.aux_geometry[2],
-            self.parent.aux_geometry[3]
-        )
+        # self.set_initial_geometry(
+        #     self.parent.aux_geometry[0],
+        #     self.parent.aux_geometry[1],
+        #     self.parent.aux_geometry[2],
+        #     self.parent.aux_geometry[3]
+        # )
         self.mkUI()
         self.sumDec_e.setText(str(self.parent.pulseDec))
         self.sumRa_e.setText(str(self.parent.pulseRa))
