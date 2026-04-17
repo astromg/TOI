@@ -36,14 +36,20 @@ import requests
 # r = r['Value']
 # print(f"ALPACA: {quest}\n {r}\n")
 
+# DOME
+quest = "http://192.168.7.139:11111/api/v1/dome/0/slewtoazimuth"
+data={"Azimuth":"200"}
+r = requests.put(quest, data=data).json()
+print(f"ALPACA: {quest}\n {r}\n")
+
 
 # MOUNT
 
-quest = "http://192.168.7.120:11111/api/v1/telescope/0/slewing"
-r = requests.get(quest)
-r = r.json()
-r = r["Value"]
-print(f"ALPACA: {quest}\n {r}\n")
+# quest = "http://192.168.7.120:11111/api/v1/telescope/0/slewing"
+# r = requests.get(quest)
+# r = r.json()
+# r = r["Value"]
+# print(f"ALPACA: {quest}\n {r}\n")
 
 # Rotator
 
@@ -64,17 +70,17 @@ print(f"ALPACA: {quest}\n {r}\n")
 # r = requests.put(quest, data=data).json()
 # print(f"ALPACA: {quest}\n {r}\n")
 
-quest = "http://192.168.7.120:11111/api/v1/rotator/0/position"
-r = requests.get(quest)
-r = r.json()
-r = r["Value"]
-print(f"ALPACA: {quest}\n {r}\n")
-#
-quest = "http://192.168.7.120:11111/api/v1/rotator/0/mechanicalposition"
-r = requests.get(quest)
-r = r.json()
-r = r["Value"]
-print(f"ALPACA: {quest}\n {r}\n")
+# quest = "http://192.168.7.120:11111/api/v1/rotator/0/position"
+# r = requests.get(quest)
+# r = r.json()
+# r = r["Value"]
+# print(f"ALPACA: {quest}\n {r}\n")
+# #
+# quest = "http://192.168.7.120:11111/api/v1/rotator/0/mechanicalposition"
+# r = requests.get(quest)
+# r = r.json()
+# r = r["Value"]
+# print(f"ALPACA: {quest}\n {r}\n")
 
 # CCD
 
