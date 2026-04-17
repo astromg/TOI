@@ -197,7 +197,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.mntConn1_l = QLabel("MOUNT")
         self.mntConn2_l = QLabel(" ")
-        self.mntConn2_l.setText("\U0001F534")
+        #self.mntConn2_l.setText("\U0001F534")
         self.mntConn1_l.setStyleSheet("color: rgb(150,0,0);")
         self.mntConn2_l.setMaximumWidth(25)                                        # UWAGA!!! To steruje szeroskoscia 1 kolumny!!!!!!!
 
@@ -381,7 +381,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.domeConn1_l = QLabel("DOME")
         self.domeConn2_l = QLabel(" ")
-        self.domeConn2_l.setText("\U0001F534")
+        #self.domeConn2_l.setText("\U0001F534")
         self.domeConn1_l.setStyleSheet("color: rgb(150,0,0);")
 
         self.domeStat_e = QLineEdit()
@@ -583,9 +583,9 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         ##########################################################
 
         self.comRotator1_l = QLabel(" ")
-        self.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
+        #self.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
         self.telRotator1_l = QLabel("ROTATOR: ")
-        self.comRotator1_l.setText("\U0001F534")
+        #self.comRotator1_l.setText("\U0001F534")
         self.telRotator1_l.setStyleSheet("color: rgb(150,0,0);")
         self.telRotator1_l.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         self.telRotator1_e = QLineEdit()
@@ -610,7 +610,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.comFilter_l = QLabel(" ")
         self.telFilter_l = QLabel("FILTER: ")
-        self.comFilter_l.setText("\U0001F534")
+        #self.comFilter_l.setText("\U0001F534")
         self.telFilter_l.setStyleSheet("color: rgb(150,0,0);")
         self.telFilter_e = QLineEdit()
         self.telFilter_e.setReadOnly(True)
@@ -640,7 +640,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         ######################################################
 
         self.focusConn_l = QLabel(" ")
-        self.focusConn_l.setText("\U0001F534")
+        #self.focusConn_l.setText("\U0001F534")
         self.telFocus_l = QLabel("FOCUS: ")
         self.telFocus_l.setStyleSheet("color: rgb(150,0,0);")
         self.telFocus_e = QLineEdit()

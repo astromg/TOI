@@ -29,6 +29,10 @@ from typing import Optional, Dict
 import qasync as qs
 from PyQtX import QtWidgets, QtCore
 from astropy.io import fits
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPixmap, QPainter, QColor, QIcon
+
 from obcom.comunication.base_client_api import BaseClientAPI
 from ocaboxapi import Observatory, Telescope, AccessGrantor, Dome, Mount, CoverCalibrator, Focuser, Camera, \
     FilterWheel, Rotator, CCTV
@@ -624,8 +628,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.fitsGui.updateUI()
 
             if not bool(self.cfg_showRotator):
-                self.mntGui.comRotator1_l.setText("\u2B24")
-                self.mntGui.comRotator1_l.setStyleSheet("color: rgb(190,190,190);")
+                self.set_led(self.mntGui.comRotator1_l, "rgb(190,190,190)")
                 self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
 
             self.updateWeather()
@@ -828,48 +831,70 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if self.telescope is not None:
                     if  bool(self.cfg_showRotator):
                         if self.rotator_con and self.tel_alpaca_con:
-                            self.mntGui.comRotator1_l.setText("\U0001F7E2")
+                            self.set_led(self.mntGui.comRotator1_l, "rgb(0,150,0)")
                             self.mntGui.telRotator1_l.setStyleSheet("color: rgb(0,150,0);")
                         else:
-                            self.mntGui.comRotator1_l.setText("\U0001F534")
+                            self.set_led(self.mntGui.comRotator1_l, "rgb(150,0,0)")
                             self.mntGui.telRotator1_l.setStyleSheet("color: rgb(150,0,0);")
                     else:
-                        self.mntGui.comRotator1_l.setText("\u2B24")
-                        self.mntGui.comRotator1_l.setStyleSheet("color: rgb(190,190,190);")
+                        self.set_led(self.mntGui.comRotator1_l, "rgb(190,190,190)")
                         self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
 
                     if self.mount_con and self.tel_alpaca_con:
-                       self.mntGui.mntConn2_l.setText("\U0001F7E2")
-                       self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
+                        self.set_led(self.mntGui.mntConn2_l, "rgb(0,150,0)")
+                        self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
                     else:
-                       self.mntGui.mntConn2_l.setText("\U0001F534")
-                       self.mntGui.mntConn1_l.setStyleSheet("color: rgb(150,0,0);")
+                        self.set_led(self.mntGui.mntConn2_l, "rgb(150,0,0)")
+                        self.mntGui.mntConn1_l.setStyleSheet("color: rgb(150,0,0);")
 
                     if self.dome_con and self.tel_alpaca_con:
-                        self.mntGui.domeConn2_l.setText("\U0001F7E2")
+                        self.set_led(self.mntGui.domeConn2_l, "rgb(0,150,0)")
                         self.mntGui.domeConn1_l.setStyleSheet("color: rgb(0,150,0);")
                     else:
-                        self.mntGui.domeConn2_l.setText("\U0001F534")
+                        self.set_led(self.mntGui.domeConn2_l, "rgb(150,0,0)")
                         self.mntGui.domeConn1_l.setStyleSheet("color: rgb(150,0,0);")
 
                     if self.fw_con and self.tel_alpaca_con:
-                        self.mntGui.comFilter_l.setText("\U0001F7E2")
+                        self.set_led(self.mntGui.comFilter_l, "rgb(0,150,0)")
                         self.mntGui.telFilter_l.setStyleSheet("color: rgb(0,150,0);")
                     else:
-                        self.mntGui.comFilter_l.setText("\U0001F534")
+                        self.set_led(self.mntGui.comFilter_l, "rgb(150,0,0)")
                         self.mntGui.telFilter_l.setStyleSheet("color: rgb(150,0,0);")
 
                     if self.focus_con and self.tel_alpaca_con:
-                        self.mntGui.focusConn_l.setText("\U0001F7E2")
+                        self.set_led(self.mntGui.focusConn_l, "rgb(0,150,0)")
                         self.mntGui.telFocus_l.setStyleSheet("color: rgb(0,150,0);")
                     else:
-                        self.mntGui.focusConn_l.setText("\U0001F534")
+                        self.set_led(self.mntGui.focusConn_l, "rgb(150,0,0)")
                         self.mntGui.telFocus_l.setStyleSheet("color: rgb(150,0,0);")
 
+
                     if self.inst_con and self.tel_alpaca_con:
-                        self.instGui.tab.setTabText(0,"\U0001F7E2 CCD")
+                        pix = QPixmap(12, 12)
+                        pix.fill(Qt.GlobalColor.transparent)
+                        painter = QPainter(pix)
+                        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                        painter.setBrush(QColor("green"))
+                        painter.setPen(Qt.GlobalColor.black)
+                        painter.drawEllipse(0, 0, 11, 11)
+                        painter.end()
+                        icon =  QIcon(pix)
+
+                        self.instGui.tab.setTabText(0,"CCD")
+                        self.instGui.tab.setTabIcon(0,icon)
                     else:
-                        self.instGui.tab.setTabText(0,"\U0001F534 CCD")
+                        pix = QPixmap(12, 12)
+                        pix.fill(Qt.GlobalColor.transparent)
+                        painter = QPainter(pix)
+                        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                        painter.setBrush(QColor("red"))
+                        painter.setPen(Qt.GlobalColor.black)
+                        painter.drawEllipse(0, 0, 11, 11)
+                        painter.end()
+                        icon =  QIcon(pix)
+
+                        self.instGui.tab.setTabText(0,"CCD")
+                        self.instGui.tab.setTabIcon(0, icon)
 
             except Exception as e:
                 logger.warning(f'EXCEPTION 2: {e}')
@@ -3544,6 +3569,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     def update_oca(self):
         self.obsGui.main_form.update_table()
+
+    def set_led(self, widget, color):
+        widget.setText("")
+        widget.setFixedSize(14, 14)
+        widget.setStyleSheet(f"""
+            background-color: {color};
+            border-radius: 7px;
+        """)
 
 
     def reset_ob(self,tel):
