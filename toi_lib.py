@@ -4,20 +4,29 @@ from collections import OrderedDict
 import ephem
 import numpy
 
-import time
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor
+from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtCore import Qt
 
-from PyQtX.QtCore import QThread,pyqtSignal
+def ToiIcon(name,color,size=15):
+    pixmap = QPixmap(size,size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    render = QSvgRenderer(f'./Icons/{name}.svg')
+    render.render(painter)
+    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+    painter.fillRect(pixmap.rect(),QColor(color))
+    painter.end()
 
-def get_dic(dc,keys,fail=None):
+    return QIcon(pixmap)
+
+def get_dic(dc, keys, fail=None):
     x = dc
     for k in keys:
-        if k in x.keys():
-            x = x[k]
-        else:
-            x = fail
-    if len(str(x).strip()) == 0:
-        x = fail
-    return(x)
+        if not isinstance(x, dict) or k not in x:
+            return fail
+        x = x[k]
+    return x if x is not None else fail
 
 def xy2rt(x,y):
     x=float(x)

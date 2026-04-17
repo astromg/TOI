@@ -17,6 +17,7 @@ import socket
 import sys
 import uuid
 import copy
+import time
 from xmlrpc.client import ResponseError
 
 import ephem
@@ -2008,6 +2009,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.ob_progress[self.active_tel]["dit_start"]=0
 
             await s.publish(data=self.ob_progress[self.active_tel], timeout=10)
+
         except Exception as e:
             logger.warning(f'TOI: EXCEPTION 56: {e}')
 
@@ -2440,7 +2442,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 await self.update_log(f'not a valid BIN option', "WARNING", self.active_tel)
                 return
 
-            self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
+            if int(self.ccd_binx) != int(x) or int(self.ccd_biny) != int(y):
+                self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
             await self.ccd.aput_binx(int(x))
             await self.ccd.aput_biny(int(y))
             await self.update_log(f'setting bin xy {x} {y}', "TOI RESPONDER", self.active_tel)
@@ -2454,7 +2457,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.tel_acces[self.active_tel]:
             i = self.instGui.ccd_tab.inst_setGain_e.currentIndex()
             gain = self.cfg_inst_gain_i[i]
-            self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
+            if int(self.ccd_gain) != int(gain):
+                self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
             await self.ccd.aput_gain(int(gain))
             await self.update_log(f'setting gain {gain}', "TOI RESPONDER", self.active_tel)
         else:
@@ -2467,9 +2471,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.tel_acces[self.active_tel]:
            i = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
            rm = self.cfg_inst_rm_i[i]
-           if True:
-               await self.ccd.aput_readoutmode(rm)
-               await self.update_log(f'setting read mode {rm}', "TOI RESPONDER", self.active_tel)
+           await self.ccd.aput_readoutmode(rm)
+           await self.update_log(f'setting read mode {rm}', "TOI RESPONDER", self.active_tel)
+           if int(self.ccd_readoutmode) != int(rm):
                self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
         else:
             txt="WARNING: U don't have control"
@@ -3462,12 +3466,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.hummidity_e.setText(f"{self.telemetry_humidity:.0f} [%]")
             #self.obsGui.main_form.pressure_e.setText(f"{self.telemetry_pressure:.1f} [hPa]")
 
-            if float(self.telemetry_wind) > float(self.cfg_wind_limit_pointing):
+            if float(self.telemetry_wind) > float(self.cfg_wind_limit):
+                self.obsGui.main_form.wind_e.setStyleSheet("color: rgb(0, 0, 0); background-color: red;")
+                self.obsGui.main_form.windDir_e.setStyleSheet("color: black; background-color: red;")
+            elif float(self.telemetry_wind) > float(self.cfg_wind_limit_pointing):
                 self.obsGui.main_form.wind_e.setStyleSheet("color: rgb(0, 0, 0); background-color: rgb(255, 140, 0);")
                 self.obsGui.main_form.windDir_e.setStyleSheet("color: rgb(0, 0, 0); background-color: rgb(255, 140, 0);")
-            elif float(self.telemetry_wind) > float(self.cfg_wind_limit):
-                self.obsGui.main_form.wind_e.setStyleSheet("color: rgb(0, 0, 0); background-color: red;")
-                self.obsGui.main_form.windDir_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
             else:
                 self.obsGui.main_form.wind_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
                 self.obsGui.main_form.windDir_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
@@ -3711,6 +3715,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cfg_wind_limit_pointing =  11  # m/s
         self.cfg_wind_limit = 14 # m/s
         self.cfg_humidity_limit = 70  # %
+        self.cfg_temperature_limit = 0
         self.overhed = 10
 
         self.nextOB_ok = None

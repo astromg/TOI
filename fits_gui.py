@@ -181,7 +181,8 @@ class FitsWindow(BaseWindow):
                             else:
                                 self.ob_x.append(self.parent.fits_ofp_data["raw"]["objects"][k]["x_pix"])
                                 self.ob_y.append(self.parent.fits_ofp_data["raw"]["objects"][k]["y_pix"])
-                            txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
+                            if "saturation_max" in self.parent.fits_ofp_data['raw']['objects'][k].keys():
+                                txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
                     if self.pointing_x:
                         self.poining_center = self.axes.plot(self.pointing_x,self.pointing_x,"k+",markersize=20)
                     if len(self.ob_x)>0:

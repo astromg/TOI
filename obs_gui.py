@@ -78,40 +78,80 @@ class MainForm(QWidget):
             i = i + 1
 
             # TELESKOPY
-            rgb = (0, 0, 0)
-            status_ok = True
-            try:
-                for k in self.parent.nats_toi_op_status[t].keys():
-                    if self.parent.nats_toi_op_status[t][k]["state"] == self.parent.nats_toi_op_status[t][k]["defoult"]:
-                        pass
-                    else:
-                        status_ok = False
-            except Exception as e:
-                print(f"toi status warning {e}")
 
-            if status_ok:
-                txt = ""
-            else:
-                txt = "\u26A0 "
-            txt = txt + f'{t}'
+
+            widget = QWidget()
+            lay = QHBoxLayout(widget)
+            lay.setContentsMargins(1,0,1,0)
+            lay.setSpacing(3)
+            lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             acces = self.parent.tel_acces[t]
             if acces:
-                #txt = txt +  "\U0001F513"
-                #txt = txt + " \u2328" # klawiatura
-                #txt = txt + " \u2301" #   blyskawica
-                txt = txt + " \u2713" # check ok
-                item = QTableWidgetItem(txt)
-                rgb = (0, 150, 0)
-            else:
-                item = QTableWidgetItem(txt)
+                icon_label = QLabel()
+                icon_label.setPixmap(ToiIcon("icon_joystick", "darkGreen", size=14).pixmap(14, 14))
+                lay.addWidget(icon_label)
 
-            if not status_ok:
-                rgb = (255, 160, 0)
+            lay.addWidget(QLabel(f'{t}'))
 
-            item.setTextAlignment(QtCore.Qt.AlignCenter)
-            item.setForeground(QtGui.QColor(*rgb))
-            self.obs_t.setItem(i, 0, item)
+
+            if self.parent.nats_toi_op_status[t]:
+
+                k = "program_error"
+
+                if "error" in self.parent.ob_progress[t]:
+                    if self.parent.ob_progress[t]["error"]:
+                        icon_label = QLabel()
+                        icon_label.setPixmap(ToiIcon("icon_bug", "red", size=14).pixmap(14, 14))
+                        lay.addWidget(icon_label)
+
+                vent = False
+                k = "dome_ventilators"
+                if self.parent.nats_toi_op_status[t].get(k).get("state") != self.parent.nats_toi_op_status[t].get(k).get("defoult"):
+                    vent = True
+                k = "mirror_fans"
+                if self.parent.nats_toi_op_status[t].get(k).get("state") != self.parent.nats_toi_op_status[t].get(k).get("defoult"):
+                    vent = True
+
+                if vent:
+                    icon_label = QLabel()
+                    icon_label.setPixmap(ToiIcon("icon_fan", "darkOrange", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label)
+
+                light = False
+                k = "flat_lamps"
+                if self.parent.nats_toi_op_status[t].get(k).get("state") != self.parent.nats_toi_op_status[t].get(k).get("defoult"):
+                    light = True
+                k = "dome_lights"
+                if self.parent.nats_toi_op_status[t].get(k).get("state") != self.parent.nats_toi_op_status[t].get(k).get("defoult"):
+                    light = True
+
+                if light:
+                    icon_label = QLabel()
+                    icon_label.setPixmap(ToiIcon("icon_bulb", "darkOrange", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label)
+
+                if float(self.parent.telemetry_wind) > float(self.parent.cfg_wind_limit):
+                    icon_label = QLabel()
+                    icon_label.setPixmap(ToiIcon("icon_wind", "red", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label)
+                elif float(self.parent.telemetry_wind) > float(self.parent.cfg_wind_limit_pointing):
+                    icon_label = QLabel()
+                    icon_label.setPixmap(ToiIcon("icon_wind", "orange", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label)
+
+                if float(self.parent.telemetry_humidity) > float(self.parent.cfg_humidity_limit):
+                    icon_label = QLabel()
+                    icon_label.setPixmap(ToiIcon("icon_water", "red", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label)
+
+                if float(self.parent.telemetry_temp) < float(self.parent.cfg_temperature_limit):
+                    icon_label = QLabel()
+                    icon_label.setPixmap(ToiIcon("icon_cold", "red", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label)
+
+
+            self.obs_t.setCellWidget(i,0,widget)
 
             # DOME
             state, rgb = "--", (0, 0, 0)

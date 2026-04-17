@@ -742,6 +742,12 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
     def loadPlan(self):
+        if self.parent.active_tel == None:
+            txt = "WARNING: Telescope NOT selected!"
+            self.parent.WarningWindow(txt)
+            return 0
+
+
         if self.parent.tel_acces[self.parent.active_tel]:
           # ob["name","block","type","ra","dec","seq","pos","comment","ok"]
           # ob["wait","wait_ut","wait_sunset","wait_sunrise"]
@@ -933,7 +939,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           # self.grid.addWidget(self.prog_call_e,w,0,3,5)
           #
           # w=w+3
-          self.load_p=QPushButton('Load Plan')
+          self.load_p = QPushButton('Load Plan')
           self.tpg_p = QPushButton('TPG')
           self.save_p = QPushButton('Save Plan')
 

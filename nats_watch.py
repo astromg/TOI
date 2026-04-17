@@ -1,5 +1,6 @@
-import copy
+#!/usr/bin/env python3
 
+import copy
 import yaml
 import argparse
 import logging

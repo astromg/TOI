@@ -172,6 +172,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def pulse(self):
         try:
+            self.pulse_window.show()
             self.pulse_window.raise_()
         except AttributeError:
             self.pulse_window = PulseWindow(self.parent)
@@ -739,12 +740,6 @@ class PulseWindow(BaseWindow):
     def __init__(self, parent):
         super(PulseWindow, self).__init__()
         self.parent = parent
-        # self.set_initial_geometry(
-        #     self.parent.aux_geometry[0],
-        #     self.parent.aux_geometry[1],
-        #     self.parent.aux_geometry[2],
-        #     self.parent.aux_geometry[3]
-        # )
         self.mkUI()
         self.sumDec_e.setText(str(self.parent.pulseDec))
         self.sumRa_e.setText(str(self.parent.pulseRa))
@@ -842,6 +837,18 @@ class PulseWindow(BaseWindow):
             grid.addWidget(self.rotminus_p, w, 1)
             grid.addWidget(self.rotstep_e, w, 2)
             grid.addWidget(self.rotplus_p, w, 3)
+
+
+            w = w + 1
+            self.line4_l = QFrame()
+            self.line4_l.setFrameShape(QFrame.HLine)
+            self.line4_l.setFrameShadow(QFrame.Raised)
+            grid.addWidget(self.line4_l, w, 0, 1, 5)
+
+            w = w + 1
+            self.close_p = QPushButton("Close")
+            self.close_p.clicked.connect(lambda: self.close())
+            grid.addWidget(self.close_p, w, 3,1,2)
 
 
             #grid.setColumnMinimumWidth(0, 100)

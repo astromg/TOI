@@ -1,6 +1,7 @@
 <h4>Whats New?</h4>
 
-
+--- 17.04.2026 --- <br>
+Blue background for instrument gain and rm bug update fixed.
 --- 14.10.2025 --- <br>
 integration with tpg v1.0.0, test toggle is avialable and sciprog with pi can be processed by toi.
 <br><br>
