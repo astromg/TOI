@@ -1396,18 +1396,21 @@ class TPGWindow(BaseWindow):
             obs.date = dt
 
             sun = ephem.Sun()
-            sunset = obs.previous_setting(sun)
-            sunset_dt = ephem.Date(sunset).datetime()
+            try:
+                sunset = obs.previous_setting(sun)
+                sunset_dt = ephem.Date(sunset).datetime()
 
-            delta = dt - sunset_dt
+                delta = dt - sunset_dt
 
-            within_2h = datetime.timedelta(0) <= delta <= datetime.timedelta(hours=2)
-            date_changed = dt.date() != sunset_dt.date()
+                within_2h = datetime.timedelta(0) <= delta <= datetime.timedelta(hours=2)
+                date_changed = dt.date() != sunset_dt.date()
 
-            if within_2h and date_changed:
-                dt = dt - datetime.timedelta(days=1)
+                if within_2h and date_changed:
+                    dt = dt - datetime.timedelta(days=1)
 
-            self.ut_e.setText(dt.strftime("%Y-%m-%d"))
+                self.ut_e.setText(dt.strftime("%Y-%m-%d"))
+            except ephem.NeverUpError:
+                self.ut_e.setText(dt.strftime("%Y-%m-%d"))
         else:
             self.ut_e.setText(dt.strftime("%Y-%m-%d %H:%M:%S"))
 
