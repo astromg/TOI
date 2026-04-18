@@ -74,7 +74,8 @@ class main_app():
         # definijemy wszytskie asynchroniczne zadania i je dokladamy do petli asyncio
         tasks = []
         tasks.append(asyncio.create_task(self.boring_loop()))
-        tasks.append(asyncio.create_task(self.reader_weather_davis()))
+        #tasks.append(asyncio.create_task(self.reader_weather_davis()))
+        tasks.append(asyncio.create_task(self.test()))
 
         await self.safety_run_tasks(tasks)
 
@@ -91,6 +92,21 @@ class main_app():
 
 
     ######### WEATHER ###################
+
+
+    async def test(self):
+        try:
+            reader = get_reader('tic.status.jk15.access_grantor.safety_cutoff_state', deliver_policy='last')
+            async for data, meta in reader:
+                tmp = data['measurements']
+                print(data)
+
+
+
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION reader_weather_davis: {e}')
 
     async def reader_weather_davis(self):
         try:

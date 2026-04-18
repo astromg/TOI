@@ -9,7 +9,6 @@ import os
 import uuid
 import time
 
-
 import ephem
 import qasync as qs
 from qasync import QEventLoop
@@ -34,6 +33,8 @@ from toi_lib import *
 from tpg.telescope_plan_generator import TelescopePlanGenerator as tpg
 from ctc import CycleTimeCalc
 
+from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
+from pyaraucaria.ob_validator import ObsValidator
 
 
 class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
@@ -84,6 +85,8 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.phase_window.raise_()
 
     def run_tpg(self):
+        if not self.parent.active_tel:
+            return
         if self.parent.tel_acces[self.parent.active_tel]:
             self.tpg_window = TPGWindow(self)
         else:
@@ -996,185 +999,487 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 # ######### OKNO TPG  ##########
 # #############################################
 
+# class TPG_Worker(QtCore.QObject):
+#     done_signal = QtCore.pyqtSignal()
+#     plan_ready_signal = QtCore.pyqtSignal(list)
+#     update_signal = QtCore.pyqtSignal(str)
+#     def __init__(self,tel,date,wind,uobi_done):
+#         super(TPG_Worker, self).__init__()
+#         self.tel=tel
+#         self.date=date
+#         self.wind=wind
+#         self.uobi_done=uobi_done
+#
+#
+#
+#
+#     def run(self):
+#         p = tpg(self.tel, self.date, wind=self.wind,done_uobi=self.uobi_done)
+#
+#         p.Initiate()
+#         self.update_signal.emit("TPG init <span style='color: green;'>\u2714</span>")
+#         p.LoadObjects()
+#         self.update_signal.emit("loading objects <span style='color: green;'>\u2714</span>")
+#         p.MakeTime()
+#         self.update_signal.emit("making timeline <span style='color: green;'>\u2714</span>")
+#         self.update_signal.emit(f"plan start: <span style='color: green; font-weight: bold;'> {p.start_time}  </span>")
+#         p.CalcObject()
+#         self.update_signal.emit("calculating visibilities <span style='color: green;'>\u2714</span>")
+#         p.MaskMoon()
+#         self.update_signal.emit("Moon masking <span style='color: green;'>\u2714</span>")
+#         p.MaskWind()
+#         self.update_signal.emit("wind masking <span style='color: green;'>\u2714</span>")
+#         p.MaskCycle()
+#         self.update_signal.emit("cycle masking <span style='color: green;'>\u2714</span>")
+#         p.MaskStartEnd()
+#         self.update_signal.emit("start/end masking <span style='color: green;'>\u2714</span>")
+#         p.MaskPhaseStartEnd()
+#         self.update_signal.emit("phase and time masking <span style='color: green;'>\u2714</span>")
+#         p.MaskPhase()
+#         self.update_signal.emit("database masking <span style='color: green;'>\u2714</span>")
+#         p.Waga()
+#         p.RandomizeList()
+#         self.update_signal.emit(f"randomization with seed: <span style='font-weight: bold;'>{p.seed}</span> <span style='color: green;'>\u2714</span>")
+#         p.allocate()
+#         self.update_signal.emit("allocating objects <span style='color: green;'>\u2714</span>")
+#         p.export()
+#         self.update_signal.emit("<span style='color: green; font-weight: bold;'>\u2714 DONE \u2714</span>")
+#
+#         self.plan_ready_signal.emit(p.plan)
+#         self.done_signal.emit()
+#
+# class TPGWindow(BaseWindow):
+#     def __init__(self, parent):
+#         super(TPGWindow, self).__init__()
+#         self.parent = parent
+#         self.setStyleSheet("font-size: 11pt;")
+#         self.set_initial_geometry(100,100,400,100)
+#         self.setMinimumSize(200,450)
+#         self.mkUI()
+#         self.sunset_changed()
+#
+#
+#     def add(self):
+#         tel = self.parent.parent.active_tel
+#         ut = self.ut_e.text()
+#
+#         if self.sunset_c.isChecked():
+#             local_time = ephem.Date(ephem.Date(ut) - 4 * ephem.hour)
+#             date = [str(local_time.datetime()).split()[0]]
+#         else:
+#             date = [ut.split()[0], ut.split()[1]]
+#         if self.wind_c.isChecked():
+#             wind = float(self.wind_e.text())
+#         else:
+#             wind = None
+#
+#         if self.repeat_c.checkState():
+#             uobi_done = self.parent.done
+#         else:
+#             uobi_done = []
+#
+#         self.info_e.clear()
+#
+#         self.thread = QtCore.QThread()
+#         self.tpg_worker = TPG_Worker(tel,date,wind,uobi_done)
+#         self.tpg_worker.moveToThread(self.thread)
+#         self.thread.started.connect(self.tpg_worker.run)
+#         self.tpg_worker.done_signal.connect(self.thread.quit)
+#         self.tpg_worker.done_signal.connect(self.tpg_worker.deleteLater)
+#         self.thread.finished.connect(self.thread.deleteLater)
+#         self.tpg_worker.plan_ready_signal.connect(self.get_plan)
+#         self.tpg_worker.update_signal.connect(self.update_status)
+#         #self.tpg_th.go(tel,date,wind,uobi_done)
+#         self.thread.start()
+#
+#
+#     def update_status(self,txt):
+#         if "wind masking" in txt:
+#             if self.wind_c.isChecked():
+#                 self.info_e.append(txt)
+#                 self.info_e.repaint()
+#         else:
+#             self.info_e.append(txt)
+#             self.info_e.repaint()
+#
+#     def get_plan(self,plan):
+#         tmp_plan=[]
+#         for blok in plan:
+#             ob, ok, tmp1, tmp2, tmp3 = ob_parser(blok, overhed=self.parent.parent.overhed,
+#                                                                  filter_list=self.parent.parent.filter_list)
+#             #DUPA
+#             try:
+#                 if os.path.exists(self.parent.parent.local_cfg["ctc"]["ctc_base_folder"]):
+#                     self.ctc = CycleTimeCalc(telescope=self.parent.parent.active_tel,
+#                                              base_folder=self.parent.parent.local_cfg["ctc"]["ctc_base_folder"], tpg=True)
+#                     self.ctc.set_rm_modes(self.parent.parent.local_cfg["ctc"]["rm_modes_mhz"])
+#                     self.ctc.set_start_rmode(2)  # tutaj zmienic defoult read mode dla teleskopu
+#                     self.ctc.reset_time()
+#                     ctc_ob_time = self.ctc.calc_time(ob["block"])
+#                     if float(ob["slotTime"])/float(ctc_ob_time) < 1.3 and float(ob["slotTime"])/float(ctc_ob_time) > 0.7:
+#                         ob["slotTime"] = ctc_ob_time
+#                     else:
+#                         print(f'TOI CTC disagreement: {ob["slotTime"]} {ctc_ob_time} {ob["block"]}')
+#             except:
+#                 pass
+#
+#             tmp_plan.append(ob)
+#         self.parent.plan[self.parent.i + 1:self.parent.i + 1] = tmp_plan
+#         self.parent.parent.upload_plan()
+#         self.parent.parent.update_plan(self.parent.parent.active_tel)
+#
+#         #self.close()
+#
+#
+#     def sunset_changed(self):
+#
+#         dt = datetime.datetime.strptime(self.parent.parent.ut, "%Y/%m/%d %H:%M:%S")
+#
+#         if self.sunset_c.isChecked():
+#             obs = self.parent.parent.oca_site
+#             obs.date = dt
+#             sun = ephem.Sun()
+#             sunset = obs.previous_setting(sun)
+#             sunset_dt = ephem.Date(sunset).datetime()
+#             delta = dt - sunset_dt
+#             # warunek: 2h po zachodzie i zmienila sie data
+#             within_2h = datetime.timedelta(0) <= delta <= datetime.timedelta(hours=2)
+#             date_changed = dt.date() != sunset_dt.date()
+#             if within_2h and date_changed:
+#                 dt = dt - datetime.timedelta(days=1)
+#             self.ut_e.setText(dt.strftime("%Y-%m-%d"))
+#         else:
+#             self.ut_e.setText(dt.strftime("%Y-%m-%d %H:%M:%S"))
+#
+#
+#
+#     def mkUI(self):
+#         grid = QGridLayout()
+#
+#         self.sunset_c = QCheckBox("Start at SUNSET")
+#         self.sunset_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+#         self.ut_e = QLineEdit()
+#         self.sunset_c.stateChanged.connect(self.sunset_changed)
+#
+#
+#         if ephem.Date(self.parent.parent.almanac["sunset"]) > ephem.Date(self.parent.parent.almanac["sunrise"]):
+#             self.sunset_c.setChecked(False)
+#
+#         self.wind_c = QCheckBox("Avoid wind direction")
+#         self.wind_c.setChecked(False)
+#         self.wind_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+#         self.wind_e = QLineEdit("")
+#         self.wind_e.setText(f"{self.parent.parent.telemetry_wind_direction:.0f}")
+#
+#         self.fwhm_c = QCheckBox("FWHM Limit")
+#         self.fwhm_c.setChecked(False)
+#         self.fwhm_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+#         self.fwhm_e = QLineEdit("")
+#         #self.fwhm_e.setText(f"{}")
+#
+#         self.repeat_c = QCheckBox("Dont repeat observed objects")
+#         self.repeat_c.setChecked(True)
+#         #self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+#         self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+#
+#
+#         self.add_p = QPushButton('Generate Plan')
+#         self.add_p.clicked.connect(self.add)
+#         self.close_p = QPushButton('Close')
+#         self.close_p.clicked.connect(lambda: self.close())
+#
+#         self.info_e = QTextEdit("")
+#         self.info_e.isReadOnly()
+#         self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
+#
+#         grid.addWidget(self.ut_e, 0, 0,1,2)
+#         grid.addWidget(self.sunset_c, 1, 0)
+#
+#         grid.addWidget(self.wind_c, 2, 0)
+#         grid.addWidget(self.wind_e, 2, 1)
+#
+#         grid.addWidget(self.fwhm_c, 3, 0)
+#         grid.addWidget(self.fwhm_e, 3, 1)
+#
+#         grid.addWidget(self.repeat_c, 4, 0,1,2)
+#
+#         grid.addWidget(self.info_e, 4, 0, 1, 2)
+#
+#         grid.addWidget(self.add_p, 6, 1)
+#         grid.addWidget(self.close_p, 6, 0)
+#
+#
+#         self.setLayout(grid)
+#         self.show()
+#
+
 class TPG_Worker(QtCore.QObject):
     done_signal = QtCore.pyqtSignal()
-    plan_ready_signal = QtCore.pyqtSignal(list)
+    plan_ready_signal = QtCore.pyqtSignal(object)
     update_signal = QtCore.pyqtSignal(str)
-    def __init__(self,tel,date,wind,uobi_done):
-        super(TPG_Worker, self).__init__()
-        self.tel=tel
-        self.date=date
-        self.wind=wind
-        self.uobi_done=uobi_done
+    error_signal = QtCore.pyqtSignal(str)
+
+    def __init__(self, tel, dt, wind=None, uobi_done=None,
+                 fwhm=None, seed=None,
+                 save_plan=False,
+                 start_macro=False,
+                 end_macro=False,
+                 master_data=None,
+                 overhed=None,
+                 filter_list=None,
+                 local_cfg=None):
+
+        super().__init__()
+
+        self.tel = tel
+        self.dt = dt
+        self.wind = wind
+        self.uobi_done = uobi_done or []
+
+        self.fwhm = fwhm
+        self.seed = seed
+        self.save_plan = save_plan
+        self.start_macro = start_macro
+        self.end_macro = end_macro
+
+        self.master_data = master_data
+        self.overhed = overhed
+        self.filter_list = filter_list
+        self.local_cfg = local_cfg
 
     def run(self):
-        p = tpg(self.tel, self.date, wind=self.wind,done_uobi=self.uobi_done)
+        try:
+            p = tpg(self.tel,self.dt,wind=self.wind,fwhm=self.fwhm)
+            p.Initiate()
+            p.init_ctc()
+            self.update_signal.emit("TPG init <span style='color: green;'>\u2714</span>")
+            p.LoadObjects()
+            self.update_signal.emit("objects loaded <span style='color: green;'>\u2714</span>")
+            p.MakeTime()
+            p.ObjectMask()
+            self.update_signal.emit("making timeline <span style='color: green;'>\u2714</span>")
+            self.update_signal.emit(f"plan start: <span style='color: green; font-weight: bold;'> {p.start_time}  </span>")
+            p.CalcObject()
+            self.update_signal.emit("calculating visibilities <span style='color: green;'>\u2714</span>")
+            p.MaskVisibility()
+            self.update_signal.emit("masking visibility <span style='color: green;'>\u2714</span>")
+            p.MaskMoon()
+            self.update_signal.emit("masking moon <span style='color: green;'>\u2714</span>")
+            p.MaskWind()
+            self.update_signal.emit("masking wind <span style='color: green;'>\u2714</span>")
+            p.MaskCycle()
+            self.update_signal.emit("masking cycle <span style='color: green;'>\u2714</span>")
+            p.MaskStartEnd()
+            p.MaskTwilight()
+            self.update_signal.emit("masking tim and twilight <span style='color: green;'>\u2714</span>")
+            p.MaskPhaseStartEnd()
+            p.MaskPhase()
+            self.update_signal.emit("masking phase <span style='color: green;'>\u2714</span>")
+            p.Waga()
+            p.RandomizeList()
+            self.update_signal.emit(f"seed: {p.seed}")
+            p.allocate()
+            self.update_signal.emit("allocating objects <span style='color: green;'>\u2714</span>")
+            p.export()
+            if hasattr(p, "SavePlan"):
+                p.SavePlan()
+            self.update_signal.emit("<span style='color: green; font-weight: bold;'>\u2714 DONE \u2714</span>")
+            self.plan_ready_signal.emit(p.plan)
+            self.done_signal.emit()
 
-        p.Initiate()
-        self.update_signal.emit("TPG init <span style='color: green;'>\u2714</span>")
-        p.LoadObjects()
-        self.update_signal.emit("loading objects <span style='color: green;'>\u2714</span>")
-        p.MakeTime()
-        self.update_signal.emit("making timeline <span style='color: green;'>\u2714</span>")
-        self.update_signal.emit(f"plan start: <span style='color: green; font-weight: bold;'> {p.start_time}  </span>")
-        p.CalcObject()
-        self.update_signal.emit("calculating visibilities <span style='color: green;'>\u2714</span>")
-        p.MaskMoon()
-        self.update_signal.emit("Moon masking <span style='color: green;'>\u2714</span>")
-        p.MaskWind()
-        self.update_signal.emit("wind masking <span style='color: green;'>\u2714</span>")
-        p.MaskCycle()
-        self.update_signal.emit("cycle masking <span style='color: green;'>\u2714</span>")
-        p.MaskStartEnd()
-        self.update_signal.emit("start/end masking <span style='color: green;'>\u2714</span>")
-        p.MaskPhaseStartEnd()
-        self.update_signal.emit("phase and time masking <span style='color: green;'>\u2714</span>")
-        p.MaskPhase()
-        self.update_signal.emit("database masking <span style='color: green;'>\u2714</span>")
-        p.Waga()
-        p.RandomizeList()
-        self.update_signal.emit(f"randomization with seed: <span style='font-weight: bold;'>{p.seed}</span> <span style='color: green;'>\u2714</span>")
-        p.allocate()
-        self.update_signal.emit("allocating objects <span style='color: green;'>\u2714</span>")
-        p.export()
-        self.update_signal.emit("<span style='color: green; font-weight: bold;'>\u2714 DONE \u2714</span>")
+        except Exception as e:
+            self.error_signal.emit(str(e))
+            self.done_signal.emit()
 
-        self.plan_ready_signal.emit(p.plan)
-        self.done_signal.emit()
 
 class TPGWindow(BaseWindow):
     def __init__(self, parent):
         super(TPGWindow, self).__init__()
         self.parent = parent
         self.setStyleSheet("font-size: 11pt;")
-        self.set_initial_geometry(100,100,400,100)
-        self.setMinimumSize(200,450)
+        self.set_initial_geometry(100, 100, 400, 100)
+        self.setMinimumSize(200, 450)
         self.mkUI()
-
+        self.sunset_changed()
 
     def add(self):
         tel = self.parent.parent.active_tel
-        ut = self.ut_e.text()
 
-        if self.sunset_c.isChecked():
-            local_time = ephem.Date(ephem.Date(ut) - 4 * ephem.hour)
-            date = [str(local_time.datetime()).split()[0]]
-        else:
-            date = [ut.split()[0], ut.split()[1]]
-        if self.wind_c.isChecked():
-            wind = float(self.wind_e.text())
-        else:
-            wind = None
+        dt = self.ut_e.text().split()
 
-        if self.repeat_c.checkState():
+        wind = float(self.wind_e.text()) if self.wind_c.isChecked() else None
+        fwhm = float(self.fwhm_e.text()) if self.fwhm_c.isChecked() else None
+
+        seed = None
+
+        if self.repeat_c.isChecked():
             uobi_done = self.parent.done
         else:
             uobi_done = []
 
-        self.info_e.clear()
-
         self.thread = QtCore.QThread()
-        self.tpg_worker = TPG_Worker(tel,date,wind,uobi_done)
-        self.tpg_worker.moveToThread(self.thread)
-        self.thread.started.connect(self.tpg_worker.run)
-        self.tpg_worker.done_signal.connect(self.thread.quit)
-        self.tpg_worker.done_signal.connect(self.tpg_worker.deleteLater)
+        self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm,save_plan=True,)
+
+        self.worker.moveToThread(self.thread)
+
+        self.thread.started.connect(self.worker.run)
+
+        self.worker.update_signal.connect(self.update_status)
+        self.worker.plan_ready_signal.connect(self.get_plan)
+
+        self.worker.done_signal.connect(self.thread.quit)
+        self.worker.done_signal.connect(self.worker.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
-        self.tpg_worker.plan_ready_signal.connect(self.get_plan)
-        self.tpg_worker.update_signal.connect(self.update_status)
-        #self.tpg_th.go(tel,date,wind,uobi_done)
+
         self.thread.start()
 
+    def update_status(self, txt):
+        if "wind masking" in txt and not self.wind_c.isChecked():
+            return
+        self.info_e.append(txt)
 
-    def update_status(self,txt):
-        if "wind masking" in txt:
-            if self.wind_c.isChecked():
-                self.info_e.append(txt)
-                self.info_e.repaint()
-        else:
-            self.info_e.append(txt)
-            self.info_e.repaint()
+    def get_plan(self, plan):
+        tmp_plan = []
 
-    def get_plan(self,plan):
-        tmp_plan=[]
         for blok in plan:
-            ob, ok, tmp1, tmp2, tmp3 = ob_parser(blok, overhed=self.parent.parent.overhed,
-                                                                 filter_list=self.parent.parent.filter_list)
-            #DUPA
+            ob, ok, tmp1, tmp2, tmp3 = ob_parser(
+                blok,
+                overhed=self.parent.parent.overhed,
+                filter_list=self.parent.parent.filter_list
+            )
+            print(blok)
+
             try:
                 if os.path.exists(self.parent.parent.local_cfg["ctc"]["ctc_base_folder"]):
-                    self.ctc = CycleTimeCalc(telescope=self.parent.parent.active_tel,
-                                             base_folder=self.parent.parent.local_cfg["ctc"]["ctc_base_folder"], tpg=True)
-                    self.ctc.set_rm_modes(self.parent.parent.local_cfg["ctc"]["rm_modes_mhz"])
-                    self.ctc.set_start_rmode(2)  # tutaj zmienic defoult read mode dla teleskopu
+                    self.ctc = CycleTimeCalc(
+                        telescope=self.parent.parent.active_tel,
+                        base_folder=self.parent.parent.local_cfg["ctc"]["ctc_base_folder"],
+                        tpg=True
+                    )
+
+                    self.ctc.set_rm_modes(
+                        self.parent.parent.local_cfg["ctc"]["rm_modes_mhz"]
+                    )
+
+                    self.ctc.set_start_rmode(2)
                     self.ctc.reset_time()
+
                     ctc_ob_time = self.ctc.calc_time(ob["block"])
-                    if float(ob["slotTime"])/float(ctc_ob_time) < 1.3 and float(ob["slotTime"])/float(ctc_ob_time) > 0.7:
+
+                    ratio = float(ob["slotTime"]) / float(ctc_ob_time)
+
+                    if 0.7 < ratio < 1.3:
                         ob["slotTime"] = ctc_ob_time
                     else:
-                        print(f'TOI CTC disagreement: {ob["slotTime"]} {ctc_ob_time} {ob["block"]}')
+                        print(f"CTC mismatch: {ob['slotTime']} vs {ctc_ob_time}")
+
             except:
                 pass
 
             tmp_plan.append(ob)
+
         self.parent.plan[self.parent.i + 1:self.parent.i + 1] = tmp_plan
         self.parent.parent.upload_plan()
         self.parent.parent.update_plan(self.parent.parent.active_tel)
 
-        #self.close()
+    def sunset_changed(self):
+        import datetime
+        import ephem
 
+        dt = datetime.datetime.strptime(
+            self.parent.parent.ut,
+            "%Y/%m/%d %H:%M:%S"
+        )
+
+        if self.sunset_c.isChecked():
+            obs = self.parent.parent.oca_site
+            obs.date = dt
+
+            sun = ephem.Sun()
+            sunset = obs.previous_setting(sun)
+            sunset_dt = ephem.Date(sunset).datetime()
+
+            delta = dt - sunset_dt
+
+            within_2h = datetime.timedelta(0) <= delta <= datetime.timedelta(hours=2)
+            date_changed = dt.date() != sunset_dt.date()
+
+            if within_2h and date_changed:
+                dt = dt - datetime.timedelta(days=1)
+
+            self.ut_e.setText(dt.strftime("%Y-%m-%d"))
+        else:
+            self.ut_e.setText(dt.strftime("%Y-%m-%d %H:%M:%S"))
 
     def mkUI(self):
         grid = QGridLayout()
 
         self.sunset_c = QCheckBox("Start at SUNSET")
-        self.sunset_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-        self.ut_e = QLineEdit("")
-        self.ut_e.setText(f"{self.parent.parent.ut}")
+        self.sunset_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
+            "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
+        )
+
+        self.ut_e = QLineEdit()
+        self.sunset_c.stateChanged.connect(self.sunset_changed)
 
         if ephem.Date(self.parent.parent.almanac["sunset"]) > ephem.Date(self.parent.parent.almanac["sunrise"]):
             self.sunset_c.setChecked(False)
 
         self.wind_c = QCheckBox("Avoid wind direction")
         self.wind_c.setChecked(False)
-        self.wind_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.wind_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
+            "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
+        )
+
         self.wind_e = QLineEdit("")
         self.wind_e.setText(f"{self.parent.parent.telemetry_wind_direction:.0f}")
 
+        self.fwhm_c = QCheckBox("FWHM Limit")
+        self.fwhm_c.setChecked(False)
+        self.fwhm_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
+            "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
+        )
+
+        self.fwhm_e = QLineEdit("")
+
         self.repeat_c = QCheckBox("Dont repeat observed objects")
         self.repeat_c.setChecked(True)
-        #self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
-        self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-
+        self.repeat_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
+            "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
+        )
 
         self.add_p = QPushButton('Generate Plan')
         self.add_p.clicked.connect(self.add)
+
         self.close_p = QPushButton('Close')
         self.close_p.clicked.connect(lambda: self.close())
 
         self.info_e = QTextEdit("")
-        self.info_e.isReadOnly()
+        self.info_e.setReadOnly(True)
         self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
 
-        grid.addWidget(self.ut_e, 0, 0,1,2)
+        grid.addWidget(self.ut_e, 0, 0, 1, 2)
         grid.addWidget(self.sunset_c, 1, 0)
 
         grid.addWidget(self.wind_c, 2, 0)
         grid.addWidget(self.wind_e, 2, 1)
 
-        grid.addWidget(self.repeat_c, 3, 0,1,2)
+        grid.addWidget(self.fwhm_c, 3, 0)
+        grid.addWidget(self.fwhm_e, 3, 1)
 
-        grid.addWidget(self.info_e, 4, 0, 1, 2)
+        grid.addWidget(self.repeat_c, 4, 0, 1, 2)
 
-        grid.addWidget(self.add_p, 5, 1)
-        grid.addWidget(self.close_p, 5, 0)
+        grid.addWidget(self.info_e, 5, 0, 1, 2)
 
+        grid.addWidget(self.add_p, 6, 1)
+        grid.addWidget(self.close_p, 6, 0)
 
         self.setLayout(grid)
         self.show()
-
-
-
 
 # #############################################
 # ######### OKNO WYKRESU (PHASE) ##########

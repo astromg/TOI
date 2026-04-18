@@ -142,6 +142,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         for t in self.oca_tel_state.keys():   # statusy wszystkich teleskopow
 
+            self.add_background_task(self.nats_safety_reader(t))
+
             self.add_background_task(self.nats_ffs_reader(t))
             self.add_background_task(self.nats_photo_zo_reader(t))
 
@@ -178,6 +180,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.nats_toi_log[k] = get_publisher(f'tic.status.{k}.toi.log')
             self.nats_pub_toi_status[k] = get_publisher(f'tic.status.{k}.toi.status')  # dome status
             #self.nats_pub_toi_message[k] = get_publisher(f'tic.status.{k}.toi.message')
+
+    async def nats_safety_reader(self,tel):
+        try:
+            reader = get_reader(f'tic.status.{tel}.access_grantors.safety_cutoff_state', deliver_policy='last')
+            async for data, meta in reader:
+                pass
+                #print("DUPA",data)
+                #self.safety_state.append(data)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 99a: {e}')
 
     async def oca_telemetry_conditions_reader(self,tel):
         try:
@@ -302,7 +316,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # NATS Conditions reader
     async def nats_ffs_reader(self,tel):
         try:
-            time = datetime.datetime.now() - datetime.timedelta(hours=24)
+            time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24)
             r = get_reader(f'tic.status.{tel}.fits.pipeline.faststat',  deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in r:
                 self.fits_ffs_data[tel].append(data)
@@ -640,6 +654,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     # ################### METODY POD NATS READERY ##################
 
+
     async def nats_toi_plan_status_reader(self):
         try:
             reader = get_reader(f'tic.status.{self.active_tel}.toi.plan', deliver_policy='last')
@@ -666,7 +681,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_toi_log_reader(self):
         try:
-            time = datetime.datetime.now() - datetime.timedelta(hours=1)
+            time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.log', deliver_policy='by_start_time',opt_start_time=time)
             async for log, meta in reader:
                 if True:
@@ -679,7 +694,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_toi_flat_status_reader(self):
         try:
-            time = datetime.datetime.now() - datetime.timedelta(hours=25)  # do konfiguracji
+            time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=25)  # do konfiguracji
             reader = get_reader(f'tic.status.{self.active_tel}.toi.flat', deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in reader:
                 self.flat_log.append(data)
@@ -693,7 +708,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_toi_focus_record_reader(self):           # to moze powinno sie raczej robic jako append
         try:
-            time = datetime.datetime.now() - datetime.timedelta(hours=24)  # do konfiguracji
+            time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24)  # do konfiguracji
             reader = get_reader(f'tic.status.{self.active_tel}.toi.focus_record', deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in reader:
                 self.nats_focus_record = data
@@ -717,7 +732,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_toi_plan_log_reader(self):
         try:
-            time = datetime.datetime.now() - datetime.timedelta(hours=1)
+            time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.plan_log', deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in reader:
                 self.ob_log.append(data)
