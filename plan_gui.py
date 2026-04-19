@@ -1142,8 +1142,7 @@ class TPGWindow(BaseWindow):
         self.parent.parent.update_plan(self.parent.parent.active_tel)
 
     def sunset_changed(self):
-
-        dt = datetime.datetime.strptime(self.parent.parent.ut,"%Y/%m/%d %H:%M:%S")
+        dt = datetime.datetime.strptime(self.parent.parent.ut, "%Y/%m/%d %H:%M:%S")
 
         if self.sunset_c.isChecked():
             obs = ephem.Observer()
@@ -1162,14 +1161,46 @@ class TPGWindow(BaseWindow):
                 within_2h = datetime.timedelta(0) <= delta <= datetime.timedelta(hours=2)
                 date_changed = dt.date() != sunset_dt.date()
 
+                # Adjust date only if we are within 2 hours of sunset and have passed midnight
                 if within_2h and date_changed:
                     dt = dt - datetime.timedelta(days=1)
 
                 self.ut_e.setText(dt.strftime("%Y-%m-%d"))
             except ephem.NeverUpError:
+                # Handle the case where the sun never sets (e.g., polar day)
                 self.ut_e.setText(dt.strftime("%Y-%m-%d"))
         else:
             self.ut_e.setText(dt.strftime("%Y-%m-%d %H:%M:%S"))
+
+    # def sunset_changed(self):
+    #
+    #     dt = datetime.datetime.strptime(self.parent.parent.ut,"%Y/%m/%d %H:%M:%S")
+    #
+    #     if self.sunset_c.isChecked():
+    #         obs = ephem.Observer()
+    #         obs.lat = self.parent.parent.observatory[0]
+    #         obs.lon = self.parent.parent.observatory[1]
+    #         obs.elevation = float(self.parent.parent.observatory[2])
+    #         obs.date = dt
+    #
+    #         sun = ephem.Sun()
+    #         try:
+    #             sunset = obs.previous_setting(sun)
+    #             sunset_dt = ephem.Date(sunset).datetime()
+    #
+    #             delta = dt - sunset_dt
+    #
+    #             within_2h = datetime.timedelta(0) <= delta <= datetime.timedelta(hours=2)
+    #             date_changed = dt.date() != sunset_dt.date()
+    #
+    #             if within_2h and date_changed:
+    #                 dt = dt - datetime.timedelta(days=1)
+    #
+    #             self.ut_e.setText(dt.strftime("%Y-%m-%d"))
+    #         except ephem.NeverUpError:
+    #             self.ut_e.setText(dt.strftime("%Y-%m-%d"))
+    #     else:
+    #         self.ut_e.setText(dt.strftime("%Y-%m-%d %H:%M:%S"))
 
     def _smart_sunset_checkbox(self):
         dt = datetime.datetime.strptime(self.parent.parent.ut, "%Y/%m/%d %H:%M:%S")
