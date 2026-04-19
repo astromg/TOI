@@ -80,17 +80,17 @@ class MainForm(QWidget):
             # TELESKOPY
 
 
-            widget = QWidget()
-            lay = QHBoxLayout(widget)
+            icons = QWidget()
+            lay = QHBoxLayout(icons)
             lay.setContentsMargins(1,0,1,0)
             lay.setSpacing(3)
             lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             acces = self.parent.tel_acces[t]
             if acces:
-                icon_label = QLabel()
-                icon_label.setPixmap(ToiIcon("icon_joystick", "darkGreen", size=14).pixmap(14, 14))
-                lay.addWidget(icon_label)
+                icon_label1 = QLabel()
+                icon_label1.setPixmap(ToiIcon("icon_joystick", "darkGreen", size=14).pixmap(14, 14))
+                lay.addWidget(icon_label1)
 
             lay.addWidget(QLabel(f'{t}'))
 
@@ -98,12 +98,11 @@ class MainForm(QWidget):
             if self.parent.nats_toi_op_status[t]:
 
                 k = "program_error"
-
                 if "error" in self.parent.ob_progress[t]:
                     if self.parent.ob_progress[t]["error"]:
-                        icon_label = QLabel()
-                        icon_label.setPixmap(ToiIcon("icon_bug", "red", size=14).pixmap(14, 14))
-                        lay.addWidget(icon_label)
+                        icon_label2 = QLabel()
+                        icon_label2.setPixmap(ToiIcon("icon_bug", "red", size=14).pixmap(14, 14))
+                        lay.addWidget(icon_label2)
 
                 vent = False
                 k = "dome_ventilators"
@@ -114,9 +113,9 @@ class MainForm(QWidget):
                     vent = True
 
                 if vent:
-                    icon_label = QLabel()
-                    icon_label.setPixmap(ToiIcon("icon_fan", "darkOrange", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label)
+                    icon_label3 = QLabel()
+                    icon_label3.setPixmap(ToiIcon("icon_fan", "darkOrange", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label3)
 
                 light = False
                 k = "flat_lamps"
@@ -127,31 +126,31 @@ class MainForm(QWidget):
                     light = True
 
                 if light:
-                    icon_label = QLabel()
-                    icon_label.setPixmap(ToiIcon("icon_bulb", "darkOrange", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label)
+                    icon_label4 = QLabel()
+                    icon_label4.setPixmap(ToiIcon("icon_bulb", "darkOrange", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label4)
 
                 if float(self.parent.telemetry_wind) > float(self.parent.cfg_wind_limit):
-                    icon_label = QLabel()
-                    icon_label.setPixmap(ToiIcon("icon_wind", "red", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label)
+                    icon_label5 = QLabel()
+                    icon_label5.setPixmap(ToiIcon("icon_wind", "red", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label5)
                 elif float(self.parent.telemetry_wind) > float(self.parent.cfg_wind_limit_pointing):
-                    icon_label = QLabel()
-                    icon_label.setPixmap(ToiIcon("icon_wind", "orange", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label)
+                    icon_label6 = QLabel()
+                    icon_label6.setPixmap(ToiIcon("icon_wind", "orange", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label6)
 
                 if float(self.parent.telemetry_humidity) > float(self.parent.cfg_humidity_limit):
-                    icon_label = QLabel()
-                    icon_label.setPixmap(ToiIcon("icon_water", "red", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label)
+                    icon_label7 = QLabel()
+                    icon_label7.setPixmap(ToiIcon("icon_water", "red", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label7)
 
                 if float(self.parent.telemetry_temp) < float(self.parent.cfg_temperature_limit):
-                    icon_label = QLabel()
-                    icon_label.setPixmap(ToiIcon("icon_cold", "red", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label)
+                    icon_label8 = QLabel()
+                    icon_label8.setPixmap(ToiIcon("icon_cold", "red", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label8)
 
 
-            self.obs_t.setCellWidget(i,0,widget)
+            self.obs_t.setCellWidget(i,0,icons)
 
             # DOME
             state, rgb = "--", (0, 0, 0)

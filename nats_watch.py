@@ -96,12 +96,12 @@ class main_app():
 
     async def test(self):
         try:
-            reader = get_reader('tic.status.jk15.access_grantor.safety_cutoff_state', deliver_policy='last')
+            time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=25)  # do konfiguracji
+            reader = get_reader('tic.status.zb08.toi.flat', deliver_policy='by_start_time',opt_start_time=time)
+            #reader = get_reader('tic.status.jk15.access_grantor.safety_cutoff_state', deliver_policy='last')
             async for data, meta in reader:
-                tmp = data['measurements']
-                print(data)
-
-
+                tmp = meta
+                print(tmp)
 
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise

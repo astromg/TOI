@@ -8,7 +8,7 @@ repository = "https://github.com/astromg/TOI"  # to be moved to https://github.c
 keywords = ["astronomy", "telescopes"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.11"
 pyaraucaria = {git = "https://github.com/araucaria-project/pyaraucaria.git"}
 serverish = {version="^1.1.0", extras=["messenger"]}
 astropy = ">=5.0.4"

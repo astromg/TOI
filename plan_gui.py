@@ -10,6 +10,7 @@ import uuid
 import time
 
 import ephem
+import datetime
 import qasync as qs
 from qasync import QEventLoop
 from PyQtX import QtCore, QtGui
@@ -89,6 +90,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             return
         if self.parent.tel_acces[self.parent.active_tel]:
             self.tpg_window = TPGWindow(self)
+            self.tpg_window._smart_sunset_checkbox()
         else:
             txt="WARNING: U don't have control"
             self.parent.WarningWindow(txt)
@@ -114,12 +116,12 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           #self.edit_window.raise_()
 
     def pocisniecie_edit(self):
-        if self.parent.tel_acces[self.parent.active_tel]:
-            if len(self.plan)>self.i:
-                self.edit_window=EditWindow(self)
-                self.edit_window.show()
-                self.edit_window.raise_()
-            else: print("no plan loaded") # ERROR MSG
+        #if self.parent.tel_acces[self.parent.active_tel]:
+        if True:
+            if len(self.plan) > self.i:
+                self.edit_window = EditWindow(self)
+            else:
+                print("no plan loaded") # ERROR MSG
         else:
             txt="WARNING: U don't have controll"
             self.parent.WarningWindow(txt)
@@ -999,253 +1001,20 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 # ######### OKNO TPG  ##########
 # #############################################
 
-# class TPG_Worker(QtCore.QObject):
-#     done_signal = QtCore.pyqtSignal()
-#     plan_ready_signal = QtCore.pyqtSignal(list)
-#     update_signal = QtCore.pyqtSignal(str)
-#     def __init__(self,tel,date,wind,uobi_done):
-#         super(TPG_Worker, self).__init__()
-#         self.tel=tel
-#         self.date=date
-#         self.wind=wind
-#         self.uobi_done=uobi_done
-#
-#
-#
-#
-#     def run(self):
-#         p = tpg(self.tel, self.date, wind=self.wind,done_uobi=self.uobi_done)
-#
-#         p.Initiate()
-#         self.update_signal.emit("TPG init <span style='color: green;'>\u2714</span>")
-#         p.LoadObjects()
-#         self.update_signal.emit("loading objects <span style='color: green;'>\u2714</span>")
-#         p.MakeTime()
-#         self.update_signal.emit("making timeline <span style='color: green;'>\u2714</span>")
-#         self.update_signal.emit(f"plan start: <span style='color: green; font-weight: bold;'> {p.start_time}  </span>")
-#         p.CalcObject()
-#         self.update_signal.emit("calculating visibilities <span style='color: green;'>\u2714</span>")
-#         p.MaskMoon()
-#         self.update_signal.emit("Moon masking <span style='color: green;'>\u2714</span>")
-#         p.MaskWind()
-#         self.update_signal.emit("wind masking <span style='color: green;'>\u2714</span>")
-#         p.MaskCycle()
-#         self.update_signal.emit("cycle masking <span style='color: green;'>\u2714</span>")
-#         p.MaskStartEnd()
-#         self.update_signal.emit("start/end masking <span style='color: green;'>\u2714</span>")
-#         p.MaskPhaseStartEnd()
-#         self.update_signal.emit("phase and time masking <span style='color: green;'>\u2714</span>")
-#         p.MaskPhase()
-#         self.update_signal.emit("database masking <span style='color: green;'>\u2714</span>")
-#         p.Waga()
-#         p.RandomizeList()
-#         self.update_signal.emit(f"randomization with seed: <span style='font-weight: bold;'>{p.seed}</span> <span style='color: green;'>\u2714</span>")
-#         p.allocate()
-#         self.update_signal.emit("allocating objects <span style='color: green;'>\u2714</span>")
-#         p.export()
-#         self.update_signal.emit("<span style='color: green; font-weight: bold;'>\u2714 DONE \u2714</span>")
-#
-#         self.plan_ready_signal.emit(p.plan)
-#         self.done_signal.emit()
-#
-# class TPGWindow(BaseWindow):
-#     def __init__(self, parent):
-#         super(TPGWindow, self).__init__()
-#         self.parent = parent
-#         self.setStyleSheet("font-size: 11pt;")
-#         self.set_initial_geometry(100,100,400,100)
-#         self.setMinimumSize(200,450)
-#         self.mkUI()
-#         self.sunset_changed()
-#
-#
-#     def add(self):
-#         tel = self.parent.parent.active_tel
-#         ut = self.ut_e.text()
-#
-#         if self.sunset_c.isChecked():
-#             local_time = ephem.Date(ephem.Date(ut) - 4 * ephem.hour)
-#             date = [str(local_time.datetime()).split()[0]]
-#         else:
-#             date = [ut.split()[0], ut.split()[1]]
-#         if self.wind_c.isChecked():
-#             wind = float(self.wind_e.text())
-#         else:
-#             wind = None
-#
-#         if self.repeat_c.checkState():
-#             uobi_done = self.parent.done
-#         else:
-#             uobi_done = []
-#
-#         self.info_e.clear()
-#
-#         self.thread = QtCore.QThread()
-#         self.tpg_worker = TPG_Worker(tel,date,wind,uobi_done)
-#         self.tpg_worker.moveToThread(self.thread)
-#         self.thread.started.connect(self.tpg_worker.run)
-#         self.tpg_worker.done_signal.connect(self.thread.quit)
-#         self.tpg_worker.done_signal.connect(self.tpg_worker.deleteLater)
-#         self.thread.finished.connect(self.thread.deleteLater)
-#         self.tpg_worker.plan_ready_signal.connect(self.get_plan)
-#         self.tpg_worker.update_signal.connect(self.update_status)
-#         #self.tpg_th.go(tel,date,wind,uobi_done)
-#         self.thread.start()
-#
-#
-#     def update_status(self,txt):
-#         if "wind masking" in txt:
-#             if self.wind_c.isChecked():
-#                 self.info_e.append(txt)
-#                 self.info_e.repaint()
-#         else:
-#             self.info_e.append(txt)
-#             self.info_e.repaint()
-#
-#     def get_plan(self,plan):
-#         tmp_plan=[]
-#         for blok in plan:
-#             ob, ok, tmp1, tmp2, tmp3 = ob_parser(blok, overhed=self.parent.parent.overhed,
-#                                                                  filter_list=self.parent.parent.filter_list)
-#             #DUPA
-#             try:
-#                 if os.path.exists(self.parent.parent.local_cfg["ctc"]["ctc_base_folder"]):
-#                     self.ctc = CycleTimeCalc(telescope=self.parent.parent.active_tel,
-#                                              base_folder=self.parent.parent.local_cfg["ctc"]["ctc_base_folder"], tpg=True)
-#                     self.ctc.set_rm_modes(self.parent.parent.local_cfg["ctc"]["rm_modes_mhz"])
-#                     self.ctc.set_start_rmode(2)  # tutaj zmienic defoult read mode dla teleskopu
-#                     self.ctc.reset_time()
-#                     ctc_ob_time = self.ctc.calc_time(ob["block"])
-#                     if float(ob["slotTime"])/float(ctc_ob_time) < 1.3 and float(ob["slotTime"])/float(ctc_ob_time) > 0.7:
-#                         ob["slotTime"] = ctc_ob_time
-#                     else:
-#                         print(f'TOI CTC disagreement: {ob["slotTime"]} {ctc_ob_time} {ob["block"]}')
-#             except:
-#                 pass
-#
-#             tmp_plan.append(ob)
-#         self.parent.plan[self.parent.i + 1:self.parent.i + 1] = tmp_plan
-#         self.parent.parent.upload_plan()
-#         self.parent.parent.update_plan(self.parent.parent.active_tel)
-#
-#         #self.close()
-#
-#
-#     def sunset_changed(self):
-#
-#         dt = datetime.datetime.strptime(self.parent.parent.ut, "%Y/%m/%d %H:%M:%S")
-#
-#         if self.sunset_c.isChecked():
-#             obs = self.parent.parent.oca_site
-#             obs.date = dt
-#             sun = ephem.Sun()
-#             sunset = obs.previous_setting(sun)
-#             sunset_dt = ephem.Date(sunset).datetime()
-#             delta = dt - sunset_dt
-#             # warunek: 2h po zachodzie i zmienila sie data
-#             within_2h = datetime.timedelta(0) <= delta <= datetime.timedelta(hours=2)
-#             date_changed = dt.date() != sunset_dt.date()
-#             if within_2h and date_changed:
-#                 dt = dt - datetime.timedelta(days=1)
-#             self.ut_e.setText(dt.strftime("%Y-%m-%d"))
-#         else:
-#             self.ut_e.setText(dt.strftime("%Y-%m-%d %H:%M:%S"))
-#
-#
-#
-#     def mkUI(self):
-#         grid = QGridLayout()
-#
-#         self.sunset_c = QCheckBox("Start at SUNSET")
-#         self.sunset_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-#         self.ut_e = QLineEdit()
-#         self.sunset_c.stateChanged.connect(self.sunset_changed)
-#
-#
-#         if ephem.Date(self.parent.parent.almanac["sunset"]) > ephem.Date(self.parent.parent.almanac["sunrise"]):
-#             self.sunset_c.setChecked(False)
-#
-#         self.wind_c = QCheckBox("Avoid wind direction")
-#         self.wind_c.setChecked(False)
-#         self.wind_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-#         self.wind_e = QLineEdit("")
-#         self.wind_e.setText(f"{self.parent.parent.telemetry_wind_direction:.0f}")
-#
-#         self.fwhm_c = QCheckBox("FWHM Limit")
-#         self.fwhm_c.setChecked(False)
-#         self.fwhm_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-#         self.fwhm_e = QLineEdit("")
-#         #self.fwhm_e.setText(f"{}")
-#
-#         self.repeat_c = QCheckBox("Dont repeat observed objects")
-#         self.repeat_c.setChecked(True)
-#         #self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
-#         self.repeat_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-#
-#
-#         self.add_p = QPushButton('Generate Plan')
-#         self.add_p.clicked.connect(self.add)
-#         self.close_p = QPushButton('Close')
-#         self.close_p.clicked.connect(lambda: self.close())
-#
-#         self.info_e = QTextEdit("")
-#         self.info_e.isReadOnly()
-#         self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
-#
-#         grid.addWidget(self.ut_e, 0, 0,1,2)
-#         grid.addWidget(self.sunset_c, 1, 0)
-#
-#         grid.addWidget(self.wind_c, 2, 0)
-#         grid.addWidget(self.wind_e, 2, 1)
-#
-#         grid.addWidget(self.fwhm_c, 3, 0)
-#         grid.addWidget(self.fwhm_e, 3, 1)
-#
-#         grid.addWidget(self.repeat_c, 4, 0,1,2)
-#
-#         grid.addWidget(self.info_e, 4, 0, 1, 2)
-#
-#         grid.addWidget(self.add_p, 6, 1)
-#         grid.addWidget(self.close_p, 6, 0)
-#
-#
-#         self.setLayout(grid)
-#         self.show()
-#
-
 class TPG_Worker(QtCore.QObject):
     done_signal = QtCore.pyqtSignal()
     plan_ready_signal = QtCore.pyqtSignal(object)
     update_signal = QtCore.pyqtSignal(str)
     error_signal = QtCore.pyqtSignal(str)
 
-    def __init__(self, tel, dt, wind=None, uobi_done=None,
-                 fwhm=None, seed=None,
-                 save_plan=False,
-                 start_macro=False,
-                 end_macro=False,
-                 master_data=None,
-                 overhed=None,
-                 filter_list=None,
-                 local_cfg=None):
+    def __init__(self, tel, dt, wind=None, uobi_done=None,fwhm=None):
 
         super().__init__()
-
         self.tel = tel
         self.dt = dt
         self.wind = wind
         self.uobi_done = uobi_done or []
-
         self.fwhm = fwhm
-        self.seed = seed
-        self.save_plan = save_plan
-        self.start_macro = start_macro
-        self.end_macro = end_macro
-
-        self.master_data = master_data
-        self.overhed = overhed
-        self.filter_list = filter_list
-        self.local_cfg = local_cfg
 
     def run(self):
         try:
@@ -1300,6 +1069,7 @@ class TPGWindow(BaseWindow):
         self.set_initial_geometry(100, 100, 400, 100)
         self.setMinimumSize(200, 450)
         self.mkUI()
+        self._smart_sunset_checkbox()
         self.sunset_changed()
 
     def add(self):
@@ -1307,10 +1077,13 @@ class TPGWindow(BaseWindow):
 
         dt = self.ut_e.text().split()
 
-        wind = float(self.wind_e.text()) if self.wind_c.isChecked() else None
-        fwhm = float(self.fwhm_e.text()) if self.fwhm_c.isChecked() else None
-
-        seed = None
+        wind = None
+        fwhm = None
+        try:
+            wind = float(self.wind_e.text()) if self.wind_c.isChecked() else None
+            fwhm = float(self.fwhm_e.text()) if self.fwhm_c.isChecked() else None
+        except Exception as e:
+            print(f'EXCEPTION TPG 2: {e}')
 
         if self.repeat_c.isChecked():
             uobi_done = self.parent.done
@@ -1318,7 +1091,7 @@ class TPGWindow(BaseWindow):
             uobi_done = []
 
         self.thread = QtCore.QThread()
-        self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm,save_plan=True,)
+        self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm)
 
         self.worker.moveToThread(self.thread)
 
@@ -1342,32 +1115,18 @@ class TPGWindow(BaseWindow):
         tmp_plan = []
 
         for blok in plan:
-            ob, ok, tmp1, tmp2, tmp3 = ob_parser(
-                blok,
-                overhed=self.parent.parent.overhed,
-                filter_list=self.parent.parent.filter_list
-            )
-            print(blok)
+            ob, ok, tmp1, tmp2, tmp3 = ob_parser(blok,overhed=self.parent.parent.overhed,filter_list=self.parent.parent.filter_list)
 
             try:
                 if os.path.exists(self.parent.parent.local_cfg["ctc"]["ctc_base_folder"]):
-                    self.ctc = CycleTimeCalc(
-                        telescope=self.parent.parent.active_tel,
-                        base_folder=self.parent.parent.local_cfg["ctc"]["ctc_base_folder"],
-                        tpg=True
-                    )
-
-                    self.ctc.set_rm_modes(
-                        self.parent.parent.local_cfg["ctc"]["rm_modes_mhz"]
-                    )
+                    self.ctc = CycleTimeCalc(telescope=self.parent.parent.active_tel,base_folder=self.parent.parent.local_cfg["ctc"]["ctc_base_folder"],tpg=True)
+                    self.ctc.set_rm_modes(self.parent.parent.local_cfg["ctc"]["rm_modes_mhz"])
 
                     self.ctc.set_start_rmode(2)
                     self.ctc.reset_time()
 
                     ctc_ob_time = self.ctc.calc_time(ob["block"])
-
                     ratio = float(ob["slotTime"]) / float(ctc_ob_time)
-
                     if 0.7 < ratio < 1.3:
                         ob["slotTime"] = ctc_ob_time
                     else:
@@ -1383,16 +1142,14 @@ class TPGWindow(BaseWindow):
         self.parent.parent.update_plan(self.parent.parent.active_tel)
 
     def sunset_changed(self):
-        import datetime
-        import ephem
 
-        dt = datetime.datetime.strptime(
-            self.parent.parent.ut,
-            "%Y/%m/%d %H:%M:%S"
-        )
+        dt = datetime.datetime.strptime(self.parent.parent.ut,"%Y/%m/%d %H:%M:%S")
 
         if self.sunset_c.isChecked():
-            obs = self.parent.parent.oca_site
+            obs = ephem.Observer()
+            obs.lat = self.parent.parent.observatory[0]
+            obs.lon = self.parent.parent.observatory[1]
+            obs.elevation = float(self.parent.parent.observatory[2])
             obs.date = dt
 
             sun = ephem.Sun()
@@ -1413,6 +1170,31 @@ class TPGWindow(BaseWindow):
                 self.ut_e.setText(dt.strftime("%Y-%m-%d"))
         else:
             self.ut_e.setText(dt.strftime("%Y-%m-%d %H:%M:%S"))
+
+    def _smart_sunset_checkbox(self):
+        dt = datetime.datetime.strptime(self.parent.parent.ut, "%Y/%m/%d %H:%M:%S")
+        obs = ephem.Observer()
+        obs.lat = self.parent.parent.observatory[0]
+        obs.lon = self.parent.parent.observatory[1]
+        obs.elevation = float(self.parent.parent.observatory[2])
+        obs.date = dt
+
+        sun = ephem.Sun()
+        last_sunset = obs.previous_setting(sun)
+        next_sunrise = obs.next_rising(sun)
+        next_sunset = obs.next_setting(sun)
+
+        last_sunset = ephem.Date(last_sunset).datetime()
+        next_sunrise = ephem.Date(next_sunrise).datetime()
+        next_sunset = ephem.Date(next_sunset).datetime()
+
+        delta_sunset = dt - last_sunset
+
+        if next_sunset < next_sunrise or delta_sunset < datetime.timedelta(hours=2):
+            self.sunset_c.setChecked(True)
+        else:
+            self.sunset_c.setChecked(False)
+
 
     def mkUI(self):
         grid = QGridLayout()
@@ -1993,183 +1775,304 @@ class AddWindow(BaseWindow):
 
 
 
-# #############################################
-# ######### OKNO EDYCJI #######################
-# #############################################
 
-class EditWindow(BaseWindow):
+# ########################################
+#              EDIT WINDOW
+# ########################################
+
+class EditWindow(QWidget):
     def __init__(self, parent):
-          super(EditWindow, self).__init__()
-          self.setWindowTitle("EDIT WINDOW")
-          self.parent=parent
-          self.setStyleSheet("font-size: 11pt;")
-          self.types = ["STOP","BELL","WAIT","OBJECT","DARK","ZERO","SKYFLAT","DOMEFLAT","FOCUS"]
-          self.mkUI()
-          self.refresh()
-          self.close_p.clicked.connect(lambda: self.close())
-          self.change_p.clicked.connect(self.change_plan)
+        super().__init__()
 
-    def refresh(self):
-          self.tab_t.disconnect()
-          self.type_s.disconnect()
-          self.block_e.disconnect()
-          block = self.block_e.text()
-          self.ob,self.ok,self.active,self.options,self.ob_header = ob_parser(block,overhed=self.parent.parent.overhed,filter_list=self.parent.parent.filter_list)
+        self.parent = parent
 
-          if self.ok["block"]:
-              self.block_e.setStyleSheet("background-color: rgb(217, 239, 217);")
-          else:
-              self.block_e.setStyleSheet("background-color: rgb(255, 160, 0);")
-          self.update_tab()
-          self.table_changed()
-          self.estimTime_e.setText(str(self.ob["slotTime"]))
-          self.tab_t.cellChanged.connect(self.table_changed)
-          self.type_s.currentIndexChanged.connect(self.type_changed)
-          self.block_e.textChanged.connect(self.refresh)
+        self.base_schema = ObsValidator.load_schema("base_schema.yaml")
+        self.command_rules = ObsValidator.load_schema("base_rules.yaml")
+        self.validator = ObsValidator(self.base_schema, self.command_rules)
+
+        self.setWindowTitle(" OB EDIT WINDOW")
+        self.resize(600, 600)
+        self.setStyleSheet("font-size: 11pt;")
+
+        self.updating = False
+        self.initial_load = True
+
+        self.mkUI()
+        self.load_initial()
+
+    def save_ob(self):
+        if self.validate_current():
+            pass
+            #self.parent.plan[self.parent.i]["ob"] = self.collect_table_data()
+            #self.parent.update_table()
+
+    def load_initial(self):
+        try:
+            #self.ob = self.parent.plan[self.parent.i]
+            #txt = ObsValidator.convert_from_obdict(self.ob)
+            txt = self.parent.plan[self.parent.i]["block"]
+        except Exception:
+            print("ERROR: Loading OB")
+            txt = "ERROR"
+
+        self.block_e.setText(txt)
+        self.block_e.setCursorPosition(0)
+        self.initial_load = False
 
 
-    def type_changed(self):
-          block = self.block_e.text()
-          block = block.replace(block.split()[0],self.type_s.currentText())
+    def build_block(self):
+        data = self.collect_table_data()
+        txt = self.validator.convert_from_obdict(data)
+        if txt:
+            return txt
+        return ""
 
-          if block.split()[0] == "FOCUS":
-              if "pos=" not in block:
-                  block = block + f" pos={self.parent.parent.cfg_focuser_defpos}"
-              if "seq=" in block:
-                  tmp = block.split("seq=")[0]+f" seq={self.parent.parent.cfg_focuser_seq} "+block.split("seq=")[1].split(" ",1)[1]
-                  block = tmp
-              else:
-                  block = block + f" seq={self.parent.parent.cfg_focuser_seq}"
+    def collect_table_data(self):
+        data = {"command_name": self.type_s.currentText()}
 
-          self.block_e.setText(block)
-          #self.refresh()
+        for row in range(self.tab_t.rowCount()):
+            key = self.tab_t.item(row, 0).data(QtCore.Qt.ItemDataRole.UserRole)
+            val_item = self.tab_t.item(row, 1)
+            if not val_item:
+                continue
 
-    def update_tab(self):
+            val = val_item.text().strip()
+            if val != "":
+                data[key] = val
 
-          self.type_s.setCurrentText(self.ob["type"])
+        return data
 
-          self.tab_t.clearContents()
-          self.tab_t.setRowCount(0)
-          j=0
-          self.keys_in_table=[]
-          for i,k in enumerate(self.ob.keys()):
-              if self.active[k] is not False:
-                  if k not in ["slotTime","block","ok","type"]:
-                      if self.tab_t.rowCount() <= j:
-                          self.tab_t.insertRow(j)
-                      txt = str(self.ob_header[k])
-                      if txt=="": txt = k
-                      txt = QTableWidgetItem(txt)
-                      txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                      if self.ok[k]:
-                          txt.setBackground(QtGui.QColor(217, 239, 217))
-                      elif self.active[k]:
-                          txt.setBackground(QtGui.QColor(255, 160, 0))
-                      self.tab_t.setItem(j,0,txt)
+    def schema_prop(self, key):
+        return self.base_schema.get("properties", {}).get(key, {})
 
-                      txt = QTableWidgetItem(str(self.ob[k]))
-                      txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                      if self.ok[k]:
-                          txt.setBackground(QtGui.QColor(217, 239, 217))
-                      elif self.active[k]:
-                          txt.setBackground(QtGui.QColor(255, 160, 0))
-                      self.tab_t.setItem(j,1,txt)
-                      self.keys_in_table.append(k)
-                      j = j + 1
+    def tooltip_for(self, key):
+        prop = self.schema_prop(key)
 
-          self.tab_t.resizeColumnsToContents()
-          self.tab_t.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        desc = prop.get("description", "")
+        typ = prop.get("type", "")
+        enum = prop.get("enum", None)
 
-    def table_changed(self,x=None,y=None):
-          if self.tab_t.rowCount()>0:
-              txt = self.type_s.currentText()+" "
-              i=-1
-              for i in range(self.tab_t.rowCount()):
-                  k = self.keys_in_table[i]
-                  if self.tab_t.item(i,1):
-                      if k == "type":
-                          pass
-                      elif k == "name" and self.tab_t.item(i, 1).text().strip() in ["ZERO","DARK","STOP","BELL"]:
-                          pass
-                      elif k == "comment":
-                          txt = txt + self.ob_header[k] + '"' + self.tab_t.item(i, 1).text().strip() + '"'
-                      elif k == "wait":
-                          if len(self.tab_t.item(i,1).text().strip())>0:
-                            txt = txt + self.ob_header[k] + self.tab_t.item(i, 1).text().strip() + " "
-                      elif k == "wait_ut":
-                          if len(self.tab_t.item(i,1).text().strip())>0:
-                            txt = txt + self.ob_header[k] + self.tab_t.item(i, 1).text().strip() + " "
-                      elif k == "wait_sunset":
-                          if  len(self.tab_t.item(i,1).text().strip())>0:
-                            txt = txt + self.ob_header[k] + self.tab_t.item(i, 1).text().strip() + " "
-                      elif k == "wait_sunrise":
-                          if len(self.tab_t.item(i,1).text().strip())>0:
-                            txt = txt + self.ob_header[k] + self.tab_t.item(i, 1).text().strip() + " "
-                      else:
-                          txt = txt + self.ob_header[k] + self.tab_t.item(i,1).text().strip() + " "
-              self.block_e.setText("")
-              self.block_e.setText(txt)
+        lines = []
 
-    def change_plan(self):
-        if self.parent.parent.tel_acces[self.parent.parent.active_tel]:
-            ob = {key: value for key,value in self.ob.items() if self.active.get(key)}
-            self.parent.plan[self.parent.i] = ob
-            self.parent.parent.upload_plan()
-            self.parent.parent.update_plan(self.parent.parent.active_tel)
-            self.close()
+        if desc:
+            lines.append(desc)
+
+        if typ:
+            lines.append(f"Type: {typ}")
+
+        if enum:
+            lines.append("Allowed: " + ", ".join(map(str, enum)))
+
+        return "\n".join(lines)
+
+    def example_for(self, key):
+        prop = self.schema_prop(key)
+        ex = prop.get("examples", [])
+        if ex:
+            return str(ex[0])
+        return ""
+
+
+    def rebuild_table(self, command_name, values=None):
+        self.updating = True
+
+        self.tab_t.blockSignals(True)
+        self.tab_t.setRowCount(0)
+
+        allowed = self.command_rules[command_name]["allowed"]
+
+        visible = [x for x in allowed if x != "command_name"]
+
+        for r, key in enumerate(visible):
+            self.tab_t.insertRow(r)
+
+            # parameter
+            item0 = QTableWidgetItem(key)
+            item0.setBackground(QColor(235, 235, 235))
+            item0.setFlags(item0.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
+            item0.setData(QtCore.Qt.ItemDataRole.UserRole, key)
+            item0.setToolTip(self.tooltip_for(key))
+            self.tab_t.setItem(r, 0, item0)
+
+            # value
+            val = ""
+            if values and key in values:
+                val = str(values[key])
+
+            item1 = QTableWidgetItem(val)
+            self.tab_t.setItem(r, 1, item1)
+
+            # example
+            item2 = QTableWidgetItem(self.example_for(key))
+            item2.setBackground(QColor(235, 235, 235))
+            item2.setFlags(item2.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
+            self.tab_t.setItem(r, 2, item2)
+
+        self.tab_t.blockSignals(False)
+        self.updating = False
+
+
+    def block_changed(self):
+        if not self.initial_load:
+            self.status_l.setText("\u2699 OB changed")
+            self.status_l.setStyleSheet("color: blue; font-weight: normal;")
+
+        if self.updating:
+            return
+
+        txt = self.block_e.text()
+        ob_tmp = ObsPlanParser.convert_from_string(txt)
+        if ob_tmp:
+            ob = ObsValidator.convert_to_obdict(ob_tmp)
+            cmd = ob.get("command_name", "OBJECT")
         else:
-            txt="WARNING: U don't have controll"
-            self.parent.parent.WarningWindow(txt)
+            ob = {"command_name", "OBJECT"}
+            cmd = "OBJECT"
+
+        if cmd not in self.base_schema["properties"]["command_name"]["enum"]:
+            ob = {"command_name", "OBJECT"}
+            cmd = "OBJECT"
+
+        self.updating = True
+        self.type_s.setCurrentText(cmd)
+        self.rebuild_table(cmd, ob)
+        self.updating = False
+
+    def command_changed(self):
+        if self.updating:
+            return
+
+        cmd = self.type_s.currentText()
+        current = self.collect_table_data()
+        self.rebuild_table(cmd, current)
+
+        self.refresh_block()
+
+    def table_changed(self):
+        self.status_l.setText("\u2699 OB changed")
+        self.status_l.setStyleSheet("color: blue; font-weight: normal;")
+
+        if self.updating:
+            return
+        self.refresh_block()
+
+        for r in range(self.tab_t.rowCount()):
+            it = self.tab_t.item(r, 1)
+            if it:
+                it.setBackground(QColor("white"))
+
+
+    def refresh_block(self):
+        self.updating = True
+        txt = self.build_block()
+        self.block_e.setText(txt)
+        self.updating = False
+
+
+    def validate_current(self):
+        data = self.collect_table_data()
+
+        result = self.validator.validate_ob(data)
+
+        row_map = {}
+        for r in range(self.tab_t.rowCount()):
+            key = self.tab_t.item(r, 0).data(QtCore.Qt.ItemDataRole.UserRole)
+            row_map[key] = r
+
+
+        self.tab_t.blockSignals(True)
+        self.updating = True
+
+        # clear colors
+        for r in range(self.tab_t.rowCount()):
+            it = self.tab_t.item(r, 1)
+            if it:
+                it.setBackground(QColor("white"))
+
+        # apply colors
+        for key, state in result["result"].items():
+            if key not in row_map:
+                continue
+
+            r = row_map[key]
+            color = QColor(217, 239, 217) if state is True else QColor(255, 180, 80)
+
+            it = self.tab_t.item(r, 1)
+            if it:
+                it.setBackground(color)
+
+        self.tab_t.blockSignals(False)
+        self.updating = False
+
+        if result["valid"]:
+            self.status_l.setText("✅ Valid OB ")
+            #self.status_l.setText("\u2714 Valid OB ")
+            self.status_l.setStyleSheet("color: green; font-weight: bold;")
+        else:
+            self.status_l.setText("❌ Validation errors")
+            #self.status_l.setText("\u274C Validation errors")
+            self.status_l.setStyleSheet("color: orange; font-weight: bold;")
+
+        return result["valid"]
 
     def mkUI(self):
-          grid = QGridLayout()
-          w=0
-          self.block_e=QLineEdit()
-          i = self.parent.i
-          ob = self.parent.plan[i]
-          txt = ob["block"]
-          if "STOP" not in txt:  # DUPA
-              try:
-                  if "uobi=" not in txt:
-                      txt = txt + f" uobi={ob['uobi']}"
-              except KeyError:
-                  print("no uobi in OB")
+        grid = QGridLayout()
 
-          self.block_e.setText(txt)
-          self.block_e.textChanged.connect(self.refresh)
+        r = 0
+        # block line
+        self.block_e = QLineEdit()
+        self.block_e.textChanged.connect(self.block_changed)
+        grid.addWidget(self.block_e, r, 0, 1, 3)
 
-          w=w+1
-          grid.addWidget(self.block_e, w,0,1,2)
+        r += 1
+        # command selector
+        self.type_l = QLabel("TYPE")
+        self.type_s = QComboBox()
+        self.type_s.addItems(list(self.command_rules.keys()))
+        self.type_s.currentTextChanged.connect(self.command_changed)
 
-          w=w+1
-          self.type_l = QLabel("TYPE")
-          self.type_s = QComboBox()
-          self.type_s.addItems(self.types)
-          grid.addWidget(self.type_l, w, 0)
-          grid.addWidget(self.type_s, w, 1)
+        grid.addWidget(self.type_l, r, 0)
+        grid.addWidget(self.type_s, r, 1, 1, 2)
 
-          w=w+1
-          self.tab_t=QTableWidget(1,2)
-          grid.addWidget(self.tab_t, w,0,1,2)
+        r += 1
+        # table
+        self.tab_t = QTableWidget()
+        self.tab_t.setColumnCount(3)
+        self.tab_t.setHorizontalHeaderLabels(["Parameter", "Value", "Example"])
+        self.tab_t.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.tab_t.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.tab_t.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
 
-          w=w+1
-          self.label_l = QLabel("Estimated time [s]:")
-          grid.addWidget(self.label_l, w, 0)
+        self.tab_t.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)  # zaznaczenie całego wiersza
+        self.tab_t.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.tab_t.setStyleSheet("selection-background-color: rgb(200,220,255); selection-color: black; ")
+        self.tab_t.verticalHeader().hide()
 
-          self.estimTime_e = QLineEdit()
-          grid.addWidget(self.estimTime_e, w, 1)
+        self.tab_t.itemChanged.connect(self.table_changed)
 
-          w=w+1
-          self.change_p=QPushButton('CHANGE')
-          grid.addWidget(self.change_p, w,1)
+        grid.addWidget(self.tab_t, r, 0, 1, 3)
 
-          self.close_p=QPushButton('Cancel')
-          grid.addWidget(self.close_p, w,0)
+        r += 1
+        # status
+        self.status_l = QLabel("Not validated")
+        grid.addWidget(self.status_l, r, 0, 1, 2)
 
-          self.setLayout(grid)
-          self.resize(600, 500)
-          
-          
+        self.validate_p = QPushButton("Validate OB")
+        self.validate_p.clicked.connect(self.validate_current)
+        grid.addWidget(self.validate_p, r, 1, 1 ,2)
+
+        r += 1
+
+        self.save_p = QPushButton("Save")
+        self.save_p.clicked.connect(self.save_ob)
+        grid.addWidget(self.save_p, r, 2)
+
+        self.close_p = QPushButton("Close")
+        self.close_p.clicked.connect(self.close)
+        grid.addWidget(self.close_p, r, 0)
+
+        self.setLayout(grid)
+        self.show()
           
           
           
