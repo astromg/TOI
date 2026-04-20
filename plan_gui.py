@@ -1156,14 +1156,14 @@ class TPGWindow(BaseWindow):
             sunset = obs.previous_setting(sun)
             sunset = ephem.Date(sunset).datetime()
 
-            print(sunset, dt)
-
             if dt - sunset < datetime.timedelta(hours=2):
                 if sunset.date() != dt.date():
                     time2set = dt - datetime.timedelta(days=1)
                 else:
                     time2set = dt
-                self.ut_e.setText(time2set.strftime("%Y-%m-%d"))
+            else:
+                time2set = dt
+            self.ut_e.setText(time2set.strftime("%Y-%m-%d"))
         else:
             self.ut_e.setText(dt.strftime("%Y-%m-%d %H:%M:%S"))
 
