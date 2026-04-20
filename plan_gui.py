@@ -1799,9 +1799,17 @@ class EditWindow(QWidget):
 
     def save_ob(self):
         if self.validate_current():
-            pass
-            #self.parent.plan[self.parent.i]["ob"] = self.collect_table_data()
-            #self.parent.update_table()
+            tmp = {}
+            ob = self.collect_table_data()
+            tmp["ob"] = ob
+            for k in ob:
+                if k == "command_name":
+                    tmp["type"] = ob["command_name"]
+                else:
+                    tmp[k] = ob[k]
+                tmp["block"] = self.validator.convert_from_obdict(ob)
+            self.parent.plan[self.parent.i] = tmp
+            self.parent.update_table()
 
     def load_initial(self):
         try:

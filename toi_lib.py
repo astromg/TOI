@@ -20,13 +20,14 @@ def ToiIcon(name,color,size=15):
 
     return QIcon(pixmap)
 
-def get_dic(dc, keys, fail=None):
-    x = dc
-    for k in keys:
-        if not isinstance(x, dict) or k not in x:
-            return fail
-        x = x[k]
-    return x if x is not None else fail
+def get_dic(d, *keys, default=None):
+    for key in keys:
+        if isinstance(d, dict) and key in d:
+            d = d[key]
+        else:
+            return default
+    return d
+
 
 def xy2rt(x,y):
     x=float(x)
