@@ -119,8 +119,9 @@ class FitsWindow(BaseWindow):
 
 
     def update_ffs_data(self):
-        #print(self.parent.fits_ffs_data)
         pass
+        #print(self.parent.fits_ffs_data)
+
 
 
     def update_fits_data(self):
@@ -152,21 +153,21 @@ class FitsWindow(BaseWindow):
                 ofp_name = self.parent.fits_ofp_data["raw"]["file_name"]
                 if ofp_name == fname:
                     ok = True
-                    alt = get_dic(self.parent.fits_ofp_data,["raw","header","ALT_TEL"],fail = "--")
-                    if alt != "--":
+                    alt = get_dic(self.parent.fits_ofp_data,"raw","header","ALT_TEL",default = None)
+                    if alt:
                         alt = f'{float(alt):.0f}'
-                    airmass = get_dic(self.parent.fits_ofp_data,["raw","header","AIRMASS"],fail = "--")
-                    if airmass != "--":
+                    airmass = get_dic(self.parent.fits_ofp_data,"raw","header","AIRMASS",default = None)
+                    if airmass:
                         airmass = f'{float(airmass):.1f}'
                     exptime = self.parent.fits_ofp_data["raw"]["header"]["EXPTIME"]
-                    ccd_temp = get_dic(self.parent.fits_ofp_data,["raw","header","CCD-TEMP"],fail = "--")
-                    if ccd_temp != "--":
+                    ccd_temp = get_dic(self.parent.fits_ofp_data,"raw","header","CCD-TEMP",default = None)
+                    if ccd_temp:
                         ccd_temp = f'{float(ccd_temp):.0f}'
-                    gain = self.parent.fits_ofp_data["raw"]["header"]["GAIN"]
-                    rm = self.parent.fits_ofp_data["raw"]["header"]["READ-MOD"]
-                    xbin = self.parent.fits_ofp_data["raw"]["header"]["XBINNING"]
-                    ybin = self.parent.fits_ofp_data["raw"]["header"]["YBINNING"]
-                    focus = self.parent.fits_ofp_data["raw"]["header"]["FOCUS"]
+                    gain = get_dic(self.parent.fits_ofp_data,"raw","header","GAIN",default = None)
+                    rm = get_dic(self.parent.fits_ofp_data,"raw","header","READ-MOD",default = None)
+                    xbin = get_dic(self.parent.fits_ofp_data,"raw","header","XBINNING",default = None)
+                    ybin = get_dic(self.parent.fits_ofp_data,"raw","header","YBINNING",default = None)
+                    focus = get_dic(self.parent.fits_ofp_data,"raw","header","FOCUS",default = None)
 
                     if "pointing_error" in self.parent.fits_ofp_data["raw"].keys():
                         #pointing_err_ra = self.parent.fits_ofp_data["raw"]["pointing_error"]["real_ra_diff"]
@@ -239,7 +240,7 @@ class FitsWindow(BaseWindow):
                     txt = txt + " <b>OFP TARGETS</b>  <br>"
                     txt = txt + txt2
             except Exception as e:
-                print(f"TOI FITS EXCEPTION 5 fits: {e}")
+                print(f"TOI FITS EXCEPTION 5: {e}")
 
             self.tel_e.setText(tel)
             self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[tel]['color']};")

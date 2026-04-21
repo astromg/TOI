@@ -1035,6 +1035,7 @@ class TPG_Worker(QtCore.QObject):
             p.MaskMoon()
             self.update_signal.emit("masking moon <span style='color: green;'>\u2714</span>")
             p.MaskWind()
+            print(p.wind)
             self.update_signal.emit("masking wind <span style='color: green;'>\u2714</span>")
             p.MaskCycle()
             self.update_signal.emit("masking cycle <span style='color: green;'>\u2714</span>")
@@ -1808,8 +1809,16 @@ class EditWindow(QWidget):
                 else:
                     tmp[k] = ob[k]
                 tmp["block"] = self.validator.convert_from_obdict(ob)
-            self.parent.plan[self.parent.i] = tmp
+
+
+            #self.parent.plan[self.parent.i] = tmp
             self.parent.update_table()
+
+    # {
+    #     'ok': True, 'type': 'OBJECT', 'name': 'Pismis11', 'ra': '09:15:53.0', 'dec': '-50:01:00',
+    #     'seq': '2/g/60,2/g/180,2/r/60,2/r/180', 'slotTime': 1082.6232618834988, 'uobi': '9266e680',
+    #     'comment': 'every 1h', 'meta_alt': '60.7', 'meta_az': '204.6', 'meta_plan_ut': '2026/4/21 02:20:40',
+    #     'meta_plan_alt': '52.9', 'meta_plan_az': '217.5', 'skip_alt': False}
 
     def load_initial(self):
         try:
