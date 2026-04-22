@@ -262,11 +262,11 @@ class SkyView(QWidget):
             i = int(self.plan_next_i) - 1
             if i < 0: i = 0
             plan = self.plan_to_show[i:]
-            az = [float(d["meta_az"]) for d in plan if "meta_az" in d]
+            az = [float(d["meta"]["az"]) for d in plan if "az" in d["meta"]]
             az = numpy.array(az)
             az = az * 2 * 3.14 / 360.
 
-            alt = [float(d["meta_alt"]) for d in plan if "meta_alt" in d]
+            alt = [float(d["meta"]["alt"]) for d in plan if "alt" in d["meta"]]
             alt = numpy.array(alt)
             alt = 90 - alt
 
@@ -299,9 +299,9 @@ class SkyView(QWidget):
 
             try:
                 star = self.plan_to_show[self.plan_i]
-                az = float(star["meta_az"])
+                az = float(star["meta"]["az"])
                 az = az * 2 * 3.14 / 360.
-                alt = 90 - float(star["meta_alt"])
+                alt = 90 - float(star["meta"]["alt"])
                 point = self.axes.plot(az, alt, color="b", marker="D", markersize="5", markerfacecolor="white",
                                        alpha=0.9)
                 self.stars.append(point)
@@ -429,11 +429,11 @@ class SkyView(QWidget):
                 if len(self.plan) > 0:
                     przetrzymywacz = 1000.
                     for i, tmp in enumerate(self.plan):
-                        if "meta_alt" in self.plan[i].keys() and "meta_az" in self.plan[i].keys():
+                        if "alt" in self.plan[i]["meta"].keys() and "az" in self.plan[i]["meta"].keys():
                             h1 = 90. - float(alt)
                             a1 = 2 * math.pi * (float(az)) / 360.
-                            h2 = 90. - float(self.plan[i]["meta_alt"])
-                            a2 = 2 * math.pi * (float(self.plan[i]["meta_az"])) / 360.
+                            h2 = 90. - float(self.plan[i]["meta"]["alt"])
+                            a2 = 2 * math.pi * (float(self.plan[i]["meta"]["az"])) / 360.
                             delta = (h1 ** 2 + h2 ** 2 - 2 * h1 * h2 * math.cos(a1 - a2)) ** 0.5
                             if delta < przetrzymywacz:
                                 ii = i

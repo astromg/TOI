@@ -1,8 +1,9 @@
 
-WAIT wait=5
-WAIT wait=2
-WAIT wait=10
-WAIT wait=3
-WAIT wait=7
+WAIT sec=5
+WAIT sec=2
+ZERO seq=1/V/0
+WAIT sec=10
+WAIT sec=3
+WAIT sec=7
 STOP
 

@@ -37,8 +37,11 @@ import requests
 # print(f"ALPACA: {quest}\n {r}\n")
 
 # DOME
-quest = "http://192.168.7.139:11111/api/v1/dome/0/slewtoazimuth"
-data={"Azimuth":"200"}
+quest = "http://192.168.7.110:11111/api/v1/dome/0/slewtoazimuth"
+#data={"Azimuth":"202.59"}
+
+data={"Azimuth":"202.1"}
+#data={"Azimuth":"150.47"}
 r = requests.put(quest, data=data).json()
 print(f"ALPACA: {quest}\n {r}\n")
 

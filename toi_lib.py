@@ -242,7 +242,6 @@ def ob_parser(block,overhed = 0, types=["STOP","BELL","WAIT","OBJECT","DARK","ZE
                     ok["seq"] = False
             except:
                 ok["seq"] = False
-            print("DUPA ", ok["seq"])
 
 
     if type == "DARK":
