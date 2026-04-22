@@ -1560,7 +1560,7 @@ class PlotWindow(BaseWindow):
                             self.axes.text(self.t,2,"STOP",rotation=90,fontsize=fontsize)
 
                     if "sec" in self.parent.plan[i]["ob"].keys():
-                        if len(self.parent.plan[i]["ob"]["sec"]) > 0:
+                        if self.parent.plan[i]["ob"]["sec"] > 0:
                             slotTime = float(self.parent.plan[i]["ob"]["sec"])
                             self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
                             self.axes.text(self.t, 3, f"WAIT {int(slotTime)}s", rotation=90, fontsize=fontsize)
@@ -1568,7 +1568,7 @@ class PlotWindow(BaseWindow):
 
 
                     if "ut" in self.parent.plan[i]["ob"].keys():
-                        if len(self.parent.plan[i]["ob"]["ut"]) > 0:
+                        if self.parent.plan[i]["ob"]["ut"] > 0:
                             wait_ut = ephem.Date(str(ephem.Date(self.t)).split()[0] + " " + self.parent.plan[i]["ob"]["ut"])
                             if self.t < wait_ut:
                                 self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
@@ -1577,7 +1577,7 @@ class PlotWindow(BaseWindow):
                                 self.t = wait_ut
 
                     if "sunset" in self.parent.plan[i]["ob"].keys():
-                        if len(self.parent.plan[i]["ob"]["sunset"]) > 0:
+                        if self.parent.plan[i]["ob"]["sunset"] > 0:
                             self.oca.horizon = self.parent.plan[i]["ob"]["sunset"]
                             wait_ut = self.oca.next_setting(ephem.Sun(), use_center=True)
                             if self.t < wait_ut:
@@ -1587,7 +1587,7 @@ class PlotWindow(BaseWindow):
                                 self.t = wait_ut
 
                     if "sunrise" in self.parent.plan[i]["ob"].keys():
-                        if len(self.parent.plan[i]["ob"]["sunrise"]) > 0:
+                        if self.parent.plan[i]["ob"]["sunrise"] > 0:
                             self.oca.horizon = self.parent.plan[i]["ob"]["sunrise"]
                             wait_ut = self.oca.next_rising(ephem.Sun(), use_center=True)
                             if self.t < wait_ut:
