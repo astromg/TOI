@@ -5,6 +5,11 @@ import json
 import requests
 
 
+# 100 wk06
+# 110 zb08
+# 120 jk15
+#
+
 # Tertiary mirror
 
 # data = {"Action":"selectnasmythport","Parameters":"1"}
@@ -23,7 +28,7 @@ import requests
 
 # ERROR
 
-
+#
 # data ={"Action" :"telescope:errorstring" ,"Parameters" :""}
 # quest ="http://192.168.7.110:11111/api/v1/telescope/0/action"
 # r = requests.put(quest ,data=data).json()
@@ -37,22 +42,22 @@ import requests
 # print(f"ALPACA: {quest}\n {r}\n")
 
 # DOME
-quest = "http://192.168.7.110:11111/api/v1/dome/0/slewtoazimuth"
-#data={"Azimuth":"202.59"}
-
-data={"Azimuth":"202.1"}
-#data={"Azimuth":"150.47"}
-r = requests.put(quest, data=data).json()
-print(f"ALPACA: {quest}\n {r}\n")
+# quest = "http://192.168.7.110:11111/api/v1/dome/0/slewtoazimuth"
+# #data={"Azimuth":"202.59"}
+#
+# data={"Azimuth":"202.1"}
+# #data={"Azimuth":"150.47"}
+# r = requests.put(quest, data=data).json()
+# print(f"ALPACA: {quest}\n {r}\n")
 
 
 # MOUNT
 
-# quest = "http://192.168.7.120:11111/api/v1/telescope/0/slewing"
-# r = requests.get(quest)
-# r = r.json()
-# r = r["Value"]
-# print(f"ALPACA: {quest}\n {r}\n")
+quest = "http://192.168.7.110:11111/api/v1/telescope/0/slewing"
+r = requests.get(quest)
+r = r.json()
+r = r["Value"]
+print(f"ALPACA: {quest}\n {r}\n")
 
 # Rotator
 

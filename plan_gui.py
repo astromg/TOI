@@ -1577,25 +1577,21 @@ class PlotWindow(BaseWindow):
                             if "sec" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
                                 self.axes.text(self.t, 3, f"WAIT sec={int(slotTime):.0f}s", rotation=90, fontsize=fontsize)
-                                self.t = self.t + ephem.second * slotTime
 
                             elif "ut" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
                                 txt = f'WAIT ut={self.parent.plan[i]["ob"]["ut"]}'
                                 self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
-                                self.t = self.t + ephem.second * slotTime
 
                             elif "sunset" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
                                 txt = f'WAIT sunset={self.parent.plan[i]["ob"]["sunset"]}'
                                 self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
-                                self.t = self.t + ephem.second * slotTime
 
                             elif "sunrise" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
                                 txt = f'WAIT sunrise={self.parent.plan[i]["ob"]["sunrise"]}'
                                 self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
-                                self.t = self.t + ephem.second * slotTime
 
 
                             else:
