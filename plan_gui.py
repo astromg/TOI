@@ -1538,6 +1538,8 @@ class PlotWindow(BaseWindow):
             color = ["c","m"]
             j=0
             for i, tmp in enumerate(self.parent.plan):
+
+
                 fontsize = 9
                 if j==len(color): j=0
                 tmp_ok = False
@@ -1556,87 +1558,82 @@ class PlotWindow(BaseWindow):
                 if tmp_ok:
                     if 'command_name' in self.parent.plan[i]["ob"].keys():
                         if self.parent.plan[i]["ob"]["command_name"] == "STOP":
+                            txt = "STOP"
+                            if "comment" in self.parent.plan[i]["ob"].keys():
+                                txt = txt + f' {self.parent.plan[i]["ob"]["comment"]}'
+                            self.axes.text(self.t,2,txt,rotation=90,fontsize=fontsize)
                             self.axes.axvline(x=self.t, color="red",alpha=0.5)
-                            self.axes.text(self.t,2,"STOP",rotation=90,fontsize=fontsize)
 
-                    if "sec" in self.parent.plan[i]["ob"].keys():
-                        if self.parent.plan[i]["ob"]["sec"]:
-                            slotTime = float(self.parent.plan[i]["ob"]["sec"])
-                            self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
-                            self.axes.text(self.t, 3, f"WAIT {int(slotTime)}s", rotation=90, fontsize=fontsize)
-                            self.t = self.t + ephem.second * slotTime
+                        elif self.parent.plan[i]["ob"]["command_name"] == "BELL":
+                            txt = "BELL"
+                            if "comment" in self.parent.plan[i]["ob"].keys():
+                                txt = txt + f' {self.parent.plan[i]["ob"]["comment"]}'
+                            self.axes.text(self.t,2,txt,rotation=90,fontsize=fontsize)
+                            self.axes.axvline(x=self.t, color="deepskyblue",alpha=0.5)
 
-
-                    if "ut" in self.parent.plan[i]["ob"].keys():
-                        if self.parent.plan[i]["ob"]["ut"]:
-                            wait_ut = ephem.Date(str(ephem.Date(self.t)).split()[0] + " " + self.parent.plan[i]["ob"]["ut"])
-                            if self.t < wait_ut:
-                                self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
-                                                        alpha=0.5)
-                                self.axes.text(self.t, 3, f"WAIT UT {wait_ut}", rotation=90, fontsize=fontsize)
-                                self.t = wait_ut
-
-                    if "sunset" in self.parent.plan[i]["ob"].keys():
-                        if self.parent.plan[i]["ob"]["sunset"]:
-                            self.oca.horizon = self.parent.plan[i]["ob"]["sunset"]
-                            wait_ut = self.oca.next_setting(ephem.Sun(), use_center=True)
-                            if self.t < wait_ut:
-                                self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
-                                                        alpha=0.5)
-                                self.axes.text(self.t, 3, f"WAIT SUNSET {wait_ut}", rotation=90, fontsize=fontsize)
-                                self.t = wait_ut
-
-                    if "sunrise" in self.parent.plan[i]["ob"].keys():
-                        if self.parent.plan[i]["ob"]["sunrise"]:
-                            self.oca.horizon = self.parent.plan[i]["ob"]["sunrise"]
-                            wait_ut = self.oca.next_rising(ephem.Sun(), use_center=True)
-                            if self.t < wait_ut:
-                                self.axes.fill_betweenx([0, 2], self.t, wait_ut, color="r",
-                                                        alpha=0.5)
-                                self.axes.text(self.t, 3, f"WAIT SUNRISE {wait_ut}", rotation=90, fontsize=fontsize)
-                                self.t = wait_ut
-
-                    if "seq" in self.parent.plan[i]["ob"].keys():
-                        seq = self.parent.plan[i]["ob"]["seq"]
                         if "slotTime" in self.parent.plan[i]["meta"].keys():
-                            slotTime = self.parent.plan[i]["meta"]["slotTime"]
-                        else:
-                            slotTime = calc_slot_time(seq,self.parent.parent.overhed)
+                            slotTime = float(self.parent.plan[i]["meta"]["slotTime"])
 
-                        if slotTime < 60:
-                            fontsize = 2
-                        if slotTime < 60 * 5:
-                            fontsize = 5
-                        if slotTime < 60 * 10:
-                            fontsize = 7
-                        else:
-                            fontsize = 9
+                            if "sec" in self.parent.plan[i]["ob"].keys():
+                                self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
+                                self.axes.text(self.t, 3, f"WAIT sec={int(slotTime):.0f}s", rotation=90, fontsize=fontsize)
+                                self.t = self.t + ephem.second * slotTime
 
-                        if "ra" in self.parent.plan[i]["ob"].keys():
-                            ra = self.parent.plan[i]["ob"]["ra"]
-                            dec = self.parent.plan[i]["ob"]["dec"]
-                            t_tab = []
-                            alt_tab = []
+                            elif "ut" in self.parent.plan[i]["ob"].keys():
+                                self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
+                                txt = f'WAIT ut={self.parent.plan[i]["ob"]["ut"]}'
+                                self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
+                                self.t = self.t + ephem.second * slotTime
 
-                            t = self.t
-                            while t <= self.t + ephem.second * slotTime:
-                                az, alt = RaDec2AltAz(self.parent.parent.observatory, t, ra, dec)
-                                t_tab.append(t)
-                                alt_tab.append(deg_to_decimal_deg(str(alt)))
-                                t = t + 10*ephem.second
-                            #print(alt_tab,t_tab)
-                            if i == self.parent.i:
-                                self.axes.plot(t_tab, alt_tab, color="red",linestyle="-",linewidth="2")
-                                self.axes.text(self.t, 93, f'{self.parent.plan[i]["ob"]["name"]}', color="red",rotation=90, fontsize=fontsize)
-                            elif "standard" in self.parent.plan[i]["block"]:
-                                self.axes.plot(t_tab, alt_tab, color="blue")
-                                self.axes.text(self.t, 93, f'{self.parent.plan[i]["ob"]["name"]}', color="blue",rotation=90, fontsize=fontsize)
+                            elif "sunset" in self.parent.plan[i]["ob"].keys():
+                                self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
+                                txt = f'WAIT sunset={self.parent.plan[i]["ob"]["sunset"]}'
+                                self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
+                                self.t = self.t + ephem.second * slotTime
+
+                            elif "sunrise" in self.parent.plan[i]["ob"].keys():
+                                self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
+                                txt = f'WAIT sunrise={self.parent.plan[i]["ob"]["sunrise"]}'
+                                self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
+                                self.t = self.t + ephem.second * slotTime
+
+
                             else:
-                                self.axes.plot(t_tab,alt_tab,color=color[j])
-                                self.axes.text(self.t, 93, f'{self.parent.plan[i]["ob"]["name"]}', color=color[j], rotation=90, fontsize=fontsize)
-                            j=j+1
 
-                        self.t = self.t + ephem.second * slotTime
+                                if slotTime < 60:
+                                    fontsize = 2
+                                if slotTime < 60 * 5:
+                                    fontsize = 5
+                                if slotTime < 60 * 10:
+                                    fontsize = 7
+                                else:
+                                    fontsize = 9
+
+                                if "ra" in self.parent.plan[i]["ob"].keys():
+                                    ra = self.parent.plan[i]["ob"]["ra"]
+                                    dec = self.parent.plan[i]["ob"]["dec"]
+                                    t_tab = []
+                                    alt_tab = []
+
+                                    t = self.t
+                                    while t <= self.t + ephem.second * slotTime:
+                                        az, alt = RaDec2AltAz(self.parent.parent.observatory, t, ra, dec)
+                                        t_tab.append(t)
+                                        alt_tab.append(deg_to_decimal_deg(str(alt)))
+                                        t = t + 10*ephem.second
+                                    #print(alt_tab,t_tab)
+                                    if i == self.parent.i:
+                                        self.axes.plot(t_tab, alt_tab, color="red",linestyle="-",linewidth="2")
+                                        self.axes.text(self.t, 93, f'{self.parent.plan[i]["ob"]["name"]}', color="red",rotation=90, fontsize=fontsize)
+                                    elif "standard" in self.parent.plan[i]["block"]:
+                                        self.axes.plot(t_tab, alt_tab, color="blue")
+                                        self.axes.text(self.t, 93, f'{self.parent.plan[i]["ob"]["name"]}', color="blue",rotation=90, fontsize=fontsize)
+                                    else:
+                                        self.axes.plot(t_tab,alt_tab,color=color[j])
+                                        self.axes.text(self.t, 93, f'{self.parent.plan[i]["ob"]["name"]}', color=color[j], rotation=90, fontsize=fontsize)
+                                    j=j+1
+
+                            self.t = self.t + ephem.second * slotTime
 
             self.axes.set_ylim(0, 90)
             self.axes.set_xlim(self.t0-0.5*ephem.hour,self.t_end+0.5*ephem.hour)

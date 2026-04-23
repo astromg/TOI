@@ -59,7 +59,7 @@ from ffs_lib.ffs import FFS
 from instrument_gui import InstrumentGui
 from mnt_gui import MntGui
 from sky_gui import SkyGui
-from obs_gui import ObsGui
+from obs_gui import ObsGui, CzuwakWindow
 from plan_gui import PlanGui
 from fits_gui import FitsWindow
 from focus_gui import FocusWindow
@@ -125,6 +125,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.conditionsGui = ConditionsWindow(self)
         self.guiderGui = GuiderWindow(self)
         self.planrunnerGui = PlanrunnerWindow(self)
+        self.czuwakGui = CzuwakWindow()
 
 
         #self.auxGui = AuxGui(self)
@@ -1137,7 +1138,31 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         while True:
             try:
 
-                #print("********* PING **************")
+                control_operator = False
+                for tel in self.local_cfg["toi"]["telescopes"]:
+                    if self.tel_acces[tel]:
+                        control_operator = True
+
+                if control_operator:
+                    self.czuwakGui.czuwak += 1
+                    self.czuwakGui.label.setText(f'Time Left: {300-self.czuwakGui.czuwak}')
+                    self.czuwakGui.label.setStyleSheet("color: black;")
+                    if self.czuwakGui.czuwak > 240:
+                        self.czuwakGui.label.setStyleSheet("color: red;")
+                        self.czuwakGui.show()
+                    if self.czuwakGui.czuwak > 300:
+                        info = "No operator!"
+                        label = "PING"
+                        await self.send_ocm_message(info, label=label)
+                    if self.czuwakGui.czuwak > 310:
+                        self.czuwakGui.czuwak = 309
+                        info = "No klikaj!!!"
+                        self.czuwakGui.label.setText(f'{info} KURWA: {310 - self.czuwakGui.czuwak}')
+                        label = "PROGRAM BELL"
+                        await self.send_ocm_message(info, label=label)
+
+
+                    #print("********* PING **************")
 
                 for tel in self.acces_grantors.keys():
                     acces = await self.acces_grantors[tel].aget_is_access()

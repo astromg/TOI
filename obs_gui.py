@@ -635,3 +635,31 @@ class ReportWindow(BaseWindow):
 
         self.setLayout(grid)
 
+
+class CzuwakWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.czuwak = 0
+
+        self.setWindowTitle("Czuwak")
+        self.setGeometry(100, 100, 300, 200)
+
+        # Układ w pionie
+        layout = QVBoxLayout()
+
+        # Etykieta z instrukcją
+        self.label = QLabel("Time Left: ", self)
+        layout.addWidget(self.label)
+
+        # Przycisk
+        self.button = QPushButton("Push Me!", self)
+        self.button.clicked.connect(self.on_button_click)
+        layout.addWidget(self.button)
+
+        # Ustawienie układu
+        self.setLayout(layout)
+
+    def on_button_click(self):
+        self.czuwak = 0
+        self.label.setText("Ok!")
+        self.close()

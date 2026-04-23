@@ -220,30 +220,6 @@ class SkyView(QWidget):
         self.show()
 
     def updateRadar(self):
-        # ### MOUNT ###
-        # try:
-        #     for p in self.mount:
-        #         p.remove()
-        # except Exception as e:
-        #     pass
-        # color = "r"
-        # if self.parent.mount_tracking:
-        #     color = "g"
-        # if self.parent.mount_slewing:
-        #     color = "orange"
-        # if self.parent.cover_status == 1:
-        #     facecolor = "red"
-        # elif self.parent.cover_status == 3:
-        #     facecolor = "white"
-        # else:
-        #     facecolor = "red"
-        # if self.parent.mount_alt:
-        #     alt = 90 - self.parent.mount_alt
-        #     az = self.parent.mount_az
-        #     az = az * 2 * 3.14 / 360.
-        #     self.mount = self.axes.plot(az, alt, color=color, marker="o", markersize="10", markerfacecolor="red",
-        #                                 alpha=0.9)
-
         # ### STARS ###
         try:
             for p in self.stars: p[0].remove()
@@ -307,8 +283,55 @@ class SkyView(QWidget):
                 self.stars.append(point)
             except Exception as e:
                 pass
+            self.updateTrack()
             self.canvas.draw()
             self.show()
+
+    def updateTrack(self):
+        try:
+            for p in self.track: p[0].remove()
+        except Exception as e:
+            pass
+        self.track = []
+
+
+        try:
+            star = self.plan_to_show[self.plan_i]
+            if "plan_ut" in star["meta"] and "slotTime" in star["meta"] and "ra" in star["ob"]:
+                ra = star["ob"]["ra"]
+                dec = star["ob"]["dec"]
+                plan_ut = star["meta"]["plan_ut"]
+                slotTime = star["meta"]["slotTime"]
+                t0 = ephem.Date(self.parent.ut)
+                te = t0 + 6 * ephem.hour
+                t0_star = ephem.Date(plan_ut)
+                te_star = t0_star + slotTime * ephem.second
+                alt_l = []
+                az_l = []
+                obs_alt_l = []
+                obs_az_l = []
+                t = t0
+                while t < te:
+                    az, alt = RaDec2AltAz(self.parent.observatory, t, ra, dec)
+                    alt = deg_to_decimal_deg(str(alt))
+                    az = deg_to_decimal_deg(str(az))
+                    az = az * 2 * 3.14 / 360.
+                    alt = 90 - alt
+                    if t0_star < t <  te_star:
+                        obs_alt_l.append(alt)
+                        obs_az_l.append(az)
+                    else:
+                        alt_l.append(alt)
+                        az_l.append(az)
+                    t = t + 1 * ephem.minute
+
+                track = self.axes.plot(az_l, alt_l, color="dodgerblue", linestyle='-', alpha=0.5, linewidth=1)
+                obs = self.axes.plot(obs_az_l, obs_alt_l, color="darkorange", linestyle='-', alpha=1, linewidth=2)
+                self.track.append(track)
+                self.track.append(obs)
+
+        except Exception as e:
+            print(f'{e}')
 
     def updateMount(self):
         try:
@@ -390,6 +413,7 @@ class SkyView(QWidget):
             print("toi, updateWind: ", e)
 
     # ======= Budowa okna ====================
+
 
     def mkUI(self):
         # self.setWindowTitle('FC')
