@@ -17,13 +17,19 @@ import requests
 # r = requests.put(quest, data=data).json()
 # r = r['Value']
 # print(f"ALPACA: {quest}\n {r}\n")
-
-# data = {"Action":"nasmythport","Parameters":""}
-# quest = "http://192.168.7.110:11111/api/v1/telescope/0/action"
-# r = requests.put(quest, data=data).json()
-# r = r['Value']
+#
+#
+# data ={"Action" :"getcurrentnasmythport" ,"Parameters" :"true"}
+# quest ="http://192.168.7.110:11111/api/v1/telescope/0/action"
+# r = requests.put(quest ,data=data).json()
+# r= r['Value']
 # print(f"ALPACA: {quest}\n {r}\n")
-
+#
+# data ={"Action" :"tertiarystatus" ,"Parameters" :"true"}
+# quest ="http://192.168.7.110:11111/api/v1/telescope/0/action"
+# r = requests.put(quest ,data=data).json()
+# r= r['Value']
+# print(f"ALPACA: {quest}\n {r}\n")
 
 
 # ERROR
@@ -53,11 +59,11 @@ import requests
 
 # MOUNT
 
-quest = "http://192.168.7.110:11111/api/v1/telescope/0/slewing"
-r = requests.get(quest)
-r = r.json()
-r = r["Value"]
-print(f"ALPACA: {quest}\n {r}\n")
+# quest = "http://192.168.7.110:11111/api/v1/telescope/0/slewing"
+# r = requests.get(quest)
+# r = r.json()
+# r = r["Value"]
+# print(f"ALPACA: {quest}\n {r}\n")
 
 # Rotator
 

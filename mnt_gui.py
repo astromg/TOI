@@ -651,14 +651,14 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             tel = self.parent.obs_tel_tic_names[self.parent.active_tel_i]
             if tel=="zb08":
                 self.setFocus_s.setRange(0,28000)
-                self.setFocus_s.setSingleStep(50)
+                self.setFocus_s.setSingleStep(10)
             elif tel=="wk06":
                 self.setFocus_s.setRange(0,28000)
-                self.setFocus_s.setSingleStep(50)
+                self.setFocus_s.setSingleStep(10)
             elif tel=="jk15":
                 self.setFocus_s.setRange(0,50000)
-                self.setFocus_s.setSingleStep(50)
-        self.setFocus_s.valueChanged.connect(self.parent.focusClicked)
+                self.setFocus_s.setSingleStep(10)
+        #self.setFocus_s.valueChanged.connect(self.parent.focusClicked)
         self.setFocus_p = QPushButton('SET')
         self.setFocus_p.clicked.connect(self.parent.set_focus)
         self.telAutoFocus_l = QLabel("AUTO ADJUST:")

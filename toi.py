@@ -1138,28 +1138,30 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         while True:
             try:
 
-                # control_operator = False
-                # for tel in self.local_cfg["toi"]["telescopes"]:
-                #     if self.tel_acces[tel]:
-                #         control_operator = True
-                #
-                # if control_operator:
-                #     self.czuwakGui.czuwak += 1
-                #     self.czuwakGui.label.setText(f'Time Left: {300-self.czuwakGui.czuwak}')
-                #     self.czuwakGui.label.setStyleSheet("color: black;")
-                #     if self.czuwakGui.czuwak > 240:
-                #         self.czuwakGui.label.setStyleSheet("color: red;")
-                #         self.czuwakGui.show()
-                #     if self.czuwakGui.czuwak > 300:
-                #         info = "No operator!"
-                #         label = "PING"
-                #         await self.send_ocm_message(info, label=label)
-                #     if self.czuwakGui.czuwak > 310:
-                #         self.czuwakGui.czuwak = 309
-                #         info = "No klikaj!!!"
-                #         self.czuwakGui.label.setText(f'{info} KURWA: {310 - self.czuwakGui.czuwak}')
-                #         label = "PROGRAM BELL"
-                #         await self.send_ocm_message(info, label=label)
+                control_operator = False
+                for tel in self.local_cfg["toi"]["telescopes"]:
+                    if self.tel_acces[tel]:
+                        control_operator = True
+
+                if control_operator:
+                    self.czuwakGui.czuwak += 1
+                    self.czuwakGui.label.setText(f'Time Left: {300-self.czuwakGui.czuwak}')
+                    self.czuwakGui.label.setStyleSheet("color: black;")
+                    if self.czuwakGui.czuwak > 310:
+                        self.czuwakGui.czuwak = 309
+                        info = "No klikaj!!!"
+                        self.czuwakGui.label.setText(f'{info} KURWA: {310 - self.czuwakGui.czuwak}')
+                        label = "PROGRAM BELL"
+                        await self.send_ocm_message(info, label=label)
+                    elif self.czuwakGui.czuwak > 300:
+                        info = "No operator!"
+                        label = "PING"
+                        await self.send_ocm_message(info, label=label)
+                    elif self.czuwakGui.czuwak > 240:
+                        self.czuwakGui.label.setStyleSheet("color: red;")
+                        self.czuwakGui.show()
+
+
 
 
                     #print("********* PING **************")
@@ -1183,6 +1185,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             except Exception as e:
                 logger.warning(f'TOI: EXCEPTION 7: {e}')
+
+            if self.active_tel:
+                self.focus_set_update()
+
 
             # sterowanie wykonywaniem planu
             if True:
@@ -3414,14 +3420,37 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
 
-    def focusClicked(self, event):
-        self.mntGui.setFocus_s.setStyleSheet("background-color: rgb(234, 245, 249);")
-        self.focus_editing=True
+    # def focusClicked(self, event):
+    #     self.mntGui.setFocus_s.setStyleSheet("background-color: rgb(234, 245, 249);")
+    #     self.focus_editing=True
+
+    def focus_model(self, tel, temp, hum):
+        coeff = {"wk06":{"aTemp":-4.740161,"aHum":-0.677837,"a0":21311.728592},
+                "zb08": {"aTemp": -7.446942, "aHum": -0.616425, "a0": 15499.178036},
+                "jk15": {"aTemp": -9.090347, "aHum": -0.297319, "a0": 25447.997713}
+                }
+        if tel in coeff.keys():
+            foc = coeff[tel]["a0"] + coeff[tel]["aTemp"] * temp + coeff[tel]["aHum"] * hum
+            return foc
+
+        else:
+            return None
+
+    async def focus_set_update(self):
+        self.focus_value = await self.focus.aget_position()
+        temp = self.telemetry_temp
+        hum = self.telemetry_humidity
+
+        focus = self.focus_model(self.active_tel, temp, hum)
+
+        self.mntGui.setFocus_s.setValue(int(focus))
+        if abs(self.focus_value - focus) > 10:
+            self.mntGui.setFocus_s.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+        else:
+            self.mntGui.setFocus_s.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+
 
     async def focus_update(self, event):
-        self.focus_value = await self.focus.aget_position()
-        self.focus_moving = await self.focus.aget_ismoving()
-
         if self.focus_value != None:
             self.mntGui.telFocus_e.setText(str(self.focus_value))
             if self.focus_moving != None:
@@ -3433,10 +3462,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.telFocus_e.setText(f"ERROR")
             self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
 
-        if not self.focus_editing:
-           self.mntGui.setFocus_s.valueChanged.disconnect(self.focusClicked)
-           self.mntGui.setFocus_s.setValue(int(self.focus_value))
-           self.mntGui.setFocus_s.valueChanged.connect(self.focusClicked)
+        # if not self.focus_editing:
+        #    self.mntGui.setFocus_s.valueChanged.disconnect(self.focusClicked)
+        #    self.mntGui.setFocus_s.setValue(int(self.focus_value))
+        #    self.mntGui.setFocus_s.valueChanged.connect(self.focusClicked)
 
     # ############### FILTERS #####################
 
@@ -3479,10 +3508,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     async def rotator_update(self, event):
+        self.rotator_mechpos = self.rotator.mechanicalposition
         self.rotator_pos = self.rotator.position
         self.rotator_moving = self.rotator.ismoving
-        if self.rotator_pos != None:
-            self.mntGui.telRotator1_e.setText(f"{self.rotator_pos:.2f}")
+        if self.rotator_pos and self.rotator_mechpos:
+            self.mntGui.telRotator1_e.setText(f"{self.rotator_pos:.2f} {self.rotator_mechpos:.2f}")
             if self.rotator_moving != None:
                 if self.rotator_moving:
                     self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(234, 245, 249); color: black;")
