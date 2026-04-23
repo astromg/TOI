@@ -116,8 +116,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           #self.edit_window.raise_()
 
     def pocisniecie_edit(self):
-        #if self.parent.tel_acces[self.parent.active_tel]:
-        if True:
+        if self.parent.tel_acces[self.parent.active_tel]:
             if len(self.plan) > self.i:
                 self.edit_window = EditWindow(self)
             else:

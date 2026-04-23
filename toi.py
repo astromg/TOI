@@ -1187,7 +1187,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 logger.warning(f'TOI: EXCEPTION 7: {e}')
 
             if self.active_tel:
-                self.focus_set_update()
+                await self.focus_set_update()
 
 
             # sterowanie wykonywaniem planu
@@ -2183,7 +2183,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     oca.lat = self.observatory[0]
                                     oca.lon = self.observatory[1]
                                     oca.elevation = float(self.observatory[2])
-                                    oca.horizon = self.plan[tel][i]["ob"]["sunset"]
+                                    oca.horizon = str(self.plan[tel][i]["ob"]["sunset"])
                                     wait_sunset = oca.next_setting(ephem.Sun(), use_center=True)
                                     slotTime = wait_sunset - ob_time
                                     if slotTime > 0.5:
@@ -2196,9 +2196,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     oca.lat = self.observatory[0]
                                     oca.lon = self.observatory[1]
                                     oca.elevation = float(self.observatory[2])
-                                    oca.horizon = self.plan[tel][i]["ob"]["sunrise"]
-                                    wait_sunrise = oca.next_setting(ephem.Sun(), use_center=True)
+                                    oca.horizon = str(self.plan[tel][i]["ob"]["sunrise"])
+                                    wait_sunrise = oca.next_rising(ephem.Sun(), use_center=True)
                                     slotTime = wait_sunrise - ob_time
+                                    print(wait_sunrise, ob_time, slotTime)
                                     if slotTime > 0.5:
                                         slotTime = 0
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
@@ -3443,14 +3444,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         focus = self.focus_model(self.active_tel, temp, hum)
 
-        self.mntGui.setFocus_s.setValue(int(focus))
         if abs(self.focus_value - focus) > 10:
-            self.mntGui.setFocus_s.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+            self.mntGui.setFocus_s.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")  # yellow
         else:
-            self.mntGui.setFocus_s.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            self.mntGui.setFocus_s.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")  # white
+
+        if self.mntGui.telAutoFocus_c.isChecked():
+            self.mntGui.setFocus_s.setValue(int(focus))
+
 
 
     async def focus_update(self, event):
+        self.focus_value = await self.focus.aget_position()
+        self.focus_moving = await self.focus.aget_ismoving()
         if self.focus_value != None:
             self.mntGui.telFocus_e.setText(str(self.focus_value))
             if self.focus_moving != None:

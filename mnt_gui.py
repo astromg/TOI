@@ -661,12 +661,12 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         #self.setFocus_s.valueChanged.connect(self.parent.focusClicked)
         self.setFocus_p = QPushButton('SET')
         self.setFocus_p.clicked.connect(self.parent.set_focus)
-        self.telAutoFocus_l = QLabel("AUTO ADJUST:")
+        self.telAutoFocus_l = QLabel("FOCI MODEL:")
         self.telAutoFocus_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         self.telAutoFocus_c = QCheckBox()
         self.telAutoFocus_c.setChecked(True)
         self.telAutoFocus_c.setLayoutDirection(Qt.RightToLeft)
-        self.telAutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+        self.telAutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnBlue.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
 
         w = w + 1
         self.grid.addWidget(self.focusConn_l, w, 0)
