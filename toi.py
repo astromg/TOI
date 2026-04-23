@@ -1138,29 +1138,29 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         while True:
             try:
 
-                control_operator = False
-                for tel in self.local_cfg["toi"]["telescopes"]:
-                    if self.tel_acces[tel]:
-                        control_operator = True
-
-                if control_operator:
-                    self.czuwakGui.czuwak += 1
-                    self.czuwakGui.label.setText(f'Time Left: {300-self.czuwakGui.czuwak}')
-                    self.czuwakGui.label.setStyleSheet("color: black;")
-                    if self.czuwakGui.czuwak > 310:
-                        self.czuwakGui.czuwak = 309
-                        info = "No klikaj!!!"
-                        self.czuwakGui.label.setText(f'{info} KURWA: {310 - self.czuwakGui.czuwak}')
-                        label = "PROGRAM BELL"
-                        await self.send_ocm_message(info, label=label)
-                    elif self.czuwakGui.czuwak > 300:
-                        info = "No operator!"
-                        label = "PING"
-                        await self.send_ocm_message(info, label=label)
-                    elif self.czuwakGui.czuwak > 240:
-                        self.czuwakGui.label.setStyleSheet("color: red;")
-                        self.czuwakGui.show()
-
+                # control_operator = False
+                # for tel in self.local_cfg["toi"]["telescopes"]:
+                #     if self.tel_acces[tel]:
+                #         control_operator = True
+                #
+                # if control_operator:
+                #     self.czuwakGui.czuwak += 1
+                #     self.czuwakGui.label.setText(f'Time Left: {300-self.czuwakGui.czuwak}')
+                #     self.czuwakGui.label.setStyleSheet("color: black;")
+                #     if self.czuwakGui.czuwak > 310:
+                #         self.czuwakGui.czuwak = 309
+                #         info = "No klikaj!!!"
+                #         self.czuwakGui.label.setText(f'{info} KURWA: {310 - self.czuwakGui.czuwak}')
+                #         label = "PROGRAM BELL"
+                #         await self.send_ocm_message(info, label=label)
+                #     elif self.czuwakGui.czuwak > 300:
+                #         info = "No operator!"
+                #         label = "PING"
+                #         await self.send_ocm_message(info, label=label)
+                #     elif self.czuwakGui.czuwak > 240:
+                #         self.czuwakGui.label.setStyleSheet("color: red;")
+                #         self.czuwakGui.show()
+                #
 
 
 
