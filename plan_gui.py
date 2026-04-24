@@ -554,7 +554,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
               if "command_name" in self.parent.plan[self.parent.active_tel][self.i]["ob"].keys():
                   if self.parent.plan[self.parent.active_tel][self.i]["ob"]["command_name"] in ["OBJECT","DARK","ZERO","SKYFLAT","DOMEFLAT"]:
-                      if "ra" in self.parent.plan[self.parent.active_tel][self.i].keys() and "dec" in self.parent.plan[self.parent.active_tel][self.i].keys():
+                      if "ra" in self.parent.plan[self.parent.active_tel][self.i]["ob"].keys() and "dec" in self.parent.plan[self.parent.active_tel][self.i]["ob"].keys():
                           self.parent.mntGui.setEq_r.setChecked(True)
                           self.parent.mntGui.nextRa_e.setText(self.plan[self.i]["ob"]["ra"])
                           self.parent.mntGui.nextDec_e.setText(self.plan[self.i]["ob"]["dec"])
@@ -567,7 +567,8 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       if "seq" in self.parent.plan[self.parent.active_tel][self.i]["ob"].keys():
                           self.parent.instGui.ccd_tab.Select2_r.setChecked(True)
                           self.parent.instGui.ccd_tab.inst_Seq_e.setText(self.plan[self.i]["ob"]["seq"])
-                      if self.parent.plan[self.parent.active_tel][self.i]["ob"]["command_name"] == "OBJECT": self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
+                      if self.parent.plan[self.parent.active_tel][self.i]["ob"]["command_name"] == "OBJECT":
+                          self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
           except Exception as e:
               print(f"PLAN GUI EXCEPTION 34: {e}")
         else:
