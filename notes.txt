@@ -1,4 +1,8 @@
+self.toi_switch_status
+nats_toi_switch_synchro
+nats_toi_switch_synchro_reader
 
+focus_adjust_switch_update
 
 # text
 # rgb(150,0,0)       red

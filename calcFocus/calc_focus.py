@@ -2,7 +2,7 @@
 
 import os
 import numpy
-from ffs_lib.ffs import FFS
+from ffs_lib.ffs import FFS_old
 from scipy.optimize import curve_fit
 
 from astropy.io import fits

@@ -64,7 +64,7 @@ from scipy.ndimage.filters import maximum_filter
 
 
 
-class FFS:
+class FFS_old:
 
     def __init__(self,image,gain=1.,rn_noise=0.):
 

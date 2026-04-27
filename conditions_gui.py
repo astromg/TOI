@@ -15,7 +15,6 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 import numpy
-from ffs_lib.ffs import FFS
 from base_window import BaseWindow
 from pyaraucaria.date import datetime_to_julian, get_oca_jd
 
@@ -81,8 +80,8 @@ class ConditionsWindow(BaseWindow):
                     except ValueError:
                         pass
 
-            x0 = float(str(self.parent.jd).split(".")[0])+0.5
-            x1 = x0 + 0.4
+            x0 = float(str(self.parent.jd).split(".")[0])+0.4
+            x1 = x0 + 0.6
 
             for t in self.parent.fits_ffs_data.keys():
                 x = self.time[t]
@@ -237,8 +236,8 @@ class ConditionsWindow(BaseWindow):
                     linewidth=1
                 )
 
-                x0 = 0.5
-                x1 = 0.8958
+                x0 = 0.4
+                x1 = 0.99
                 xtics = []
                 t = ephem.Date(x0)
                 while t < ephem.Date(x1):

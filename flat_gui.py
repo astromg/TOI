@@ -16,7 +16,6 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 import numpy
-from ffs_lib.ffs import FFS
 from base_window import BaseWindow
 
 class FlatWindow(BaseWindow):
@@ -38,10 +37,15 @@ class FlatWindow(BaseWindow):
             self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[self.parent.active_tel]['color']};")
 
             self.info_e.clear()
-            self.info_e.append("date                     UT       filter    exp    h_sun     ADU")
+            self.info_e.append("date                     UT      filter  (n/n_dit)    exp    h_sun     ADU")
             for r in self.parent.flat_log:
+                n_exp = "--"
+                exp_no = "--"
+                if "n_exp" in r.keys() and "exp_no" in r.keys():
+                    n_exp = r["n_exp"]
+                    exp_no = r["exp_no"]
                 txt = r["timestamp_utc"].split()[0] + "    " + r["timestamp_utc"].split()[1].split(".")[0]
-                txt = txt + f'   {r["filter"]:12} {r["exp_time"]:.2f}      {r["h_sun"]}      {r["mean"]}'
+                txt = txt + f'   {r["filter"]:8} ({n_exp}/{exp_no})     {r["exp_time"]:.2f}      {r["h_sun"]}      {r["mean"]}'
                 self.info_e.append(txt)
             self.info_e.moveCursor(QTextCursor.End)
             self.info_e.repaint()
@@ -51,6 +55,7 @@ class FlatWindow(BaseWindow):
     def update_flat_overwatch(self,data):
 
         self.flat_table_t.clearContents()
+        self.flat_table_t.setRowCount(0)
 
         font = QtGui.QFont()
         font.setPointSize(10)
@@ -103,7 +108,7 @@ class FlatWindow(BaseWindow):
             self.flat_table_t.setItem(i, 2, txt)
 
 
-        self.flat_table_t.scrollToBottom()
+        #self.flat_table_t.scrollToBottom()
         self.flat_table_t.resizeColumnsToContents()
         for col in range(2,self.flat_table_t.columnCount()):
             self.flat_table_t.horizontalHeader().setSectionResizeMode(col,QHeaderView.Stretch)

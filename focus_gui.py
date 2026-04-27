@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+from pyaraucaria.focus import Focus
 
 from PyQtX.QtCore import Qt
 from PyQtX.QtGui import QFont
@@ -11,7 +11,6 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 import numpy
-from ffs_lib.ffs import FFS
 from base_window import BaseWindow
 
 
@@ -28,6 +27,7 @@ class FocusWindow(BaseWindow):
         self.y = []
         self.fit_x = []
         self.fit_y = []
+        self.method = None
         self.max_sharp = None
         self.update()
 
@@ -39,6 +39,8 @@ class FocusWindow(BaseWindow):
             self.axes.plot(self.fit_x, self.fit_y)
         if self.max_sharp:
             self.axes.axvline(x=self.max_sharp, color="red", alpha=1)
+        if self.method:
+            self.axes.set_title(f"{self.method}")
         self.axes.set_xlabel("focus encoder position")
         self.axes.set_ylabel("sharpness")
         #self.fig.tight_layout()
@@ -61,8 +63,8 @@ class FocusWindow(BaseWindow):
                 self.last_e.setText(str(self.parent.nats_cfg[self.parent.active_tel]["focus_def_pos"]))
             self.range_e.setText("8")
             self.log_e.clear()
-            self.log_e.append("DATE       UT      FOCUS      FILTER      TEMP ")
-            self.log_e.append("-----------------------------------------------------------------")
+            self.log_e.append("DATE       UT     FOC      FILER      TEMP      HUMID    STAT   METH")
+            self.log_e.append("------------------------------------------------------------------------------------------------")
 
 
 
@@ -70,45 +72,63 @@ class FocusWindow(BaseWindow):
 
         grid = QGridLayout()
         w = 0
+
         self.tel_e = QLineEdit()
         self.tel_e.setReadOnly(True)
         grid.addWidget(self.tel_e, w, 0,1,6)
+
         w = w + 1
+
+        self.recalc_p = QPushButton("Recalculate")
+        self.recalc_p.clicked.connect(self.parent.focus_recalc)
+
+        self.method_l = QLabel("Method:")
+        self.method_s = QComboBox()
+        self.method_s.addItems([m for m in Focus.METHODS.keys()])
+        self.method_s.setCurrentText("laplacian")
+
         self.fig = Figure((1, 1), linewidth=1, dpi=100)
         self.canvas = FigureCanvas(self.fig)
-        self.axes = self.fig.add_axes([0.1, 0.2, 0.8, 0.75])
+        self.axes = self.fig.add_axes([0.1, 0.2, 0.8, 0.7])
         self.log_e = QTextEdit("")
         self.log_e.setReadOnly(True)
-        self.log_e.setMinimumWidth(400)
+        self.log_e.setMinimumWidth(465)
+
+
+        grid.addWidget(self.recalc_p, w, 0,1,2)
+
+        grid.addWidget(self.method_l, w, 2)
+        grid.addWidget(self.method_s, w, 3)
+
+        grid.addWidget(self.log_e, w, 5, 5, 1)
+
+        w = w + 1
 
         self.log_e.setStyleSheet("background-color: rgb(235,235,235);")
         grid.addWidget(self.canvas, w, 0, 1, 4)
-        grid.addWidget(self.log_e, w, 5, 4, 1)
 
         w = w + 1
-        self.last_l = QLabel("Central Value:")
-        self.last_e = QLineEdit()
+
 
         self.range_l = QLabel("Steps No.:")
         self.range_e = QLineEdit()
 
-        grid.addWidget(self.last_l, w, 0)
-        grid.addWidget(self.last_e, w, 1)
+        self.steps_l = QLabel("Step:")
+        self.steps_e = QLineEdit()
+
+        grid.addWidget(self.steps_l, w, 0)
+        grid.addWidget(self.steps_e, w, 1)
+
         grid.addWidget(self.range_l, w, 2)
         grid.addWidget(self.range_e, w, 3)
 
         w = w + 1
-        self.steps_l = QLabel("Step:")
-        self.steps_e = QLineEdit()
 
-        self.method_l = QLabel("Method:")
-        self.method_s = QComboBox()
-        self.method_s.addItems(["LORENTZIAN","RMS_QUAD","RMS"])
+        self.last_l = QLabel("Central Value:")
+        self.last_e = QLineEdit()
 
-        grid.addWidget(self.steps_l, w, 0)
-        grid.addWidget(self.steps_e, w, 1)
-        grid.addWidget(self.method_l, w, 2)
-        grid.addWidget(self.method_s, w, 3)
+        grid.addWidget(self.last_l, w, 0)
+        grid.addWidget(self.last_e, w, 1)
 
         w = w + 1
         self.result_l = QLabel("RESULT:")

@@ -12,7 +12,6 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 import matplotlib
 
 import numpy
-from ffs_lib.ffs import FFS
 from base_window import BaseWindow
 
 class GuiderWindow(BaseWindow):

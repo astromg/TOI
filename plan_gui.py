@@ -164,6 +164,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def update_table(self):
         self.plan_t.clearContents()
+        self.plan_t.setRowCount(0)
 
         if not self.parent.active_tel:
             self.plan_t.clearContents()
@@ -1054,7 +1055,7 @@ class TPG_Worker(QtCore.QObject):
     update_signal = QtCore.pyqtSignal(str)
     error_signal = QtCore.pyqtSignal(str)
 
-    def __init__(self, tel, dt, wind=None, uobi_done=None,fwhm=None):
+    def __init__(self, tel, dt, wind=None, uobi_done=None,fwhm=None, tag=None):
 
         super().__init__()
         self.tel = tel
@@ -1062,10 +1063,11 @@ class TPG_Worker(QtCore.QObject):
         self.wind = wind
         self.uobi_done = uobi_done or []
         self.fwhm = fwhm
+        self.tag = tag
 
     def run(self):
         try:
-            p = tpg(self.tel,self.dt,wind=self.wind,fwhm=self.fwhm)
+            p = tpg(self.tel,self.dt,wind=self.wind,fwhm=self.fwhm,tag=self.tag)
             p.Initiate()
             p.init_ctc()
             self.update_signal.emit("TPG init <span style='color: green;'>\u2714</span>")
@@ -1130,6 +1132,7 @@ class TPGWindow(BaseWindow):
         try:
             wind = float(self.wind_e.text()) if self.wind_c.isChecked() else None
             fwhm = float(self.fwhm_e.text()) if self.fwhm_c.isChecked() else None
+            tag = float(self.tag_e.text()) if self.tag_c.isChecked() else None
         except Exception as e:
             print(f'EXCEPTION TPG 2: {e}')
 
@@ -1139,7 +1142,7 @@ class TPGWindow(BaseWindow):
             uobi_done = []
 
         self.thread = QtCore.QThread()
-        self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm)
+        self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm,tag=tag)
 
         self.worker.moveToThread(self.thread)
 
@@ -1268,6 +1271,15 @@ class TPGWindow(BaseWindow):
 
         self.fwhm_e = QLineEdit("")
 
+        self.tag_c = QCheckBox("Select tag")
+        self.tag_c.setChecked(False)
+        self.tag_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
+            "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
+        )
+
+        self.tag_e = QLineEdit("")
+
         self.repeat_c = QCheckBox("Dont repeat observed objects")
         self.repeat_c.setChecked(True)
         self.repeat_c.setStyleSheet(
@@ -1294,12 +1306,15 @@ class TPGWindow(BaseWindow):
         grid.addWidget(self.fwhm_c, 3, 0)
         grid.addWidget(self.fwhm_e, 3, 1)
 
-        grid.addWidget(self.repeat_c, 4, 0, 1, 2)
+        grid.addWidget(self.tag_c, 4, 0)
+        grid.addWidget(self.tag_e, 4, 1)
 
-        grid.addWidget(self.info_e, 5, 0, 1, 2)
+        grid.addWidget(self.repeat_c, 5, 0, 1, 2)
 
-        grid.addWidget(self.add_p, 6, 1)
-        grid.addWidget(self.close_p, 6, 0)
+        grid.addWidget(self.info_e, 6, 0, 1, 2)
+
+        grid.addWidget(self.add_p, 7, 1)
+        grid.addWidget(self.close_p, 7, 0)
 
         self.setLayout(grid)
         self.show()
@@ -1619,9 +1634,9 @@ class PlotWindow(BaseWindow):
                                         t = t + 10*ephem.second
                                     #print(alt_tab,t_tab)
                                     if i == self.parent.i:
-                                        self.axes.plot(t_tab, alt_tab, color="red",linestyle="-",linewidth="2")
-                                        self.axes.text(self.t, 93, f'{self.parent.plan[i]["ob"]["name"]}', color="red",rotation=90, fontsize=fontsize)
-                                    elif "standard" in self.parent.plan[i]["block"]:
+                                        self.axes.axvspan(min(t_tab), max(t_tab), color="blue", alpha=0.1)
+
+                                    if "standard" in self.parent.plan[i]["block"]:
                                         self.axes.plot(t_tab, alt_tab, color="blue")
                                         self.axes.text(self.t, 93, f'{self.parent.plan[i]["ob"]["name"]}', color="blue",rotation=90, fontsize=fontsize)
                                     else:
@@ -1637,7 +1652,7 @@ class PlotWindow(BaseWindow):
             self.axes.fill_betweenx([80, 90], self.t0_dusk, self.t_end_dusk, color="grey", alpha=0.1)
             self.axes.fill_betweenx([0, 90], self.t0, self.t0_dusk, color="yellow", alpha=0.1)
             self.axes.fill_betweenx([0, 90], self.t_end_dusk, self.t_end, color="yellow", alpha=0.1)
-            self.axes.axvline(x=self.t_now, color="blue")
+            self.axes.axvline(x=self.t_now, color="green")
             txt = str(self.t_now).split()[1].split(":")[0] + ":" + str(self.t_now).split()[1].split(":")[1]
             self.axes.text(self.t_now, 82, f"{txt}", rotation=90, fontsize=fontsize)
 
@@ -1724,10 +1739,9 @@ class EditWindow(QWidget):
             tmp["block"] = self.validator.convert_from_obdict(ob)
             tmp["meta"] = {"ok":True}
 
-            # DUPA, dodac ctc
-
             self.parent.plan[self.parent.i] = tmp
             self.parent.update_table()
+            self.close()
 
     # {
     #     'ok': True, 'type': 'OBJECT', 'name': 'Pismis11', 'ra': '09:15:53.0', 'dec': '-50:01:00',

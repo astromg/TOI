@@ -11,7 +11,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 import numpy
-from ffs_lib.ffs import FFS
+from ffs_lib.ffs import FFS_old
+from pyaraucaria.ffs import FFS
 from toi_lib import *
 from base_window import BaseWindow
 
@@ -119,14 +120,14 @@ class FitsWindow(BaseWindow):
 
 
     def update_ffs_data(self):
-        pass
-        #print(self.parent.fits_ffs_data)
+        print(self.parent.fits_ffs_data)
 
 
 
     def update_fits_data(self):
         if True:
             ok = False
+            fname = None
             self.ob_x = []
             self.ob_y = []
             self.pointing_x = None
@@ -149,48 +150,50 @@ class FitsWindow(BaseWindow):
                 print(f"TOI FITS EXCEPTION 1: {e}")
 
     #DUPA
-            try:
+            #try:
+            if self.parent.fits_ofp_data:
                 ofp_name = self.parent.fits_ofp_data["raw"]["file_name"]
-                if ofp_name == fname:
-                    ok = True
-                    alt = get_dic(self.parent.fits_ofp_data,"raw","header","ALT_TEL",default = None)
-                    if alt:
-                        alt = f'{float(alt):.0f}'
-                    airmass = get_dic(self.parent.fits_ofp_data,"raw","header","AIRMASS",default = None)
-                    if airmass:
-                        airmass = f'{float(airmass):.1f}'
-                    exptime = self.parent.fits_ofp_data["raw"]["header"]["EXPTIME"]
-                    ccd_temp = get_dic(self.parent.fits_ofp_data,"raw","header","CCD-TEMP",default = None)
-                    if ccd_temp:
-                        ccd_temp = f'{float(ccd_temp):.0f}'
-                    gain = get_dic(self.parent.fits_ofp_data,"raw","header","GAIN",default = None)
-                    rm = get_dic(self.parent.fits_ofp_data,"raw","header","READ-MOD",default = None)
-                    xbin = get_dic(self.parent.fits_ofp_data,"raw","header","XBINNING",default = None)
-                    ybin = get_dic(self.parent.fits_ofp_data,"raw","header","YBINNING",default = None)
-                    focus = get_dic(self.parent.fits_ofp_data,"raw","header","FOCUS",default = None)
+                if fname:
+                    if ofp_name == fname:
+                        ok = True
+                        alt = get_dic(self.parent.fits_ofp_data,"raw","header","ALT_TEL",default = None)
+                        if alt:
+                            alt = f'{float(alt):.0f}'
+                        airmass = get_dic(self.parent.fits_ofp_data,"raw","header","AIRMASS",default = None)
+                        if airmass:
+                            airmass = f'{float(airmass):.1f}'
+                        exptime = self.parent.fits_ofp_data["raw"]["header"]["EXPTIME"]
+                        ccd_temp = get_dic(self.parent.fits_ofp_data,"raw","header","CCD-TEMP",default = None)
+                        if ccd_temp:
+                            ccd_temp = f'{float(ccd_temp):.0f}'
+                        gain = get_dic(self.parent.fits_ofp_data,"raw","header","GAIN",default = None)
+                        rm = get_dic(self.parent.fits_ofp_data,"raw","header","READ-MOD",default = None)
+                        xbin = get_dic(self.parent.fits_ofp_data,"raw","header","XBINNING",default = None)
+                        ybin = get_dic(self.parent.fits_ofp_data,"raw","header","YBINNING",default = None)
+                        focus = get_dic(self.parent.fits_ofp_data,"raw","header","FOCUS",default = None)
 
-                    if "pointing_error" in self.parent.fits_ofp_data["raw"].keys():
-                        #pointing_err_ra = self.parent.fits_ofp_data["raw"]["pointing_error"]["real_ra_diff"]
-                        #pointing_err_dec = self.parent.fits_ofp_data["raw"]["pointing_error"]["dec_diff"]
-                        self.pointing_x = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_ra"]
-                        self.pointing_y = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_dec"]
+                        if "pointing_error" in self.parent.fits_ofp_data["raw"].keys():
+                            #pointing_err_ra = self.parent.fits_ofp_data["raw"]["pointing_error"]["real_ra_diff"]
+                            #pointing_err_dec = self.parent.fits_ofp_data["raw"]["pointing_error"]["dec_diff"]
+                            self.pointing_x = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_ra"]
+                            self.pointing_y = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_dec"]
 
-                    if "objects" in self.parent.fits_ofp_data["raw"].keys():
-                        for k in self.parent.fits_ofp_data["raw"]["objects"].keys():
-                            if "x_pix" not in self.parent.fits_ofp_data["raw"]["objects"][k].keys():
-                                pass
-                            else:
-                                self.ob_x.append(self.parent.fits_ofp_data["raw"]["objects"][k]["x_pix"])
-                                self.ob_y.append(self.parent.fits_ofp_data["raw"]["objects"][k]["y_pix"])
-                            if "saturation_max" in self.parent.fits_ofp_data['raw']['objects'][k].keys():
-                                txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
-                    if self.pointing_x:
-                        self.poining_center = self.axes.plot(self.pointing_x,self.pointing_x,"k+",markersize=20)
-                    if len(self.ob_x)>0:
-                        self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")
+                        if "objects" in self.parent.fits_ofp_data["raw"].keys():
+                            for k in self.parent.fits_ofp_data["raw"]["objects"].keys():
+                                if "x_pix" not in self.parent.fits_ofp_data["raw"]["objects"][k].keys():
+                                    pass
+                                else:
+                                    self.ob_x.append(self.parent.fits_ofp_data["raw"]["objects"][k]["x_pix"])
+                                    self.ob_y.append(self.parent.fits_ofp_data["raw"]["objects"][k]["y_pix"])
+                                if "saturation_max" in self.parent.fits_ofp_data['raw']['objects'][k].keys():
+                                    txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
+                        if self.pointing_x:
+                            self.poining_center = self.axes.plot(self.pointing_x,self.pointing_x,"k+",markersize=20)
+                        if len(self.ob_x)>0:
+                            self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")
 
-            except Exception as e:
-                print(f"TOI FITS EXCEPTION 2: {e}")
+            # except Exception as e:
+            #     print(f"TOI FITS EXCEPTION 2: {e}")
 
             try:
                 txt = txt + f" {date.split('T')[0]} <br>"
@@ -205,7 +208,8 @@ class FitsWindow(BaseWindow):
             except Exception as e:
                 print(f"TOI FITS EXCEPTION 3: {e}")
 
-            try:
+            #try:
+            if True:
                 if self.fwhm_x and self.fwhm_y:
                     txt = txt + f"FWHM:  <b>{self.fwhm_x:.1f}</b>/<b>{self.fwhm_y:.1f}</b> px <br>"
                     if self.parent.nats_cfg[tel]["pixel_scale"]:
@@ -223,8 +227,28 @@ class FitsWindow(BaseWindow):
                     txt = txt + f"mean/median ADU:  <i>{self.stats.mean:.0f}</i>/<i>{self.stats.median:.0f}</i> <br>"
                     txt = txt + f"rms/q68 ADU:  <i>{self.stats.rms:.0f}</i>/<i>{self.stats.sigma_quantile:.0f}</i> <br>"
                     txt = txt + f" <hr> <br>"
-            except Exception as e:
-                print(f"TOI FITS EXCEPTION 4: {e}")
+
+                    self.ffs = FFS(self.image)
+                    self.ffs.saturation = 50000
+                    self.ffs.calc_frame_fwhm(threshold=7, fwhm=10, box=10, N_stars=50, clip=4)
+
+                    if self.ffs.stats:
+                        txt = txt + f'FWHM:  <b>{self.ffs.stats["frame"]["fwhm"]:.1f}</b> px <br>'
+                        if self.parent.nats_cfg[tel]["pixel_scale"]:
+                            px = float(self.parent.nats_cfg[tel]["pixel_scale"])
+                            txt = txt + f'&nbsp; &nbsp; &nbsp; <b>{self.ffs.stats["frame"]["fwhm"] * px:.1f}</b> arcsec <br>'
+                        txt = txt + f'ell: &nbsp;   <b>{self.ffs.stats["frame"]["ellipticity"]:.2f}</b> <br>'
+                        txt = txt + f'shape:  <b>{self.ffs.stats["frame"]["shape"]:.2f}</b> <br>'
+                        txt = txt + f'cpe: &nbsp;   <b>{self.ffs.stats["frame"]["cpe"]:.1f}</b> <br>'
+                        txt = txt + f'ci: &nbsp; &nbsp;   <b>{self.ffs.stats["frame"]["ci"]:.1f}</b> <br>'
+                        txt = txt + f'stars:  <b>{self.ffs.stats["frame"]["used_stars"]:.0f}</b> <br>'
+
+            # except Exception as e:
+            #     print(f"TOI FITS EXCEPTION 4: {e}")
+            #
+            #
+            # except Exception as e:
+            #     print(f"TOI FITS EXCEPTION 4: {e}")
 
             try:
                 if ok:
@@ -316,7 +340,7 @@ class FitsWindow(BaseWindow):
 
 class FFS_Worker(QtCore.QObject):
     close_signal = QtCore.pyqtSignal()
-    done_signal = QtCore.pyqtSignal(FFS)
+    done_signal = QtCore.pyqtSignal(FFS_old)
 
     def __init__(self, image):
         super(FFS_Worker, self).__init__()
@@ -328,7 +352,7 @@ class FFS_Worker(QtCore.QObject):
         kernel_size = 6
         saturation = 45000
 
-        self.stats = FFS(self.image)
+        self.stats = FFS_old(self.image)
         th = 20
         coo, adu = self.stats.find_stars(threshold=th, kernel_size=kernel_size, fwhm=fwhm)
         if len(coo) > 3:

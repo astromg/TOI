@@ -11,7 +11,6 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 import numpy
-from ffs_lib.ffs import FFS
 from base_window import BaseWindow
 
 class PlanrunnerWindow(BaseWindow):
