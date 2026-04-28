@@ -1132,7 +1132,7 @@ class TPGWindow(BaseWindow):
         try:
             wind = float(self.wind_e.text()) if self.wind_c.isChecked() else None
             fwhm = float(self.fwhm_e.text()) if self.fwhm_c.isChecked() else None
-            tag = float(self.tag_e.text()) if self.tag_c.isChecked() else None
+            tag = self.tag_e.text() if self.tag_c.isChecked() else None
         except Exception as e:
             print(f'EXCEPTION TPG 2: {e}')
 

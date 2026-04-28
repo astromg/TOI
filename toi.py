@@ -1911,6 +1911,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.ob[self.active_tel]["block"] = program
                 self.ob[self.active_tel]["meta"]["origin"] = "auto_focus"
 
+                self.toi_switch_status[self.active_tel]["focus_adjust"] = True
                 if self.mntGui.telAutoFocus_c.checkState():
                     self.ob[self.active_tel]["meta"]["switchOnFocusAdjast"] = True
                     await self.update_log(f'turning focus adjust OFF', "TOI RESPONDER", self.active_tel)
