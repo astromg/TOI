@@ -10,7 +10,8 @@ keywords = ["astronomy", "telescopes"]
 [tool.poetry.dependencies]
 python = "^3.11"
 #git fetch --all
-pyaraucaria = {path = "../pyaraucaria", develop = true}
+#pyaraucaria = {path = "../pyaraucaria", develop = true}
+pyaraucaria = {git = "https://github.com/araucaria-project/pyaraucaria.git"}
 serverish = {version="^1.1.0", extras=["messenger"]}
 astropy = ">=5.0.4"
 requests = "^2.28.1"

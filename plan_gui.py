@@ -838,6 +838,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                                     tmp_plan.append(data)
                     #self.parent.plan[self.parent.active_tel][self.i+1:self.i+1] = tmp_plan
+                    # DUPA
                     self.parent.plan[self.parent.active_tel] = tmp_plan
             self.parent.upload_plan()
             self.update_table()
