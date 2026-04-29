@@ -3644,31 +3644,32 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # ta funkacja porpawia focus uwzgledniajac zmiany temperatury i wilgotnosci od ostatniego udanego ostrzenia!!!!
     @qs.asyncSlot()
     async def focus_auto_adjast(self):
-        focus_adjast_step = 5
-        for t in self.local_cfg["toi"]["telescopes"]:
-            if self.tel_acces[t]:
-                if self.toi_switch_status[t]["focus_adjust"]:
-                    res = self.focus_difference(self.active_tel)
-                    if res:
-                        diff, prev_foc = res
-                        if abs(diff) > focus_adjast_step and self.nats_focus_record[t]["status"] == "ok":
-                            foc_set = int(diff + prev_foc)
-                            focus_value_now = await self.focus.aget_position()
-                            if abs(focus_value_now - foc_set) > focus_adjast_step:
-                                await self.focus.aput_move(foc_set)
-                                await self.update_log(f'adjusting focus to {foc_set}', "TOI", t)
+        if self.tel_acces[self.active_tel]:
+            focus_adjast_step = 5
+            for t in self.local_cfg["toi"]["telescopes"]:
+                if self.tel_acces[t]:
+                    if self.toi_switch_status[t]["focus_adjust"]:
+                        res = self.focus_difference(self.active_tel)
+                        if res:
+                            diff, prev_foc = res
+                            if abs(diff) > focus_adjast_step and self.nats_focus_record[t]["status"] == "ok":
+                                foc_set = int(diff + prev_foc)
+                                focus_value_now = await self.focus.aget_position()
+                                if abs(focus_value_now - foc_set) > focus_adjast_step:
+                                    await self.focus.aput_move(foc_set)
+                                    await self.update_log(f'adjusting focus to {foc_set}', "TOI", t)
 
-                                data_short = {}
-                                data_short["status"] = "ok"
-                                data_short["temperature"] = self.sensors[t]["dome_conditions"]["temperature"]
-                                data_short["max_sharpness_focus"] = foc_set
-                                data_short["time"] = self.ut
-                                data_short["filter"] = "--"
-                                data_short["davis_temperature"] = self.telemetry_temp
-                                data_short["davis_humidity"] = self.telemetry_humidity
-                                data_short["method"] = "focus_adjust"
+                                    data_short = {}
+                                    data_short["status"] = "ok"
+                                    data_short["temperature"] = self.sensors[t]["dome_conditions"]["temperature"]
+                                    data_short["max_sharpness_focus"] = foc_set
+                                    data_short["time"] = self.ut
+                                    data_short["filter"] = "--"
+                                    data_short["davis_temperature"] = self.telemetry_temp
+                                    data_short["davis_humidity"] = self.telemetry_humidity
+                                    data_short["method"] = "focus_adjust"
 
-                                await self.nats_toi_focus_record[t].publish(data=data_short, timeout=10)
+                                    await self.nats_toi_focus_record[t].publish(data=data_short, timeout=10)
 
 
 
