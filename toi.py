@@ -3644,7 +3644,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # ta funkacja porpawia focus uwzgledniajac zmiany temperatury i wilgotnosci od ostatniego udanego ostrzenia!!!!
     @qs.asyncSlot()
     async def focus_auto_adjast(self):
-        if self.tel_acces[self.active_tel]:
+        try:
             focus_adjast_step = 5
             for t in self.local_cfg["toi"]["telescopes"]:
                 if self.tel_acces[t]:
@@ -3670,10 +3670,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     data_short["method"] = "focus_adjust"
 
                                     await self.nats_toi_focus_record[t].publish(data=data_short, timeout=10)
-
-
-
-
+        except Exception as e:
+            logger.warning(f'EXCEPTION Focus Adjust: {e}')
 
     def focus_difference(self,tel):
         if not self.nats_focus_record[tel]:   # czasami przychodza z natsow puste, jak dlugo nikt nie robil focusa
