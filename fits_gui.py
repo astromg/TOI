@@ -171,43 +171,50 @@ class FitsWindow(BaseWindow):
                             ybin = get_dic(self.parent.fits_ofp_data,"raw","header","YBINNING",default = None)
                             focus = get_dic(self.parent.fits_ofp_data,"raw","header","FOCUS",default = None)
 
-                            if "pointing_error" in self.parent.fits_ofp_data["raw"].keys():
-                                #pointing_err_ra = self.parent.fits_ofp_data["raw"]["pointing_error"]["real_ra_diff"]
-                                #pointing_err_dec = self.parent.fits_ofp_data["raw"]["pointing_error"]["dec_diff"]
-                                self.pointing_x = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_ra"]
-                                self.pointing_y = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_dec"]
-
-                            if "objects" in self.parent.fits_ofp_data["raw"].keys():
-                                for k in self.parent.fits_ofp_data["raw"]["objects"].keys():
-                                    if "x_pix" not in self.parent.fits_ofp_data["raw"]["objects"][k].keys():
-                                        pass
-                                    else:
-                                        self.ob_x.append(self.parent.fits_ofp_data["raw"]["objects"][k]["x_pix"])
-                                        self.ob_y.append(self.parent.fits_ofp_data["raw"]["objects"][k]["y_pix"])
-                                    if "saturation_max" in self.parent.fits_ofp_data['raw']['objects'][k].keys():
-                                        txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
-                            if self.pointing_x:
-                                self.poining_center = self.axes.plot(self.pointing_x,self.pointing_x,"k+",markersize=20)
-                            if len(self.ob_x)>0:
-                                self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")
-
             except Exception as e:
                 print(f"TOI FITS EXCEPTION 2: {e}")
 
-                try:
-                    txt = txt + f" {date.split('T')[0]} <br>"
-                    txt = txt + f" {date.split('T')[1].split('.')[0]} <br>"
-                    txt = txt + f" {fname} <br>"
-                    txt = txt + f" <hr> <br>"
-                    txt = txt + f" OBJECT: <b>{name}</b> <br>"
-                    txt = txt + f" TYPE: <i>{type}</i> <i>{obs_type}</i> <br>"
-                    txt = txt + f" FILTER: <b>{filter}</b> {n}/{ndit} <br>"
-                    txt = txt + f" EXP: <b>{exptime}</b> s. <br>"
-                    txt = txt + f" <hr> <br>"
-                except Exception as e:
-                    print(f"TOI FITS EXCEPTION 3: {e}")
+            try:
+                txt = txt + f" {date.split('T')[0]} <br>"
+                txt = txt + f" {date.split('T')[1].split('.')[0]} <br>"
+                txt = txt + f" {fname} <br>"
+                txt = txt + f" <hr> <br>"
+                txt = txt + f" OBJECT: <b>{name}</b> <br>"
+                txt = txt + f" TYPE: <i>{type}</i> <i>{obs_type}</i> <br>"
+                txt = txt + f" FILTER: <b>{filter}</b> {n}/{ndit} <br>"
+                txt = txt + f" EXP: <b>{exptime}</b> s. <br>"
+                txt = txt + f" <hr> <br>"
+            except Exception as e:
+                print(f"TOI FITS EXCEPTION 3: {e}")
 
             try:
+
+                if "pointing_error" in self.parent.fits_ofp_data["raw"].keys():
+                    #pointing_err_ra = self.parent.fits_ofp_data["raw"]["pointing_error"]["real_ra_diff"]
+                    #pointing_err_dec = self.parent.fits_ofp_data["raw"]["pointing_error"]["dec_diff"]
+                    self.pointing_x = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_ra"]
+                    self.pointing_y = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_dec"]
+
+                if "objects" in self.parent.fits_ofp_data["raw"].keys():
+                    for k in self.parent.fits_ofp_data["raw"]["objects"].keys():
+                        if "x_pix" not in self.parent.fits_ofp_data["raw"]["objects"][k].keys():
+                            pass
+                        else:
+                            self.ob_x.append(self.parent.fits_ofp_data["raw"]["objects"][k]["x_pix"])
+                            self.ob_y.append(self.parent.fits_ofp_data["raw"]["objects"][k]["y_pix"])
+                        if "saturation_max" in self.parent.fits_ofp_data['raw']['objects'][k].keys():
+                            txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
+                if self.pointing_x:
+                    self.poining_center = self.axes.plot(self.pointing_x,self.pointing_x,"k+",markersize=20)
+                if len(self.ob_x)>0:
+                    self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")
+
+            except Exception as e:
+                print(f"TOI FITS EXCEPTION 3a: {e}")
+
+
+            if True:
+            #try:
                 if self.ffs:
                     fwhm_arcsec = None
 
@@ -277,17 +284,14 @@ class FitsWindow(BaseWindow):
                     txt = txt + f'mean/median ADU:  <i>{frame_mean:.0f}</i>/<i>{frame_median:.0f}</i> <br>'
                     txt = txt + f'rms/q68 ADU:  <i>{frame_rms:.0f}</i>/<i>{frame_q_sigma:.0f}</i> <br>'
 
-
-
-
                     txt = txt + f" <hr> <br>"
 
-            except Exception as e:
-                print(f"TOI FITS EXCEPTION 4: {e}")
-
-
-            except Exception as e:
-                print(f"TOI FITS EXCEPTION 4: {e}")
+            # except Exception as e:
+            #     print(f"TOI FITS EXCEPTION 4: {e}")
+            #
+            #
+            # except Exception as e:
+            #     print(f"TOI FITS EXCEPTION 4: {e}")
 
                 try:
                     if ok:
