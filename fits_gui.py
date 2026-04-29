@@ -261,7 +261,6 @@ class FitsWindow(BaseWindow):
                 else:
                     txt = txt + f'ellipse:  <b>{ell:.2f}</b> <br>'
 
-                txt = txt + f'ellipse:  <b>{ell:.2f}</b> <br>'
                 txt = txt + f'shape:  <b>{shape:.2f}</b> <br>'
                 txt = txt + f'cpe:  <b>{cpe:.2f}</b> <br>'
                 txt = txt + f'ci:  <b>{ci:.2f}</b> <br>'
