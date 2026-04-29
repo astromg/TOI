@@ -1911,7 +1911,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.ob[self.active_tel]["block"] = program
                 self.ob[self.active_tel]["meta"]["origin"] = "auto_focus"
 
-                self.toi_switch_status[self.active_tel]["focus_adjust"] = True
+                self.ob[self.active_tel]["meta"]["switchOnFocusAdjast"] = False
                 if self.mntGui.telAutoFocus_c.checkState():
                     self.ob[self.active_tel]["meta"]["switchOnFocusAdjast"] = True
                     await self.update_log(f'turning focus adjust OFF', "TOI RESPONDER", self.active_tel)
@@ -1919,8 +1919,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     await self.nats_toi_switch_synchro[self.active_tel].publish(
                         data=self.toi_switch_status[self.active_tel], timeout=10)
 
-                else:
-                    self.ob[self.active_tel]["meta"]["switchOnFocusAdjast"] = False
                 self.autofocus_started[self.active_tel] = True
                 tmp = await self.tel_focusers[self.active_tel].aget_position()
                 self.last_focus_position[self.active_tel] = float(tmp)
@@ -2093,14 +2091,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                                 self.focus_method = "laplacian"
                                 self.autofocus_started[tel] = True
-                                if self.mntGui.telAutoFocus_c.checkState():
+
+                                self.ob[tel]["meta"]["switchOnFocusAdjast"] = False
+                                if self.toi_switch_status[tel]["focus_adjust"]:
                                     self.ob[tel]["meta"]["switchOnFocusAdjast"] = True
-                                    await self.update_log(f'turning focus adjust OFF', "TOI", self.active_tel)
                                     self.toi_switch_status[tel]["focus_adjust"] = False
                                     await self.nats_toi_switch_synchro[tel].publish(
                                         data=self.toi_switch_status[tel], timeout=10)
-                                else:
-                                    self.ob[tel]["meta"]["switchOnFocusAdjast"] = False
+
                                 focus = await self.tel_focusers[tel].aget_position()
                                 self.last_focus_position[tel] = float(focus)
 

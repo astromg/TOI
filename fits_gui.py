@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import time
 
+import numpy as np
+
 from PyQtX.QtCore import Qt
 from PyQtX.QtGui import QFont
 from PyQtX import QtCore, QtGui
@@ -32,7 +34,8 @@ class FitsWindow(BaseWindow):
         self.sat_coo = []
         self.fwhm_x = None
         self.fwhm_y = None
-        self.stats = None
+        self.ffs = None
+
 
         #self.ffs_worker = None
 
@@ -61,7 +64,7 @@ class FitsWindow(BaseWindow):
     def updateImage(self, image):
         self.image = image
 
-        self.stats = None
+        self.ffs = None
         self.coo = []
         self.adu = []
         self.sat_coo = []
@@ -77,6 +80,7 @@ class FitsWindow(BaseWindow):
 
 
     def calc_ffs(self):
+        self.ffs = None
 
         try:
             self.thread.quit()
@@ -87,8 +91,12 @@ class FitsWindow(BaseWindow):
         except RuntimeError:
             pass
 
+        self.saturation = 45000
+        if self.parent.active_tel == "jk15":
+            self.saturation = 180000
+
         self.thread = QtCore.QThread()
-        self.ffs_worker = FFS_Worker(self.image)
+        self.ffs_worker = FFS_Worker(self.image,saturation = self.saturation)
         self.ffs_worker.moveToThread(self.thread)
         self.thread.started.connect(self.ffs_worker.run)
 
@@ -102,26 +110,17 @@ class FitsWindow(BaseWindow):
         self.thread.start()
 
     def ffs_done(self,val):
-        self.stats = val
-        saturation = 45000
-        if len(self.stats.coo) > 1:
-            self.coo = numpy.array(self.stats.coo)
-            self.adu = numpy.array(self.stats.adu)
-            maska1 = numpy.array(self.stats.adu) > saturation
-            self.sat_coo = self.stats.coo[maska1]
-            self.sat_adu = self.stats.adu[maska1]
+        self.ffs = val
+        if len(self.ffs.coo) > 1:
+            self.coo = self.ffs.coo
+            self.adu = self.ffs.adu
+            maska1 = numpy.array(self.adu) > self.saturation
+            self.sat_coo = self.coo[maska1]
+            self.sat_adu = self.adu[maska1]
             maska2 = [not val for val in maska1]
-            self.ok_coo = self.stats.coo[maska2]
-            self.ok_adu = self.stats.adu[maska2]
-            self.fwhm_x = self.stats.fwhm_x
-            self.fwhm_y = self.stats.fwhm_y
-
+            self.ok_coo = self.coo[maska2]
+            self.ok_adu = self.adu[maska2]
         self.update_fits_data()
-
-
-    def update_ffs_data(self):
-        print(self.parent.fits_ffs_data)
-
 
 
     def update_fits_data(self):
@@ -209,39 +208,80 @@ class FitsWindow(BaseWindow):
                 print(f"TOI FITS EXCEPTION 3: {e}")
 
             #try:
-            if True:
-                if self.fwhm_x and self.fwhm_y:
-                    txt = txt + f"FWHM:  <b>{self.fwhm_x:.1f}</b>/<b>{self.fwhm_y:.1f}</b> px <br>"
-                    if self.parent.nats_cfg[tel]["pixel_scale"]:
-                        px = float(self.parent.nats_cfg[tel]["pixel_scale"])
-                        txt = txt + f"&nbsp; &nbsp; &nbsp; <b>{self.fwhm_x*px:.1f}</b>/<b>{self.fwhm_y*px:.1f}</b> arcsec <br>"
+            if self.ffs:
+                fwhm_arcsec = None
 
-                if self.stats:
+                fwhm = self.ffs.stats["frame"]["fwhm"]
+
+                if self.parent.nats_cfg[tel]["pixel_scale"]:
+                    px = self.parent.nats_cfg[tel]["pixel_scale"]
+                    fwhm_arcsec = fwhm * px
+
+                ell = self.ffs.stats["frame"]["ellipticity"]
+                shape = self.ffs.stats["frame"]["shape"]
+                cpe = self.ffs.stats["frame"]["cpe"]
+                ci = self.ffs.stats["frame"]["ci"]
+
+                frame_min = self.ffs.stats["frame"]["min"]
+                frame_max = self.ffs.stats["frame"]["max"]
+                frame_mean = self.ffs.stats["frame"]["mean"]
+                frame_median = self.ffs.stats["frame"]["median"]
+                frame_rms = self.ffs.stats["frame"]["rms"]
+                frame_q_sigma = self.ffs.stats["frame"]["q_sigma"]
+
+                bkg_ampl = self.ffs.stats["frame"]["bkg_max_amplitude"]
+                frame_ampl = self.ffs.stats["frame"]["bkg_frame_gradient"]
+
+                if abs(bkg_ampl/frame_median) > 0.1:
+                    txt = txt + f'<span style="color:red;">WARNING</span>: bkg amplitude: <span style="color:red;"><b>{bkg_ampl:.0f}</b></span> <br>'
+                if abs(frame_ampl/frame_median) > 0.1:
+                    txt = txt + f'<span style="color:red;">WARNING</span>: frame gradient: <span style="color:red;"><b>{frame_ampl:.0f}</b></span><br>'
+
+                if fwhm_arcsec:
+                    if fwhm_arcsec > 2.3:
+                        txt = txt + f'FWHM:  <span style="color:red;"><b>{fwhm:.1f}</b></span> px'
+                        if fwhm_arcsec:
+                            txt = txt + f'&nbsp; &nbsp; (<span style="color:red;"><b>{fwhm_arcsec:.1f}</b></span> arcsec) '
+                    else:
+                        txt = txt + f'FWHM:  <b>{fwhm:.1f}</b> px'
+                        if fwhm_arcsec:
+                            txt = txt + f'&nbsp; &nbsp; <b>({fwhm_arcsec:.1f})</b> arcsec '
+                else:
+                    txt = txt + f'FWHM:  <b>{fwhm:.1f}</b> px'
+
+
+
+                txt = txt + "<br>"
+
+                if ell:
+                    if ell > 0.01:
+                        txt = txt + f'ellipse:  <span style="color:red;"><b>{ell:.2f}</b></span> <br>'
+                    else:
+                        txt = txt + f'ellipse:  <b>{ell:.2f}</b> <br>'
+                else:
+                    txt = txt + f'ellipse:  <b>{ell:.2f}</b> <br>'
+
+                txt = txt + f'ellipse:  <b>{ell:.2f}</b> <br>'
+                txt = txt + f'shape:  <b>{shape:.2f}</b> <br>'
+                txt = txt + f'cpe:  <b>{cpe:.2f}</b> <br>'
+                txt = txt + f'ci:  <b>{ci:.2f}</b> <br>'
+                txt = txt + "<br>"
+
+                if len(self.coo)>0:
                     if True:
-                        if len(self.sat_coo)>2 and self.parent.local_cfg["toi"]["show_sat_stars"]:
+                        if len(self.sat_coo)>0 and self.parent.local_cfg["toi"]["show_sat_stars"]:
                             x,y = zip(*self.sat_coo)
                             self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
-                    txt = txt + f"detected stars:  <i>{len(self.coo)}</i> <br>"
-                    txt = txt + f"saturated stars:  <i>{len(self.sat_coo)}</i> <br>"
-                    txt = txt + f"min/max ADU:  <i>{self.stats.min:.0f}</i>/<i>{self.stats.max:.0f}</i><br>"
-                    txt = txt + f"mean/median ADU:  <i>{self.stats.mean:.0f}</i>/<i>{self.stats.median:.0f}</i> <br>"
-                    txt = txt + f"rms/q68 ADU:  <i>{self.stats.rms:.0f}</i>/<i>{self.stats.sigma_quantile:.0f}</i> <br>"
-                    txt = txt + f" <hr> <br>"
+                    txt = txt + f"detected/saturated stars:  <i>{len(self.coo)}</i>/<i>{len(self.sat_coo)}</i> <br>"
 
-                    self.ffs = FFS(self.image)
-                    self.ffs.saturation = 50000
-                    self.ffs.calc_frame_fwhm(threshold=7, fwhm=10, box=10, N_stars=50, clip=4)
+                txt = txt + f'min/max ADU:  <i>{frame_min:.0f}</i>/<i>{frame_max:.0f}</i><br>'
+                txt = txt + f'mean/median ADU:  <i>{frame_mean:.0f}</i>/<i>{frame_median:.0f}</i> <br>'
+                txt = txt + f'rms/q68 ADU:  <i>{frame_rms:.0f}</i>/<i>{frame_q_sigma:.0f}</i> <br>'
 
-                    if self.ffs.stats:
-                        txt = txt + f'FWHM:  <b>{self.ffs.stats["frame"]["fwhm"]:.1f}</b> px <br>'
-                        if self.parent.nats_cfg[tel]["pixel_scale"]:
-                            px = float(self.parent.nats_cfg[tel]["pixel_scale"])
-                            txt = txt + f'&nbsp; &nbsp; &nbsp; <b>{self.ffs.stats["frame"]["fwhm"] * px:.1f}</b> arcsec <br>'
-                        txt = txt + f'ell: &nbsp;   <b>{self.ffs.stats["frame"]["ellipticity"]:.2f}</b> <br>'
-                        txt = txt + f'shape:  <b>{self.ffs.stats["frame"]["shape"]:.2f}</b> <br>'
-                        txt = txt + f'cpe: &nbsp;   <b>{self.ffs.stats["frame"]["cpe"]:.1f}</b> <br>'
-                        txt = txt + f'ci: &nbsp; &nbsp;   <b>{self.ffs.stats["frame"]["ci"]:.1f}</b> <br>'
-                        txt = txt + f'stars:  <b>{self.ffs.stats["frame"]["used_stars"]:.0f}</b> <br>'
+
+
+
+                txt = txt + f" <hr> <br>"
 
             # except Exception as e:
             #     print(f"TOI FITS EXCEPTION 4: {e}")
@@ -340,23 +380,18 @@ class FitsWindow(BaseWindow):
 
 class FFS_Worker(QtCore.QObject):
     close_signal = QtCore.pyqtSignal()
-    done_signal = QtCore.pyqtSignal(FFS_old)
+    done_signal = QtCore.pyqtSignal(FFS)
 
-    def __init__(self, image):
+    def __init__(self, image, saturation = 45000):
         super(FFS_Worker, self).__init__()
-        self.image = image
+        self.image = np.transpose(image)
+        self.saturation = saturation
 
     def run(self):
-        scale = 1
-        fwhm = 4
-        kernel_size = 6
-        saturation = 45000
+        self.ffs = FFS(self.image)
+        self.ffs.saturation = self.saturation
+        self.ffs.calc_frame_fwhm(threshold=10, fwhm=5, box=15, N_stars=50, clip=4)
+        self.ffs.sky_gradient(n_segments=7)
 
-        self.stats = FFS_old(self.image)
-        th = 20
-        coo, adu = self.stats.find_stars(threshold=th, kernel_size=kernel_size, fwhm=fwhm)
-        if len(coo) > 3:
-            self.stats.fwhm(saturation=saturation)
-
-        self.done_signal.emit(self.stats)
+        self.done_signal.emit(self.ffs)
         self.close_signal.emit()

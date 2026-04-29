@@ -665,7 +665,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.calcFocus_p = QPushButton('CALC MODEL')
         self.calcFocus_p.clicked.connect(self.parent.focus_set_update)
 
-        self.telAutoFocus_l = QLabel("AUTO ADJUST:")
+        self.telAutoFocus_l = QLabel("FOCUS ADJUST:")
         self.telAutoFocus_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
         self.telAutoFocus_c = QCheckBox()
         self.telAutoFocus_c.setChecked(False)
