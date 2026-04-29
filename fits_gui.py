@@ -124,7 +124,7 @@ class FitsWindow(BaseWindow):
 
 
     def update_fits_data(self):
-        if True:
+        if self.parent.active_tel:
             ok = False
             fname = None
             self.ob_x = []
@@ -148,168 +148,168 @@ class FitsWindow(BaseWindow):
             except Exception as e:
                 print(f"TOI FITS EXCEPTION 1: {e}")
 
-    #DUPA
-            #try:
-            if self.parent.fits_ofp_data:
-                ofp_name = self.parent.fits_ofp_data["raw"]["file_name"]
-                if fname:
-                    if ofp_name == fname:
-                        ok = True
-                        alt = get_dic(self.parent.fits_ofp_data,"raw","header","ALT_TEL",default = None)
-                        if alt:
-                            alt = f'{float(alt):.0f}'
-                        airmass = get_dic(self.parent.fits_ofp_data,"raw","header","AIRMASS",default = None)
-                        if airmass:
-                            airmass = f'{float(airmass):.1f}'
-                        exptime = self.parent.fits_ofp_data["raw"]["header"]["EXPTIME"]
-                        ccd_temp = get_dic(self.parent.fits_ofp_data,"raw","header","CCD-TEMP",default = None)
-                        if ccd_temp:
-                            ccd_temp = f'{float(ccd_temp):.0f}'
-                        gain = get_dic(self.parent.fits_ofp_data,"raw","header","GAIN",default = None)
-                        rm = get_dic(self.parent.fits_ofp_data,"raw","header","READ-MOD",default = None)
-                        xbin = get_dic(self.parent.fits_ofp_data,"raw","header","XBINNING",default = None)
-                        ybin = get_dic(self.parent.fits_ofp_data,"raw","header","YBINNING",default = None)
-                        focus = get_dic(self.parent.fits_ofp_data,"raw","header","FOCUS",default = None)
-
-                        if "pointing_error" in self.parent.fits_ofp_data["raw"].keys():
-                            #pointing_err_ra = self.parent.fits_ofp_data["raw"]["pointing_error"]["real_ra_diff"]
-                            #pointing_err_dec = self.parent.fits_ofp_data["raw"]["pointing_error"]["dec_diff"]
-                            self.pointing_x = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_ra"]
-                            self.pointing_y = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_dec"]
-
-                        if "objects" in self.parent.fits_ofp_data["raw"].keys():
-                            for k in self.parent.fits_ofp_data["raw"]["objects"].keys():
-                                if "x_pix" not in self.parent.fits_ofp_data["raw"]["objects"][k].keys():
-                                    pass
-                                else:
-                                    self.ob_x.append(self.parent.fits_ofp_data["raw"]["objects"][k]["x_pix"])
-                                    self.ob_y.append(self.parent.fits_ofp_data["raw"]["objects"][k]["y_pix"])
-                                if "saturation_max" in self.parent.fits_ofp_data['raw']['objects'][k].keys():
-                                    txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
-                        if self.pointing_x:
-                            self.poining_center = self.axes.plot(self.pointing_x,self.pointing_x,"k+",markersize=20)
-                        if len(self.ob_x)>0:
-                            self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")
-
-            # except Exception as e:
-            #     print(f"TOI FITS EXCEPTION 2: {e}")
 
             try:
-                txt = txt + f" {date.split('T')[0]} <br>"
-                txt = txt + f" {date.split('T')[1].split('.')[0]} <br>"
-                txt = txt + f" {fname} <br>"
-                txt = txt + f" <hr> <br>"
-                txt = txt + f" OBJECT: <b>{name}</b> <br>"
-                txt = txt + f" TYPE: <i>{type}</i> <i>{obs_type}</i> <br>"
-                txt = txt + f" FILTER: <b>{filter}</b> {n}/{ndit} <br>"
-                txt = txt + f" EXP: <b>{exptime}</b> s. <br>"
-                txt = txt + f" <hr> <br>"
+                if self.parent.fits_ofp_data:
+                    ofp_name = self.parent.fits_ofp_data["raw"]["file_name"]
+                    if fname:
+                        if ofp_name == fname:
+                            ok = True
+                            alt = get_dic(self.parent.fits_ofp_data,"raw","header","ALT_TEL",default = None)
+                            if alt:
+                                alt = f'{float(alt):.0f}'
+                            airmass = get_dic(self.parent.fits_ofp_data,"raw","header","AIRMASS",default = None)
+                            if airmass:
+                                airmass = f'{float(airmass):.1f}'
+                            exptime = self.parent.fits_ofp_data["raw"]["header"]["EXPTIME"]
+                            ccd_temp = get_dic(self.parent.fits_ofp_data,"raw","header","CCD-TEMP",default = None)
+                            if ccd_temp:
+                                ccd_temp = f'{float(ccd_temp):.0f}'
+                            gain = get_dic(self.parent.fits_ofp_data,"raw","header","GAIN",default = None)
+                            rm = get_dic(self.parent.fits_ofp_data,"raw","header","READ-MOD",default = None)
+                            xbin = get_dic(self.parent.fits_ofp_data,"raw","header","XBINNING",default = None)
+                            ybin = get_dic(self.parent.fits_ofp_data,"raw","header","YBINNING",default = None)
+                            focus = get_dic(self.parent.fits_ofp_data,"raw","header","FOCUS",default = None)
+
+                            if "pointing_error" in self.parent.fits_ofp_data["raw"].keys():
+                                #pointing_err_ra = self.parent.fits_ofp_data["raw"]["pointing_error"]["real_ra_diff"]
+                                #pointing_err_dec = self.parent.fits_ofp_data["raw"]["pointing_error"]["dec_diff"]
+                                self.pointing_x = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_ra"]
+                                self.pointing_y = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_dec"]
+
+                            if "objects" in self.parent.fits_ofp_data["raw"].keys():
+                                for k in self.parent.fits_ofp_data["raw"]["objects"].keys():
+                                    if "x_pix" not in self.parent.fits_ofp_data["raw"]["objects"][k].keys():
+                                        pass
+                                    else:
+                                        self.ob_x.append(self.parent.fits_ofp_data["raw"]["objects"][k]["x_pix"])
+                                        self.ob_y.append(self.parent.fits_ofp_data["raw"]["objects"][k]["y_pix"])
+                                    if "saturation_max" in self.parent.fits_ofp_data['raw']['objects'][k].keys():
+                                        txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
+                            if self.pointing_x:
+                                self.poining_center = self.axes.plot(self.pointing_x,self.pointing_x,"k+",markersize=20)
+                            if len(self.ob_x)>0:
+                                self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")
+
             except Exception as e:
-                print(f"TOI FITS EXCEPTION 3: {e}")
+                print(f"TOI FITS EXCEPTION 2: {e}")
 
-            #try:
-            if self.ffs:
-                fwhm_arcsec = None
+                try:
+                    txt = txt + f" {date.split('T')[0]} <br>"
+                    txt = txt + f" {date.split('T')[1].split('.')[0]} <br>"
+                    txt = txt + f" {fname} <br>"
+                    txt = txt + f" <hr> <br>"
+                    txt = txt + f" OBJECT: <b>{name}</b> <br>"
+                    txt = txt + f" TYPE: <i>{type}</i> <i>{obs_type}</i> <br>"
+                    txt = txt + f" FILTER: <b>{filter}</b> {n}/{ndit} <br>"
+                    txt = txt + f" EXP: <b>{exptime}</b> s. <br>"
+                    txt = txt + f" <hr> <br>"
+                except Exception as e:
+                    print(f"TOI FITS EXCEPTION 3: {e}")
 
-                fwhm = self.ffs.stats["frame"]["fwhm"]
+            try:
+                if self.ffs:
+                    fwhm_arcsec = None
 
-                if self.parent.nats_cfg[tel]["pixel_scale"]:
-                    px = self.parent.nats_cfg[tel]["pixel_scale"]
-                    fwhm_arcsec = fwhm * px
+                    fwhm = self.ffs.stats["frame"]["fwhm"]
 
-                ell = self.ffs.stats["frame"]["ellipticity"]
-                shape = self.ffs.stats["frame"]["shape"]
-                cpe = self.ffs.stats["frame"]["cpe"]
-                ci = self.ffs.stats["frame"]["ci"]
+                    if self.parent.nats_cfg[tel]["pixel_scale"]:
+                        px = self.parent.nats_cfg[tel]["pixel_scale"]
+                        fwhm_arcsec = fwhm * px
 
-                frame_min = self.ffs.stats["frame"]["min"]
-                frame_max = self.ffs.stats["frame"]["max"]
-                frame_mean = self.ffs.stats["frame"]["mean"]
-                frame_median = self.ffs.stats["frame"]["median"]
-                frame_rms = self.ffs.stats["frame"]["rms"]
-                frame_q_sigma = self.ffs.stats["frame"]["q_sigma"]
+                    ell = self.ffs.stats["frame"]["ellipticity"]
+                    shape = self.ffs.stats["frame"]["shape"]
+                    cpe = self.ffs.stats["frame"]["cpe"]
+                    ci = self.ffs.stats["frame"]["ci"]
 
-                bkg_ampl = self.ffs.stats["frame"]["bkg_max_amplitude"]
-                frame_ampl = self.ffs.stats["frame"]["bkg_frame_gradient"]
+                    frame_min = self.ffs.stats["frame"]["min"]
+                    frame_max = self.ffs.stats["frame"]["max"]
+                    frame_mean = self.ffs.stats["frame"]["mean"]
+                    frame_median = self.ffs.stats["frame"]["median"]
+                    frame_rms = self.ffs.stats["frame"]["rms"]
+                    frame_q_sigma = self.ffs.stats["frame"]["q_sigma"]
 
-                if abs(bkg_ampl/frame_median) > 0.1:
-                    txt = txt + f'<span style="color:red;">WARNING</span>: bkg amplitude: <span style="color:red;"><b>{bkg_ampl:.0f}</b></span> <br>'
-                if abs(frame_ampl/frame_median) > 0.1:
-                    txt = txt + f'<span style="color:red;">WARNING</span>: frame gradient: <span style="color:red;"><b>{frame_ampl:.0f}</b></span><br>'
+                    bkg_ampl = self.ffs.stats["frame"]["bkg_max_amplitude"]
+                    frame_ampl = self.ffs.stats["frame"]["bkg_frame_gradient"]
 
-                if fwhm_arcsec:
-                    if fwhm_arcsec > 2.3:
-                        txt = txt + f'FWHM:  <span style="color:red;"><b>{fwhm:.1f}</b></span> px'
-                        if fwhm_arcsec:
-                            txt = txt + f'&nbsp; &nbsp; (<span style="color:red;"><b>{fwhm_arcsec:.1f}</b></span> arcsec) '
+                    if abs(bkg_ampl/frame_median) > 0.1:
+                        txt = txt + f'<span style="color:red;">WARNING</span>: bkg amplitude: <span style="color:red;"><b>{bkg_ampl:.0f}</b></span> <br>'
+                    if abs(frame_ampl/frame_median) > 0.1:
+                        txt = txt + f'<span style="color:red;">WARNING</span>: frame gradient: <span style="color:red;"><b>{frame_ampl:.0f}</b></span><br>'
+
+                    if fwhm_arcsec:
+                        if fwhm_arcsec > 2.3:
+                            txt = txt + f'FWHM:  <span style="color:red;"><b>{fwhm:.1f}</b></span> px'
+                            if fwhm_arcsec:
+                                txt = txt + f'&nbsp; &nbsp; (<span style="color:red;"><b>{fwhm_arcsec:.1f}</b></span> arcsec) '
+                        else:
+                            txt = txt + f'FWHM:  <b>{fwhm:.1f}</b> px'
+                            if fwhm_arcsec:
+                                txt = txt + f'&nbsp; &nbsp; <b>({fwhm_arcsec:.1f})</b> arcsec '
                     else:
                         txt = txt + f'FWHM:  <b>{fwhm:.1f}</b> px'
-                        if fwhm_arcsec:
-                            txt = txt + f'&nbsp; &nbsp; <b>({fwhm_arcsec:.1f})</b> arcsec '
-                else:
-                    txt = txt + f'FWHM:  <b>{fwhm:.1f}</b> px'
 
 
 
-                txt = txt + "<br>"
+                    txt = txt + "<br>"
 
-                if ell:
-                    if ell > 0.1:
-                        txt = txt + f'ellipse:  <span style="color:red;"><b>{ell:.2f}</b></span> <br>'
+                    if ell:
+                        if ell > 0.1:
+                            txt = txt + f'ellipse:  <span style="color:red;"><b>{ell:.2f}</b></span> <br>'
+                        else:
+                            txt = txt + f'ellipse:  <b>{ell:.2f}</b> <br>'
                     else:
                         txt = txt + f'ellipse:  <b>{ell:.2f}</b> <br>'
-                else:
-                    txt = txt + f'ellipse:  <b>{ell:.2f}</b> <br>'
 
-                txt = txt + f'shape:  <b>{shape:.2f}</b> <br>'
-                txt = txt + f'cpe:  <b>{cpe:.2f}</b> <br>'
-                txt = txt + f'ci:  <b>{ci:.2f}</b> <br>'
-                txt = txt + "<br>"
+                    txt = txt + f'shape:  <b>{shape:.2f}</b> <br>'
+                    txt = txt + f'cpe:  <b>{cpe:.2f}</b> <br>'
+                    txt = txt + f'ci:  <b>{ci:.2f}</b> <br>'
+                    txt = txt + "<br>"
 
-                if len(self.coo)>0:
-                    if True:
-                        if len(self.sat_coo)>0 and self.parent.local_cfg["toi"]["show_sat_stars"]:
-                            x,y = zip(*self.sat_coo)
-                            self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
-                    txt = txt + f"detected/saturated stars:  <i>{len(self.coo)}</i>/<i>{len(self.sat_coo)}</i> <br>"
+                    if len(self.coo)>0:
+                        if True:
+                            if len(self.sat_coo)>0 and self.parent.local_cfg["toi"]["show_sat_stars"]:
+                                x,y = zip(*self.sat_coo)
+                                self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
+                        txt = txt + f"detected/saturated stars:  <i>{len(self.coo)}</i>/<i>{len(self.sat_coo)}</i> <br>"
 
-                txt = txt + f'min/max ADU:  <i>{frame_min:.0f}</i>/<i>{frame_max:.0f}</i><br>'
-                txt = txt + f'mean/median ADU:  <i>{frame_mean:.0f}</i>/<i>{frame_median:.0f}</i> <br>'
-                txt = txt + f'rms/q68 ADU:  <i>{frame_rms:.0f}</i>/<i>{frame_q_sigma:.0f}</i> <br>'
+                    txt = txt + f'min/max ADU:  <i>{frame_min:.0f}</i>/<i>{frame_max:.0f}</i><br>'
+                    txt = txt + f'mean/median ADU:  <i>{frame_mean:.0f}</i>/<i>{frame_median:.0f}</i> <br>'
+                    txt = txt + f'rms/q68 ADU:  <i>{frame_rms:.0f}</i>/<i>{frame_q_sigma:.0f}</i> <br>'
 
 
 
 
-                txt = txt + f" <hr> <br>"
-
-            # except Exception as e:
-            #     print(f"TOI FITS EXCEPTION 4: {e}")
-            #
-            #
-            # except Exception as e:
-            #     print(f"TOI FITS EXCEPTION 4: {e}")
-
-            try:
-                if ok:
-                    txt = txt + " <b>OFP INFO</b>  <br>"
-                    txt = txt + f"alt:  <b>{alt}</b> <br>"
-                    txt = txt + f"airmass:  <b>{airmass}</b> <br>"
-                    txt = txt + f"focus:  <b>{focus}</b> <br>"
-                    txt = txt + f"CCD temp:  <b>{ccd_temp}</b> <br>"
-                    txt = txt + f"gain:  <i>{gain}</i> <br>"
-                    txt = txt + f"read mode:  <i>{rm}</i> <br>"
-                    txt = txt + f"bin:  <i>{xbin}</i>x<i>{ybin}</i> <br>"
                     txt = txt + f" <hr> <br>"
-                    txt = txt + " <b>OFP TARGETS</b>  <br>"
-                    txt = txt + txt2
-            except Exception as e:
-                print(f"TOI FITS EXCEPTION 5: {e}")
 
-            self.tel_e.setText(tel)
-            self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[tel]['color']};")
-            self.stat_e.setHtml(txt)
-        self.canvas.draw()
-        self.raise_()
+            except Exception as e:
+                print(f"TOI FITS EXCEPTION 4: {e}")
+
+
+            except Exception as e:
+                print(f"TOI FITS EXCEPTION 4: {e}")
+
+                try:
+                    if ok:
+                        txt = txt + " <b>OFP INFO</b>  <br>"
+                        txt = txt + f"alt:  <b>{alt}</b> <br>"
+                        txt = txt + f"airmass:  <b>{airmass}</b> <br>"
+                        txt = txt + f"focus:  <b>{focus}</b> <br>"
+                        txt = txt + f"CCD temp:  <b>{ccd_temp}</b> <br>"
+                        txt = txt + f"gain:  <i>{gain}</i> <br>"
+                        txt = txt + f"read mode:  <i>{rm}</i> <br>"
+                        txt = txt + f"bin:  <i>{xbin}</i>x<i>{ybin}</i> <br>"
+                        txt = txt + f" <hr> <br>"
+                        txt = txt + " <b>OFP TARGETS</b>  <br>"
+                        txt = txt + txt2
+                except Exception as e:
+                    print(f"TOI FITS EXCEPTION 5: {e}")
+
+                self.tel_e.setText(tel)
+                self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[tel]['color']};")
+                self.stat_e.setHtml(txt)
+            self.canvas.draw()
+            self.raise_()
 
     def updateUI(self):
 

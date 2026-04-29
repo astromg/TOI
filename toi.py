@@ -703,6 +703,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.plan', deliver_policy='last')
             async for data, meta in reader:
                 self.nats_plan_status = data
+
+                # RESET PLAN
+                # ob = {"command_name": "STOP"}
+                # data["ob"] = ob
+                # data["block"] = "STOP"
+                # data["meta"] = {"ok": True}
+                #
+                # self.nats_plan_status = {"current_i":-1,"next_i":-1,"plan":[data]}
+
+
                 self.planGui.update_table()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
@@ -2192,9 +2202,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         ob_time = ephem.now()
 
                         for i, tmp in enumerate(self.plan[tel]):
-
-
-
                             # liczenie czasu ob
 
                             calc_slotTime = False
@@ -2280,7 +2287,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     oca.horizon = str(self.plan[tel][i]["ob"]["sunrise"])
                                     wait_sunrise = oca.next_rising(ephem.Sun(), use_center=True)
                                     slotTime = wait_sunrise - ob_time
-                                    print(wait_sunrise, ob_time, slotTime)
+                                    #print(wait_sunrise, ob_time, slotTime)
                                     if slotTime > 0.5:
                                         slotTime = 0
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
@@ -2480,9 +2487,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if "method" in self.nats_focus_record[self.active_tel].keys():
                         method = self.nats_focus_record[self.active_tel]["method"]
                     if "time" in self.nats_focus_record[self.active_tel].keys():
-                        txt = f'{self.nats_focus_record[self.active_tel]["time"]}'
+                        txt = f'{self.nats_focus_record[self.active_tel]["time"]}      '
                     txt = txt + (f' {self.nats_focus_record[self.active_tel]["max_sharpness_focus"]:.0f}    {self.nats_focus_record[self.active_tel]["filter"]}    {self.nats_focus_record[self.active_tel]["davis_temperature"]:.1f} '
-                                 f'{self.nats_focus_record[self.active_tel]["davis_humidity"]:.0f}   {self.nats_focus_record[self.active_tel]["status"]}       {method} ')
+                                 f'     {self.nats_focus_record[self.active_tel]["davis_humidity"]:.0f}%   {self.nats_focus_record[self.active_tel]["status"]}       {method} ')
                     self.focusGui.log_e.append(txt)
                     self.focusGui.log_e.repaint()
 
@@ -3151,13 +3158,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mntGui.target_e.setStyleSheet("background-color: rgb(234, 245, 249); color: black;")
     def target_provided(self):
         target = self.mntGui.target_e.text()
+
+        BASE_SCHEMA = ObsValidator.load_schema("base_schema")
+        COMMAND_RULES = ObsValidator.load_schema("base_rules.yaml")
+
+        validator = ObsValidator(BASE_SCHEMA, COMMAND_RULES)
+        result = validator.validate_txt(target, allowed_filters=None)
         try:
-            name,ra,dec = target.split()[0],target.split()[1],target.split()[2]
-            self.mntGui.nextRa_e.setText(ra)
-            self.mntGui.nextDec_e.setText(dec)
-            self.instGui.ccd_tab.inst_object_e.setText(name)
-            self.mntGui.setEq_r.setChecked(True)
-            self.mntGui.updateNextRaDec()
+            if result["result"]:
+                ob = result["data"]
+                if "ra" in ob.keys():
+                    self.mntGui.nextRa_e.setText(ob["ra"])
+                if "dec" in ob.keys():
+                    self.mntGui.nextDec_e.setText(ob["dec"])
+                if "name" in ob.keys():
+                    self.instGui.ccd_tab.inst_object_e.setText(ob["name"])
+                if "seq" in ob.keys():
+                    self.instGui.ccd_tab.inst_Seq_e.setText(ob["seq"])
+                self.mntGui.setEq_r.setChecked(True)
+                self.mntGui.updateNextRaDec()
         except IndexError: pass
         self.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
 
@@ -3639,6 +3658,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 await self.focus.aput_move(foc_set)
                                 await self.update_log(f'adjusting focus to {foc_set}', "TOI", t)
 
+                                data_short = {}
+                                data_short["status"] = "ok"
+                                data_short["temperature"] = self.sensors[t]["dome_conditions"]["temperature"]
+                                data_short["max_sharpness_focus"] = foc_set
+                                data_short["time"] = self.ut
+                                data_short["filter"] = "--"
+                                data_short["davis_temperature"] = self.telemetry_temp
+                                data_short["davis_humidity"] = self.telemetry_humidity
+                                data_short["method"] = "focus_adjust"
+
+                                await self.nats_toi_focus_record[t].publish(data=data_short, timeout=10)
+
+
+
+
+
     def focus_difference(self,tel):
         if not self.nats_focus_record[tel]:   # czasami przychodza z natsow puste, jak dlugo nikt nie robil focusa
             return None
@@ -3671,7 +3706,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if self.focus_moving != None:
                 if self.focus_moving:
                     self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;") # blue
-                elif abs(foc_diff) > 10 and abs(int(diff + prev_foc) - self.focus_value) > 10 :
+                elif abs(foc_diff) > 10 and abs(int(foc_diff + prev_foc) - self.focus_value) > 10 :
                     self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")  # yellow
                 else:
                     self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;") # white
@@ -3912,7 +3947,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 tmp = f'{ut} {self.tel_users[tel]} {level} [{label}] {txt}'
                 self.log_record[tel] = self.log_record[tel] + tmp + "\n"
             else:
-                print("LOG: no acces! ", txt)
+                pass
+                #print("LOG: no acces! ", txt)
 
 
         except Exception as e:

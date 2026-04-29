@@ -56,9 +56,9 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.parent.plan_geometry[3]
           )
 
-          self.table_header = ["","Object","Alt @ UT","Comment"]
+          self.table_header = ["","UT","Object","Alt @ UT","Comment"]
           self.show_seq = False      # zmienne decydujaca o wyswietlaniu co jest w kolumnach w tabelce
-          self.show_ut = True
+          self.state_ut = 0
           self.show_ob = False
 
           self.plan=[]
@@ -110,10 +110,13 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.parent.WarningWindow(txt)
 
     def pocisniecie_addOB(self):
-          pass
-          #self.edit_window=AddWindow(self)
-          #self.edit_window.show()
-          #self.edit_window.raise_()
+        if self.parent.tel_acces[self.parent.active_tel]:
+            self.add_window = AddWindow(self)
+        else:
+            txt="WARNING: U don't have controll"
+            self.parent.WarningWindow(txt)
+
+
 
     def pocisniecie_edit(self):
         if self.parent.tel_acces[self.parent.active_tel]:
@@ -170,8 +173,8 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.plan_t.clearContents()
         else:
 
-            #if True:
-            try:
+            if True:
+            #try:
                 if self.parent.tel_acces[self.parent.active_tel] and self.parent.telescope_switch_status["plan"]:
                     self.plan = self.parent.plan[self.parent.active_tel]
                     self.current_i = self.parent.current_i[self.parent.active_tel]
@@ -188,7 +191,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                 if not self.plan:
                     self.plan_t.clearContents()
                 else:
-
                       if len(self.plan)==0:
                           self.plan_t.clearContents()
                       else:
@@ -203,7 +205,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
                          for i,tmp in enumerate(self.plan):
-
                              if self.plan_t.rowCount() <= i:
                                  self.plan_t.insertRow(i)
 
@@ -323,7 +324,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                              if i==self.next_i: #and self.current_i<0:    # nastepmy
                                 font=QtGui.QFont()
                                 font.setPointSize(25)
-                                txt=QTableWidgetItem("\u2192")
+                                txt=QTableWidgetItem("\u2192")  # szczalka next
                                 txt.setFont(font)
                                 txt.setTextAlignment(QtCore.Qt.AlignCenter)
                                 txt.setForeground(QtGui.QColor("blue"))
@@ -339,7 +340,17 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                 self.plan_t.setItem(i,0,txt)
 
                              # 1 KOLUMNA
+                             txt = ""
+                             if "plan_ut" in self.plan[i]["meta"].keys() and (
+                                     i >= self.next_i or (i >= self.current_i and self.current_i > -1)):
+                                 tmp = str(self.plan[i]["meta"]["plan_ut"]).split()[1]
+                                 txt = tmp.split(":")[0] + ":" + tmp.split(":")[1]
 
+                             txt=QTableWidgetItem(txt)
+                             self.plan_t.setItem(i,1,txt)
+
+
+                             # 2 kolumna
                              if self.show_ob:
                                  txt=self.plan[i]["block"]
                              else:
@@ -362,21 +373,17 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                      else:
                                          txt = f'{self.plan[i]["block"].split()[0]} '
 
-                             if "slotTime" in self.plan[i]["meta"]:
-                                 txt = txt + f' [{self.plan[i]["meta"]["slotTime"]/60.:.1f}] '
 
                              txt=QTableWidgetItem(txt)
-                             self.plan_t.setItem(i,1,txt)
+                             self.plan_t.setItem(i,2,txt)
 
-                             # 2 KOLUMNA
+                             # 3 KOLUMNA
 
-                             if self.show_ut:
-                                 txt = ""
-                                 if "plan_ut" in self.plan[i]["meta"].keys()  and (i >= self.next_i or (i >= self.current_i and self.current_i>-1)):
-                                     tmp = str(self.plan[i]["meta"]["plan_ut"]).split()[1]
-                                     txt = tmp.split(":")[0]+":"+tmp.split(":")[1]
+
+                             txt = ""
+                             if self.state_ut == 0:
                                  if "plan_alt" in self.plan[i]["meta"].keys() and (i >= self.next_i or (i >= self.current_i and self.current_i>-1)):
-                                     txt = txt + " (" + str(self.plan[i]["meta"]["plan_alt"])+")"
+                                     txt =  f'{self.plan[i]["meta"]["plan_alt"]}'
                                      alt = float(self.plan[i]["meta"]["plan_alt"])
                                      txt = QTableWidgetItem(txt)
                                      if alt < self.parent.cfg_alt_limits["min"]:
@@ -385,16 +392,40 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                          txt.setForeground(QtGui.QColor("orange"))
                                      elif alt > self.parent.cfg_alt_limits["max"]:
                                          txt.setForeground(QtGui.QColor("red"))
-                             else:
-                                 txt = ""
+                             elif self.state_ut == 1:
                                  if "alt" in self.plan[i]["meta"].keys():
                                      txt = str(self.plan[i]["meta"]["alt"])
                                      txt=QTableWidgetItem(txt)
+                             elif self.state_ut == 2:
+                                 if "slotTime" in self.plan[i]["meta"].keys():
+                                     txt = f' {self.plan[i]["meta"]["slotTime"] / 60.:.1f} [m]'
+                                     txt=QTableWidgetItem(txt)
+                             elif self.state_ut == 3:
+
+                                 if "ra" in self.plan[i]["ob"].keys() and "plan_ut" in self.plan[i]["meta"].keys():
+                                     ra = self.plan[i]["ob"]["ra"]
+                                     dec = self.plan[i]["ob"]["dec"]
+                                     obs = ephem.Observer()
+                                     obs.lat = self.parent.oca_site.lat
+                                     obs.lon = self.parent.oca_site.lon
+                                     obs.elevation = self.parent.oca_site.elevation
+                                     obs.date = str(self.plan[i]["meta"]["plan_ut"])
+
+                                     target = ephem.FixedBody()
+                                     target._ra = ephem.hours(ra)
+                                     target._dec = ephem.degrees(dec)
+                                     target.compute(obs)
+
+                                     moon = ephem.Moon(obs)
+
+                                     sep = ephem.separation((target.ra, target.dec), (moon.ra, moon.dec))
+                                     sep_deg = float(sep) * 180.0 / ephem.pi
+                                     txt = f'{sep_deg:.0f} [deg]'
 
                              txt = QTableWidgetItem(txt)
-                             self.plan_t.setItem(i,2,txt)
+                             self.plan_t.setItem(i,3,txt)
 
-                             # 3 KOLUMNA
+                             # 4 KOLUMNA
 
                              txt=QTableWidgetItem("--")
                              if self.show_seq:
@@ -404,17 +435,19 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                  if "comment" in self.plan[i]["ob"].keys():
                                      txt = QTableWidgetItem(str(self.plan[i]["ob"]["comment"]))
 
-                             self.plan_t.setItem(i,3,txt)
+                             self.plan_t.setItem(i,4,txt)
 
                          if self.prev_i >= 0 and self.prev_i < len(self.plan):
                              self.plan_t.item(self.prev_i,1).setBackground(QtGui.QColor(230, 236, 240))
                              self.plan_t.item(self.prev_i,2).setBackground(QtGui.QColor(230, 236, 240))
                              self.plan_t.item(self.prev_i, 3).setBackground(QtGui.QColor(230, 236, 240))
+                             self.plan_t.item(self.prev_i, 4).setBackground(QtGui.QColor(230, 236, 240))
 
                          if self.i >= 0 and self.i < len(self.plan):
                              self.plan_t.item(self.i,1).setBackground(QtGui.QColor(125, 195, 227))
                              self.plan_t.item(self.i,2).setBackground(QtGui.QColor(125, 195, 227))
                              self.plan_t.item(self.i, 3).setBackground(QtGui.QColor(125, 195, 227))
+                             self.plan_t.item(self.i, 4).setBackground(QtGui.QColor(125, 195, 227))
 
                       #self.plan_t.setColumnWidth(0,30)
 
@@ -427,10 +460,13 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                           self.plan_t.blockSignals(False)
                           self.plan_t.resizeColumnsToContents()
 
-                          for col in range(1,self.plan_t.columnCount()):
-                              self.plan_t.horizontalHeader().setSectionResizeMode(col,QHeaderView.Stretch)
-            except Exception as e:
-                print(f"TOI plan GUI: EXCEPTION 103 {e}")
+
+                      self.plan_t.horizontalHeader().setSectionResizeMode(2,QHeaderView.Stretch)
+                      self.plan_t.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+
+
+            # except Exception as e:
+            #     print(f"TOI plan GUI: EXCEPTION 103 {e}")
 
         self.parent.telescope_switch_status["plan"] = True
 
@@ -596,37 +632,31 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
     def pocisniecie_headera(self,index):
-          if index == 3:
-              if self.show_seq:
-                  self.table_header[3] = "Comment"
-                  self.plan_t.setHorizontalHeaderLabels(self.table_header)
-                  self.show_seq = False
-              else:
-                  self.table_header[3] = "Seq"
-                  self.plan_t.setHorizontalHeaderLabels(self.table_header)
-                  self.show_seq = True
+        if index == 4:
+            if self.show_seq:
+                self.table_header[4] = "Comment"
+                self.show_seq = False
+            else:
+                self.table_header[4] = "Seq"
+                self.show_seq = True
 
-          elif index == 2:
-              if self.show_ut:
-                  self.table_header[2] = "Alt"
-                  self.plan_t.setHorizontalHeaderLabels(self.table_header)
-                  self.show_ut = False
-              else:
-                  self.table_header[2] = "Alt @ UT"
-                  self.plan_t.setHorizontalHeaderLabels(self.table_header)
-                  self.show_ut = True
+        elif index == 3:
+            options = ["Alt@UT", "Alt", "OB time", "Moon dist"]
+            self.state_ut = (self.state_ut + 1) % len(options)
+            self.table_header[3] = options[self.state_ut]
 
-          elif index == 1:
-              if self.show_ob:
-                  self.table_header[1] = "Object"
-                  self.plan_t.setHorizontalHeaderLabels(self.table_header)
-                  self.show_ob = False
-              else:
-                  self.table_header[1] = "OB"
-                  self.plan_t.setHorizontalHeaderLabels(self.table_header)
-                  self.show_ob = True
+        elif index == 2:
+            if self.show_ob:
+                self.table_header[2] = "Object"
+                self.show_ob = False
+            else:
+                self.table_header[2] = "OB"
+                self.show_ob = True
 
-          self.update_table()
+        self.table_header[1] = "UT"
+
+        self.plan_t.setHorizontalHeaderLabels(self.table_header)
+        self.update_table()
 
     def pocisniecie_tabelki(self,i,j):
         self.prev_i=self.i
@@ -637,7 +667,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     def pocisniecie_delAll(self):
         try:
             if self.parent.tel_acces[self.parent.active_tel]:
-
                 if self.parent.current_i[self.parent.active_tel] >= 0:
                     ob_tmp = self.parent.plan[self.parent.active_tel][self.parent.current_i[self.parent.active_tel]]
                     self.parent.plan[self.parent.active_tel] = []
@@ -903,7 +932,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.grid.addWidget(self.ob_Prog_n, w, 0,1,5)
 
           w=w+1
-          self.plan_t=QTableWidget(0,4)
+          self.plan_t=QTableWidget(0,5)
           self.plan_t.setStyleSheet("selection-background-color: green; background-color: #F0F0F0;")
           self.plan_t.setHorizontalHeaderLabels(self.table_header)
           self.plan_t.setSelectionMode(QAbstractItemView.NoSelection)
@@ -949,7 +978,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=w+1
 
           self.add_p=QPushButton('Add OB')
-          self.add_p.setStyleSheet(" color: gray;")
           self.edit_p=QPushButton('Edit OB')
           self.copy_p=QPushButton('Copy OB')
 
@@ -1027,12 +1055,14 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.swap_p.clicked.connect(self.pocisniecie_swap)
           self.edit_p.clicked.connect(self.pocisniecie_edit)
           self.copy_p.clicked.connect(self.pocisniecie_copy)
-          #self.add_p.clicked.connect(self.pocisniecie_addOB)
+          self.add_p.clicked.connect(self.pocisniecie_addOB)
           self.addStop_p.clicked.connect(self.pocisniecie_addStop)
           self.addBell_p.clicked.connect(self.pocisniecie_addBell)
 
           self.setLayout(self.grid)
           self.plan_t.setColumnWidth(0,30)
+          self.plan_t.setColumnWidth(1, 40)
+          self.plan_t.setColumnWidth(3, 40)
 
           del tmp
           
@@ -1085,7 +1115,7 @@ class TPG_Worker(QtCore.QObject):
             p.MaskMoon()
             self.update_signal.emit("masking moon <span style='color: green;'>\u2714</span>")
             p.MaskWind()
-            print(p.wind)
+            #print(p.wind)
             self.update_signal.emit("masking wind <span style='color: green;'>\u2714</span>")
             p.MaskCycle()
             self.update_signal.emit("masking cycle <span style='color: green;'>\u2714</span>")
@@ -1856,6 +1886,7 @@ class EditWindow(QWidget):
 
     def block_changed(self):
         if not self.initial_load:
+            self.block_e.setStyleSheet("background-color: white; color: black;")
             self.status_l.setText("\u2699 OB changed")
             self.status_l.setStyleSheet("color: blue; font-weight: normal;")
 
@@ -2023,7 +2054,313 @@ class EditWindow(QWidget):
 ###             ADD WINDOW              ###
 ###########################################
 
-          
+class AddWindow(QWidget):
+    def __init__(self, parent):
+        super().__init__()
+
+        self.parent = parent
+
+        self.base_schema = ObsValidator.load_schema("base_schema.yaml")
+        self.command_rules = ObsValidator.load_schema("base_rules.yaml")
+        self.validator = ObsValidator(self.base_schema, self.command_rules)
+
+        self.setWindowTitle(" OB ADD WINDOW")
+        self.resize(600, 600)
+        self.setStyleSheet("font-size: 11pt;")
+
+        self.updating = False
+        self.initial_load = True
+
+        self.mkUI()
+        self.load_initial()
+
+    def save_ob(self):
+        if self.validate_current():
+            tmp = {}
+            ob = self.collect_table_data()
+            tmp["ob"] = ob
+            tmp["block"] = self.validator.convert_from_obdict(ob)
+            tmp["meta"] = {"ok": True}
+
+            if len(self.parent.plan) > self.parent.i:
+                self.parent.plan.append(tmp)
+                self.parent.i += 1
+            else:
+                self.parent.plan[self.parent.i + 1:self.parent.i + 1] = tmp
+            self.parent.i = self.parent.i + 1
+            self.parent.parent.update_plan(self.parent.parent.active_tel)
+            self.close()
+
+
+    # {
+    #     'ok': True, 'type': 'OBJECT', 'name': 'Pismis11', 'ra': '09:15:53.0', 'dec': '-50:01:00',
+    #     'seq': '2/g/60,2/g/180,2/r/60,2/r/180', 'slotTime': 1082.6232618834988, 'uobi': '9266e680',
+    #     'comment': 'every 1h', 'meta_alt': '60.7', 'meta_az': '204.6', 'meta_plan_ut': '2026/4/21 02:20:40',
+    #     'meta_plan_alt': '52.9', 'meta_plan_az': '217.5', 'skip_alt': False}
+
+    def load_initial(self):
+        txt = ""
+        self.block_e.setText(txt)
+        self.block_e.setCursorPosition(0)
+        self.initial_load = False
+
+    def build_block(self):
+        data = self.collect_table_data()
+        txt = self.validator.convert_from_obdict(data)
+        if txt:
+            return txt
+        return ""
+
+    def collect_table_data(self):
+        data = {"command_name": self.type_s.currentText()}
+
+        for row in range(self.tab_t.rowCount()):
+            key = self.tab_t.item(row, 0).data(QtCore.Qt.ItemDataRole.UserRole)
+            val_item = self.tab_t.item(row, 1)
+            if not val_item:
+                continue
+
+            val = val_item.text().strip()
+            if val != "":
+                data[key] = val
+
+        return data
+
+    def schema_prop(self, key):
+        return self.base_schema.get("properties", {}).get(key, {})
+
+    def tooltip_for(self, key):
+        prop = self.schema_prop(key)
+
+        desc = prop.get("description", "")
+        typ = prop.get("type", "")
+        enum = prop.get("enum", None)
+
+        lines = []
+
+        if desc:
+            lines.append(desc)
+
+        if typ:
+            lines.append(f"Type: {typ}")
+
+        if enum:
+            lines.append("Allowed: " + ", ".join(map(str, enum)))
+
+        return "\n".join(lines)
+
+    def example_for(self, key):
+        prop = self.schema_prop(key)
+        ex = prop.get("examples", [])
+        if ex:
+            return str(ex[0])
+        return ""
+
+    def rebuild_table(self, command_name, values=None):
+        self.updating = True
+
+        self.tab_t.blockSignals(True)
+        self.tab_t.setRowCount(0)
+
+        allowed = self.command_rules[command_name]["allowed"]
+
+        visible = [x for x in allowed if x != "command_name"]
+
+        for r, key in enumerate(visible):
+            self.tab_t.insertRow(r)
+
+            # parameter
+            item0 = QTableWidgetItem(key)
+            item0.setBackground(QColor(235, 235, 235))
+            item0.setFlags(item0.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
+            item0.setData(QtCore.Qt.ItemDataRole.UserRole, key)
+            item0.setToolTip(self.tooltip_for(key))
+            self.tab_t.setItem(r, 0, item0)
+
+            # value
+            val = ""
+            if values and key in values:
+                val = str(values[key])
+
+            item1 = QTableWidgetItem(val)
+            self.tab_t.setItem(r, 1, item1)
+
+            # example
+            item2 = QTableWidgetItem(self.example_for(key))
+            item2.setBackground(QColor(235, 235, 235))
+            item2.setFlags(item2.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
+            self.tab_t.setItem(r, 2, item2)
+
+        self.tab_t.blockSignals(False)
+        self.updating = False
+
+    def block_changed(self):
+        if not self.initial_load:
+            self.status_l.setText("\u2699 OB changed")
+            self.status_l.setStyleSheet("color: blue; font-weight: normal;")
+
+        if self.updating:
+            return
+
+        txt = self.block_e.text()
+        ob_tmp = ObsPlanParser.convert_from_string(txt)
+        if ob_tmp:
+            ob = ObsValidator.convert_to_obdict(ob_tmp)
+            cmd = ob.get("command_name", "OBJECT")
+        else:
+            ob = {"command_name", "OBJECT"}
+            cmd = "OBJECT"
+
+        if cmd not in self.base_schema["properties"]["command_name"]["enum"]:
+            ob = {"command_name", "OBJECT"}
+            cmd = "OBJECT"
+
+        self.updating = True
+        self.type_s.setCurrentText(cmd)
+        self.rebuild_table(cmd, ob)
+        self.updating = False
+
+    def command_changed(self):
+        if self.updating:
+            return
+
+        cmd = self.type_s.currentText()
+        current = self.collect_table_data()
+        self.rebuild_table(cmd, current)
+
+        self.refresh_block()
+
+    def table_changed(self):
+        self.status_l.setText("\u2699 OB changed")
+        self.status_l.setStyleSheet("color: blue; font-weight: normal;")
+
+        if self.updating:
+            return
+        self.refresh_block()
+
+        for r in range(self.tab_t.rowCount()):
+            it = self.tab_t.item(r, 1)
+            if it:
+                it.setBackground(QColor("white"))
+
+    def refresh_block(self):
+        self.updating = True
+        txt = self.build_block()
+        self.block_e.setText(txt)
+        self.updating = False
+
+    def validate_current(self):
+        data = self.collect_table_data()
+
+        result = self.validator.validate_ob(data)
+
+        row_map = {}
+        for r in range(self.tab_t.rowCount()):
+            key = self.tab_t.item(r, 0).data(QtCore.Qt.ItemDataRole.UserRole)
+            row_map[key] = r
+
+        self.tab_t.blockSignals(True)
+        self.updating = True
+
+        # clear colors
+        for r in range(self.tab_t.rowCount()):
+            it = self.tab_t.item(r, 1)
+            if it:
+                it.setBackground(QColor("white"))
+
+        # apply colors
+        for key, state in result["result"].items():
+            if key not in row_map:
+                continue
+
+            r = row_map[key]
+            color = QColor(217, 239, 217) if state is True else QColor(255, 180, 80)
+
+            it = self.tab_t.item(r, 1)
+            if it:
+                it.setBackground(color)
+
+        self.tab_t.blockSignals(False)
+        self.updating = False
+
+        if result["valid"]:
+            self.status_l.setText("✅ Valid OB ")
+            # self.status_l.setText("\u2714 Valid OB ")
+            self.status_l.setStyleSheet("color: green; font-weight: bold;")
+        else:
+            self.status_l.setText("❌ Validation errors")
+            # self.status_l.setText("\u274C Validation errors")
+            self.status_l.setStyleSheet("color: orange; font-weight: bold;")
+
+        return result["valid"]
+    def mkUI(self):
+        grid = QGridLayout()
+
+        r = 0
+        # block line
+        self.block_e = QLineEdit()
+        self.block_e.setStyleSheet("background-color: skyblue; color: black;")
+
+        if self.parent.parent.catalog_file:
+            self.catalog = readCatalog(self.parent.parent.catalog_file)
+            completer = QCompleter(self.catalog)
+            completer.setFilterMode(QtCore.Qt.MatchContains)
+            completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+            self.block_e.setCompleter(completer)
+
+        self.block_e.textChanged.connect(self.block_changed)
+        grid.addWidget(self.block_e, r, 0, 1, 3)
+
+        r += 1
+        # command selector
+        self.type_l = QLabel("TYPE")
+        self.type_s = QComboBox()
+        self.type_s.addItems(list(self.command_rules.keys()))
+        self.type_s.currentTextChanged.connect(self.command_changed)
+
+        grid.addWidget(self.type_l, r, 0)
+        grid.addWidget(self.type_s, r, 1, 1, 2)
+
+        r += 1
+        # table
+        self.tab_t = QTableWidget()
+        self.tab_t.setColumnCount(3)
+        self.tab_t.setHorizontalHeaderLabels(["Parameter", "Value", "Example"])
+        self.tab_t.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.tab_t.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.tab_t.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+
+        self.tab_t.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)  # zaznaczenie całego wiersza
+        self.tab_t.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.tab_t.setStyleSheet("selection-background-color: rgb(200,220,255); selection-color: black; ")
+        self.tab_t.verticalHeader().hide()
+
+        self.tab_t.itemChanged.connect(self.table_changed)
+
+        grid.addWidget(self.tab_t, r, 0, 1, 3)
+
+        r += 1
+        # status
+        self.status_l = QLabel("Not validated")
+        grid.addWidget(self.status_l, r, 0, 1, 2)
+
+        self.validate_p = QPushButton("Validate OB")
+        self.validate_p.clicked.connect(self.validate_current)
+        grid.addWidget(self.validate_p, r, 1, 1, 2)
+
+        r += 1
+
+        self.save_p = QPushButton("Save")
+        self.save_p.clicked.connect(self.save_ob)
+        grid.addWidget(self.save_p, r, 2)
+
+        self.close_p = QPushButton("Close")
+        self.close_p.clicked.connect(self.close)
+        grid.addWidget(self.close_p, r, 0)
+
+        self.setLayout(grid)
+        self.show()
+
           
           
           
