@@ -254,7 +254,7 @@ class FitsWindow(BaseWindow):
                 txt = txt + "<br>"
 
                 if ell:
-                    if ell > 0.01:
+                    if ell > 0.1:
                         txt = txt + f'ellipse:  <span style="color:red;"><b>{ell:.2f}</b></span> <br>'
                     else:
                         txt = txt + f'ellipse:  <b>{ell:.2f}</b> <br>'
