@@ -1,7 +1,13 @@
 <h4>Whats New?</h4>
 
+--- 30.04.2026 --- <br>
+Add OB window restored. Edit OB window reworked. OB validation from pyraucaria introduced. FFS reworked and import from pyraucaria.
+Focus Adjust introduced. Bug fixed with continuing plan after plan has finished and loaded new. Plan time calculation reworked and bug-fixed.
+Small graphical changes.
+<br><br>
 --- 17.04.2026 --- <br>
 Blue background for instrument gain and rm bug update fixed.
+<br><br>
 --- 14.10.2025 --- <br>
 integration with tpg v1.0.0, test toggle is avialable and sciprog with pi can be processed by toi.
 <br><br>

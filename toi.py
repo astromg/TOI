@@ -1290,6 +1290,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                                 await self.msg(f' {tel} PLAN: WAIT sec={self.ob[tel]["ob"]["sec"]} s DONE', "green")
                                                 self.next_i[tel] = self.current_i[tel]
                                                 self.plan[tel].pop(self.current_i[tel])
+                                                await self.check_plan_finished(tel)
                                                 self.current_i[tel] = -1
                                                 self.update_plan(tel)
                                                 time = self.ut.split()[0] + "T" + self.ut.split()[1]
@@ -1307,6 +1308,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                                 await self.msg(f' {tel} PLAN: WAIT ut={self.ob[tel]["ob"]["ut"]} DONE', "green")
                                                 self.next_i[tel] = self.current_i[tel]
                                                 self.plan[tel].pop(self.current_i[tel])
+                                                await self.check_plan_finished(tel)
                                                 self.current_i[tel] = -1
                                                 self.update_plan(tel)
                                                 time = self.ut.split()[0] + "T" + self.ut.split()[1]
@@ -1319,6 +1321,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                                 await self.msg(f' {tel} PLAN: WAIT sunrise={self.ob[tel]["ob"]["sunrise"]} DONE', "green")
                                                 self.next_i[tel] = self.current_i[tel]
                                                 self.plan[tel].pop(self.current_i[tel])
+                                                await self.check_plan_finished(tel)
                                                 self.current_i[tel] = -1
                                                 self.update_plan(tel)
                                                 time = self.ut.split()[0] + "T" + self.ut.split()[1]
@@ -1332,6 +1335,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                                                 self.next_i[tel] = self.current_i[tel]
                                                 self.plan[tel].pop(self.current_i[tel])
+                                                await self.check_plan_finished(tel)
                                                 self.current_i[tel] = -1
                                                 self.update_plan(tel)
                                                 time = self.ut.split()[0] + "T" + self.ut.split()[1]
@@ -1349,6 +1353,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             await asyncio.sleep(1)
 
+    async def check_plan_finished(self, tel):
+        if len(self.plan[tel]) == 0:
+            self.ob[tel]["meta"]["run"] = False
+            self.ob[tel]["meta"]["continue_plan"] = False
+            self.current_i[tel] = -1
+            await self.update_log('plan FINISHED', "INFO", tel)
 
     async def guider_loop(self):
         while True:
@@ -1681,6 +1691,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         if "plan" in self.ob[tel]["meta"]["origin"]:
                             self.next_i[tel] = self.current_i[tel]
                             self.plan[tel].pop(self.current_i[tel])
+                            await self.check_plan_finished(tel)
                             self.current_i[tel] = -1
                             self.update_plan(tel)
 
@@ -2032,6 +2043,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                                 self.next_i[tel] = self.current_i[tel]
                                 self.plan[tel].pop(self.current_i[tel])
+                                await self.check_plan_finished(tel)
                                 self.current_i[tel] = -1
                                 self.update_plan(tel)
 
@@ -3163,7 +3175,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         COMMAND_RULES = ObsValidator.load_schema("base_rules.yaml")
 
         validator = ObsValidator(BASE_SCHEMA, COMMAND_RULES)
-        result = validator.validate_txt(target, allowed_filters=None)
+        result = validator.validate_txt(target, allowed_filters=self.nats_cfg[self.active_tel]["filter_list_names"])
         try:
             if result["result"]:
                 ob = result["data"]

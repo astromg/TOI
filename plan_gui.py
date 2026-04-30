@@ -840,30 +840,36 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                     COMMAND_RULES = ObsValidator.load_schema("base_rules.yaml")
 
                                     validator = ObsValidator(BASE_SCHEMA, COMMAND_RULES)
-                                    result = validator.validate_txt(line,allowed_filters=None)
-                                    if result["result"]:
+                                    result = validator.validate_txt(line,allowed_filters=self.parent.nats_cfg[self.parent.active_tel]["filter_list_names"])
+                                    data = None
+                                    if result["valid"]:
                                         data = {}
                                         data["ob"] = result["data"]
                                         data["meta"] = {"ok":True}
                                         data["block"] = line
 
+                                        try:
+                                            if os.path.exists(self.parent.local_cfg["ctc"]["ctc_base_folder"]):
+                                                self.ctc = CycleTimeCalc(telescope=self.parent.active_tel,
+                                                                         base_folder=self.parent.local_cfg["ctc"][
+                                                                             "ctc_base_folder"], tpg=True)
+                                                self.ctc.set_rm_modes(self.parent.local_cfg["ctc"]["rm_modes_mhz"])
+                                                rm = int(self.parent.instGui.ccd_tab.inst_setRead_e.currentIndex())
+                                                self.ctc.set_start_rmode(
+                                                    rm)  # tutaj zmienic defoult read mode dla teleskopu
+                                                self.ctc.reset_time()
+                                                ctc_ob_time = self.ctc.calc_time(data["block"])
+                                                data["meta"]["slotTime"] = ctc_ob_time
+                                        except:
+                                            pass
+
                                     else:
                                         print(f'Error plan reading: \n {line}')
 
+                            if data:
+                                tmp_plan.append(data)
 
-                                    try:
-                                        if os.path.exists(self.parent.local_cfg["ctc"]["ctc_base_folder"]):
-                                            self.ctc = CycleTimeCalc(telescope=self.parent.active_tel,base_folder=self.parent.local_cfg["ctc"]["ctc_base_folder"],tpg=True)
-                                            self.ctc.set_rm_modes(self.parent.local_cfg["ctc"]["rm_modes_mhz"])
-                                            rm = int(self.parent.instGui.ccd_tab.inst_setRead_e.currentIndex())
-                                            self.ctc.set_start_rmode(rm)  # tutaj zmienic defoult read mode dla teleskopu
-                                            self.ctc.reset_time()
-                                            ctc_ob_time = self.ctc.calc_time(data["block"])
-                                            data["meta"]["slotTime"] = ctc_ob_time
-                                    except:
-                                        pass
 
-                                    tmp_plan.append(data)
                     self.plan[self.i + 1:self.i + 1] = tmp_plan
                     self.parent.upload_plan()
                     self.parent.update_plan(self.parent.active_tel)
@@ -1199,8 +1205,8 @@ class TPGWindow(BaseWindow):
             COMMAND_RULES = ObsValidator.load_schema("base_rules.yaml")
 
             validator = ObsValidator(BASE_SCHEMA, COMMAND_RULES)
-            result = validator.validate_txt(blok, allowed_filters=None)
-            if result["result"]:
+            result = validator.validate_txt(blok, allowed_filters=self.parent.parent.nats_cfg[self.parent.parent.active_tel]["filter_list_names"])
+            if result["valid"]:
                 data = {}
                 data["ob"] = result["data"]
                 data["meta"] = {"ok": True}
@@ -1943,7 +1949,7 @@ class EditWindow(QWidget):
     def validate_current(self):
         data = self.collect_table_data()
 
-        result = self.validator.validate_ob(data)
+        result = self.validator.validate_ob(data,allowed_filters=self.parent.parent.nats_cfg[self.parent.parent.active_tel]["filter_list_names"])
 
         row_map = {}
         for r in range(self.tab_t.rowCount()):
@@ -2250,7 +2256,7 @@ class AddWindow(QWidget):
     def validate_current(self):
         data = self.collect_table_data()
 
-        result = self.validator.validate_ob(data)
+        result = self.validator.validate_ob(data,allowed_filters=self.parent.parent.nats_cfg[self.parent.parent.active_tel]["filter_list_names"])
 
         row_map = {}
         for r in range(self.tab_t.rowCount()):
