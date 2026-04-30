@@ -4,37 +4,37 @@ version = "0.1.2"
 description = "Telescope Operator Interface"
 authors = ["Marek Górski <you@example.com>"]
 readme = "README.md"
-repository = "https://github.com/astromg/TOI"  # to be moved to https://github.com/araucaria
+repository = "https://github.com/astromg/TOI"
 keywords = ["astronomy", "telescopes"]
 
 [tool.poetry.dependencies]
-python = "^3.11"
-#git fetch --all
-#pyaraucaria = {path = "../pyaraucaria", develop = true}
+python = ">=3.11,<3.15"
+
 pyaraucaria = {git = "https://github.com/araucaria-project/pyaraucaria.git"}
 serverish = {version="^1.1.0", extras=["messenger"]}
-astropy = ">=5.0.4"
-requests = "^2.28.1"
-ephem = ">=4.1.4"
-matplotlib = ">=3.6.3"
-numpy = ">=1.24.1"
+
+astropy = ">=6.0"          # starsze mogą nie wspierać 3.13
+requests = "^2.32.0"
+
+ephem = ">=4.1.5"          # jeśli dostępna
+matplotlib = ">=3.8.0"
+numpy = ">=1.26,<3"        # pozwala na numpy 2.x
 qasync = "^0.27.1"
-# ocabox = {git = "https://github.com/araucaria-project/ocabox.git"}
+
 ocabox = {path = "../ocabox", develop = true}
 ocabox-common = {git = "https://github.com/araucaria-project/ocabox-common.git"}
-#ocabox-common = {path = "../ocabox-common", develop = true}
 tpg = {path = "../tpg", develop = true}
 ctc = {git = "https://github.com/araucaria-project/ctc.git"}
-paho-mqtt = ">=1.6.1"
-scipy = ">=1.9.0"
-pyqt6 = {version="*"}
-pylint = "^4.0.4"
 
+paho-mqtt = ">=1.6.1"
+scipy = ">=1.11"           # potrzebne dla nowych Pythonów
+pyqt6 = ">=6.7"            # starsze mogą nie działać
+pylint = "^4.0.4"
 
 [tool.poetry.scripts]
 toi = "toi:main"
 nw = "nats_watch:main"
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=1.8.0"]
 build-backend = "poetry.core.masonry.api"
