@@ -11,7 +11,7 @@ keywords = ["astronomy", "telescopes"]
 python = ">=3.11,<3.15"
 
 pyaraucaria = {git = "https://github.com/araucaria-project/pyaraucaria.git"}
-serverish = {version="^1.1.0", extras=["messenger"]}
+serverish = {version="^2.0.2", extras=["messenger"]}
 
 astropy = ">=6.0"          # starsze mogą nie wspierać 3.13
 requests = "^2.32.0"
@@ -21,7 +21,8 @@ matplotlib = ">=3.8.0"
 numpy = ">=1.26,<3"        # pozwala na numpy 2.x
 qasync = "^0.27.1"
 
-ocabox = {path = "../ocabox", develop = true}
+ocabox = {git = "https://github.com/araucaria-project/ocabox.git"}
+#ocabox = {path = "../ocabox", develop = true}
 ocabox-common = {git = "https://github.com/araucaria-project/ocabox-common.git"}
 tpg = {path = "../tpg", develop = true}
 ctc = {git = "https://github.com/araucaria-project/ctc.git"}
