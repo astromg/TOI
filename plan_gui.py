@@ -831,6 +831,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     if plik != None:
                         tmp_plan = []
                         for line in plik:
+                            data = None
                             if len(line.strip())>0:
                                 if line.strip()[0]!="#":
                                     if "TEL: zb08" in line:
@@ -841,7 +842,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                                     validator = ObsValidator(BASE_SCHEMA, COMMAND_RULES)
                                     result = validator.validate_txt(line,allowed_filters=self.parent.nats_cfg[self.parent.active_tel]["filter_list_names"])
-                                    data = None
                                     if result["valid"]:
                                         data = {}
                                         data["ob"] = result["data"]
