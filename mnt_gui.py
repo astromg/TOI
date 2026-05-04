@@ -5,6 +5,7 @@
 # Marek Gorski
 # ----------------
 import logging
+import datetime
 import time
 from typing import Tuple
 
@@ -57,9 +58,9 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             else: self.parent.nextOB_ok = None
             if self.parent.nextOB_ok:
                 try:
-                    az, alt = RaDec2AltAz(self.parent.observatory, ephem.now(), ra, dec)
-                    az = deg_to_decimal_deg(str(az))
-                    alt = deg_to_decimal_deg(str(alt))
+                    az, alt = RaDec2AltAz(self.parent.observatory, datetime.datetime.now(datetime.timezone.utc), ra, dec)
+                    az = float(az)
+                    alt = float(alt)
                     self.nextAlt_e.setText("%.2f" % alt)
                     self.nextAz_e.setText("%.2f" % az)
                 except:
@@ -96,7 +97,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             else: self.parent.nextOB_ok = None
             if self.parent.nextOB_ok:
                 try:
-                    ra, dec = AltAz2RaDec(self.parent.observatory, ephem.now(), alt, az)
+                    ra, dec = AltAz2RaDec(self.parent.observatory, datetime.datetime.now(datetime.timezone.utc), alt, az)
                     self.nextRa_e.setText(str(ra))
                     self.nextDec_e.setText(str(dec))
                 except:

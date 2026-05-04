@@ -16,7 +16,6 @@ serverish = {version="^2.0.2", extras=["messenger"]}
 astropy = ">=6.0"          # starsze mogą nie wspierać 3.13
 requests = "^2.32.0"
 
-ephem = ">=4.1.5"          # jeśli dostępna
 matplotlib = ">=3.8.0"
 numpy = ">=1.26,<3"        # pozwala na numpy 2.x
 qasync = "^0.27.1"

@@ -15,6 +15,8 @@ from matplotlib.figure import Figure
 from pyaraucaria.coordinates import *
 from toi_lib import *
 from base_window import BaseWindow
+import datetime
+from astropy.time import Time
 
 
 
@@ -302,10 +304,10 @@ class SkyView(QWidget):
                 dec = star["ob"]["dec"]
                 plan_ut = star["meta"]["plan_ut"]
                 slotTime = star["meta"]["slotTime"]
-                t0 = ephem.Date(self.parent.ut)
-                te = t0 + 6 * ephem.hour
-                t0_star = ephem.Date(plan_ut)
-                te_star = t0_star + slotTime * ephem.second
+                t0 = datetime.datetime.strptime(self.parent.ut, "%Y/%m/%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+                te = t0 + datetime.timedelta(hours=6)
+                t0_star = datetime.datetime.strptime(plan_ut, "%Y/%m/%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+                te_star = t0_star + datetime.timedelta(seconds=slotTime)
                 alt_l = []
                 az_l = []
                 obs_alt_l = []
@@ -313,17 +315,15 @@ class SkyView(QWidget):
                 t = t0
                 while t < te:
                     az, alt = RaDec2AltAz(self.parent.observatory, t, ra, dec)
-                    alt = deg_to_decimal_deg(str(alt))
-                    az = deg_to_decimal_deg(str(az))
-                    az = az * 2 * 3.14 / 360.
-                    alt = 90 - alt
-                    if t0_star < t <  te_star:
+                    az = float(az) * 2 * 3.14 / 360.
+                    alt = 90 - float(alt)
+                    if t0_star < t < te_star:
                         obs_alt_l.append(alt)
                         obs_az_l.append(az)
                     else:
                         alt_l.append(alt)
                         az_l.append(az)
-                    t = t + 1 * ephem.minute
+                    t = t + datetime.timedelta(minutes=1)
 
                 track = self.axes.plot(az_l, alt_l, color="dodgerblue", linestyle='-', alpha=0.5, linewidth=1)
                 obs = self.axes.plot(obs_az_l, obs_alt_l, color="darkorange", linestyle='-', alpha=1, linewidth=2)

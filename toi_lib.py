@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 
 from collections import OrderedDict
-import ephem
+import datetime
 import numpy
+
+from astropy.coordinates import EarthLocation, AltAz, ICRS, SkyCoord, FK5
+from astropy.time import Time
+import astropy.units as u
+from pyaraucaria.ephemeris import Sun as _SunBody, Moon as _MoonBody
 
 from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor
 from PyQt6.QtSvg import QSvgRenderer
@@ -551,97 +556,114 @@ def readCatalog(plik):
     return l
 
 
+def _make_location(obs):
+    """Create an EarthLocation from obs = [lat_str, lon_str, elevation_str]."""
+    return EarthLocation(lat=obs[0], lon=obs[1], height=float(obs[2]))
+
+
 def Almanac(obs):
-    site=ephem.Observer()
-    site.date=ephem.now()
-    site.lon=obs[1]
-    site.lat=obs[0]
-    site.elevation=float(obs[2])
-    alm={}
-    alm["ut"]=site.date
-    alm["sid"]=site.sidereal_time()
-    alm["jd"]=ephem.julian_date(site)
-    alm["sunrise"]=site.next_rising(ephem.Sun())
-    alm["sunset"]=site.next_setting(ephem.Sun())
-    sun=ephem.Sun()
-    sun.compute(site)
-    alm["sun_alt"]=str(sun.alt)
-    alm["sun_az"]=str(sun.az)
-    moon=ephem.Moon()
-    moon.compute(site)
-    alm["moon_alt"]=str(moon.alt)
-    alm["moon_az"]=str(moon.az)
-    alm["moonrise"]=site.next_rising(moon)
-    alm["moonset"]=site.next_setting(moon)
-    alm["moon_phase"] = moon.moon_phase
+    now = datetime.datetime.now(datetime.timezone.utc)
+    loc = _make_location(obs)
+    at = Time(now)
+
+    sid = at.sidereal_time('apparent', longitude=loc.lon)
+    jd = at.jd
+
+    sun = _SunBody(location=loc)
+    sun_eph = sun.get_ephemeris(now)[0]
+    sunrise = sun.get_next_event_by_altitude(0.0, 'rising', start_time=now)
+    sunset = sun.get_next_event_by_altitude(0.0, 'setting', start_time=now)
+
+    moon = _MoonBody(location=loc)
+    moon_eph = moon.get_ephemeris(now)[0]
+    moonrise = moon.get_next_event_by_altitude(0.0, 'rising', start_time=now)
+    moonset = moon.get_next_event_by_altitude(0.0, 'setting', start_time=now)
+
+    alm = {}
+    alm["ut"] = now.strftime("%Y/%m/%d %H:%M:%S")
+    alm["sid"] = sid.to_string(unit='hourangle', sep=':', precision=0, pad=True)
+    alm["jd"] = jd
+    alm["sunrise"] = sunrise
+    alm["sunset"] = sunset
+    alm["sun_alt"] = float(sun_eph["alt"])
+    alm["sun_az"] = float(sun_eph["az"])
+    alm["moon_alt"] = float(moon_eph["alt"])
+    alm["moon_az"] = float(moon_eph["az"])
+    alm["moonrise"] = moonrise
+    alm["moonset"] = moonset
+    alm["moon_phase"] = float(moon_eph["phase"])
 
     return alm
 
 
 def UT_SID(obs):
-    site=ephem.Observer()
-    site.date=ephem.now()
-    site.lon=obs[1]
-    site.lat=obs[0]
-    site.elevation=float(obs[2])
-    sid=site.sidereal_time()
-    jd=ephem.julian_date(site)
-    sunrise=site.next_rising(ephem.Sun())
-    sunset=site.next_setting(ephem.Sun())
-    sun=ephem.Sun()
-    sun.compute(site)
-    sun_alt=float(str(sun.alt).split(":")[0])+float(str(sun.alt).split(":")[1])/60.
-    sun_az=float(str(sun.az).split(":")[0])+float(str(sun.az).split(":")[1])/60.
-    moon=ephem.Moon()
-    moon.compute(site)
-    moon_alt=float(str(moon.alt).split(":")[0])+float(str(moon.alt).split(":")[1])/60.
-    moon_az=float(str(moon.az).split(":")[0])+float(str(moon.az).split(":")[1])/60.
+    now = datetime.datetime.now(datetime.timezone.utc)
+    loc = _make_location(obs)
+    at = Time(now)
 
-    moonrise=site.next_rising(ephem.Moon())
-    moonset=site.next_setting(ephem.Moon())
-    moon_phase = moon.moon_phase
+    sid = at.sidereal_time('apparent', longitude=loc.lon)
+    jd = at.jd
 
-    return sid, jd, site.date, sunrise, sunset,sun_alt,sun_az,moon_alt,moon_az,moonrise,moonset,moon_phase
+    sun = _SunBody(location=loc)
+    sun_eph = sun.get_ephemeris(now)[0]
+    sunrise = sun.get_next_event_by_altitude(0.0, 'rising', start_time=now)
+    sunset = sun.get_next_event_by_altitude(0.0, 'setting', start_time=now)
+    sun_alt = float(sun_eph["alt"])
+    sun_az = float(sun_eph["az"])
 
-def RaDecEpoch(obs,ra,dec,epoch):
-    site=ephem.Observer()
-    site.date=ephem.now()
-    site.lon=obs[1]
-    site.lat=obs[0]
-    site.elevation=float(obs[2])
-    star=ephem.FixedBody()
-    star._ra=ephem.hours(ra)
-    star._dec=ephem.degrees(dec)
-    star._epoch=epoch
-    star.compute(site)
-    return str(star.g_ra), str(star.g_dec)
+    moon = _MoonBody(location=loc)
+    moon_eph = moon.get_ephemeris(now)[0]
+    moonrise = moon.get_next_event_by_altitude(0.0, 'rising', start_time=now)
+    moonset = moon.get_next_event_by_altitude(0.0, 'setting', start_time=now)
+    moon_alt = float(moon_eph["alt"])
+    moon_az = float(moon_eph["az"])
+    moon_phase = float(moon_eph["phase"])
 
-def RaDec2AltAz(obs,time,ra,dec):
-    site=ephem.Observer()
-    site.date=time
-    site.lon=obs[1]
-    site.lat=obs[0]
-    site.elevation=float(obs[2])
-    
-    star=ephem.FixedBody()
-    star._ra=str(ra)
-    star._dec=str(dec)
-    star.compute(site)
-    
-    return star.az,star.alt
-    
-    
-    
-def AltAz2RaDec(obs,time,alt,az):
-    site=ephem.Observer()
-    site.date=time
-    site.lon=obs[1]
-    site.lat=obs[0]
-    site.elevation=float(obs[2])
-    
-    ra,dec = site.radec_of(az=az,alt=alt)
+    return sid, jd, now, sunrise, sunset, sun_alt, sun_az, moon_alt, moon_az, moonrise, moonset, moon_phase
 
-    return ra,dec    
+
+def RaDecEpoch(obs, ra, dec, epoch):
+    star = SkyCoord(ra=ra, dec=dec, unit=('hourangle', 'deg'),
+                    frame=FK5(equinox=f'J{epoch}'))
+    j2000 = star.transform_to(ICRS())
+    return (j2000.ra.to_string(unit='hourangle', sep=':', precision=2, pad=True),
+            j2000.dec.to_string(sep=':', precision=1, alwayssign=True))
+
+
+def RaDec2AltAz(obs, time, ra, dec):
+    """Return (az_deg, alt_deg) for given ra/dec at the given time.
+
+    Parameters
+    ----------
+    obs : sequence of [lat_str, lon_str, elevation_str]
+    time : datetime.datetime (UTC-aware)
+    ra : str  e.g. "10:30:00" (h:m:s)
+    dec : str e.g. "-20:00:00" (d:m:s)
+    """
+    loc = _make_location(obs)
+    at = Time(time)
+    frame = AltAz(obstime=at, location=loc, pressure=0 * u.Pa)
+    sky = SkyCoord(ra=ra, dec=dec, unit=('hourangle', 'deg'))
+    aa = sky.transform_to(frame)
+    return float(aa.az.deg), float(aa.alt.deg)
+
+
+def AltAz2RaDec(obs, time, alt, az):
+    """Return (ra_str, dec_str) for given alt/az at the given time.
+
+    Parameters
+    ----------
+    obs : sequence of [lat_str, lon_str, elevation_str]
+    time : datetime.datetime (UTC-aware)
+    alt, az : float (degrees)
+    """
+    loc = _make_location(obs)
+    at = Time(time)
+    frame = AltAz(obstime=at, location=loc, pressure=0 * u.Pa)
+    coord = SkyCoord(alt=float(alt) * u.deg, az=float(az) * u.deg, frame=frame)
+    icrs = coord.transform_to(ICRS())
+    return (icrs.ra.to_string(unit='hourangle', sep=':', precision=2, pad=True),
+            icrs.dec.to_string(sep=':', precision=1, alwayssign=True))
 
 def calc_airmass(h):
     try:

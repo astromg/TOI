@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import datetime
 
-import ephem
 from scipy.ndimage import gaussian_filter1d
 
 from PyQtX.QtCore import Qt
@@ -17,6 +16,31 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 import numpy
 from base_window import BaseWindow
 from pyaraucaria.date import datetime_to_julian, get_oca_jd
+
+
+def _jd_hourly_ticks(x0, x1):
+    """Return (tick_positions, tick_labels) for whole UTC hours between JD x0 and x1.
+
+    JD epoch is noon UT, so whole hours occur at JD values where
+    (jd - 0.5) is an exact multiple of 1/24.
+    """
+    dt = 1.0 / 24.0
+    # Find first whole hour strictly after x0
+    shifted = x0 - 0.5
+    t = (shifted - shifted % dt) + dt + 0.5
+    ticks = []
+    while t < x1:
+        ticks.append(t)
+        t += dt
+    labels = []
+    for x in ticks:
+        # fractional day since midnight: (x - 0.5) % 1.0
+        frac = (x - 0.5) % 1.0
+        total_minutes = round(frac * 1440)
+        h = (total_minutes // 60) % 24
+        m = total_minutes % 60
+        labels.append(f"{h:02d}:{m:02d}")
+    return ticks, labels
 
 
 # ############### FOCUS ##########################
@@ -107,13 +131,7 @@ class ConditionsWindow(BaseWindow):
                 for focus_time in ft:
                     self.ax1.axvline(x=focus_time, color=self.parent.nats_cfg[t]['color'],alpha=0.8)
 
-            xtics = []
-            t =  ephem.Date(x0)
-            while t < ephem.Date(x1):
-                t = ephem.Date(t) + ephem.hour
-                h = str(ephem.Date(t)).split()
-                xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
-            xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
+            xtics, xtics_labels = _jd_hourly_ticks(x0, x1)
             self.ax1.set_xticks(xtics)
             self.ax1.set_xticklabels(xtics_labels,rotation=45,minor=False)
 
@@ -238,13 +256,7 @@ class ConditionsWindow(BaseWindow):
 
                 x0 = 0.4
                 x1 = 0.99
-                xtics = []
-                t = ephem.Date(x0)
-                while t < ephem.Date(x1):
-                    t = ephem.Date(t) + ephem.hour
-                    h = str(ephem.Date(t)).split()
-                    xtics.append(ephem.Date(h[0] + " " + h[1].split(":")[0] + ":00:00"))
-                xtics_labels = [str(x).split()[1].split(":")[0] + ":" + str(x).split()[1].split(":")[1] for x in xtics]
+                xtics, xtics_labels = _jd_hourly_ticks(x0, x1)
                 self.ax2.set_xticks(xtics)
                 self.ax2.set_xticklabels(xtics_labels, rotation=45, minor=False)
                 self.ax2.set_xlim(x0, x1)
