@@ -34,6 +34,7 @@ from pyaraucaria.coordinates import *
 from base_window import BaseWindow
 
 from toi_lib import *
+from toi_lib import _jd_hourly_ticks
 from pyaraucaria.ephemeris import Sun as _SunBody, Moon as _MoonBody
 from tpg.telescope_plan_generator import TelescopePlanGenerator as tpg
 from ctc import CycleTimeCalc
@@ -436,9 +437,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                  if "ra" in self.plan[i]["ob"].keys() and "plan_ut" in self.plan[i]["meta"].keys():
                                      ra = self.plan[i]["ob"]["ra"]
                                      dec = self.plan[i]["ob"]["dec"]
-                                     plan_ut = datetime.datetime.strptime(
-                                         str(self.plan[i]["meta"]["plan_ut"]), "%Y/%m/%d %H:%M:%S"
-                                     ).replace(tzinfo=datetime.timezone.utc)
+                                     plan_ut = utc_datetime(str(self.plan[i]["meta"]["plan_ut"]))
                                      at = Time(plan_ut)
                                      loc = self.parent.oca_site
                                      frame = AltAz(obstime=at, location=loc, pressure=0 * u.Pa)
@@ -1250,7 +1249,7 @@ class TPGWindow(BaseWindow):
         self.parent.parent.update_plan(self.parent.parent.active_tel)
 
     def sunset_changed(self):
-        dt = datetime.datetime.strptime(self.parent.parent.ut, "%Y/%m/%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+        dt = utc_datetime(self.parent.parent.ut)
 
         if self.sunset_c.isChecked():
             loc = self.parent.parent.oca_site
@@ -1270,7 +1269,7 @@ class TPGWindow(BaseWindow):
 
 
     def _smart_sunset_checkbox(self):
-        dt = datetime.datetime.strptime(self.parent.parent.ut, "%Y/%m/%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+        dt = utc_datetime(self.parent.parent.ut)
         loc = self.parent.parent.oca_site
         sun = _SunBody(location=loc)
 
@@ -1409,7 +1408,7 @@ class PhaseWindow(BaseWindow):
         try:
             filter = self.file_s.currentText()
             file = self.f_path+"/"+filter+"/light-curve/"+self.name.lower()+"_"+filter+"_diff_light_curve.txt"
-            s = datetime.datetime.strptime(self.ut, "%Y/%m/%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+            s = utc_datetime(self.ut)
             t = Time(s).jd
             mag = []
             jd = []

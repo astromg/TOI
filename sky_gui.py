@@ -304,9 +304,9 @@ class SkyView(QWidget):
                 dec = star["ob"]["dec"]
                 plan_ut = star["meta"]["plan_ut"]
                 slotTime = star["meta"]["slotTime"]
-                t0 = datetime.datetime.strptime(self.parent.ut, "%Y/%m/%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+                t0 = utc_datetime(self.parent.ut)
                 te = t0 + datetime.timedelta(hours=6)
-                t0_star = datetime.datetime.strptime(plan_ut, "%Y/%m/%d %H:%M:%S").replace(tzinfo=datetime.timezone.utc)
+                t0_star = utc_datetime(plan_ut)
                 te_star = t0_star + datetime.timedelta(seconds=slotTime)
                 alt_l = []
                 az_l = []

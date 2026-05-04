@@ -561,6 +561,17 @@ def _make_location(obs):
     return EarthLocation(lat=obs[0], lon=obs[1], height=float(obs[2]))
 
 
+def utc_datetime(s):
+    """Parse a '%Y/%m/%d %H:%M:%S' UTC string to a timezone-aware datetime (UTC).
+
+    All time strings in TOI use this format. Returns a UTC-aware
+    ``datetime.datetime`` that can be passed directly to pyaraucaria
+    and astropy.
+    """
+    return datetime.datetime.strptime(s, "%Y/%m/%d %H:%M:%S").replace(
+        tzinfo=datetime.timezone.utc)
+
+
 def _jd_hourly_ticks(x0, x1):
     """Return (tick_positions, tick_labels) for whole UTC hours between JD x0 and x1.
 

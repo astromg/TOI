@@ -2266,9 +2266,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 elif "ut" in self.plan[tel][i]["ob"].keys():
                                     ut = self.plan[tel][i]["ob"]["ut"]
                                     today = ob_time.strftime("%Y/%m/%d")
-                                    t_today = datetime.datetime.strptime(
-                                        f"{today} {ut}", "%Y/%m/%d %H:%M:%S"
-                                    ).replace(tzinfo=datetime.timezone.utc)
+                                    t_today = utc_datetime(f"{today} {ut}")
                                     t_tomorrow = t_today + datetime.timedelta(days=1)
                                     dt_today = (t_today - ob_time).total_seconds()
                                     dt_tomorrow = (t_tomorrow - ob_time).total_seconds()
