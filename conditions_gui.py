@@ -16,31 +16,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 import numpy
 from base_window import BaseWindow
 from pyaraucaria.date import datetime_to_julian, get_oca_jd
-
-
-def _jd_hourly_ticks(x0, x1):
-    """Return (tick_positions, tick_labels) for whole UTC hours between JD x0 and x1.
-
-    JD epoch is noon UT, so whole hours occur at JD values where
-    (jd - 0.5) is an exact multiple of 1/24.
-    """
-    dt = 1.0 / 24.0
-    # Find first whole hour strictly after x0
-    shifted = x0 - 0.5
-    t = (shifted - shifted % dt) + dt + 0.5
-    ticks = []
-    while t < x1:
-        ticks.append(t)
-        t += dt
-    labels = []
-    for x in ticks:
-        # fractional day since midnight: (x - 0.5) % 1.0
-        frac = (x - 0.5) % 1.0
-        total_minutes = round(frac * 1440)
-        h = (total_minutes // 60) % 24
-        m = total_minutes % 60
-        labels.append(f"{h:02d}:{m:02d}")
-    return ticks, labels
+from toi_lib import _jd_hourly_ticks
 
 
 # ############### FOCUS ##########################

@@ -561,7 +561,61 @@ def _make_location(obs):
     return EarthLocation(lat=obs[0], lon=obs[1], height=float(obs[2]))
 
 
+def _jd_hourly_ticks(x0, x1):
+    """Return (tick_positions, tick_labels) for whole UTC hours between JD x0 and x1.
+
+    Works for full Julian Date values and for fractional-JD values in [0, 1]
+    (where 0.0 = noon UT, 0.5 = midnight UT), as used by OCA JD fraction plots.
+    Tick positions are returned in the same numeric scale as the input.
+
+    Parameters
+    ----------
+    x0, x1 : float
+        Start and end of the range, in JD days (or JD fractions).
+
+    Returns
+    -------
+    ticks : list of float
+        Tick positions at whole UTC hours.
+    labels : list of str
+        Corresponding 'HH:MM' labels.
+    """
+    dt = 1.0 / 24.0
+    # JD epoch is noon UT, so shift by -0.5 to align with midnight before rounding
+    shifted = x0 - 0.5
+    t = (shifted - shifted % dt) + dt + 0.5
+    ticks = []
+    while t < x1:
+        ticks.append(t)
+        t += dt
+    labels = []
+    for x in ticks:
+        frac = (x - 0.5) % 1.0
+        total_minutes = round(frac * 1440)
+        h = (total_minutes // 60) % 24
+        m = total_minutes % 60
+        labels.append(f"{h:02d}:{m:02d}")
+    return ticks, labels
+
+
 def Almanac(obs):
+    """Return a dictionary of current astronomical data for the given observatory.
+
+    Dictionary keys and types:
+      "ut"         : str  "%Y/%m/%d %H:%M:%S"  – current UTC time as formatted string
+                          (kept as string for backward compatibility with UI callers)
+      "sid"        : str  "HH:MM:SS"            – apparent sidereal time
+      "jd"         : float                       – Julian Date
+      "sunrise"    : datetime.datetime (UTC-aware) – next sunrise
+      "sunset"     : datetime.datetime (UTC-aware) – next sunset
+      "sun_alt"    : float  degrees              – current sun altitude (geometric, no refraction)
+      "sun_az"     : float  degrees              – current sun azimuth
+      "moon_alt"   : float  degrees              – current moon altitude (geometric)
+      "moon_az"    : float  degrees              – current moon azimuth
+      "moonrise"   : datetime.datetime (UTC-aware)
+      "moonset"    : datetime.datetime (UTC-aware)
+      "moon_phase" : float  [0..1]               – illuminated fraction
+    """
     now = datetime.datetime.now(datetime.timezone.utc)
     loc = _make_location(obs)
     at = Time(now)

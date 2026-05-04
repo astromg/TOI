@@ -44,6 +44,9 @@ from pyaraucaria.ob_validator import ObsValidator
 def _previous_sun_setting(sun, before_time, horizon_deg=0.0):
     """Find the most recent sun setting before *before_time*.
 
+    Scans back up to 36 hours (enough to cover any night/day cycle) to find
+    the last altitude-crossing event with az > 180° (western/setting direction).
+
     Parameters
     ----------
     sun : pyaraucaria.ephemeris.Sun
@@ -62,29 +65,6 @@ def _previous_sun_setting(sun, before_time, horizon_deg=0.0):
         if e['time_utc'] < before_time and e['az'] > 180.0
     ]
     return max(settings) if settings else None
-
-
-def _jd_hourly_ticks(x0, x1):
-    """Return (tick_positions, tick_labels) for whole UTC hours between JD x0 and x1.
-
-    Works for full JD values and JD fractions (OCA JD fraction of day).
-    JD epoch is noon UT, so whole hours occur where (jd - 0.5) % (1/24) == 0.
-    """
-    dt = 1.0 / 24.0
-    shifted = x0 - 0.5
-    t = (shifted - shifted % dt) + dt + 0.5
-    ticks = []
-    while t < x1:
-        ticks.append(t)
-        t += dt
-    labels = []
-    for x in ticks:
-        frac = (x - 0.5) % 1.0
-        total_minutes = round(frac * 1440)
-        h = (total_minutes // 60) % 24
-        m = total_minutes % 60
-        labels.append(f"{h:02d}:{m:02d}")
-    return ticks, labels
 
 
 class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
@@ -1594,10 +1574,16 @@ class PlotWindow(BaseWindow):
         t1_days = (next_setting_dt - now_dt).total_seconds() / 86400
         t2_days = (next_rising_dt - now_dt).total_seconds() / 86400
         if t1_days < t2_days:
+            # Next event is sunset: we're currently in daytime, plot the upcoming night
             self.t0 = Time(next_setting_dt).jd
         else:
+            # Next event is sunrise: we're in night, find the sunset that started it
             prev_setting_dt = _previous_sun_setting(sun, now_dt, horizon_deg=0.0)
-            self.t0 = Time(prev_setting_dt).jd if prev_setting_dt else Time(next_setting_dt).jd
+            if prev_setting_dt is None:
+                # Fallback: shouldn't normally happen; use t_now as plot start
+                self.t0 = self.t_now
+            else:
+                self.t0 = Time(prev_setting_dt).jd
         t0_dt = Time(self.t0, format='jd').to_datetime(timezone=datetime.timezone.utc)
         rising_after_t0 = sun.get_next_event_by_altitude(0.0, 'rising', start_time=t0_dt)
         self.t_end = Time(rising_after_t0).jd
@@ -1661,23 +1647,24 @@ class PlotWindow(BaseWindow):
 
                         if "slotTime" in self.parent.plan[i]["meta"].keys():
                             slotTime = float(self.parent.plan[i]["meta"]["slotTime"])
+                            slot_days = slotTime / 86400  # convert seconds to JD days
 
                             if "sec" in self.parent.plan[i]["ob"].keys():
-                                self.axes.fill_betweenx([0, 2], self.t, self.t+slotTime/86400, color="r", alpha=0.5)
+                                self.axes.fill_betweenx([0, 2], self.t, self.t+slot_days, color="r", alpha=0.5)
                                 self.axes.text(self.t, 3, f"WAIT sec={int(slotTime):.0f}s", rotation=90, fontsize=fontsize)
 
                             elif "ut" in self.parent.plan[i]["ob"].keys():
-                                self.axes.fill_betweenx([0, 2], self.t, self.t+slotTime/86400, color="r", alpha=0.5)
+                                self.axes.fill_betweenx([0, 2], self.t, self.t+slot_days, color="r", alpha=0.5)
                                 txt = f'WAIT ut={self.parent.plan[i]["ob"]["ut"]}'
                                 self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
 
                             elif "sunset" in self.parent.plan[i]["ob"].keys():
-                                self.axes.fill_betweenx([0, 2], self.t, self.t+slotTime/86400, color="r", alpha=0.5)
+                                self.axes.fill_betweenx([0, 2], self.t, self.t+slot_days, color="r", alpha=0.5)
                                 txt = f'WAIT sunset={self.parent.plan[i]["ob"]["sunset"]}'
                                 self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
 
                             elif "sunrise" in self.parent.plan[i]["ob"].keys():
-                                self.axes.fill_betweenx([0, 2], self.t, self.t+slotTime/86400, color="r", alpha=0.5)
+                                self.axes.fill_betweenx([0, 2], self.t, self.t+slot_days, color="r", alpha=0.5)
                                 txt = f'WAIT sunrise={self.parent.plan[i]["ob"]["sunrise"]}'
                                 self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
 
@@ -1700,7 +1687,7 @@ class PlotWindow(BaseWindow):
                                     alt_tab = []
 
                                     t = self.t
-                                    while t <= self.t + slotTime/86400:
+                                    while t <= self.t + slot_days:
                                         t_dt = Time(t, format='jd').to_datetime(timezone=datetime.timezone.utc)
                                         az, alt = RaDec2AltAz(self.parent.parent.observatory, t_dt, ra, dec)
                                         t_tab.append(t)
@@ -1718,7 +1705,7 @@ class PlotWindow(BaseWindow):
                                         self.axes.text(self.t, 93, f'{self.parent.plan[i]["ob"]["name"]}', color=color[j], rotation=90, fontsize=fontsize)
                                     j=j+1
 
-                            self.t = self.t + slotTime/86400
+                            self.t = self.t + slot_days
 
             self.axes.set_ylim(0, 90)
             self.axes.set_xlim(self.t0 - 0.5/24, self.t_end + 0.5/24)
