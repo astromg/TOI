@@ -687,6 +687,10 @@ def RaDecEpoch(obs, ra, dec, epoch):
 def RaDec2AltAz(obs, time, ra, dec):
     """Return (az_deg, alt_deg) for given ra/dec at the given time.
 
+    Altitude is *geometric* (no atmospheric refraction), consistent with the
+    rest of the OCM observatory stack. ``pressure=0`` in the AltAz frame
+    explicitly disables astropy's built-in refraction correction.
+
     Parameters
     ----------
     obs : sequence of [lat_str, lon_str, elevation_str]
@@ -704,6 +708,9 @@ def RaDec2AltAz(obs, time, ra, dec):
 
 def AltAz2RaDec(obs, time, alt, az):
     """Return (ra_str, dec_str) for given alt/az at the given time.
+
+    Altitude is treated as *geometric* (no atmospheric refraction).
+    ``pressure=0`` disables astropy's refraction correction.
 
     Parameters
     ----------

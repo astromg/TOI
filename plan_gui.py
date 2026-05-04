@@ -8,6 +8,7 @@ import os
 
 import uuid
 import time
+import logging
 
 import datetime
 import qasync as qs
@@ -40,6 +41,7 @@ from ctc import CycleTimeCalc
 from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
 from pyaraucaria.ob_validator import ObsValidator
 
+logger = logging.getLogger(__name__)
 
 def _previous_sun_setting(sun, before_time, horizon_deg=0.0):
     """Find the most recent sun setting before *before_time*.
@@ -1580,7 +1582,8 @@ class PlotWindow(BaseWindow):
             # Next event is sunrise: we're in night, find the sunset that started it
             prev_setting_dt = _previous_sun_setting(sun, now_dt, horizon_deg=0.0)
             if prev_setting_dt is None:
-                # Fallback: shouldn't normally happen; use t_now as plot start
+                # Edge case: should not occur at OCM (36h scan always finds a setting)
+                logger.warning("_previous_sun_setting returned None; using t_now as plot start")
                 self.t0 = self.t_now
             else:
                 self.t0 = Time(prev_setting_dt).jd
