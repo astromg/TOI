@@ -42,6 +42,19 @@ def xy2rt(x,y):
     theta = numpy.arctan2(y,x)
     return(theta,r)
 
+def parse_plan_ut_str(s):
+    """Normalise a plan_ut date string to the legacy slash/space format
+    expected by ephem (e.g. ``2026/4/21 02:20:40``).
+
+    Accepts both the legacy format and ISO 8601 format
+    (e.g. ``2026-04-21T02:20:40``).  Any other string is returned unchanged.
+    """
+    s = str(s)
+    if 'T' in s and '-' in s:
+        return s.replace('-', '/').replace('T', ' ')
+    return s
+
+
 def seq_parser(seq):
     if "x" in seq and "(" in seq and ")" in seq:
         try:

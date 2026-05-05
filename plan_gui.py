@@ -375,7 +375,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                              txt = ""
                              if "plan_ut" in self.plan[i]["meta"].keys() and (
                                      i >= self.next_i or (i >= self.current_i and self.current_i > -1)):
-                                 tmp = str(self.plan[i]["meta"]["plan_ut"]).split()[1]
+                                 tmp = parse_plan_ut_str(str(self.plan[i]["meta"]["plan_ut"])).split()[1]
                                  txt = tmp.split(":")[0] + ":" + tmp.split(":")[1]
 
                              txt=QTableWidgetItem(txt)
@@ -1213,6 +1213,7 @@ class TPGWindow(BaseWindow):
 
         self.worker.update_signal.connect(self.update_status)
         self.worker.plan_ready_signal.connect(self.get_plan)
+        self.worker.error_signal.connect(self.show_error)
 
         self.worker.done_signal.connect(self.thread.quit)
         self.worker.done_signal.connect(self.worker.deleteLater)
@@ -1224,6 +1225,9 @@ class TPGWindow(BaseWindow):
         if "wind masking" in txt and not self.wind_c.isChecked():
             return
         self.info_e.append(txt)
+
+    def show_error(self, txt):
+        self.info_e.append(f"<span style='color: red; font-weight: bold;'>✘ {txt}</span>")
 
     def get_plan(self, plan):
         tmp_plan = []
