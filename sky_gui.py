@@ -304,7 +304,7 @@ class SkyView(QWidget):
                 slotTime = star["meta"]["slotTime"]
                 t0 = ephem.Date(self.parent.ut)
                 te = t0 + 6 * ephem.hour
-                t0_star = ephem.Date(plan_ut)
+                t0_star = ephem.Date(parse_plan_ut_str(plan_ut))
                 te_star = t0_star + slotTime * ephem.second
                 alt_l = []
                 az_l = []
