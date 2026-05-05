@@ -198,6 +198,9 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
     def update_table(self):
+        _saved_row = self.plan_t.currentRow()
+        _saved_col = self.plan_t.currentColumn()
+        _saved_scroll = self.plan_t.verticalScrollBar().value()
         self.plan_t.clearContents()
         self.plan_t.setRowCount(0)
 
@@ -497,6 +500,10 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             #     print(f"TOI plan GUI: EXCEPTION 103 {e}")
 
         self.parent.telescope_switch_status["plan"] = True
+
+        if _saved_row >= 0 and _saved_row < self.plan_t.rowCount():
+            self.plan_t.setCurrentCell(_saved_row, _saved_col if _saved_col >= 0 else 0)
+        self.plan_t.verticalScrollBar().setValue(_saved_scroll)
 
 
     def update_log_window(self,log):
