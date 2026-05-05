@@ -343,7 +343,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                              txt = ""
                              if "plan_ut" in self.plan[i]["meta"].keys() and (
                                      i >= self.next_i or (i >= self.current_i and self.current_i > -1)):
-                                 tmp = str(self.plan[i]["meta"]["plan_ut"]).split()[1]
+                                 tmp = parse_plan_ut_str(str(self.plan[i]["meta"]["plan_ut"])).split()[1]
                                  txt = tmp.split(":")[0] + ":" + tmp.split(":")[1]
 
                              txt=QTableWidgetItem(txt)
@@ -409,7 +409,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                      obs.lat = self.parent.oca_site.lat
                                      obs.lon = self.parent.oca_site.lon
                                      obs.elevation = self.parent.oca_site.elevation
-                                     obs.date = str(self.plan[i]["meta"]["plan_ut"])
+                                     obs.date = parse_plan_ut_str(str(self.plan[i]["meta"]["plan_ut"]))
 
                                      target = ephem.FixedBody()
                                      target._ra = ephem.hours(ra)
