@@ -565,11 +565,12 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telM3_e = QLineEdit()
         self.telM3_e.setReadOnly(True)
         self.telM3_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.telM3_e.setText("(TODO)")
+        self.telM3_e.setText("")
         self.telM3_s = QComboBox()
-        self.telM3_s.addItems(["Imager", "Spectro", "empty"])
+        #self.telM3_s.addItems()
         self.telM3_p = QPushButton('SET')
-        self.telM3_p.setStyleSheet(" color: gray;")
+        self.telM3_p.setStyleSheet(" color: gray;")                 # tertiary - comment
+        #self.telFilter_p.clicked.connect(self.parent.set_m3)       # tertiary - uncomment
 
 
         w=w+1
@@ -714,6 +715,9 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.nextDec_e.textChanged.connect(self.updateNextRaDec)
         self.nextAlt_e.textChanged.connect(self.updateNextRaDec)
         self.nextAz_e.textChanged.connect(self.updateNextRaDec)
+
+        if self.parent.m3_list != None:
+            self.telM3_s.addItems(self.parent.m3_list)
 
         if self.parent.filter_list != None:
             self.telFilter_s.addItems(self.parent.filter_list)

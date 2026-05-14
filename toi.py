@@ -539,6 +539,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
             self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
             self.cfg_inst_defSetUp = {"gain": "x4", "rm": "1MHz","bin":"1x1", "temp":-58}
+            self.m3_list = ["ccd"]
 
         elif self.active_tel == "zb08":
             self.cfg_inst_obstype =  ["Science","Zero","Dark","Sky Flat","Dome Flat"]
@@ -546,6 +547,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_bins = ["1x1","2x2","1x2","2x1"]
             self.cfg_inst_subraster = ["No","Subraster1","Subraster2","Subraster3"]
             self.cfg_inst_defSetUp = {"gain": "x4", "rm": "1MHz","bin":"1x1", "temp":-58}
+            self.m3_list = ["ccd","cmos"]
 
         elif self.active_tel == "jk15":
             self.cfg_inst_obstype = ["Science", "Zero", "Dark", "Sky Flat", "Dome Flat"]
@@ -553,6 +555,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
             self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
             self.cfg_inst_defSetUp = {"gain": "Gain 2", "rm": "1MHz 18-bit","bin":"1x1", "temp":-58}
+            self.m3_list = ["ccd","beso"]
 
 
         # obsluga subskrypcji
@@ -576,6 +579,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mount = self.telescope.get_mount()
         self.cover = self.telescope.get_covercalibrator()
         self.focus = self.telescope.get_focuser()
+        #self.m3 = self.telescope.get_m3()   # tertiary - uncomment and modify
         self.ccd = self.telescope.get_camera()
         self.guider = self.telescope.get_camera(id='guider')
         self.fw = self.telescope.get_filterwheel()
@@ -620,6 +624,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #
         await self.run_method_in_background(self.cover.asubscribe_coverstate(self.covers_update), group="subscribe")
         await self.run_method_in_background(self.focus.asubscribe_fansstatus(self.mirrorFans_update), group="subscribe")
+        #
+        #await self.run_method_in_background(self.m3.asubscribe_position(self.m3_update), group="subscribe")  # tertiary - uncomment and modufy
         #
         await self.run_method_in_background(self.fw.asubscribe_connected(self.filter_con_update), group="subscribe")
         await self.run_method_in_background(self.fw.asubscribe_position(self.filter_update), group="subscribe")
@@ -3725,6 +3731,32 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.telFocus_e.setText(f"ERROR")
             self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
 
+
+    # ############### M3 #####################
+    # tertiary - uncomment
+
+
+    # @qs.asyncSlot()
+    # async def set_m3(self):
+    #     await self.update_log(f'SET M3', "OPERATOR", self.active_tel)
+    #
+    #     if self.tel_acces[self.active_tel]:
+    #        m3_i = int(self.mntGui.M3_s.currentIndex())
+    #        await self.m3.aput_position(m3_i)
+    #        await self.update_log(f'setting M3 to {self.m3_list[m3_i]}', "TOI RESPONDER", self.active_tel)
+    #     else:
+    #         txt="WARNING: U don't have control"
+    #         self.WarningWindow(txt)
+    #
+    # async def m3_update(self, event):
+    #         pos = int(await self.m3.aget_position())
+    #         try:
+    #             self.mntGui.M3_e.setText(self.m3_list[pos])
+    #             self.mntGui.M3_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+    #         except:
+    #             self.mntGui.M3_e.setText("--")
+    #             self.mntGui.M3_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+
     # ############### FILTERS #####################
 
     async def filter_con_update(self, event):
@@ -4241,6 +4273,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # filter wheel
         self.filter = None
         self.filter_list = None
+
+        # M3
+        self.m3_list = None
 
         # guider
         self.prev_guider_coo = []
