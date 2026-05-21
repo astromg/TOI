@@ -20,7 +20,7 @@ import copy
 import time
 from xmlrpc.client import ResponseError
 
-import ephem
+
 import numpy
 import requests
 import yaml
@@ -43,6 +43,9 @@ from pyaraucaria.coordinates import *
 # from astropy.io import fits
 from pyaraucaria.dome_eq import dome_eq_azimuth
 from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
+
+from astropy.coordinates import EarthLocation
+from pyaraucaria.ephemeris import Sun as _SunBody
 
 from serverish.messenger import Messenger, single_read, get_reader, get_journalreader
 from serverish.messenger.msg_publisher import MsgPublisher, get_publisher
@@ -879,7 +882,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             # obsluga Almanacu
             try:
                 self.time = time.time()
-                self.ut = str(ephem.now())
+                self.ut = datetime.datetime.now(datetime.timezone.utc).strftime("%Y/%m/%d %H:%M:%S")
                 self.almanac = Almanac(self.observatory)
                 self.jd = self.almanac['jd']
                 self.obsGui.main_form.ojd_e.setText(f"{self.almanac['jd']:.6f}")
@@ -1322,7 +1325,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                                 self.plan_log_agregator(tel, tmp)
                                     if "sunrise" in self.ob[tel]["ob"].keys():
                                         if self.ob[tel]["ob"]["sunrise"] != "":
-                                            if deg_to_decimal_deg(self.almanac["sun_alt"]) > float(self.ob[tel]["ob"]["sunrise"]):
+                                            if float(self.almanac["sun_alt"]) > float(self.ob[tel]["ob"]["sunrise"]):
                                                 self.ob[tel]["meta"]["done"] = True
                                                 await self.msg(f' {tel} PLAN: WAIT sunrise={self.ob[tel]["ob"]["sunrise"]} DONE', "green")
                                                 self.next_i[tel] = self.current_i[tel]
@@ -1335,7 +1338,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                                 self.plan_log_agregator(tel, tmp)
                                     if "sunset" in self.ob[tel]["ob"].keys():
                                         if self.ob[tel]["ob"]["sunset"] != "":
-                                            if deg_to_decimal_deg(self.almanac["sun_alt"]) < float(self.ob[tel]["ob"]["sunset"]):
+                                            if float(self.almanac["sun_alt"]) < float(self.ob[tel]["ob"]["sunset"]):
                                                 self.ob[tel]["meta"]["done"] = True
                                                 await self.msg(f' {tel} PLAN: WAIT sunset={self.ob[tel]["ob"]["sunset"]} DONE', "green")
 
@@ -1807,7 +1810,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         fr["mean"] = info["mean"]
                         fr["exp_time"] = info["exp_time"]
                         fr["filter"] = info["filter"]
-                        fr["h_sun"] = f"{deg_to_decimal_deg(self.almanac['sun_alt']):.2f}"
+                        fr["h_sun"] = f"{float(self.almanac['sun_alt']):.2f}"
                         fr["n_exp"] = info['n_exp']
                         fr["exp_no"] = info['exp_no']
                         try:
@@ -2217,7 +2220,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     else:
                         self.check_next_i(tel)
 
-                        ob_time = ephem.now()
+                        ob_time = datetime.datetime.now(datetime.timezone.utc)
 
                         for i, tmp in enumerate(self.plan[tel]):
                             # liczenie czasu ob
@@ -2268,47 +2271,44 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                                 elif "ut" in self.plan[tel][i]["ob"].keys():
                                     ut = self.plan[tel][i]["ob"]["ut"]
-                                    today = str(ephem.Date(ob_time)).split()[0]
-                                    t_today = ephem.Date(f"{today} {ut}")
-                                    t_tomorrow = ephem.Date(t_today + 1)
-                                    dt_today = t_today - ob_time
-                                    dt_tomorrow = t_tomorrow - ob_time
-                                    if dt_today > 0 :
+                                    today = ob_time.strftime("%Y/%m/%d")
+                                    t_today = utc_datetime(f"{today} {ut}")
+                                    t_tomorrow = t_today + datetime.timedelta(days=1)
+                                    dt_today = (t_today - ob_time).total_seconds()
+                                    dt_tomorrow = (t_tomorrow - ob_time).total_seconds()
+                                    if dt_today > 0:
                                         slotTime = dt_today
                                     else:
-                                        if dt_tomorrow > -1 * dt_today:
+                                        if dt_tomorrow > -dt_today:
                                             slotTime = 0
                                         else:
                                             slotTime = dt_tomorrow
 
-                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                                 elif "sunset" in self.plan[tel][i]["ob"].keys():
-                                    oca = ephem.Observer()
-                                    oca.date = ob_time
-                                    oca.lat = self.observatory[0]
-                                    oca.lon = self.observatory[1]
-                                    oca.elevation = float(self.observatory[2])
-                                    oca.horizon = str(self.plan[tel][i]["ob"]["sunset"])
-                                    wait_sunset = oca.next_setting(ephem.Sun(), use_center=True)
-                                    slotTime = wait_sunset - ob_time
-                                    if slotTime > 0.5:
+                                    horizon_deg = float(self.plan[tel][i]["ob"]["sunset"])
+                                    _sun = _SunBody(location=EarthLocation(
+                                        lat=self.observatory[0], lon=self.observatory[1],
+                                        height=float(self.observatory[2])))
+                                    wait_sunset = _sun.get_next_event_by_altitude(
+                                        horizon_deg, 'setting', start_time=ob_time)
+                                    slotTime = (wait_sunset - ob_time).total_seconds()
+                                    if slotTime > 0.5 * 86400:
                                         slotTime = 0
-                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                                 elif "sunrise" in self.plan[tel][i]["ob"].keys():
-                                    oca = ephem.Observer()
-                                    oca.date = ob_time
-                                    oca.lat = self.observatory[0]
-                                    oca.lon = self.observatory[1]
-                                    oca.elevation = float(self.observatory[2])
-                                    oca.horizon = str(self.plan[tel][i]["ob"]["sunrise"])
-                                    wait_sunrise = oca.next_rising(ephem.Sun(), use_center=True)
-                                    slotTime = wait_sunrise - ob_time
-                                    #print(wait_sunrise, ob_time, slotTime)
-                                    if slotTime > 0.5:
+                                    horizon_deg = float(self.plan[tel][i]["ob"]["sunrise"])
+                                    _sun = _SunBody(location=EarthLocation(
+                                        lat=self.observatory[0], lon=self.observatory[1],
+                                        height=float(self.observatory[2])))
+                                    wait_sunrise = _sun.get_next_event_by_altitude(
+                                        horizon_deg, 'rising', start_time=ob_time)
+                                    slotTime = (wait_sunrise - ob_time).total_seconds()
+                                    if slotTime > 0.5 * 86400:
                                         slotTime = 0
-                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                             # koniec liczenia czasu ob
 
@@ -2320,7 +2320,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                             t2 = self.ob[tel]["meta"]["slotTime"] - t1
                                             if t2 < 0:
                                                 t2 = 0
-                                            ob_time = ob_time - t2 * ephem.second
+                                            ob_time = ob_time - datetime.timedelta(seconds=t2)
                             if "uobi" not in self.plan[tel][i]["ob"].keys():  # nadaje uobi jak nie ma
                                 self.plan[tel][i]["ob"]["uobi"] = str(uuid.uuid4())[:8]
                             # if len(str(self.plan[tel][i]["ob"]["uobi"])) < 1:
@@ -2328,11 +2328,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if "ra" in self.plan[tel][i]["ob"].keys():  # liczy aktualna wysokosc na horyzontem
                                 ra = self.plan[tel][i]["ob"]["ra"]
                                 dec = self.plan[tel][i]["ob"]["dec"]
-                                az, alt = RaDec2AltAz(self.observatory, ephem.now(), ra, dec)
-                                alt = f"{deg_to_decimal_deg(str(alt)):.1f}"
-                                az = f"{deg_to_decimal_deg(str(az)):.1f}"
-                                self.plan[tel][i]["meta"]["alt"] = alt
-                                self.plan[tel][i]["meta"]["az"] = az
+                                az, alt = RaDec2AltAz(self.observatory, datetime.datetime.now(datetime.timezone.utc), ra, dec)
+                                self.plan[tel][i]["meta"]["alt"] = f"{alt:.1f}"
+                                self.plan[tel][i]["meta"]["az"] = f"{az:.1f}"
                             # liczy planowana wysokosc nad horyzontem
                             tmp_ok = False
                             if self.current_i[tel] > -1 and i >= self.current_i[tel]:
@@ -2340,21 +2338,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if self.next_i[tel] > -1 and i >= self.next_i[tel]:
                                 tmp_ok = True
                             if tmp_ok:
-                                self.plan[tel][i]["meta"]["plan_ut"] = str(ephem.Date(ob_time))
+                                self.plan[tel][i]["meta"]["plan_ut"] = ob_time.strftime("%Y/%m/%d %H:%M:%S")
 
                                 if "ra" in self.plan[tel][i]["ob"].keys():
                                     ra = self.plan[tel][i]["ob"]["ra"]
                                     dec = self.plan[tel][i]["ob"]["dec"]
                                     az, alt = RaDec2AltAz(self.observatory, ob_time, ra, dec)
-                                    alt = f"{deg_to_decimal_deg(str(alt)):.1f}"
-                                    az = f"{deg_to_decimal_deg((str(az))):.1f}"
-                                    self.plan[tel][i]["meta"]["plan_alt"] = alt
-                                    self.plan[tel][i]["meta"]["plan_az"] = az
+                                    self.plan[tel][i]["meta"]["plan_alt"] = f"{alt:.1f}"
+                                    self.plan[tel][i]["meta"]["plan_az"] = f"{az:.1f}"
 
 
                                 if "slotTime" in self.plan[tel][i]["meta"].keys():
                                     slotTime = self.plan[tel][i]["meta"]["slotTime"]
-                                    ob_time = ob_time + ephem.second * slotTime
+                                    ob_time = ob_time + datetime.timedelta(seconds=slotTime)
 
 
                 # except Exception as e:
@@ -4155,10 +4151,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cfg_inst_subraster = []
 
         self.observatory = ["-24:35:24","-70:11:47","2800"]
-        self.oca_site = ephem.Observer()
-        self.oca_site.lat = self.observatory[0]
-        self.oca_site.lon = self.observatory[1]
-        self.oca_site.elevation = float(self.observatory[2])
+        self.oca_site = EarthLocation(
+            lat=self.observatory[0], lon=self.observatory[1],
+            height=float(self.observatory[2]))
 
         self.cwd = os.getcwd()
         self.comProblem = False
@@ -4254,7 +4249,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obs_tel_in_table = self.obs_tel_tic_names
 
         # active telescope & universal
-        self.ut=str(ephem.now())
+        self.ut = datetime.datetime.now(datetime.timezone.utc).strftime("%Y/%m/%d %H:%M:%S")
         self.ephem_utc = 0
         self.ephem_prev_utc = 0
         self.active_tel_i=None
