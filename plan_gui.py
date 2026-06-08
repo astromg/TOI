@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import copy
+from copy import deepcopy
 import os
 #----------------
 # 01.08.2022
@@ -98,7 +98,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     def pocisniecie_copy(self):
         if self.parent.tel_acces[self.parent.active_tel]:
              if len(self.parent.plan[self.parent.active_tel])>self.i:
-                 tmp_ob = self.parent.plan[self.parent.active_tel][self.i].copy()
+                 tmp_ob = deepcopy(self.parent.plan[self.parent.active_tel][self.i])
                  i = self.i + 1
                  self.parent.plan[self.parent.active_tel].insert(i,tmp_ob)
                  self.parent.plan[self.parent.active_tel][i]["ob"]["uobi"] = str(uuid.uuid4())[:8]
