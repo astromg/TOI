@@ -518,6 +518,7 @@ class ReportWindow(BaseWindow):
                    "nats_ob_progress",
                    "planrunners",
                    "telescope_switch_status",
+                   "toi_switch_status",
                    "tel_alpaca_con",
                    "flat_record",
                    "cwd",
@@ -592,9 +593,7 @@ class ReportWindow(BaseWindow):
                    # plan
                    "next_i",
                    "current_i",
-                   "plan",
                    "done_uobi",
-                   "nats_plan_status",
                    # rozne
                    "ob_log",
                    "nats_cfg"]
@@ -608,6 +607,28 @@ class ReportWindow(BaseWindow):
                 pass
         with open(self.dir_name + "/telemetry.txt", "w") as file3:
             file3.write(txt)
+
+        txt = ""
+        for k in self.parent.nats_plan_status.keys():
+            try:
+                val = str(self.parent.nats_plan_status[k])
+                txt = txt + f'*** {k}: {val}' + "\n"
+            except:
+                pass
+        with open(self.dir_name + "/nats_plan.txt", "w") as file4:
+            file4.write(txt)
+
+        txt = ""
+        for k in self.parent.plan.keys():
+            try:
+                txt = txt + "------------------------\n"
+                txt = txt + f"*** {k}\n"
+                val = eval(self.parent.plan[k])
+                txt = txt + f'{val}' + "\n"
+            except:
+                pass
+        with open(self.dir_name + "/local_plan.txt", "w") as file5:
+            file5.write(txt)
 
         txt=f"Report created. Please send email to mgorski and mkicia with files located in {self.dir_name}"
         self.parent.WarningWindow(txt)

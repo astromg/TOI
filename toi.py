@@ -1949,8 +1949,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.autofocus_started[self.active_tel] = True
                 tmp = await self.tel_focusers[self.active_tel].aget_position()
                 self.last_focus_position[self.active_tel] = float(tmp)
-                self.planrunner_start(self.active_tel)
                 await self.update_log(f'autofocussing', "TOI RESPONDER", self.active_tel)
+                self.planrunner_start(self.active_tel)
+
 
         else:
             txt="WARNING: U don't have control"
@@ -3652,6 +3653,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if nats_state != None:
                 state = self.mntGui.telAutoFocus_c.checkState()
                 if state != nats_state:
+                    self.update_log(f'updating focus adjust switch', "TOI", self.active_tel)
                     self.mntGui.telAutoFocus_c.blockSignals(True)
                     self.mntGui.telAutoFocus_c.setChecked(bool(nats_state))
                     self.mntGui.telAutoFocus_c.blockSignals(False)
