@@ -136,6 +136,7 @@ dmypy.json
 # IDEs and editors
 *.kate-swp
 .idea/
+.vscode/
 
 # local configuration
 ob/configuration/*
