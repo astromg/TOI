@@ -77,7 +77,7 @@ class ConditionsWindow(BaseWindow):
                         if "OBSTYPE" in x["raw"]["header"].keys() and "NLOOPS" in x["raw"]["header"].keys() and "LOOP" in x["raw"]["header"].keys():
                             if x["raw"]["header"]["OBSTYPE"] == "focus" and float(x["raw"]["header"]["NLOOPS"]) == float(x["raw"]["header"]["LOOP"]):
                                 self.focus_time[t].append(float(x["raw"]["header"]["JD"]))
-                    except ValueError:
+                    except (ValueError, TypeError):   # TyoeError - na wypadek waretosci nan
                         pass
 
             x0 = float(str(self.parent.jd).split(".")[0])+0.4
