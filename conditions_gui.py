@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import datetime
 
-import ephem
 from scipy.ndimage import gaussian_filter1d
 
 from PyQtX.QtCore import Qt
@@ -17,6 +16,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 import numpy
 from base_window import BaseWindow
 from pyaraucaria.date import datetime_to_julian, get_oca_jd
+from toi_lib import _jd_hourly_ticks
 
 
 # ############### FOCUS ##########################
@@ -107,13 +107,7 @@ class ConditionsWindow(BaseWindow):
                 for focus_time in ft:
                     self.ax1.axvline(x=focus_time, color=self.parent.nats_cfg[t]['color'],alpha=0.8)
 
-            xtics = []
-            t =  ephem.Date(x0)
-            while t < ephem.Date(x1):
-                t = ephem.Date(t) + ephem.hour
-                h = str(ephem.Date(t)).split()
-                xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
-            xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
+            xtics, xtics_labels = _jd_hourly_ticks(x0, x1)
             self.ax1.set_xticks(xtics)
             self.ax1.set_xticklabels(xtics_labels,rotation=45,minor=False)
 
@@ -238,13 +232,7 @@ class ConditionsWindow(BaseWindow):
 
                 x0 = 0.4
                 x1 = 0.99
-                xtics = []
-                t = ephem.Date(x0)
-                while t < ephem.Date(x1):
-                    t = ephem.Date(t) + ephem.hour
-                    h = str(ephem.Date(t)).split()
-                    xtics.append(ephem.Date(h[0] + " " + h[1].split(":")[0] + ":00:00"))
-                xtics_labels = [str(x).split()[1].split(":")[0] + ":" + str(x).split()[1].split(":")[1] for x in xtics]
+                xtics, xtics_labels = _jd_hourly_ticks(x0, x1)
                 self.ax2.set_xticks(xtics)
                 self.ax2.set_xticklabels(xtics_labels, rotation=45, minor=False)
                 self.ax2.set_xlim(x0, x1)

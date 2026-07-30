@@ -8,8 +8,8 @@ import os
 
 import uuid
 import time
+import logging
 
-import ephem
 import datetime
 import qasync as qs
 from qasync import QEventLoop
@@ -25,17 +25,49 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 import matplotlib
 
 from astropy.table import Table
+from astropy.coordinates import EarthLocation, AltAz, ICRS, SkyCoord
+from astropy.time import Time
+import astropy.units as u
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from pyaraucaria.coordinates import *
 from base_window import BaseWindow
 
 from toi_lib import *
+from toi_lib import _jd_hourly_ticks
+from pyaraucaria.ephemeris import Sun as _SunBody, Moon as _MoonBody
 from tpg.telescope_plan_generator import TelescopePlanGenerator as tpg
 from ctc import CycleTimeCalc
 
 from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
 from pyaraucaria.ob_validator import ObsValidator
+
+logger = logging.getLogger(__name__)
+
+def _previous_sun_setting(sun, before_time, horizon_deg=0.0):
+    """Find the most recent sun setting before *before_time*.
+
+    Scans back up to 36 hours (enough to cover any night/day cycle) to find
+    the last altitude-crossing event with az > 180° (western/setting direction).
+
+    Parameters
+    ----------
+    sun : pyaraucaria.ephemeris.Sun
+    before_time : datetime.datetime (UTC-aware)
+    horizon_deg : float
+        Altitude threshold in degrees (default 0.0).
+
+    Returns
+    -------
+    datetime.datetime or None
+    """
+    t_search = before_time - datetime.timedelta(hours=36)
+    events = sun.get_events_by_altitude([horizon_deg], start_time=t_search)
+    settings = [
+        e['time_utc'] for e in events
+        if e['time_utc'] < before_time and e['az'] > 180.0
+    ]
+    return max(settings) if settings else None
 
 
 class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
@@ -166,6 +198,9 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
     def update_table(self):
+        _saved_row = self.plan_t.currentRow()
+        _saved_col = self.plan_t.currentColumn()
+        _saved_scroll = self.plan_t.verticalScrollBar().value()
         self.plan_t.clearContents()
         self.plan_t.setRowCount(0)
 
@@ -405,21 +440,17 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                  if "ra" in self.plan[i]["ob"].keys() and "plan_ut" in self.plan[i]["meta"].keys():
                                      ra = self.plan[i]["ob"]["ra"]
                                      dec = self.plan[i]["ob"]["dec"]
-                                     obs = ephem.Observer()
-                                     obs.lat = self.parent.oca_site.lat
-                                     obs.lon = self.parent.oca_site.lon
-                                     obs.elevation = self.parent.oca_site.elevation
-                                     obs.date = parse_plan_ut_str(str(self.plan[i]["meta"]["plan_ut"]))
-
-                                     target = ephem.FixedBody()
-                                     target._ra = ephem.hours(ra)
-                                     target._dec = ephem.degrees(dec)
-                                     target.compute(obs)
-
-                                     moon = ephem.Moon(obs)
-
-                                     sep = ephem.separation((target.ra, target.dec), (moon.ra, moon.dec))
-                                     sep_deg = float(sep) * 180.0 / ephem.pi
+                                     plan_ut = utc_datetime(str(self.plan[i]["meta"]["plan_ut"]))
+                                     at = Time(plan_ut)
+                                     loc = self.parent.oca_site
+                                     frame = AltAz(obstime=at, location=loc, pressure=0 * u.Pa)
+                                     target_coord = SkyCoord(ra=ra, dec=dec, unit=('hourangle', 'deg'))
+                                     moon_body = _MoonBody(location=loc)
+                                     moon_eph = moon_body.get_ephemeris(plan_ut)[0]
+                                     moon_coord = SkyCoord(
+                                         ra=float(moon_eph["ra"]) * u.deg,
+                                         dec=float(moon_eph["dec"]) * u.deg)
+                                     sep_deg = float(target_coord.separation(moon_coord).deg)
                                      txt = f'{sep_deg:.0f} [deg]'
 
                              txt = QTableWidgetItem(txt)
@@ -469,6 +500,10 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             #     print(f"TOI plan GUI: EXCEPTION 103 {e}")
 
         self.parent.telescope_switch_status["plan"] = True
+
+        if _saved_row >= 0 and _saved_row < self.plan_t.rowCount():
+            self.plan_t.setCurrentCell(_saved_row, _saved_col if _saved_col >= 0 else 0)
+        self.plan_t.verticalScrollBar().setValue(_saved_scroll)
 
 
     def update_log_window(self,log):
@@ -1225,21 +1260,14 @@ class TPGWindow(BaseWindow):
         self.parent.parent.update_plan(self.parent.parent.active_tel)
 
     def sunset_changed(self):
-        dt = datetime.datetime.strptime(self.parent.parent.ut, "%Y/%m/%d %H:%M:%S")
+        dt = utc_datetime(self.parent.parent.ut)
 
         if self.sunset_c.isChecked():
-            obs = ephem.Observer()
-            obs.lat = self.parent.parent.observatory[0]
-            obs.lon = self.parent.parent.observatory[1]
-            obs.elevation = float(self.parent.parent.observatory[2])
-            obs.date = dt
+            loc = self.parent.parent.oca_site
+            sun = _SunBody(location=loc)
+            sunset = _previous_sun_setting(sun, dt)
 
-            sun = ephem.Sun()
-
-            sunset = obs.previous_setting(sun)
-            sunset = ephem.Date(sunset).datetime()
-
-            if dt - sunset < datetime.timedelta(hours=2):
+            if sunset is not None and dt - sunset < datetime.timedelta(hours=2):
                 if sunset.date() != dt.date():
                     time2set = dt - datetime.timedelta(days=1)
                 else:
@@ -1252,21 +1280,17 @@ class TPGWindow(BaseWindow):
 
 
     def _smart_sunset_checkbox(self):
-        dt = datetime.datetime.strptime(self.parent.parent.ut, "%Y/%m/%d %H:%M:%S")
-        obs = ephem.Observer()
-        obs.lat = self.parent.parent.observatory[0]
-        obs.lon = self.parent.parent.observatory[1]
-        obs.elevation = float(self.parent.parent.observatory[2])
-        obs.date = dt
+        dt = utc_datetime(self.parent.parent.ut)
+        loc = self.parent.parent.oca_site
+        sun = _SunBody(location=loc)
 
-        sun = ephem.Sun()
-        last_sunset = obs.previous_setting(sun)
-        next_sunrise = obs.next_rising(sun)
-        next_sunset = obs.next_setting(sun)
+        last_sunset = _previous_sun_setting(sun, dt)
+        next_sunrise = sun.get_next_event_by_altitude(0.0, 'rising', start_time=dt)
+        next_sunset = sun.get_next_event_by_altitude(0.0, 'setting', start_time=dt)
 
-        last_sunset = ephem.Date(last_sunset).datetime()
-        next_sunrise = ephem.Date(next_sunrise).datetime()
-        next_sunset = ephem.Date(next_sunset).datetime()
+        if last_sunset is None:
+            self.sunset_c.setChecked(False)
+            return
 
         delta_sunset = dt - last_sunset
 
@@ -1288,7 +1312,7 @@ class TPGWindow(BaseWindow):
         self.ut_e = QLineEdit()
         self.sunset_c.stateChanged.connect(self.sunset_changed)
 
-        if ephem.Date(self.parent.parent.almanac["sunset"]) > ephem.Date(self.parent.parent.almanac["sunrise"]):
+        if self.parent.parent.almanac["sunset"] > self.parent.parent.almanac["sunrise"]:
             self.sunset_c.setChecked(False)
 
         self.wind_c = QCheckBox("Avoid wind direction")
@@ -1395,9 +1419,8 @@ class PhaseWindow(BaseWindow):
         try:
             filter = self.file_s.currentText()
             file = self.f_path+"/"+filter+"/light-curve/"+self.name.lower()+"_"+filter+"_diff_light_curve.txt"
-            s = ephem.Observer()
-            s.date = ephem.Date(self.ut)
-            t = ephem.julian_date(s)
+            s = utc_datetime(self.ut)
+            t = Time(s).jd
             mag = []
             jd = []
             flag = []
@@ -1551,28 +1574,38 @@ class PlotWindow(BaseWindow):
 
     def refresh(self):
 
-        self.oca = ephem.Observer()
-        self.oca.date = ephem.now()
-        self.oca.lat = self.parent.parent.observatory[0]
-        self.oca.lon = self.parent.parent.observatory[1]
-        self.oca.elevation = float(self.parent.parent.observatory[2])
-        self.t_now = ephem.now()
+        now_dt = datetime.datetime.now(datetime.timezone.utc)
+        loc = self.parent.parent.oca_site
+        sun = _SunBody(location=loc)
+
+        self.t_now = Time(now_dt).jd
 
         # liczenie wschodu slonca i zachodu
-        self.oca.horizon = "0"
-        t1 = self.oca.next_setting(ephem.Sun(),use_center=True) - ephem.now()
-        t2 = self.oca.next_rising(ephem.Sun(), use_center=True) - ephem.now()
-        if t1 < t2 :
-            self.t0 = self.oca.next_setting(ephem.Sun(),use_center=True)
+        next_setting_dt = sun.get_next_event_by_altitude(0.0, 'setting', start_time=now_dt)
+        next_rising_dt = sun.get_next_event_by_altitude(0.0, 'rising', start_time=now_dt)
+        t1_days = (next_setting_dt - now_dt).total_seconds() / 86400
+        t2_days = (next_rising_dt - now_dt).total_seconds() / 86400
+        if t1_days < t2_days:
+            # Next event is sunset: we're currently in daytime, plot the upcoming night
+            self.t0 = Time(next_setting_dt).jd
         else:
-            self.t0 = self.oca.previous_setting(ephem.Sun(),use_center=True)
-        self.oca.date = self.t0
-        self.t_end = self.oca.next_rising(ephem.Sun(),use_center=True)
+            # Next event is sunrise: we're in night, find the sunset that started it
+            prev_setting_dt = _previous_sun_setting(sun, now_dt, horizon_deg=0.0)
+            if prev_setting_dt is None:
+                # Edge case: should not occur at OCM (36h scan always finds a setting)
+                logger.warning("_previous_sun_setting returned None; using t_now as plot start")
+                self.t0 = self.t_now
+            else:
+                self.t0 = Time(prev_setting_dt).jd
+        t0_dt = Time(self.t0, format='jd').to_datetime(timezone=datetime.timezone.utc)
+        rising_after_t0 = sun.get_next_event_by_altitude(0.0, 'rising', start_time=t0_dt)
+        self.t_end = Time(rising_after_t0).jd
 
         # liczenie zmierzchu
-        self.oca.horizon = "-18"
-        self.t0_dusk = self.oca.next_setting(ephem.Sun(),use_center=True)
-        self.t_end_dusk = self.oca.next_rising(ephem.Sun(),use_center=True)
+        next_setting_dusk = sun.get_next_event_by_altitude(-18.0, 'setting', start_time=now_dt)
+        next_rising_dusk = sun.get_next_event_by_altitude(-18.0, 'rising', start_time=now_dt)
+        self.t0_dusk = Time(next_setting_dusk).jd
+        self.t_end_dusk = Time(next_rising_dusk).jd
 
 
 
@@ -1588,7 +1621,7 @@ class PlotWindow(BaseWindow):
                     "ob_expected_time"]:
                     t0 = self.parent.parent.time
                     dt = (t0 - self.parent.parent.nats_ob_progress["ob_start_time"])
-                    self.t = self.t - ephem.second * dt
+                    self.t = self.t - dt / 86400
             color = ["c","m"]
             j=0
             for i, tmp in enumerate(self.parent.plan):
@@ -1627,23 +1660,24 @@ class PlotWindow(BaseWindow):
 
                         if "slotTime" in self.parent.plan[i]["meta"].keys():
                             slotTime = float(self.parent.plan[i]["meta"]["slotTime"])
+                            slot_days = slotTime / 86400  # convert seconds to JD days
 
                             if "sec" in self.parent.plan[i]["ob"].keys():
-                                self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
+                                self.axes.fill_betweenx([0, 2], self.t, self.t+slot_days, color="r", alpha=0.5)
                                 self.axes.text(self.t, 3, f"WAIT sec={int(slotTime):.0f}s", rotation=90, fontsize=fontsize)
 
                             elif "ut" in self.parent.plan[i]["ob"].keys():
-                                self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
+                                self.axes.fill_betweenx([0, 2], self.t, self.t+slot_days, color="r", alpha=0.5)
                                 txt = f'WAIT ut={self.parent.plan[i]["ob"]["ut"]}'
                                 self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
 
                             elif "sunset" in self.parent.plan[i]["ob"].keys():
-                                self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
+                                self.axes.fill_betweenx([0, 2], self.t, self.t+slot_days, color="r", alpha=0.5)
                                 txt = f'WAIT sunset={self.parent.plan[i]["ob"]["sunset"]}'
                                 self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
 
                             elif "sunrise" in self.parent.plan[i]["ob"].keys():
-                                self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
+                                self.axes.fill_betweenx([0, 2], self.t, self.t+slot_days, color="r", alpha=0.5)
                                 txt = f'WAIT sunrise={self.parent.plan[i]["ob"]["sunrise"]}'
                                 self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
 
@@ -1666,11 +1700,12 @@ class PlotWindow(BaseWindow):
                                     alt_tab = []
 
                                     t = self.t
-                                    while t <= self.t + ephem.second * slotTime:
-                                        az, alt = RaDec2AltAz(self.parent.parent.observatory, t, ra, dec)
+                                    while t <= self.t + slot_days:
+                                        t_dt = Time(t, format='jd').to_datetime(timezone=datetime.timezone.utc)
+                                        az, alt = RaDec2AltAz(self.parent.parent.observatory, t_dt, ra, dec)
                                         t_tab.append(t)
-                                        alt_tab.append(deg_to_decimal_deg(str(alt)))
-                                        t = t + 10*ephem.second
+                                        alt_tab.append(float(alt))
+                                        t = t + 10/86400
                                     #print(alt_tab,t_tab)
                                     if i == self.parent.i:
                                         self.axes.axvspan(min(t_tab), max(t_tab), color="blue", alpha=0.1)
@@ -1683,25 +1718,26 @@ class PlotWindow(BaseWindow):
                                         self.axes.text(self.t, 93, f'{self.parent.plan[i]["ob"]["name"]}', color=color[j], rotation=90, fontsize=fontsize)
                                     j=j+1
 
-                            self.t = self.t + ephem.second * slotTime
+                            self.t = self.t + slot_days
 
             self.axes.set_ylim(0, 90)
-            self.axes.set_xlim(self.t0-0.5*ephem.hour,self.t_end+0.5*ephem.hour)
+            self.axes.set_xlim(self.t0 - 0.5/24, self.t_end + 0.5/24)
             self.axes.fill_betweenx([0, 35], self.t0_dusk, self.t_end_dusk, color="grey", alpha=0.1)
             self.axes.fill_betweenx([80, 90], self.t0_dusk, self.t_end_dusk, color="grey", alpha=0.1)
             self.axes.fill_betweenx([0, 90], self.t0, self.t0_dusk, color="yellow", alpha=0.1)
             self.axes.fill_betweenx([0, 90], self.t_end_dusk, self.t_end, color="yellow", alpha=0.1)
             self.axes.axvline(x=self.t_now, color="green")
-            txt = str(self.t_now).split()[1].split(":")[0] + ":" + str(self.t_now).split()[1].split(":")[1]
+            txt = Time(self.t_now, format='jd').to_datetime(
+                timezone=datetime.timezone.utc).strftime("%H:%M")
             self.axes.text(self.t_now, 82, f"{txt}", rotation=90, fontsize=fontsize)
 
             xtics = [self.t0, self.t0_dusk, self.t_end_dusk, self.t_end]
-            t =  ephem.Date(self.t0_dusk+30*ephem.minute)
-            while t < ephem.Date(self.t_end_dusk-30*ephem.minute):
-                t = ephem.Date(t) + ephem.hour
-                h = str(ephem.Date(t)).split()
-                xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
-            xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
+            hourly_ticks, _ = _jd_hourly_ticks(self.t0_dusk + 30/1440, self.t_end_dusk - 30/1440)
+            xtics.extend(hourly_ticks)
+            xtics_labels = [
+                Time(x, format='jd').to_datetime(timezone=datetime.timezone.utc).strftime("%H:%M")
+                for x in xtics
+            ]
             self.axes.set_xticks(xtics)
             self.axes.set_xticklabels(xtics_labels,rotation=45,minor=False)
 
