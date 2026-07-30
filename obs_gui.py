@@ -605,6 +605,10 @@ class ReportWindow(BaseWindow):
                 txt = txt + f'*** {x}: {val}' + "\n"
             except:
                 pass
+
+        auto_foc_adjust_button = self.parent.mntGui.telAutoFocus_c.isChecked()
+        txt = txt + f'\nauto_foc_adjust_button: {auto_foc_adjust_button}\n'
+
         with open(self.dir_name + "/telemetry.txt", "w") as file3:
             file3.write(txt)
 

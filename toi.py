@@ -3653,7 +3653,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if nats_state != None:
                 state = self.mntGui.telAutoFocus_c.checkState()
                 if state != nats_state:
-                    self.update_log(f'updating focus adjust switch', "TOI", self.active_tel)
+                    self.update_log(f'updating focus adjust switch: {nats_state}', "TOI", self.active_tel)
                     self.mntGui.telAutoFocus_c.blockSignals(True)
                     self.mntGui.telAutoFocus_c.setChecked(bool(nats_state))
                     self.mntGui.telAutoFocus_c.blockSignals(False)
