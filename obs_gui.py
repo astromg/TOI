@@ -509,7 +509,8 @@ class ReportWindow(BaseWindow):
                 txt = self.parent.log_record[self.parent.active_tel]
                 file2.write(txt)
 
-        zmienne = ["active_tel",
+        zmienne = ["report",
+                   "active_tel",
                    "active_tel_i",
                    "acces",
                    "tel_acces",

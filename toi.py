@@ -3668,7 +3668,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             focus_adjast_step = 5
             for t in self.local_cfg["toi"]["telescopes"]:
                 if self.tel_acces[t]:
+
+                    # DUPA
+                    var = self.toi_switch_status[t]["focus_adjust"]
+                    self.report["focus_adjust"]["status"] = var
+                    self.report["focus_adjust"]["type"] = type(var)
+                    self.report["focus_adjust"]["repr"] = repr(var)
+                    self.report["focus_adjust"]["efect"] = False
+
                     if self.toi_switch_status[t]["focus_adjust"]:
+                        self.report["focus_adjust"]["efect"] = True
                         res = self.focus_difference(self.active_tel)
                         if res:
                             diff, prev_foc = res
@@ -4148,6 +4157,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         tmp = {"focus_adjust":None}
         self.toi_switch_status = {t:copy.deepcopy(tmp) for t in self.local_cfg["toi"]["telescopes"]}
+
+        #DUPA
+        self.report["focus_adjust"]["status"] = "--"
+        self.report["focus_adjust"]["type"] = "--"
+        self.report["focus_adjust"]["repr"] = "--"
+        self.report["focus_adjust"]["efect"] = "--"
 
         self.cfg_showRotator = True   # potrzebne do pierwszego wyswietlenia
         self.tel_alpaca_con = False
