@@ -4161,6 +4161,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.toi_switch_status = {t:copy.deepcopy(tmp) for t in self.local_cfg["toi"]["telescopes"]}
 
         #DUPA
+        self.report = {"focus_adjust": {}}
         self.report["focus_adjust"]["status"] = "--"
         self.report["focus_adjust"]["type"] = "--"
         self.report["focus_adjust"]["repr"] = "--"
