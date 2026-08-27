@@ -3681,7 +3681,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                                     data_short = {}
                                     data_short["status"] = "ok"
-                                    data_short["temperature"] = self.sensors[t]["dome_conditions"]["temperature"]
+                                    try:
+                                        data_short["temperature"] = self.sensors[tel]["dome_conditions"]["temperature"]
+                                    except Exception as e:
+                                        data_short["temperature"] = "--"
                                     data_short["max_sharpness_focus"] = foc_set
                                     data_short["time"] = self.ut
                                     data_short["filter"] = "--"
