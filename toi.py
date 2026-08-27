@@ -3675,9 +3675,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.report["focus_adjust"]["type"] = type(var)
                     self.report["focus_adjust"]["repr"] = repr(var)
                     self.report["focus_adjust"]["efect"] = False
+                    print(self.report)
 
                     if self.toi_switch_status[t]["focus_adjust"]:
                         self.report["focus_adjust"]["efect"] = True
+                        print(self.report)
                         res = self.focus_difference(self.active_tel)
                         if res:
                             diff, prev_foc = res
