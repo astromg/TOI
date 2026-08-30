@@ -1222,14 +1222,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 for tel in self.acces_grantors.keys():
                     try:
                         acces = await self.acces_grantors[tel].aget_is_access()
-                        name = await self.acces_grantors[tel].aget_current_user()
                     except Exception as e:
                         logger.warning(f'TOI: EXCEPTION 7a: access read failed for {tel}: {e}')
-                        continue  # keep previous knowledge; remaining telescopes still update
-                    if name is not None:
-                        self.tel_users[tel] = name["name"]
-                    if acces is not None:
-                        self.tel_acces[tel] = acces
+                    else:
+                        if acces is not None:
+                            self.tel_acces[tel] = acces
+                    try:
+                        name = await self.acces_grantors[tel].aget_current_user()
+                    except Exception as e:
+                        logger.warning(f'TOI: EXCEPTION 7b: current-user read failed for {tel}: {e}')
+                    else:
+                        if name is not None:
+                            self.tel_users[tel] = name["name"]
                     if self.active_tel:
                         if tel == self.active_tel:
                             txt = self.tel_users[tel]
