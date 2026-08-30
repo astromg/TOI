@@ -1386,7 +1386,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         # tu sie robie ekspozycja
                         if self.tmp_i == 1:
                             exp = float(self.guiderGui.guiderView.guiderExp_e.text())
-                            if self.guiderGui.guiderView.guiderCameraOn_c.checkState():
+                            if self.guiderGui.guiderView.guiderCameraOn_c.isChecked():
                                 try:
                                     await self.guider.aput_startexposure(exp, True)
                                 except Exception as e:
@@ -1395,7 +1395,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         # ######## Analiza obrazu guider
                         # poniewaz nie wiem ile sie czyta kamera, to analiza robi sie tuz przed nastepna ekspozycja
                         # nie ma na razie zabezpieczenia ze petla trwa krocej niz ekspozycja
-                        if self.tmp_i == 0 and self.guiderGui.guiderView.guiderCameraOn_c.checkState():
+                        if self.tmp_i == 0 and self.guiderGui.guiderView.guiderCameraOn_c.isChecked():
                             self.guider_image = await self.guider.aget_imagearray()
                             if self.guider_image:
                                 image = self.guider_image
@@ -1828,9 +1828,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                                 if "switchOnFocusAdjast" in self.ob[tel]["meta"].keys():
                                     if self.ob[tel]["meta"]["switchOnFocusAdjast"]:
-                                        await self.update_log(f'turning focus adjust ON', "TOI RESPONDER",self.active_tel)
-                                        self.toi_switch_status[self.active_tel]["focus_adjust"] = True
-                                        await self.nats_toi_switch_synchro[self.active_tel].publish(data=self.toi_switch_status[self.active_tel], timeout=10)
+                                        await self.update_log(f'turning focus adjust ON', "TOI RESPONDER",tel)
+                                        self.toi_switch_status[tel]["focus_adjust"] = True
+                                        await self.nats_toi_switch_synchro[tel].publish(data=self.toi_switch_status[tel], timeout=10)
 
 
 
@@ -1939,7 +1939,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.ob[self.active_tel]["meta"]["origin"] = "auto_focus"
 
                 self.ob[self.active_tel]["meta"]["switchOnFocusAdjast"] = False
-                if self.mntGui.telAutoFocus_c.checkState():
+                if self.mntGui.telAutoFocus_c.isChecked():
                     self.ob[self.active_tel]["meta"]["switchOnFocusAdjast"] = True
                     await self.update_log(f'turning focus adjust OFF', "TOI RESPONDER", self.active_tel)
                     self.toi_switch_status[self.active_tel]["focus_adjust"] = False
@@ -2702,7 +2702,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if ok:
 
-                if self.instGui.ccd_tab.test_c.checkState():
+                if self.instGui.ccd_tab.test_c.isChecked():
                     txt = txt + " test=1"
 
                 uobi = str(uuid.uuid4())[:8]
@@ -3651,7 +3651,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.active_tel:
             nats_state = self.toi_switch_status[self.active_tel]["focus_adjust"]
             if nats_state != None:
-                state = self.mntGui.telAutoFocus_c.checkState()
+                state = self.mntGui.telAutoFocus_c.isChecked()
                 if state != nats_state:
                     self.update_log(f'updating focus adjust switch: {nats_state}', "TOI", self.active_tel)
                     self.mntGui.telAutoFocus_c.blockSignals(True)
@@ -3680,20 +3680,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if self.toi_switch_status[t]["focus_adjust"]:
                         self.report["focus_adjust"]["efect"] = True
                         print(self.report)
-                        res = self.focus_difference(self.active_tel)
+                        res = self.focus_difference(t)
                         if res:
                             diff, prev_foc = res
                             if abs(diff) > focus_adjast_step and self.nats_focus_record[t]["status"] == "ok":
-                                foc_set = int(diff + prev_foc)
-                                focus_value_now = await self.focus.aget_position()
+                                #foc_set = int(diff + prev_foc)
+                                foc_set = int(self.nats_focus_record[t]["max_sharpness_focus"] + diff)
+                                focus_value_now = await self.tel_focusers[t].aget_position()
                                 if abs(focus_value_now - foc_set) > focus_adjast_step:
+                                    #DUPA2
                                     await self.focus.aput_move(foc_set)
                                     await self.update_log(f'adjusting focus to {foc_set}', "TOI", t)
 
                                     data_short = {}
                                     data_short["status"] = "ok"
                                     try:
-                                        data_short["temperature"] = self.sensors[tel]["dome_conditions"]["temperature"]
+                                        data_short["temperature"] = self.sensors[t]["dome_conditions"]["temperature"]
                                     except Exception as e:
                                         data_short["temperature"] = "--"
                                     data_short["max_sharpness_focus"] = foc_set
@@ -3933,7 +3935,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # STAGE 2
     # to nie bedzie na razie obslugiwane
     def GuiderPassiveOnOff(self):
-        if self.guiderGui.guiderView.guiderCameraOn_c.checkState():
+        if self.guiderGui.guiderView.guiderCameraOn_c.isChecked():
             self.guider_failed = 1
             self.guider_passive_dx = []
             self.guider_passive_dy = []
