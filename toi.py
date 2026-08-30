@@ -79,6 +79,27 @@ logging.basicConfig(level='INFO', format='%(asctime)s.%(msecs)03d [%(levelname)s
 logger = logging.getLogger(__name__)
 logging.Formatter.converter = time.gmtime
 
+NO_DATA_TEXT = "\u2014"  # em-dash shown when the telescope gives no fresh reading
+
+
+def show_no_data(field, why="no fresh data from the telescope"):
+    """Show honestly that a telemetry field has no fresh value right now.
+
+    Under the DISPLAY policy the observatory returns None when a reading is
+    too old to trust (connection or device problem). The old number must not
+    stay on screen looking alive - the operator could not tell a frozen
+    display from a live one. So: an em-dash in the field, and the reason in
+    the tooltip (hover the mouse over the field to see it).
+    """
+    field.setText(NO_DATA_TEXT)
+    field.setToolTip(why)
+
+
+def show_value(field, text):
+    """Show a fresh telemetry value and clear the no-data tooltip."""
+    field.setText(text)
+    field.setToolTip("")
+
 
 class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
@@ -3174,20 +3195,30 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     async def radec_update(self):
-        if  self.mount_ra and self.mount_dec:
-            self.mntGui.mntRa_e.setText(to_hourangle_sexagesimal(self.mount_ra))
-            self.mntGui.mntDec_e.setText(dec_to_sexagesimal(self.mount_dec))
-        if self.mount_alt and self.mount_az:
-           self.mntGui.mntAlt_e.setText(f"{self.mount_alt:.3f}")
-           self.mntGui.mntAz_e.setText(f"{self.mount_az:.3f}")
+        # 'is not None' (not a bare truth test): RA 0h, DEC 0, AZ 0 are all
+        # valid readings and must be displayed, while None means "no fresh
+        # data" and must show as an em-dash instead of the last old number.
+        if self.mount_ra is not None and self.mount_dec is not None:
+            show_value(self.mntGui.mntRa_e, to_hourangle_sexagesimal(self.mount_ra))
+            show_value(self.mntGui.mntDec_e, dec_to_sexagesimal(self.mount_dec))
+        else:
+            show_no_data(self.mntGui.mntRa_e)
+            show_no_data(self.mntGui.mntDec_e)
+        if self.mount_alt is not None and self.mount_az is not None:
+           show_value(self.mntGui.mntAlt_e, f"{self.mount_alt:.3f}")
+           show_value(self.mntGui.mntAz_e, f"{self.mount_az:.3f}")
            #self.obsGui.main_form.skyView.updateMount()
            if self.skyGui.skyView:
                self.skyGui.skyView.updateMount()
            airmass = calc_airmass(float(self.mount_alt))
            if airmass:
-               self.mntGui.mntAirmass_e.setText("%.1f" % airmass)
+               show_value(self.mntGui.mntAirmass_e, "%.1f" % airmass)
            else:
-               self.mntGui.mntAirmass_e.setText("")
+               show_value(self.mntGui.mntAirmass_e, "")
+        else:
+            show_no_data(self.mntGui.mntAlt_e)
+            show_no_data(self.mntGui.mntAz_e)
+            show_no_data(self.mntGui.mntAirmass_e)
 
     def target_changed(self):
         self.mntGui.target_e.setStyleSheet("background-color: rgb(234, 245, 249); color: black;")
@@ -3412,11 +3443,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def domeAZ_update(self, event):
         self.dome_az = await self.dome.aget_az()
-        if self.dome_az:
-            self.mntGui.domeAz_e.setText(f"{self.dome_az:.2f}")
+        if self.dome_az is not None:
+            show_value(self.mntGui.domeAz_e, f"{self.dome_az:.2f}")
             #self.obsGui.main_form.skyView.updateDome()
             if self.skyGui.skyView:
                 self.skyGui.skyView.updateDome()
+        else:
+            # no fresh azimuth - the dome may still be moving; the frozen
+            # number would look like a real position
+            show_no_data(self.mntGui.domeAz_e)
 
     def domeAZ_check(self, event):
         self.dome_next_az_ok = False
@@ -3758,8 +3793,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 else:
                     self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;") # white
         else:
-            self.mntGui.telFocus_e.setText(f"ERROR")
-            self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
+            # None = no fresh reading (not a device error) - show it like
+            # every other stale field: em-dash + tooltip, neutral colors
+            show_no_data(self.mntGui.telFocus_e)
+            self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(130, 130, 130);")
 
 
     # ############### M3 #####################
@@ -3809,8 +3846,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def filter_update(self, event):
             pos = await self.fw.aget_position()
             if pos is None:
-                self.mntGui.telFilter_e.setText("--")
-                self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+                # no fresh reading - same idiom as the other fields (the blue
+                # style stays reserved for a really moving filter wheel)
+                show_no_data(self.mntGui.telFilter_e)
+                self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(130, 130, 130);")
                 return
             pos = int(pos)
             self.curent_filter=self.filter_list[pos]
@@ -3836,8 +3875,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.rotator_mechpos = self.rotator.mechanicalposition
         self.rotator_pos = self.rotator.position
         self.rotator_moving = self.rotator.ismoving
-        if self.rotator_pos and self.rotator_mechpos:
-            self.mntGui.telRotator1_e.setText(f"{self.rotator_pos:.2f} {self.rotator_mechpos:.2f}")
+        if self.rotator_pos is not None and self.rotator_mechpos is not None:
+            show_value(self.mntGui.telRotator1_e, f"{self.rotator_pos:.2f} {self.rotator_mechpos:.2f}")
             if self.rotator_moving != None:
                 if self.rotator_moving:
                     self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(234, 245, 249); color: black;")
@@ -3849,8 +3888,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 else:
                     self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         else:
-            self.mntGui.telRotator1_e.setText(f"ERROR")
-            self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
+            # None = no fresh reading (not a device error) - uniform idiom
+            show_no_data(self.mntGui.telRotator1_e)
+            self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(130, 130, 130);")
         self.rotator_pos_prev = self.rotator_pos
 
         # ############ TELESCOPE #########################
