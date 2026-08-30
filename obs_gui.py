@@ -130,21 +130,30 @@ class MainForm(QWidget):
                     icon_label4.setPixmap(ToiIcon("icon_bulb", "darkOrange", size=14).pixmap(14, 14))
                     lay.addWidget(icon_label4)
 
-                if float(self.parent.telemetry_wind) > float(self.parent.cfg_wind_limit):
+                def _f(v):
+                    try:
+                        return float(v)
+                    except (TypeError, ValueError):
+                        return None
+                wind = _f(self.parent.telemetry_wind)
+                humidity = _f(self.parent.telemetry_humidity)
+                temperature = _f(self.parent.telemetry_temp)
+
+                if wind is not None and wind > float(self.parent.cfg_wind_limit):
                     icon_label5 = QLabel()
                     icon_label5.setPixmap(ToiIcon("icon_wind", "red", size=14).pixmap(14, 14))
                     lay.addWidget(icon_label5)
-                elif float(self.parent.telemetry_wind) > float(self.parent.cfg_wind_limit_pointing):
+                elif wind is not None and wind > float(self.parent.cfg_wind_limit_pointing):
                     icon_label6 = QLabel()
                     icon_label6.setPixmap(ToiIcon("icon_wind", "orange", size=14).pixmap(14, 14))
                     lay.addWidget(icon_label6)
 
-                if float(self.parent.telemetry_humidity) > float(self.parent.cfg_humidity_limit):
+                if humidity is not None and humidity > float(self.parent.cfg_humidity_limit):
                     icon_label7 = QLabel()
                     icon_label7.setPixmap(ToiIcon("icon_water", "red", size=14).pixmap(14, 14))
                     lay.addWidget(icon_label7)
 
-                if float(self.parent.telemetry_temp) < float(self.parent.cfg_temperature_limit):
+                if temperature is not None and temperature < float(self.parent.cfg_temperature_limit):
                     icon_label8 = QLabel()
                     icon_label8.setPixmap(ToiIcon("icon_cold", "red", size=14).pixmap(14, 14))
                     lay.addWidget(icon_label8)

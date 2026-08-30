@@ -1220,10 +1220,20 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     #print("********* PING **************")
 
                 for tel in self.acces_grantors.keys():
-                    acces = await self.acces_grantors[tel].aget_is_access()
-                    name = await self.acces_grantors[tel].aget_current_user()
-                    self.tel_users[tel] = name["name"]
-                    self.tel_acces[tel] = acces
+                    try:
+                        acces = await self.acces_grantors[tel].aget_is_access()
+                    except Exception as e:
+                        logger.warning(f'TOI: EXCEPTION 7a: access read failed for {tel}: {e}')
+                    else:
+                        if acces is not None:
+                            self.tel_acces[tel] = acces
+                    try:
+                        name = await self.acces_grantors[tel].aget_current_user()
+                    except Exception as e:
+                        logger.warning(f'TOI: EXCEPTION 7b: current-user read failed for {tel}: {e}')
+                    else:
+                        if name is not None:
+                            self.tel_users[tel] = name["name"]
                     if self.active_tel:
                         if tel == self.active_tel:
                             txt = self.tel_users[tel]
@@ -1273,7 +1283,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     self.ob[tel]["meta"]["continue_plan"] = False
                                     await self.update_log(f'planrunner STOPPED', "ERROR", tel)
 
-                    if self.telescope and not self.tel_acces[tel]:    # obsluga tego ze w czasie realizacji planu, ktos inny przejal kontrole
+                    if self.telescope and self.tel_acces[tel] is False:    # obsluga tego ze w czasie realizacji planu, ktos inny przejal kontrole; None = unknown, NOT a takeover
                         if "continue_plan" in self.ob[tel]["meta"].keys():
                             if self.ob[tel]["meta"]["continue_plan"]:
                                 self.ob[tel]["meta"]["continue_plan"] = False
@@ -2951,6 +2961,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.update_log(f'mirror covers ON/OFF', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
            self.cover_status = self.cover.coverstate
+           if self.cover_status is None:
+               self.WarningWindow("WARNING: Mirror covers state unknown (no fresh data) - refusing to act")
+               return
            if self.cover_status==1:
               await self.cover.aput_opencover()
               await self.update_log(f'setting mirror covers OPEN', "TOI RESPONDER", self.active_tel)
@@ -2990,7 +3003,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def park_mount(self):
         await self.update_log(f'mount PARK', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
-            if self.mount.motorstatus != "false":
+            if self.mount.motorstatus == "true":
                 #self.mntGui.mntStat_e.setText(txt)
                 self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,0,0); background-color: rgb(233, 233, 233);")
                 self.mntGui.domeAuto_c.setChecked(False)
@@ -2999,9 +3012,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 await self.dome.aput_slewtoazimuth(180.)
                 await self.update_log(f'parking', "TOI RESPONDER", self.active_tel)
             else:
-                txt = "WARNING: Motors are OFF"
-                self.WarningWindow(txt)
-                await self.update_log(f'Motors are OFF', "WARNING", self.active_tel)
+                self.WarningWindow("WARNING: Mount motor status unknown or motors OFF - refusing to act")
+                await self.update_log('mount motor status unknown or motors OFF - refusing to act', "WARNING", self.active_tel)
 
 
         else:
@@ -3022,7 +3034,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def mount_slew(self):
         await self.update_log(f'mount SLEW', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
-            if self.mount.motorstatus != "false":
+            if self.mount.motorstatus == "true":
                 self.req_ra=""
                 self.req_dec=""
                 self.req_epoq=""
@@ -3053,18 +3065,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if self.mntGui.domeAuto_c.isChecked():
                         if self.active_tel == "wk06":
                             side_of_pier = await self.mount.aget_sideofpier()
-                            dome_eq_az, info_dict = dome_eq_azimuth(
-                                ra=self.mount_ra, dec=self.mount_dec, r_dome=2050, spx=-110, spy=-110,
-                                gem=670, side_of_pier=side_of_pier, latitude=-24.598056,
-                                longitude=-70.196389, elevation=2817
-                            )
-                            az = dome_eq_az
+                            if self.mount_ra is None or self.mount_dec is None or side_of_pier is None:
+                                await self.update_log('dome auto-sync skipped - mount position unknown', "TOI RESPONDER", self.active_tel)
+                            else:
+                                dome_eq_az, info_dict = dome_eq_azimuth(
+                                    ra=self.mount_ra, dec=self.mount_dec, r_dome=2050, spx=-110, spy=-110,
+                                    gem=670, side_of_pier=side_of_pier, latitude=-24.598056,
+                                    longitude=-70.196389, elevation=2817
+                                )
+                                az = dome_eq_az
                         await self.dome.aput_slewtoazimuth(az)
                         await self.update_log(f'moving dome to {az}', "TOI RESPONDER", self.active_tel)
                 else:
                     await self.update_log(f'SLEW not allowed', "WARNING", self.active_tel)
             else:
-                await self.update_log(f'motors are OFF', "WARNING", self.active_tel)
+                self.WarningWindow("WARNING: Mount motor status unknown or motors OFF - refusing to act")
+                await self.update_log('mount motor status unknown or motors OFF - refusing to act', "WARNING", self.active_tel)
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
@@ -3458,23 +3474,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #     logger.error(f'========DOME FANS RUNNING post event: {event.old} -> {event.new}')
 
         # r = await self.dome.aget_dome_fans_running()
-        if r:
-            self.dome_fanStatus=True
-        else:
-            self.dome_fanStatus=False
-
-        if self.dome_fanStatus:
-            self.mntGui.ventilators_c.setChecked(True)
-            if self.tel_acces[self.active_tel]:
-                self.toi_op_status[self.active_tel]["dome_ventilators"]["state"] = True
+        if r is None:
+            # no fresh data (Staleness Contract): render unknown, publish NOTHING
+            self.mntGui.ventilators_e.setText("--")
+            self.mntGui.ventilators_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+            return
+        self.dome_fanStatus = bool(r)
+        self.mntGui.ventilators_c.setChecked(self.dome_fanStatus)
+        txt = "ON" if self.dome_fanStatus else "OFF"
+        if self.tel_acces[self.active_tel]:
+            # publish state CHANGES, not deliveries (recovery re-delivers unchanged values)
+            if self.toi_op_status[self.active_tel]["dome_ventilators"]["state"] != self.dome_fanStatus:
+                self.toi_op_status[self.active_tel]["dome_ventilators"]["state"] = self.dome_fanStatus
                 await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
-            txt="ON"
-        else:
-            self.mntGui.ventilators_c.setChecked(False)
-            if self.tel_acces[self.active_tel]:
-                self.toi_op_status[self.active_tel]["dome_ventilators"]["state"] = False
-                await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
-            txt="OFF"
         self.mntGui.ventilators_e.setText(txt)
         self.mntGui.ventilators_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
 
@@ -3500,21 +3512,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def mirrorFans_update(self,event):
            r = await self.focus.aget_fansstatus()
-           if r == "True": self.dome_fanStatus=True
-           else: self.dome_fanStatus=False
-
-           if self.dome_fanStatus:
-               self.mntGui.mirrorFans_c.setChecked(True)
-               if self.tel_acces[self.active_tel]:
-                   self.toi_op_status[self.active_tel]["mirror_fans"]["state"] = True
+           if r is None:
+               self.mntGui.mirrorFans_e.setText("--")
+               self.mntGui.mirrorFans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+               return
+           self.dome_fanStatus = (r == "True")
+           self.mntGui.mirrorFans_c.setChecked(self.dome_fanStatus)
+           txt = "FANS ON" if self.dome_fanStatus else "FANS OFF"
+           if self.tel_acces[self.active_tel]:
+               if self.toi_op_status[self.active_tel]["mirror_fans"]["state"] != self.dome_fanStatus:
+                   self.toi_op_status[self.active_tel]["mirror_fans"]["state"] = self.dome_fanStatus
                    await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
-               txt="FANS ON"
-           else:
-               self.mntGui.mirrorFans_c.setChecked(False)
-               if self.tel_acces[self.active_tel]:
-                   self.toi_op_status[self.active_tel]["mirror_fans"]["state"] = False
-                   await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
-               txt="FANS OFF"
            self.mntGui.mirrorFans_e.setText(txt)
            self.mntGui.mirrorFans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
 
@@ -3616,11 +3624,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # ustawia modelowy focus w polu set focus
     @qs.asyncSlot()
     async def focus_set_update(self):
-
+        if self.telemetry_temp is None or self.telemetry_humidity is None:
+            logger.warning('TOI: focus_set_update skipped - no weather telemetry yet')
+            return
         temp = float(self.telemetry_temp)
         hum = float(self.telemetry_humidity)
 
         focus = self.focus_model(self.active_tel, temp, hum)
+        if focus is None:
+            return
         self.mntGui.setFocus_s.setValue(int(focus))
 
 
@@ -3795,14 +3807,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def filter_update(self, event):
-            pos = int(await self.fw.aget_position())
+            pos = await self.fw.aget_position()
+            if pos is None:
+                self.mntGui.telFilter_e.setText("--")
+                self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+                return
+            pos = int(pos)
             self.curent_filter=self.filter_list[pos]
             if pos == -1: filtr = "--"
             else: filtr = self.filter_list[pos]
             self.mntGui.telFilter_e.setText(filtr)
             self.filter = filtr
 
-            if int(self.fw.position) == -1:
+            if pos == -1:
                 self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
             else: self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             self.telescope_switch_status["filters"] = True
@@ -3978,7 +3995,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             logger.warning(f'TOI: updateWeather: {e}')
 
     def ephem_update(self,tmp):
-        self.ephem_utc = float(self.ephemeris.utc)
+        utc = self.ephemeris.utc
+        if utc is not None:
+            self.ephem_utc = float(utc)
 
     def WarningWindow(self,txt):
         self.tmp_box=QtWidgets.QMessageBox()
@@ -4412,7 +4431,8 @@ async def run_qt_app():
         logger.error(f"Can't connect to NATS {nats_host}:{nats_port} timeout accrue. Application stopped!")
         return
     # TODO ernest_nowy_tic COMENT nie powołujemy już 'ClientAPI' ręcznie, Observatory zaciąga konfigurację z nats i tworzy ClientAPI potem
-    observatory_model = Observatory(client_name="TOI_Client", config_stream="tic.config.observatory")
+    observatory_model = Observatory(client_name="TOI_Client", config_stream="tic.config.observatory",
+                                    policy='display')
     await observatory_model.load_client_cfg()
     api = observatory_model.client
 
