@@ -20,7 +20,8 @@ async def dodo(api):
     msg = Messenger()
     nats_opener = await msg.open(host="192.168.7.38", port=4222, wait=3)
 
-    observatory_model = Observatory(client_name="TOI_Client",config_stream="tic.config.observatory")
+    observatory_model = Observatory(client_name="TOI_Client",config_stream="tic.config.observatory",
+                                    policy='display')
 
     await observatory_model.load_client_cfg()
 

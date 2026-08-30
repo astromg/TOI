@@ -348,7 +348,7 @@ class SkyView(QWidget):
             facecolor = "orange"
         if self.parent.cover_status == 3:
             facecolor = "white"
-        if self.parent.mount_alt:
+        if self.parent.mount_alt is not None and self.parent.mount_az is not None:
             alt = 90 - self.parent.mount_alt
             az = self.parent.mount_az
             az = az * 2 * 3.14 / 360.

@@ -109,6 +109,9 @@ class BaseAsyncWidget(ABC):
     def update_field_callback(field, name="Default callback"):
         async def callback(result):
             if result and result[0].value:
+                if result[0].value.v is None:
+                    field.setText("--")  # rich None: no fresh data (Staleness Contract)
+                    return
                 logger.info(f"updater named {name} change field value")
                 tex_to_put = result[0].value.v
                 field.setText(f"{tex_to_put}")  # update field in GUI
