@@ -3013,6 +3013,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 await self.update_log(f'parking', "TOI RESPONDER", self.active_tel)
             else:
                 self.WarningWindow("WARNING: Mount motor status unknown or motors OFF - refusing to act")
+                await self.update_log('mount motor status unknown or motors OFF - refusing to act', "WARNING", self.active_tel)
 
 
         else:
@@ -3079,6 +3080,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     await self.update_log(f'SLEW not allowed', "WARNING", self.active_tel)
             else:
                 self.WarningWindow("WARNING: Mount motor status unknown or motors OFF - refusing to act")
+                await self.update_log('mount motor status unknown or motors OFF - refusing to act', "WARNING", self.active_tel)
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
