@@ -579,7 +579,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mount = self.telescope.get_mount()
         self.cover = self.telescope.get_covercalibrator()
         self.focus = self.telescope.get_focuser()
-        #self.m3 = self.telescope.get_m3()   # tertiary - uncomment and modify
+        #self.m3 = self.telescope.get_tertiary()
         self.ccd = self.telescope.get_camera()
         self.guider = self.telescope.get_camera(id='guider')
         self.fw = self.telescope.get_filterwheel()
@@ -631,7 +631,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.run_method_in_background(self.cover.asubscribe_coverstate(self.covers_update), group="subscribe")
         await self.run_method_in_background(self.focus.asubscribe_fansstatus(self.mirrorFans_update), group="subscribe")
         #
-        #await self.run_method_in_background(self.m3.asubscribe_position(self.m3_update), group="subscribe")  # tertiary - uncomment and modufy
+        #await self.run_method_in_background(self.m3.asubscribe_nasmythport(self.m3_update), group="subscribe")
         #
         await self.run_method_in_background(self.fw.asubscribe_connected(self.filter_con_update), group="subscribe")
         await self.run_method_in_background(self.fw.asubscribe_position(self.filter_update), group="subscribe")
@@ -3833,13 +3833,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     #         self.WarningWindow(txt)
     #
     # async def m3_update(self, event):
-    #         pos = int(await self.m3.aget_position())
-    #         try:
-    #             self.mntGui.M3_e.setText(self.m3_list[pos])
-    #             self.mntGui.M3_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-    #         except:
-    #             self.mntGui.M3_e.setText("--")
-    #             self.mntGui.M3_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+    #         pos = await self.m3.aget_nasmythport()
+    #
+    #         print(f'{pos}')
+    #         self.mntGui.M3_e.setText(str(pos))
+            # try:
+            #     self.mntGui.M3_e.setText(self.m3_list[pos])
+            #     self.mntGui.M3_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            # except:
+            #     self.mntGui.M3_e.setText("--")
+            #     self.mntGui.M3_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
 
     # ############### FILTERS #####################
 
