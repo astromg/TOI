@@ -604,6 +604,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # ---------------------- run subscriptions from ocabox ----------------------
         await self.run_method_in_background(self.ephemeris.asubscribe_utc(self.ephem_update,time_of_data_tolerance=0.25),group="subscribe")
+
+        #
+        await self.run_method_in_background(self.user.asubscribe_safety_cutoff_state(self.safetySwitch_update),group="subscribe")
         #
         #await self.run_method_in_background(self.user.asubscribe_current_user(self.user_update), group="subscribe")
         #
@@ -621,6 +624,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.run_method_in_background(self.mount.asubscribe_tracking(self.mount_tracking_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_slewing(self.mount_slewing_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_motorstatus(self.mountMotors_update),group="subscribe")
+
+
+
         #
         await self.run_method_in_background(self.cover.asubscribe_coverstate(self.covers_update), group="subscribe")
         await self.run_method_in_background(self.focus.asubscribe_fansstatus(self.mirrorFans_update), group="subscribe")
@@ -2917,6 +2923,45 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def mount_con_update(self, event):
         self.mount_con =self.mount.connected
+
+    @qs.asyncSlot()
+    async def safety_switch_OnOff(self):
+        await self.update_log(f'Safety cutoff ON/OFF', "OPERATOR", self.active_tel)
+        status = None
+        r = await self.user.aget_safety_cutoff_state()
+        try:
+            status = bool(r["engaged"])
+        except Exception as e:
+            logger.warning(f'TOI EXCEPTION: safetySwitch_update: {e}')
+            status = None
+
+        if status != None:
+            if status:
+                await self.user.aput_disengage_safety_cutoff()
+                await self.update_log(f'setting safety cutoff OFF', "TOI RESPONDER", self.active_tel)
+            else:
+                await self.user.aput_engage_safety_cutoff()
+                await self.update_log(f'setting safety cutoff ON', "TOI RESPONDER", self.active_tel)
+
+    async def safetySwitch_update(self,event):
+        status = None
+        r = await self.user.aget_safety_cutoff_state()
+        try:
+            status = bool(r["engaged"])
+        except Exception as e:
+            logger.warning(f'TOI EXCEPTION: safetySwitch_update: {e}')
+            status = None
+        if status == None:
+            self.mntGui.SafetySwitch_l.setText("SAFETY CUTOFF ERROR")
+            self.mntGui.SafetySwitch_l.setStyleSheet(" color: rgb(150, 5, 5); font-weight: bold;")
+        elif status == False:
+            self.mntGui.SafetySwitch_l.setText("SAFETY CUTOFF OFF")
+            self.mntGui.SafetySwitch_l.setStyleSheet(" color: rgb(0, 0, 0); font-weight: normal;")
+        elif status == True:
+            self.mntGui.SafetySwitch_l.setText("SAFETY CUTOFF ON")
+            self.mntGui.SafetySwitch_l.setStyleSheet(" color: rgb(200, 120, 0); font-weight: bold;")
+
+
 
     @qs.asyncSlot()
     async def mount_motorsOnOff(self):

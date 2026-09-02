@@ -22,6 +22,7 @@ numpy = ">=1.26,<3"        # pozwala na numpy 2.x
 qasync = "^0.27.1"
 
 ocabox = {git = "https://github.com/araucaria-project/ocabox.git"}
+#ocabox = { git = "git@github.com:araucaria-project/ocabox.git" }
 #ocabox = {path = "../ocabox", develop = true}
 ocabox-common = {git = "https://github.com/araucaria-project/ocabox-common.git"}
 tpg = {path = "../tpg", develop = true}

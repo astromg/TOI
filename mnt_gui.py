@@ -696,11 +696,27 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.EmStop_p = QPushButton('EMERGENCY STOP')
         self.EmStop_p.setStyleSheet(" color: rgb(133, 5, 5);")
 
+        self.FilterAutoOffset_l = QLabel("AUTO OFFSET:")
+        self.FilterAutoOffset_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+
+        self.SafetySwitch_l = QLabel("SAFETY CUTOFF OFF")
+        self.SafetySwitch_l.setAlignment(Qt.AlignVCenter | Qt.AlignCenter)
+
+        self.SafetySwitch_c = QCheckBox()
+        self.SafetySwitch_c.setChecked(False)
+        self.SafetySwitch_c.setLayoutDirection(Qt.RightToLeft)
+        self.SafetySwitch_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
+        self.SafetySwitch_c.stateChanged.connect(self.parent.safety_switch_OnOff)
+
         self.shutdown_p.clicked.connect(self.parent.shutdown)
         self.weatherStop_p.clicked.connect(self.parent.weatherStop)
         self.EmStop_p.clicked.connect(self.parent.EmStop)
 
         self.grid.addWidget(self.shutdown_p, w, 5,1,2)
+
+        self.grid.addWidget(self.SafetySwitch_l, w, 3, 1, 2)
+        self.grid.addWidget(self.SafetySwitch_c, w, 4, 1, 1)
+
         #self.grid.addWidget(self.weatherStop_p, w, 3,1,2)
         self.grid.addWidget(self.EmStop_p, w, 0,1,3)
 
