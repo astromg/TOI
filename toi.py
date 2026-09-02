@@ -2926,22 +2926,28 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def safety_switch_OnOff(self):
-        await self.update_log(f'Safety cutoff ON/OFF', "OPERATOR", self.active_tel)
-        status = None
-        r = await self.user.aget_safety_cutoff_state()
-        try:
-            status = bool(r["engaged"])
-        except Exception as e:
-            logger.warning(f'TOI EXCEPTION: safetySwitch_update: {e}')
+        if self.tel_acces[self.active_tel]:
+            await self.update_log(f'Safety cutoff ON/OFF', "OPERATOR", self.active_tel)
             status = None
+            r = await self.user.aget_safety_cutoff_state()
+            try:
+                status = bool(r["engaged"])
+            except Exception as e:
+                logger.warning(f'TOI EXCEPTION: safetySwitch_update: {e}')
+                status = None
 
-        if status != None:
-            if status:
-                await self.user.aput_disengage_safety_cutoff()
-                await self.update_log(f'setting safety cutoff OFF', "TOI RESPONDER", self.active_tel)
-            else:
-                await self.user.aput_engage_safety_cutoff()
-                await self.update_log(f'setting safety cutoff ON', "TOI RESPONDER", self.active_tel)
+            if status != None:
+                if status:
+                    await self.user.aput_disengage_safety_cutoff()
+                    await self.update_log(f'setting safety cutoff OFF', "TOI RESPONDER", self.active_tel)
+                else:
+                    await self.user.aput_engage_safety_cutoff()
+                    await self.update_log(f'setting safety cutoff ON', "TOI RESPONDER", self.active_tel)
+        else:
+            await self.safetySwitch_update(None)
+            txt="WARNING: U don't have control"
+            self.WarningWindow(txt)
+
 
     async def safetySwitch_update(self,event):
         status = None
