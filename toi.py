@@ -2952,7 +2952,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             logger.warning(f'TOI EXCEPTION: safetySwitch_update: {e}')
             status = None
 
-        print(f'status: {status}')
         if status == None:
             self.mntGui.SafetySwitch_l.setText("SAFETY CUTOFF ERROR")
             self.mntGui.SafetySwitch_l.setStyleSheet(" color: rgb(150, 5, 5); font-weight: bold;")
