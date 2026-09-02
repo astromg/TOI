@@ -672,7 +672,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telAutoFocus_c.setChecked(False)
         self.telAutoFocus_c.setLayoutDirection(Qt.RightToLeft)
         self.telAutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-        self.telAutoFocus_c.stateChanged.connect(self.parent.focus_auto_adjust_OnOff)
+        self.telAutoFocus_c.clicked.connect(self.parent.focus_auto_adjust_OnOff)
 
         w = w + 1
         self.grid.addWidget(self.focusConn_l, w, 0)
@@ -706,7 +706,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.SafetySwitch_c.setChecked(False)
         self.SafetySwitch_c.setLayoutDirection(Qt.RightToLeft)
         self.SafetySwitch_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
-        self.SafetySwitch_c.stateChanged.connect(self.parent.safety_switch_OnOff)
+        self.SafetySwitch_c.clicked.connect(self.parent.safety_switch_OnOff)
 
         self.shutdown_p.clicked.connect(self.parent.shutdown)
         self.weatherStop_p.clicked.connect(self.parent.weatherStop)
