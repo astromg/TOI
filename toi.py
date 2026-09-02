@@ -2956,9 +2956,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.SafetySwitch_l.setStyleSheet(" color: rgb(150, 5, 5); font-weight: bold;")
         elif status == False:
             self.mntGui.SafetySwitch_l.setText("SAFETY CUTOFF OFF")
+            self.mntGui.SafetySwitch_c.setChecked(False)
             self.mntGui.SafetySwitch_l.setStyleSheet(" color: rgb(0, 0, 0); font-weight: normal;")
         elif status == True:
             self.mntGui.SafetySwitch_l.setText("SAFETY CUTOFF ON")
+            self.mntGui.SafetySwitch_c.setChecked(True)
             self.mntGui.SafetySwitch_l.setStyleSheet(" color: rgb(200, 120, 0); font-weight: bold;")
 
 
