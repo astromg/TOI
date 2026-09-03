@@ -1803,11 +1803,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if "auto_focus" in info["id"] and info["started"]==True and info["done"]==True:
                                 self.autofocus_started[tel] = False
 
-                                if "switchOnFocusAdjast" in self.ob[tel]["meta"].keys():
-                                    if self.ob[tel]["meta"]["switchOnFocusAdjast"]:
-                                        await self.update_log(f'turning focus adjust ON', "TOI RESPONDER",tel)
-                                        self.toi_switch_status[tel]["focus_adjust"] = True
-                                        await self.nats_toi_switch_synchro[tel].publish(data=self.toi_switch_status[tel], timeout=10)
+                                # if "switchOnFocusAdjast" in self.ob[tel]["meta"].keys():
+                                #     if self.ob[tel]["meta"]["switchOnFocusAdjast"]:
+                                #         await self.update_log(f'turning focus adjust ON', "TOI RESPONDER",tel)
+                                #         self.toi_switch_status[tel]["focus_adjust"] = True
+                                #         await self.nats_toi_switch_synchro[tel].publish(data=self.toi_switch_status[tel], timeout=10)
 
 
 
