@@ -468,6 +468,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def telescope_switched(self):
 
+        self.inst_tab_switch = True
         # DUPA
         #print(self.telescope_switch_status)
 
@@ -579,7 +580,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mount = self.telescope.get_mount()
         self.cover = self.telescope.get_covercalibrator()
         self.focus = self.telescope.get_focuser()
-        #self.m3 = self.telescope.get_tertiary()
+        self.m3 = self.telescope.get_tertiary()
         self.ccd = self.telescope.get_camera()
         self.guider = self.telescope.get_camera(id='guider')
         self.fw = self.telescope.get_filterwheel()
@@ -604,7 +605,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # ---------------------- run subscriptions from ocabox ----------------------
         await self.run_method_in_background(self.ephemeris.asubscribe_utc(self.ephem_update,time_of_data_tolerance=0.25),group="subscribe")
-
         #
         await self.run_method_in_background(self.user.asubscribe_safety_cutoff_state(self.safetySwitch_update),group="subscribe")
         #
@@ -624,14 +624,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.run_method_in_background(self.mount.asubscribe_tracking(self.mount_tracking_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_slewing(self.mount_slewing_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_motorstatus(self.mountMotors_update),group="subscribe")
-
-
-
         #
         await self.run_method_in_background(self.cover.asubscribe_coverstate(self.covers_update), group="subscribe")
         await self.run_method_in_background(self.focus.asubscribe_fansstatus(self.mirrorFans_update), group="subscribe")
         #
-        #await self.run_method_in_background(self.m3.asubscribe_nasmythport(self.m3_update), group="subscribe")
+        await self.run_method_in_background(self.m3.asubscribe_tertiarystatus(self.m3_update), group="subscribe")
         #
         await self.run_method_in_background(self.fw.asubscribe_connected(self.filter_con_update), group="subscribe")
         await self.run_method_in_background(self.fw.asubscribe_position(self.filter_update), group="subscribe")
@@ -699,10 +696,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
 
             self.updateWeather()
+
         except Exception as e:
             logger.warning(f'EXCEPTION 0: {e}')
 
         await self.update_log(f'{self.active_tel} telescope selected', "OPERATOR", self.active_tel)
+
 
 
     # ################### METODY POD NATS READERY ##################
@@ -950,49 +949,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
                     if self.inst_con and self.tel_alpaca_con:
-                        pix = QPixmap(12, 12)
-                        pix.fill(Qt.GlobalColor.transparent)
-                        painter = QPainter(pix)
-                        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-                        painter.setBrush(QColor("green"))
-                        painter.setPen(Qt.GlobalColor.black)
-                        painter.drawEllipse(0, 0, 11, 11)
-                        painter.end()
-                        icon =  QIcon(pix)
-
-                        self.instGui.tab.setTabText(0,"CCD")
-                        self.instGui.tab.setTabIcon(0,icon)
-                    else:
-                        pix = QPixmap(12, 12)
-                        pix.fill(Qt.GlobalColor.transparent)
-                        painter = QPainter(pix)
-                        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-                        painter.setBrush(QColor("red"))
-                        painter.setPen(Qt.GlobalColor.black)
-                        painter.drawEllipse(0, 0, 11, 11)
-                        painter.end()
-                        icon =  QIcon(pix)
-
-                        self.instGui.tab.setTabText(0,"CCD")
-                        self.instGui.tab.setTabIcon(0, icon)
+                        pass
 
             except Exception as e:
                 logger.warning(f'EXCEPTION 2: {e}')
             await asyncio.sleep(3)
-
-
-    # async def check_lights_loop(self):
-    #     while True:
-    #         if self.telescope:
-    #             req = requests.get('http://' + self.local_cfg[self.active_tel]["light_ip"] + '/api/rgbw/state', timeout=0.5)
-    #
-    #             if req.status_code != 200:
-    #                 val = int(req.json()["rgbw"]["desiredColor"], 16)
-    #                 if val > 0:
-    #                     self.mntGui.domeLights_c.setChecked(True)
-    #                 else:
-    #                     self.mntGui.domeLights_c.setChecked(False)
-    #         await asyncio.sleep(3)
 
 
 
@@ -3741,11 +3702,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.report["focus_adjust"]["type"] = type(var)
                     self.report["focus_adjust"]["repr"] = repr(var)
                     self.report["focus_adjust"]["efect"] = False
-                    print(self.report)
+                    #print(self.report)
 
                     if self.toi_switch_status[t]["focus_adjust"]:
                         self.report["focus_adjust"]["efect"] = True
-                        print(self.report)
+                        #print(self.report)
                         res = self.focus_difference(t)
                         if res:
                             diff, prev_foc = res
@@ -3817,32 +3778,66 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     # ############### M3 #####################
-    # tertiary - uncomment
 
 
-    # @qs.asyncSlot()
-    # async def set_m3(self):
-    #     await self.update_log(f'SET M3', "OPERATOR", self.active_tel)
-    #
-    #     if self.tel_acces[self.active_tel]:
-    #        m3_i = int(self.mntGui.M3_s.currentIndex())
-    #        await self.m3.aput_position(m3_i)
-    #        await self.update_log(f'setting M3 to {self.m3_list[m3_i]}', "TOI RESPONDER", self.active_tel)
-    #     else:
-    #         txt="WARNING: U don't have control"
-    #         self.WarningWindow(txt)
-    #
-    # async def m3_update(self, event):
-    #         pos = await self.m3.aget_nasmythport()
-    #
-    #         print(f'{pos}')
-    #         self.mntGui.M3_e.setText(str(pos))
-            # try:
-            #     self.mntGui.M3_e.setText(self.m3_list[pos])
-            #     self.mntGui.M3_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-            # except:
-            #     self.mntGui.M3_e.setText("--")
-            #     self.mntGui.M3_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+    @qs.asyncSlot()
+    async def set_m3(self):
+        await self.update_log(f'SET M3', "OPERATOR", self.active_tel)
+
+        if self.tel_acces[self.active_tel]:
+            name = self.mntGui.telM3_s.currentText()
+            m3_i = int(self.mntGui.telM3_s.currentIndex())
+            m3_i = str(m3_i + 1) # bo jest 1 based
+            await self.m3.aput_selectnasmythport(m3_i)
+            await self.update_log(f'setting M3 to {self.nats_cfg[self.active_tel]["tertiary_port_dict"][m3_i]}', "TOI RESPONDER", self.active_tel)
+
+            self.inst_tab_switch = True
+
+        else:
+            txt="WARNING: U don't have control"
+            self.WarningWindow(txt)
+
+    @qs.asyncSlot()
+    async def m3_update(self, event):
+            txt = "--"
+            moving = False
+            error = False
+            status = await self.m3.aget_tertiarystatus()
+            if status != None:
+                try:
+                    pos = str(status["NasmythPort"])
+                    moving = bool(status["Moving"])
+                    error = bool(status["ErrorRaised"])
+                    txt = self.nats_cfg[self.active_tel]["tertiary_port_dict"][str(pos)]
+                except Exception as e:
+                    logger.warning(f'EXCEPTION m3_update: {e}')
+
+            self.mntGui.telM3_e.setText(txt)
+
+            self.m3_pos = pos
+            self.m3_name = txt
+
+            # print("=======================")
+            # print(status)
+            # print("=======================")
+            if moving:
+                self.mntGui.telM3_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")  # blue
+            else:
+                self.mntGui.telM3_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")  # white
+
+            if error:
+                self.mntGui.telM3_e.setText(f"ERROR")
+                self.mntGui.telM3_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
+
+            if self.m3_name != None:
+                if self.inst_tab_switch:
+                    if "beso" in self.m3_name:
+                        self.instGui.tab.setCurrentWidget(self.instGui.beso_tab)
+                    else:
+                        self.instGui.tab.setCurrentWidget(self.instGui.ccd_tab)
+                self.inst_tab_switch = False
+
+            #{'Moving': False, 'MotorOn': True, 'ErrorRaised': False, 'Angle': 134.78500116616488, 'NasmythPort': 2, 'PortName': 'ADR10'}
 
     # ############### FILTERS #####################
 
@@ -4216,6 +4211,20 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 tmp = None
             self.nats_cfg[k]["focus_def_step"] = tmp
 
+            try:
+                tmp = nats_cfg[k]["observatory"]["components"]["tertiary"]["positions"]
+            except KeyError:
+                tmp = None
+
+            self.nats_cfg[k]["tertiary_dict"] = tmp
+
+            if tmp != None:
+                self.nats_cfg[k]["tertiary_port_dict"] = {(str(tmp[k]["port"])):k for k in tmp.keys() }
+                self.nats_cfg[k]["tertiary_port_list"] = [k for k in tmp.keys()]
+            else:
+                self.nats_cfg[k]["tertiary_port_dict"] = None
+                self.nats_cfg[k]["tertiary_port_list"] = None
+
         # statusty wszystkich teleskopow
 
         templeate = {
@@ -4377,6 +4386,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # M3
         self.m3_list = None
+        self.m3_pos = None
+        self.m3_name = None
+        self.inst_tab_switch = None
 
         # guider
         self.prev_guider_coo = []

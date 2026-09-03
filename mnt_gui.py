@@ -567,10 +567,10 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telM3_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         self.telM3_e.setText("")
         self.telM3_s = QComboBox()
-        #self.telM3_s.addItems()
+        #self.telM3_s.setItems([])
         self.telM3_p = QPushButton('SET')
-        self.telM3_p.setStyleSheet(" color: gray;")                 # tertiary - comment
-        #self.telFilter_p.clicked.connect(self.parent.set_m3)       # tertiary - uncomment
+        #self.telM3_p.setStyleSheet(" color: gray;")                 # tertiary - comment
+        self.telM3_p.clicked.connect(self.parent.set_m3)
 
 
         w=w+1
@@ -732,8 +732,9 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.nextAlt_e.textChanged.connect(self.updateNextRaDec)
         self.nextAz_e.textChanged.connect(self.updateNextRaDec)
 
-        if self.parent.m3_list != None:
-            self.telM3_s.addItems(self.parent.m3_list)
+        if self.parent.active_tel != None:
+            if self.parent.nats_cfg[self.parent.active_tel]["tertiary_port_list"] != None:
+                self.telM3_s.addItems(self.parent.nats_cfg[self.parent.active_tel]["tertiary_port_list"])
 
         if self.parent.filter_list != None:
             self.telFilter_s.addItems(self.parent.filter_list)

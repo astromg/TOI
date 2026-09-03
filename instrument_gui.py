@@ -44,8 +44,16 @@ class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidg
 
           self.tab=QTabWidget()
 
-          self.ccd_tab=CCDGui(self.parent,loop=self.parent.loop, client_api=self.parent.client_api)
-          self.tab.addTab(self.ccd_tab,"\U0001F534 CCD")
+          if self.parent.active_tel != None:
+              if self.parent.nats_cfg[self.parent.active_tel]["tertiary_port_list"] != None:
+                  if "beso" in self.parent.nats_cfg[self.parent.active_tel]["tertiary_port_list"]:
+                      self.beso_tab = BesoGui(self.parent, loop=self.parent.loop, client_api=self.parent.client_api)
+                      self.tab.addTab(self.beso_tab, "BESO")
+
+          self.ccd_tab=AndorGui(self.parent,loop=self.parent.loop, client_api=self.parent.client_api)
+          self.tab.addTab(self.ccd_tab,"ANDOR")
+
+
 
           self.layout.addWidget(self.tab,0,0)
 
@@ -70,7 +78,40 @@ class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidg
           super().closeEvent(event)
 
 
-class CCDGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+class BesoGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+    def __init__(self, parent, loop: QEventLoop = None, client_api=None):
+        BaseWindow.__init__(self)
+        BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
+
+        self.parent = parent
+        self.mkUI()
+
+    # =================== OKNO GLOWNE ====================================
+    def mkUI(self):
+
+        grid = QGridLayout()
+
+        w = 0
+        self.info1_l = QLabel("BESO spectrograph manual control")
+        self.info1_l.setStyleSheet("""font-size: 22px;font-weight: bold;""")
+        grid.addWidget(self.info1_l, w, 0)
+        w = w + 1
+        self.info2_l = QLabel("Let's be clear: No control here")
+        grid.addWidget(self.info2_l, w, 0)
+
+        self.setLayout(grid)
+
+    async def on_start_app(self):
+      await self.run_background_tasks()
+
+    @qs.asyncClose
+    async def closeEvent(self, event):
+      await self.stop_background_tasks()
+      await self.stop_background_methods()
+      super().closeEvent(event)
+
+
+class AndorGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
       def __init__(self, parent, loop: QEventLoop = None, client_api=None):
           BaseWindow.__init__(self)
           BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
