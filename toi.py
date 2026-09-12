@@ -2242,7 +2242,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if "seq" in self.plan[tel][i]["ob"] and self.tel_acces[tel] and \
                                     self.plan[tel][i]["meta"].get("slotTime_rm") != rm_now:
                                 calc_slotTime = True
-
+                        print(self.tel_acces[tel])
                         if calc_slotTime:
                             if "sec" in self.plan[tel][i]["ob"].keys():
                                 # slotTime = float(self.plan[tel][i]["ob"]["sec"])
