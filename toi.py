@@ -1638,6 +1638,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                         try:
                             self.ctc.reset_time()
+                            self.ctc.set_start_time(datetime.datetime.now(datetime.timezone.utc))
                             self.ctc.set_start_rmode(self.ccd_readoutmode)
                             self.ctc.set_telescope_start_az_alt(az=self.mount_az, alt=self.mount_alt)
 
