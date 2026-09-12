@@ -1330,10 +1330,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             #     logger.warning(f'TOI: EXCEPTION 8: {e}')
 
             #DUPA
-            try:
-                self.planGui.update_table()
-            except Exception as e:
-                logger.warning(f'TOI: EXCEPTION 9: {e}')
+            # try:
+            #     self.planGui.update_table()
+            # except Exception as e:
+            #     logger.warning(f'TOI: EXCEPTION 9: {e}')
 
             await asyncio.sleep(1)
 
@@ -2223,7 +2223,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.planGui.update_table()
                 else:
                     self.check_next_i(tel)
-                    print('dupa1')
                     ob_time = ephem.now()
                     first_ctc = True
                     rm_now = self.ccd_readoutmode
@@ -2241,7 +2240,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 calc_slotTime = True
                             if "seq" in self.plan[tel][i]["ob"] and \
                                     self.plan[tel][i]["meta"].get("slotTime_rm") != rm_now:
-                                print('dupa2')
                                 calc_slotTime = True
                         if calc_slotTime:
                             if "sec" in self.plan[tel][i]["ob"].keys():
