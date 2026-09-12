@@ -2239,7 +2239,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if "sunrise" in self.plan[tel][i]["ob"] or "sunset" in self.plan[tel][i]["ob"] \
                                 or "ut" in self.plan[tel][i]["ob"] or "sec" in self.plan[tel][i]["ob"] :
                                 calc_slotTime = True
-                            if "seq" in self.plan[tel][i]["ob"] and \
+                            if "seq" in self.plan[tel][i]["ob"] and self.tel_acces[tel] and \
                                     self.plan[tel][i]["meta"].get("slotTime_rm") != rm_now:
                                 calc_slotTime = True
 
