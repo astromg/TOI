@@ -2236,6 +2236,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         rm = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
                                         self.ctc_dat[tel].set_start_rmode(rm)
                                     if first_ctc:
+                                        rm = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
+                                        self.ctc_dat[tel].set_start_rmode(rm)
                                         self.ctc_dat[tel].reset_time()
                                         first_ctc = False
                                     slotTime = self.ctc_dat[tel].calc_time(blok)
