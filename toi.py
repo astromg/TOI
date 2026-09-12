@@ -2310,7 +2310,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         t2 = self.ob[tel]["meta"]["slotTime"] - t1
                                         if t2 < 0:
                                             t2 = 0
-                                        ob_time = ob_time - t2 * ephem.second
+
+                                        ob_time = ob_time - (self.ob[tel]["meta"]["slotTime"] - t2) * ephem.second
 
                         if "uobi" not in self.plan[tel][i]["ob"].keys():  # nadaje uobi jak nie ma
                             self.plan[tel][i]["ob"]["uobi"] = str(uuid.uuid4())[:8]
