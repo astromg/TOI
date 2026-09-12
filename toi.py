@@ -2198,7 +2198,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                     ob_time = ephem.now()
                     first_ctc = True
-                    rm_now = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
+                    rm_now = self.ccd_readoutmode
                     for i, tmp in enumerate(self.plan[tel]):
                         # liczenie czasu ob
 
@@ -2227,7 +2227,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 slotTime = 0
                                 if os.path.exists(self.local_cfg["ctc"]["ctc_base_folder"]):
                                     # ctc_ob_time = 0
-                                    if tel not in self.ctc_dat.keys() and tel is not None:
+                                    if tel not in self.ctc_dat.keys() and tel is not None and rm_now is not None:
                                         self.ctc_dat[tel] = CycleTimeCalc(
                                             telescope=tel,
                                             base_folder=self.local_cfg["ctc"]["ctc_base_folder"],
@@ -2239,7 +2239,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         logger.info(f'Update plan rm_modes {self.local_cfg["ctc"]["rm_modes_mhz"]}')
                                         self.ctc_dat[tel].set_start_rmode(rm_now)
                                         logger.info(f'Update plan rm_mode {rm_now}')
-                                    if first_ctc:
+                                    if first_ctcand and rm_now is not None:
                                         self.ctc_dat[tel].set_start_rmode(rm_now)
                                         logger.info(f'Update plan rm_mode {rm_now}')
                                         self.ctc_dat[tel].reset_time()
