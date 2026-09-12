@@ -32,7 +32,6 @@ from base_window import BaseWindow
 
 from toi_lib import *
 from tpg.telescope_plan_generator import TelescopePlanGenerator as tpg
-from ctc import CycleTimeCalc
 
 from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
 from pyaraucaria.ob_validator import ObsValidator

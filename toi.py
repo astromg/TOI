@@ -53,9 +53,6 @@ from serverish.messenger.msg_journal_pub import MsgJournalPublisher, get_journal
 from pyaraucaria.ob_validator import ObsValidator
 from pyaraucaria.focus import Focus
 
-#from ctc import CycleTimeCalc
-
-#from aux_gui import AuxGui
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 from calcFocus import calc_focus as calFoc
 from instrument_gui import InstrumentGui
@@ -1644,8 +1641,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             self.ctc.set_start_rmode(self.ccd_readoutmode)
                             self.ctc.set_telescope_start_az_alt(az=self.mount_az, alt=self.mount_alt)
 
-                            self.ctc_time = self.ctc.calc_time(self.ob[tel]["block"])
-                            self.ob[tel]["meta"]["slot_time"] = self.ctc_time
+                            self.ob[tel]["meta"]["slot_time"] = self.ctc.calc_time(self.ob[tel]["block"])
                             if self.ob[tel]["meta"]["slot_time"] == 0:
                                 print("** CTC time estimation = 0!")
                                 print("** OB: ",self.ob[tel]["block"])
@@ -2202,6 +2198,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.ctc_dat[tel].set_rm_modes(
                     self.local_cfg["ctc"]["rm_modes_mhz"]
                 )
+                # TODO do this properly
+                self.ctc_dat[tel].set_observatory_location(
+                    {'latitude': -24.598056, 'longitude': -70.196389, 'elevation': 2817}
+                )
                 logger.info(f'Update plan rm_modes {self.local_cfg["ctc"]["rm_modes_mhz"]}')
                 self.ctc_dat[tel].set_start_rmode(rm_now)
                 logger.info(f'Update plan rm_mode {rm_now}')
@@ -2247,13 +2247,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                             elif "seq" in self.plan[tel][i]["ob"].keys():
 
-                                blok = self.plan[tel][i]["block"]
-                                # slotTime = 0
                                 slotTime, first_ctc = self._calc_ctc(
                                     tel=tel,
                                     rm_now=rm_now,
                                     first_ctc=first_ctc,
-                                    prog_block=blok
+                                    prog_block=self.plan[tel][i]["block"]
                                 )
 
                                 if slotTime is None:
@@ -2267,48 +2265,73 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.plan[tel][i]["meta"]["slotTime_rm"] = rm_now
 
                             elif "ut" in self.plan[tel][i]["ob"].keys():
-                                ut = self.plan[tel][i]["ob"]["ut"]
-                                today = str(ephem.Date(ob_time)).split()[0]
-                                t_today = ephem.Date(f"{today} {ut}")
-                                t_tomorrow = ephem.Date(t_today + 1)
-                                dt_today = t_today - ob_time
-                                dt_tomorrow = t_tomorrow - ob_time
-                                if dt_today > 0 :
-                                    slotTime = dt_today
-                                else:
-                                    if dt_tomorrow > -1 * dt_today:
-                                        slotTime = 0
-                                    else:
-                                        slotTime = dt_tomorrow
+                                # ut = self.plan[tel][i]["ob"]["ut"]
+                                # today = str(ephem.Date(ob_time)).split()[0]
+                                # t_today = ephem.Date(f"{today} {ut}")
+                                # t_tomorrow = ephem.Date(t_today + 1)
+                                # dt_today = t_today - ob_time
+                                # dt_tomorrow = t_tomorrow - ob_time
+                                # if dt_today > 0 :
+                                #     slotTime = dt_today
+                                # else:
+                                #     if dt_tomorrow > -1 * dt_today:
+                                #         slotTime = 0
+                                #     else:
+                                #         slotTime = dt_tomorrow
+                                #
+                                # self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+                                slotTime, _ = self._calc_ctc(
+                                    tel=tel,
+                                    rm_now=rm_now,
+                                    first_ctc=False,
+                                    prog_block=self.plan[tel][i]["block"]
+                                )
 
-                                self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+                                self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                             elif "sunset" in self.plan[tel][i]["ob"].keys():
-                                oca = ephem.Observer()
-                                oca.date = ob_time
-                                oca.lat = self.observatory[0]
-                                oca.lon = self.observatory[1]
-                                oca.elevation = float(self.observatory[2])
-                                oca.horizon = str(self.plan[tel][i]["ob"]["sunset"])
-                                wait_sunset = oca.next_setting(ephem.Sun(), use_center=True)
-                                slotTime = wait_sunset - ob_time
-                                if slotTime > 0.5:
-                                    slotTime = 0
-                                self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+                                # oca = ephem.Observer()
+                                # oca.date = ob_time
+                                # oca.lat = self.observatory[0]
+                                # oca.lon = self.observatory[1]
+                                # oca.elevation = float(self.observatory[2])
+                                # oca.horizon = str(self.plan[tel][i]["ob"]["sunset"])
+                                # wait_sunset = oca.next_setting(ephem.Sun(), use_center=True)
+                                # slotTime = wait_sunset - ob_time
+                                # if slotTime > 0.5:
+                                #     slotTime = 0
+                                # self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+
+                                slotTime, _ = self._calc_ctc(
+                                    tel=tel,
+                                    rm_now=rm_now,
+                                    first_ctc=False,
+                                    prog_block=self.plan[tel][i]["block"]
+                                )
+
+                                self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                             elif "sunrise" in self.plan[tel][i]["ob"].keys():
-                                oca = ephem.Observer()
-                                oca.date = ob_time
-                                oca.lat = self.observatory[0]
-                                oca.lon = self.observatory[1]
-                                oca.elevation = float(self.observatory[2])
-                                oca.horizon = str(self.plan[tel][i]["ob"]["sunrise"])
-                                wait_sunrise = oca.next_rising(ephem.Sun(), use_center=True)
-                                slotTime = wait_sunrise - ob_time
-                                #print(wait_sunrise, ob_time, slotTime)
-                                if slotTime > 0.5:
-                                    slotTime = 0
-                                self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+                                # oca = ephem.Observer()
+                                # oca.date = ob_time
+                                # oca.lat = self.observatory[0]
+                                # oca.lon = self.observatory[1]
+                                # oca.elevation = float(self.observatory[2])
+                                # oca.horizon = str(self.plan[tel][i]["ob"]["sunrise"])
+                                # wait_sunrise = oca.next_rising(ephem.Sun(), use_center=True)
+                                # slotTime = wait_sunrise - ob_time
+                                # #print(wait_sunrise, ob_time, slotTime)
+                                # if slotTime > 0.5:
+                                #     slotTime = 0
+                                # self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+                                slotTime, _ = self._calc_ctc(
+                                    tel=tel,
+                                    rm_now=rm_now,
+                                    first_ctc=False,
+                                    prog_block=self.plan[tel][i]["block"]
+                                )
+
+                                self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                         # koniec liczenia czasu ob
 
