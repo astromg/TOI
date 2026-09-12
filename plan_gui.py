@@ -1596,6 +1596,13 @@ class PlotWindow(BaseWindow):
                         tmp_ok = False
 
                 if tmp_ok:
+                    # czas startu wiersza bierzemy z tabeli (meta["plan_ut"]), zeby wykres
+                    # nie liczyl wlasnej osi czasu. Brak plan_ut -> stara akumulacja slotTime.
+                    if "plan_ut" in self.parent.plan[i]["meta"].keys():
+                        try:
+                            self.t = ephem.Date(parse_plan_ut_str(str(self.parent.plan[i]["meta"]["plan_ut"])))
+                        except (ValueError, TypeError):
+                            pass
                     if 'command_name' in self.parent.plan[i]["ob"].keys():
                         if self.parent.plan[i]["ob"]["command_name"] == "STOP":
                             txt = "STOP"
