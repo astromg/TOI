@@ -2236,9 +2236,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         self.ctc_dat[tel].set_rm_modes(
                                             self.local_cfg["ctc"]["rm_modes_mhz"]
                                         )
+                                        logger.info(f'Update plan rm_modes {self.local_cfg["ctc"]["rm_modes_mhz"]}')
                                         self.ctc_dat[tel].set_start_rmode(rm_now)
+                                        logger.info(f'Update plan rm_mode {rm_now}')
                                     if first_ctc:
                                         self.ctc_dat[tel].set_start_rmode(rm_now)
+                                        logger.info(f'Update plan rm_mode {rm_now}')
                                         self.ctc_dat[tel].reset_time()
                                         first_ctc = False
                                     slotTime = self.ctc_dat[tel].calc_time(blok)
