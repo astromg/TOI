@@ -2223,7 +2223,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.planGui.update_table()
                 else:
                     self.check_next_i(tel)
-                    print(self.tel_acces[tel])
+                    print('dupa1')
                     ob_time = ephem.now()
                     first_ctc = True
                     rm_now = self.ccd_readoutmode
@@ -2239,8 +2239,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if "sunrise" in self.plan[tel][i]["ob"] or "sunset" in self.plan[tel][i]["ob"] \
                                 or "ut" in self.plan[tel][i]["ob"] or "sec" in self.plan[tel][i]["ob"] :
                                 calc_slotTime = True
-                            if "seq" in self.plan[tel][i]["ob"] and self.tel_acces[tel] and \
+                            if "seq" in self.plan[tel][i]["ob"] and \
                                     self.plan[tel][i]["meta"].get("slotTime_rm") != rm_now:
+                                print('dupa2')
                                 calc_slotTime = True
                         if calc_slotTime:
                             if "sec" in self.plan[tel][i]["ob"].keys():
