@@ -2235,14 +2235,23 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         else:
                             if not self.plan[tel][i]["meta"]["slotTime"]:
                                 calc_slotTime = True
-                            elif "sunrise" in self.plan[tel][i]["ob"] or "sunset" in self.plan[tel][i]["ob"] or "ut" in self.plan[tel][i]["ob"]:
+                            elif "sunrise" in self.plan[tel][i]["ob"] or "sunset" in self.plan[tel][i]["ob"] \
+                                or "ut" in self.plan[tel][i]["ob"] or "sec" in self.plan[tel][i]["ob"] :
                                 calc_slotTime = True
                             elif self.plan[tel][i]["meta"].get("slotTime_rm") != rm_now:  # zmienil sie tryb odczytu
                                 calc_slotTime = True
 
                         if calc_slotTime:
                             if "sec" in self.plan[tel][i]["ob"].keys():
-                                slotTime = float(self.plan[tel][i]["ob"]["sec"])
+                                # slotTime = float(self.plan[tel][i]["ob"]["sec"])
+                                # self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                                slotTime, _ = self._calc_ctc(
+                                    tel=tel,
+                                    rm_now=rm_now,
+                                    first_ctc=True,
+                                    prog_block=self.plan[tel][i]["block"]
+                                )
+
                                 self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                             elif "seq" in self.plan[tel][i]["ob"].keys():
@@ -2283,10 +2292,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 slotTime, _ = self._calc_ctc(
                                     tel=tel,
                                     rm_now=rm_now,
-                                    first_ctc=False,
+                                    first_ctc=True,
                                     prog_block=self.plan[tel][i]["block"]
                                 )
-
+                                logger.info(f'Ut will takes time {slotTime}')
                                 self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                             elif "sunset" in self.plan[tel][i]["ob"].keys():
@@ -2305,7 +2314,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 slotTime, _ = self._calc_ctc(
                                     tel=tel,
                                     rm_now=rm_now,
-                                    first_ctc=False,
+                                    first_ctc=True,
                                     prog_block=self.plan[tel][i]["block"]
                                 )
 
@@ -2327,7 +2336,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 slotTime, _ = self._calc_ctc(
                                     tel=tel,
                                     rm_now=rm_now,
-                                    first_ctc=False,
+                                    first_ctc=True,
                                     prog_block=self.plan[tel][i]["block"]
                                 )
 
