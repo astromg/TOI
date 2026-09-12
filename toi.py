@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Optional, Dict, Union, Any, Tuple
 import qasync as qs
 from ctc import CycleTimeCalc
+from pyaraucaria.ffs import FFS
 
 from PyQtX import QtWidgets, QtCore
 from astropy.io import fits
