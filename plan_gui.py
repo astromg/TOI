@@ -848,20 +848,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                         data["meta"] = {"ok":True}
                                         data["block"] = line
 
-                                        try:
-                                            if os.path.exists(self.parent.local_cfg["ctc"]["ctc_base_folder"]):
-                                                self.ctc = CycleTimeCalc(telescope=self.parent.active_tel,
-                                                                         base_folder=self.parent.local_cfg["ctc"][
-                                                                             "ctc_base_folder"], tpg=True)
-                                                self.ctc.set_rm_modes(self.parent.local_cfg["ctc"]["rm_modes_mhz"])
-                                                rm = int(self.parent.instGui.ccd_tab.inst_setRead_e.currentIndex())
-                                                self.ctc.set_start_rmode(
-                                                    rm)  # tutaj zmienic defoult read mode dla teleskopu
-                                                self.ctc.reset_time()
-                                                ctc_ob_time = self.ctc.calc_time(data["block"])
-                                                data["meta"]["slotTime"] = ctc_ob_time
-                                        except:
-                                            pass
+                                        # slotTime liczy update_plan (jedna instancja CTC, aktualny tryb odczytu)
 
                                     else:
                                         print(f'Error plan reading: \n {line}')

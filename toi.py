@@ -2198,6 +2198,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                     ob_time = ephem.now()
                     first_ctc = True
+                    rm_now = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
                     for i, tmp in enumerate(self.plan[tel]):
                         # liczenie czasu ob
 
@@ -2208,6 +2209,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if not self.plan[tel][i]["meta"]["slotTime"]:
                                 calc_slotTime = True
                             elif "sunrise" in self.plan[tel][i]["ob"] or "sunset" in self.plan[tel][i]["ob"] or "ut" in self.plan[tel][i]["ob"]:
+                                calc_slotTime = True
+                            elif self.plan[tel][i]["meta"].get("slotTime_rm") != rm_now:  # zmienil sie tryb odczytu
                                 calc_slotTime = True
 
                         if calc_slotTime:
@@ -2233,11 +2236,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         self.ctc_dat[tel].set_rm_modes(
                                             self.local_cfg["ctc"]["rm_modes_mhz"]
                                         )
-                                        rm = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
-                                        self.ctc_dat[tel].set_start_rmode(rm)
+                                        self.ctc_dat[tel].set_start_rmode(rm_now)
                                     if first_ctc:
-                                        rm = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
-                                        self.ctc_dat[tel].set_start_rmode(rm)
+                                        self.ctc_dat[tel].set_start_rmode(rm_now)
                                         self.ctc_dat[tel].reset_time()
                                         first_ctc = False
                                     slotTime = self.ctc_dat[tel].calc_time(blok)
@@ -2260,6 +2261,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 #         logger.warning(f'{self.telescope} CTC/SEQ time: {ctc_ob_time/seq_time}\n{self.plan[tel][i]["ob"]}')
 
                                 self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                                self.plan[tel][i]["meta"]["slotTime_rm"] = rm_now
 
                             elif "ut" in self.plan[tel][i]["ob"].keys():
                                 ut = self.plan[tel][i]["ob"]["ut"]
