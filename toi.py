@@ -25,7 +25,7 @@ import numpy
 import requests
 import yaml
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, Union, Any, Tuple
 import qasync as qs
 from ctc import CycleTimeCalc
 
@@ -2188,6 +2188,33 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.next_i[self.active_tel] = self.planGui.next_i
         self.update_plan(self.active_tel)
 
+    def _calc_ctc(
+            self, tel: str, rm_now: int, first_ctc: bool,
+            prog_block: Union[Dict[str, Any], str]) -> Tuple[Optional[float], bool]:
+
+        if os.path.exists(self.local_cfg["ctc"]["ctc_base_folder"]):
+            if tel not in self.ctc_dat.keys() and tel is not None and rm_now is not None:
+                self.ctc_dat[tel] = CycleTimeCalc(
+                    telescope=tel,
+                    base_folder=self.local_cfg["ctc"]["ctc_base_folder"],
+                    tpg=False
+                )
+                self.ctc_dat[tel].set_rm_modes(
+                    self.local_cfg["ctc"]["rm_modes_mhz"]
+                )
+                logger.info(f'Update plan rm_modes {self.local_cfg["ctc"]["rm_modes_mhz"]}')
+                self.ctc_dat[tel].set_start_rmode(rm_now)
+                logger.info(f'Update plan rm_mode {rm_now}')
+            if first_ctc and rm_now is not None:
+                self.ctc_dat[tel].set_start_rmode(rm_now)
+                logger.info(f'Update plan rm_mode {rm_now}')
+                self.ctc_dat[tel].reset_time()
+                first_ctc = False
+            slot_time = self.ctc_dat[tel].calc_time(prog_block)
+            return slot_time, first_ctc
+        else:
+            return None, first_ctc
+
     @qs.asyncSlot()
     async def update_plan(self,tel):
             if self.plan[tel] != None:
@@ -2219,49 +2246,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                             elif "seq" in self.plan[tel][i]["ob"].keys():
-                                # seq = self.plan[tel][i]["ob"]["seq"]
+
                                 blok = self.plan[tel][i]["block"]
-                                slotTime = 0
-                                # seq_time = ObsValidator.calc_seq_time(seq, overhead=self.overhed, base_time=5, filter_overhead=2, auto_time=5)
+                                # slotTime = 0
+                                slotTime, first_ctc = self._calc_ctc(
+                                    tel=tel,
+                                    rm_now=rm_now,
+                                    first_ctc=first_ctc,
+                                    prog_block=blok
+                                )
 
-                                slotTime = 0
-                                if os.path.exists(self.local_cfg["ctc"]["ctc_base_folder"]):
-                                    # ctc_ob_time = 0
-                                    if tel not in self.ctc_dat.keys() and tel is not None and rm_now is not None:
-                                        self.ctc_dat[tel] = CycleTimeCalc(
-                                            telescope=tel,
-                                            base_folder=self.local_cfg["ctc"]["ctc_base_folder"],
-                                            tpg=False
-                                        )
-                                        self.ctc_dat[tel].set_rm_modes(
-                                            self.local_cfg["ctc"]["rm_modes_mhz"]
-                                        )
-                                        logger.info(f'Update plan rm_modes {self.local_cfg["ctc"]["rm_modes_mhz"]}')
-                                        self.ctc_dat[tel].set_start_rmode(rm_now)
-                                        logger.info(f'Update plan rm_mode {rm_now}')
-                                    if first_ctc and rm_now is not None:
-                                        self.ctc_dat[tel].set_start_rmode(rm_now)
-                                        logger.info(f'Update plan rm_mode {rm_now}')
-                                        self.ctc_dat[tel].reset_time()
-                                        first_ctc = False
-                                    slotTime = self.ctc_dat[tel].calc_time(blok)
-                                        # self.ctc = CycleTimeCalc(telescope=self.parent.active_tel,
-                                        #                          base_folder=self.parent.parent.local_cfg["ctc"][
-                                        #                              "ctc_base_folder"],
-                                        #                          tpg=True)
-                                        # self.ctc.set_rm_modes(self.parent.parent.local_cfg["ctc"]["rm_modes_mhz"])
-                                        # rm = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
-                                        # self.ctc.set_start_rmode(rm)
-                                        # self.ctc.reset_time()
-                                        # ctc_ob_time = self.ctc.calc_time(blok)
-
-                                # if slotTime == 0:
-                                #     r = ctc_ob_time/seq_time
-                                #     if 0.5 < r < 5:
-                                #         slotTime = ctc_ob_time
-                                #     else:
-                                #         slotTime = seq_time
-                                #         logger.warning(f'{self.telescope} CTC/SEQ time: {ctc_ob_time/seq_time}\n{self.plan[tel][i]["ob"]}')
+                                if slotTime is None:
+                                    seq = self.plan[tel][i]["ob"]["seq"]
+                                    slotTime = ObsValidator.calc_seq_time(
+                                        seq, overhead=self.overhed, base_time=5,
+                                        filter_overhead=2, auto_time=5
+                                    )
 
                                 self.plan[tel][i]["meta"]["slotTime"] = slotTime
                                 self.plan[tel][i]["meta"]["slotTime_rm"] = rm_now
