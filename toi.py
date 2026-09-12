@@ -2248,7 +2248,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 slotTime, _ = self._calc_ctc(
                                     tel=tel,
                                     rm_now=rm_now,
-                                    first_ctc=True,
+                                    first_ctc=first_ctc,
                                     prog_block=self.plan[tel][i]["block"]
                                 )
 
@@ -2292,7 +2292,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 slotTime, _ = self._calc_ctc(
                                     tel=tel,
                                     rm_now=rm_now,
-                                    first_ctc=True,
+                                    first_ctc=first_ctc,
                                     prog_block=self.plan[tel][i]["block"]
                                 )
                                 logger.info(f'Ut will takes time {slotTime}')
@@ -2314,7 +2314,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 slotTime, _ = self._calc_ctc(
                                     tel=tel,
                                     rm_now=rm_now,
-                                    first_ctc=True,
+                                    first_ctc=first_ctc,
                                     prog_block=self.plan[tel][i]["block"]
                                 )
 
@@ -2336,7 +2336,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 slotTime, _ = self._calc_ctc(
                                     tel=tel,
                                     rm_now=rm_now,
-                                    first_ctc=True,
+                                    first_ctc=first_ctc,
                                     prog_block=self.plan[tel][i]["block"]
                                 )
 
