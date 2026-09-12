@@ -2343,7 +2343,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                         # koniec liczenia czasu ob
-
+                        print("xxxxxxxxxxxxxx")
+                        print(self.plan[tel])
+                        print("xxxxxxxxxxxxxx")
                         if i == self.next_i[tel] or i == self.current_i[tel]:
                             if i == self.current_i[tel]:
                                 if "slotTime" in self.ob[tel]["meta"].keys():
@@ -2353,6 +2355,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         if t2 < 0:
                                             t2 = 0
                                         ob_time = ob_time - t2 * ephem.second
+
                         if "uobi" not in self.plan[tel][i]["ob"].keys():  # nadaje uobi jak nie ma
                             self.plan[tel][i]["ob"]["uobi"] = str(uuid.uuid4())[:8]
                         # if len(str(self.plan[tel][i]["ob"]["uobi"])) < 1:
