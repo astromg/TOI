@@ -2368,7 +2368,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         self.plan[tel][i]["meta"]["slotTime"] = slotTime
                                 else:
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime
-                        current_time_lenght += self.plan[tel][i]["meta"]["slotTime"]
+                        if "slotTime" in self.plan[tel][i]["meta"].keys():
+                            current_time_lenght += self.plan[tel][i]["meta"]["slotTime"]
                         # else:
                         #     _ = self.ctc_dat[tel].calc_time(self.plan[tel][i]["block"])
 
