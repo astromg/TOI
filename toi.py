@@ -2282,25 +2282,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.plan[tel][i]["meta"]["slotTime"] = slotTime
                                 self.plan[tel][i]["meta"]["slotTime_rm"] = rm_now
 
-                            elif "ut" in self.plan[tel][i]["ob"].keys():
-                                # ut = self.plan[tel][i]["ob"]["ut"]
-                                # today = str(ephem.Date(ob_time)).split()[0]
-                                # t_today = ephem.Date(f"{today} {ut}")
-                                # t_tomorrow = ephem.Date(t_today + 1)
-                                # dt_today = t_today - ob_time
-                                # dt_tomorrow = t_tomorrow - ob_time
-                                # if dt_today > 0 :
-                                #     slotTime = dt_today
-                                # else:
-                                #     if dt_tomorrow > -1 * dt_today:
-                                #         slotTime = 0
-                                #     else:
-                                #         slotTime = dt_tomorrow
-                                #
-                                # self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
-                                print(f'xxxxxxxxxxxx{self.plan[tel][i]["block"]}xxxxxxxxxxxxxxx')
-                                # print(self.ctc_dat[tel]._start_time + datetime.timedelta(seconds=self.ctc_dat[tel]._time_length))
-                                # # print(self.ctc_dat[tel]._time_length_list)
+                            elif "ut" in self.plan[tel][i]["ob"].keys() or \
+                                    "sunset" in self.plan[tel][i]["ob"].keys() \
+                                    or "sunrise" in self.plan[tel][i]["ob"].keys():
                                 slotTime, _ = self._calc_ctc(
                                     tel=tel,
                                     rm_now=rm_now,
@@ -2308,75 +2292,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     prog_block=self.plan[tel][i]["block"],
                                     start_time=start_time + datetime.timedelta(seconds=current_time_lenght)
                                 )
-                                print(self.ctc_dat[tel]._start_time)
-                                print('xxxxxxxxxxxxxxxxxxxxxxxxxxx')
-                                logger.info(f'Ut will takes time {slotTime}')
                                 if 'slotTime' in self.plan[tel][i]["meta"]:
                                     if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
                                         self.plan[tel][i]["meta"]["slotTime"] = slotTime
                                 else:
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
-                            elif "sunset" in self.plan[tel][i]["ob"].keys():
-                                # oca = ephem.Observer()
-                                # oca.date = ob_time
-                                # oca.lat = self.observatory[0]
-                                # oca.lon = self.observatory[1]
-                                # oca.elevation = float(self.observatory[2])
-                                # oca.horizon = str(self.plan[tel][i]["ob"]["sunset"])
-                                # wait_sunset = oca.next_setting(ephem.Sun(), use_center=True)
-                                # slotTime = wait_sunset - ob_time
-                                # if slotTime > 0.5:
-                                #     slotTime = 0
-                                # self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
-
-                                slotTime, _ = self._calc_ctc(
-                                    tel=tel,
-                                    rm_now=rm_now,
-                                    first_ctc=first_ctc,
-                                    prog_block=self.plan[tel][i]["block"]
-                                )
-
-                                if 'slotTime' in self.plan[tel][i]["meta"]:
-                                    if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
-                                        self.plan[tel][i]["meta"]["slotTime"] = slotTime
-                                else:
-                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime
-
-                            elif "sunrise" in self.plan[tel][i]["ob"].keys():
-                                # oca = ephem.Observer()
-                                # oca.date = ob_time
-                                # oca.lat = self.observatory[0]
-                                # oca.lon = self.observatory[1]
-                                # oca.elevation = float(self.observatory[2])
-                                # oca.horizon = str(self.plan[tel][i]["ob"]["sunrise"])
-                                # wait_sunrise = oca.next_rising(ephem.Sun(), use_center=True)
-                                # slotTime = wait_sunrise - ob_time
-                                # #print(wait_sunrise, ob_time, slotTime)
-                                # if slotTime > 0.5:
-                                #     slotTime = 0
-                                # self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
-                                slotTime, _ = self._calc_ctc(
-                                    tel=tel,
-                                    rm_now=rm_now,
-                                    first_ctc=first_ctc,
-                                    prog_block=self.plan[tel][i]["block"]
-                                )
-
-                                if 'slotTime' in self.plan[tel][i]["meta"]:
-                                    if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
-                                        self.plan[tel][i]["meta"]["slotTime"] = slotTime
-                                else:
-                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime
                         if "slotTime" in self.plan[tel][i]["meta"].keys():
                             current_time_lenght += self.plan[tel][i]["meta"]["slotTime"]
-                        # else:
-                        #     _ = self.ctc_dat[tel].calc_time(self.plan[tel][i]["block"])
 
-                        # koniec liczenia czasu ob
-                        # print("xxxxxxxxxxxxxx")
-                        # print(self.plan[tel])
-                        # print("xxxxxxxxxxxxxx")
                         if i == self.next_i[tel] or i == self.current_i[tel]:
                             if i == self.current_i[tel]:
                                 if "slotTime" in self.ob[tel]["meta"].keys():
