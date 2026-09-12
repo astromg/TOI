@@ -2203,9 +2203,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.ctc_dat[tel].set_observatory_location(
                     {'latitude': -24.598056, 'longitude': -70.196389, 'elevation': 2817}
                 )
-                logger.info(f'Update plan rm_modes {self.local_cfg["ctc"]["rm_modes_mhz"]}')
                 self.ctc_dat[tel].set_start_rmode(rm_now)
-                logger.info(f'Update plan rm_mode {rm_now}')
             if first_ctc and rm_now is not None:
                 self.ctc_dat[tel].reset_time()
                 self.ctc_dat[tel].set_start_rmode(rm_now)
@@ -2213,7 +2211,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.ctc_dat[tel].set_start_time(start_time)
                 else:
                     self.ctc_dat[tel].set_start_time(datetime.datetime.now(datetime.timezone.utc))
-                logger.info(f'Update plan rm_mode {rm_now}')
                 first_ctc = False
             slot_time = self.ctc_dat[tel].calc_time(prog_block)
             return slot_time, first_ctc
