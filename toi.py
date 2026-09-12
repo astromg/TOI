@@ -2186,7 +2186,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     def _calc_ctc(
             self, tel: str, rm_now: int, first_ctc: bool,
-            prog_block: Union[Dict[str, Any], str]) -> Tuple[Optional[float], bool]:
+            prog_block: Union[Dict[str, Any], str], start_time: Optional[datetime.datetime] = None) -> Tuple[Optional[float], bool]:
 
         if os.path.exists(self.local_cfg["ctc"]["ctc_base_folder"]):
             if tel not in self.ctc_dat.keys() and tel is not None and rm_now is not None:
@@ -2208,7 +2208,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if first_ctc and rm_now is not None:
                 self.ctc_dat[tel].reset_time()
                 self.ctc_dat[tel].set_start_rmode(rm_now)
-                self.ctc_dat[tel].set_start_time(datetime.datetime.now(datetime.timezone.utc))
+                if start_time is not None:
+                    self.ctc_dat[tel].set_start_time(start_time)
+                else:
+                    self.ctc_dat[tel].set_start_time(datetime.datetime.now(datetime.timezone.utc))
                 logger.info(f'Update plan rm_mode {rm_now}')
                 first_ctc = False
             slot_time = self.ctc_dat[tel].calc_time(prog_block)
@@ -2226,6 +2229,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     ob_time = ephem.now()
                     first_ctc = True
                     rm_now = self.ccd_readoutmode
+                    start_time = datetime.datetime.now(datetime.timezone.utc)
+                    # TODO do curren time delay list or sum
+                    current_time_lenght = 0
                     for i, tmp in enumerate(self.plan[tel]):
                         # liczenie czasu ob
 
@@ -2293,16 +2299,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 #
                                 # self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
                                 print(f'xxxxxxxxxxxx{self.plan[tel][i]["block"]}xxxxxxxxxxxxxxx')
-                                print(self.ctc_dat[tel]._start_time + datetime.timedelta(seconds=self.ctc_dat[tel]._time_length))
-                                # print(self.ctc_dat[tel]._time_length_list)
+                                # print(self.ctc_dat[tel]._start_time + datetime.timedelta(seconds=self.ctc_dat[tel]._time_length))
+                                # # print(self.ctc_dat[tel]._time_length_list)
                                 slotTime, _ = self._calc_ctc(
                                     tel=tel,
                                     rm_now=rm_now,
-                                    first_ctc=first_ctc,
-                                    prog_block=self.plan[tel][i]["block"]
+                                    first_ctc=True,
+                                    prog_block=self.plan[tel][i]["block"],
+                                    start_time=start_time + datetime.timedelta(seconds=current_time_lenght)
                                 )
                                 print(self.ctc_dat[tel]._start_time)
-                                print(self.ctc_dat[tel]._time_length_list)
                                 print('xxxxxxxxxxxxxxxxxxxxxxxxxxx')
                                 logger.info(f'Ut will takes time {slotTime}')
                                 if 'slotTime' in self.plan[tel][i]["meta"]:
@@ -2362,8 +2368,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         self.plan[tel][i]["meta"]["slotTime"] = slotTime
                                 else:
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime
-                        else:
-                            _ = self.ctc_dat[tel].calc_time(self.plan[tel][i]["block"])
+                        current_time_lenght += self.plan[tel][i]["meta"]["slotTime"]
+                        # else:
+                        #     _ = self.ctc_dat[tel].calc_time(self.plan[tel][i]["block"])
 
                         # koniec liczenia czasu ob
                         # print("xxxxxxxxxxxxxx")
