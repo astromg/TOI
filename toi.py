@@ -2236,10 +2236,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         else:
                             if not self.plan[tel][i]["meta"]["slotTime"]:
                                 calc_slotTime = True
-                            elif "sunrise" in self.plan[tel][i]["ob"] or "sunset" in self.plan[tel][i]["ob"] \
+                            if "sunrise" in self.plan[tel][i]["ob"] or "sunset" in self.plan[tel][i]["ob"] \
                                 or "ut" in self.plan[tel][i]["ob"] or "sec" in self.plan[tel][i]["ob"] :
                                 calc_slotTime = True
-                            elif self.plan[tel][i]["meta"].get("slotTime_rm") != rm_now:  # zmienil sie tryb odczytu
+                            if "seq" in self.plan[tel][i]["ob"] and \
+                                    self.plan[tel][i]["meta"].get("slotTime_rm") != rm_now:
                                 calc_slotTime = True
 
                         if calc_slotTime:
