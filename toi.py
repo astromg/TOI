@@ -2360,9 +2360,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                         # koniec liczenia czasu ob
-                        print("xxxxxxxxxxxxxx")
-                        print(self.plan[tel])
-                        print("xxxxxxxxxxxxxx")
+                        # print("xxxxxxxxxxxxxx")
+                        # print(self.plan[tel])
+                        # print("xxxxxxxxxxxxxx")
                         if i == self.next_i[tel] or i == self.current_i[tel]:
                             if i == self.current_i[tel]:
                                 if "slotTime" in self.ob[tel]["meta"].keys():
