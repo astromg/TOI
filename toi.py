@@ -2356,6 +2356,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         self.plan[tel][i]["meta"]["slotTime"] = slotTime
                                 else:
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                        else:
+                            _ = self.ctc_dat[tel].calc_time(self.plan[tel][i]["block"])
 
                         # koniec liczenia czasu ob
                         # print("xxxxxxxxxxxxxx")
