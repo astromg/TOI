@@ -2252,7 +2252,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     first_ctc=first_ctc,
                                     prog_block=self.plan[tel][i]["block"]
                                 )
-                                if self.plan[tel][i]["meta"]["slotTime"] - slotTime > 60:
+                                if 'slotTime' in self.plan[tel][i]["meta"]:
+                                    if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
+                                        self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                                else:
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                             elif "seq" in self.plan[tel][i]["ob"].keys():
@@ -2297,7 +2300,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     prog_block=self.plan[tel][i]["block"]
                                 )
                                 logger.info(f'Ut will takes time {slotTime}')
-                                if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
+                                if 'slotTime' in self.plan[tel][i]["meta"]:
+                                    if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
+                                        self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                                else:
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                             elif "sunset" in self.plan[tel][i]["ob"].keys():
@@ -2320,7 +2326,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     prog_block=self.plan[tel][i]["block"]
                                 )
 
-                                if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
+                                if 'slotTime' in self.plan[tel][i]["meta"]:
+                                    if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
+                                        self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                                else:
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                             elif "sunrise" in self.plan[tel][i]["ob"].keys():
@@ -2343,7 +2352,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     prog_block=self.plan[tel][i]["block"]
                                 )
 
-                                if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
+                                if 'slotTime' in self.plan[tel][i]["meta"]:
+                                    if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
+                                        self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                                else:
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
                         # koniec liczenia czasu ob
