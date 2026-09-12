@@ -2227,19 +2227,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     slotTime = 0
                                     if os.path.exists(self.local_cfg["ctc"]["ctc_base_folder"]):
                                         # ctc_ob_time = 0
-                                        if self.active_tel not in self.ctc_dat.keys() and self.active_tel is not None:
-                                            self.ctc_dat[self.active_tel] = CycleTimeCalc(
-                                                telescope=self.active_tel,
+                                        if tel not in self.ctc_dat.keys() and tel is not None:
+                                            self.ctc_dat[tel] = CycleTimeCalc(
+                                                telescope=tel,
                                                 base_folder=self.local_cfg["ctc"]["ctc_base_folder"],
                                                 tpg=False
                                             )
-                                            self.ctc_dat[self.active_tel].set_rm_modes(
+                                            self.ctc_dat[tel].set_rm_modes(
                                                 self.local_cfg["ctc"]["rm_modes_mhz"]
                                             )
                                             rm = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
-                                            self.ctc_dat[self.active_tel].set_start_rmode(rm)
-                                        self.ctc_dat[self.active_tel].reset_time()
-                                        slotTime = self.ctc_dat[self.active_tel].calc_time(blok)
+                                            self.ctc_dat[tel].set_start_rmode(rm)
+                                        self.ctc_dat[tel].reset_time()
+                                        slotTime = self.ctc_dat[tel].calc_time(blok)
                                             # self.ctc = CycleTimeCalc(telescope=self.parent.active_tel,
                                             #                          base_folder=self.parent.parent.local_cfg["ctc"][
                                             #                              "ctc_base_folder"],
