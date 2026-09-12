@@ -27,6 +27,8 @@ import yaml
 from pathlib import Path
 from typing import Optional, Dict
 import qasync as qs
+from ctc import CycleTimeCalc
+
 from PyQtX import QtWidgets, QtCore
 from astropy.io import fits
 
@@ -97,6 +99,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cctv: Optional[CCTV] = None
         self.ephemeris: Optional[Ephemeris] = None
         self.app = app
+        self.ctc_dat: Dict = {}
+        self.active_tel: Optional[str] = None
 
         self.local_cfg = local_cfg
 
@@ -2218,12 +2222,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     seq = self.plan[tel][i]["ob"]["seq"]
                                     blok = self.plan[tel][i]["block"]
                                     slotTime = 0
-                                    seq_time = ObsValidator.calc_seq_time(seq, overhead=self.overhed, base_time=5, filter_overhead=2, auto_time=5)
-                                    try:
-                                        ctc_ob_time = 0
-                                        if os.path.exists(self.local_cfg["ctc"]["ctc_base_folder"]):
-                                            ctc_ob_time = 0
-                                            # self.ctc = CycleTimeCalc(telescope=self.parent.parent.active_tel,
+                                    # seq_time = ObsValidator.calc_seq_time(seq, overhead=self.overhed, base_time=5, filter_overhead=2, auto_time=5)
+
+                                    slotTime = 0
+                                    if os.path.exists(self.local_cfg["ctc"]["ctc_base_folder"]):
+                                        # ctc_ob_time = 0
+                                        if self.active_tel not in self.ctc_dat.keys() and self.active_tel is not None:
+                                            self.ctc_dat[self.active_tel] = CycleTimeCalc(
+                                                telescope=self.active_tel,
+                                                base_folder=self.local_cfg["ctc"]["ctc_base_folder"],
+                                                tpg=False
+                                            )
+                                            self.ctc_dat[self.active_tel].set_rm_modes(
+                                                self.local_cfg["ctc"]["rm_modes_mhz"]
+                                            )
+                                            rm = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
+                                            self.ctc_dat[self.active_tel].set_start_rmode(rm)
+                                        self.ctc_dat[self.active_tel].reset_time()
+                                        slotTime = self.ctc_dat[self.active_tel].calc_time(blok)
+                                            # self.ctc = CycleTimeCalc(telescope=self.parent.active_tel,
                                             #                          base_folder=self.parent.parent.local_cfg["ctc"][
                                             #                              "ctc_base_folder"],
                                             #                          tpg=True)
@@ -2232,15 +2249,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                             # self.ctc.set_start_rmode(rm)
                                             # self.ctc.reset_time()
                                             # ctc_ob_time = self.ctc.calc_time(blok)
-                                    except:
-                                        pass
-                                    if seq_time:
-                                        r = ctc_ob_time/seq_time
-                                        if 0.5 < r < 5:
-                                            slotTime = ctc_ob_time
-                                        else:
-                                            slotTime = seq_time
-                                            logger.warning(f'{self.telescope} CTC/SEQ time: {ctc_ob_time/seq_time}\n{self.plan[tel][i]["ob"]}')
+
+                                    # if slotTime == 0:
+                                    #     r = ctc_ob_time/seq_time
+                                    #     if 0.5 < r < 5:
+                                    #         slotTime = ctc_ob_time
+                                    #     else:
+                                    #         slotTime = seq_time
+                                    #         logger.warning(f'{self.telescope} CTC/SEQ time: {ctc_ob_time/seq_time}\n{self.plan[tel][i]["ob"]}')
 
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
