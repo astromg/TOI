@@ -2293,7 +2293,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 #
                                 # self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
                                 print(f'xxxxxxxxxxxx{self.plan[tel][i]["block"]}xxxxxxxxxxxxxxx')
-                                print(self.ctc_dat[tel]._start_time + datetime.timedelta(seconds=self._time_length))
+                                print(self.ctc_dat[tel]._start_time + datetime.timedelta(seconds=self.ctc_dat[tel]._time_length))
                                 # print(self.ctc_dat[tel]._time_length_list)
                                 slotTime, _ = self._calc_ctc(
                                     tel=tel,
