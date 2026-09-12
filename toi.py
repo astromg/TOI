@@ -2239,7 +2239,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         logger.info(f'Update plan rm_modes {self.local_cfg["ctc"]["rm_modes_mhz"]}')
                                         self.ctc_dat[tel].set_start_rmode(rm_now)
                                         logger.info(f'Update plan rm_mode {rm_now}')
-                                    if first_ctcand and rm_now is not None:
+                                    if first_ctc and rm_now is not None:
                                         self.ctc_dat[tel].set_start_rmode(rm_now)
                                         logger.info(f'Update plan rm_mode {rm_now}')
                                         self.ctc_dat[tel].reset_time()
