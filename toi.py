@@ -2292,12 +2292,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 #         slotTime = dt_tomorrow
                                 #
                                 # self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+                                print(f'xxxxxxxxxxxx{self.plan[tel][i]["block"]}xxxxxxxxxxxxxxx')
+                                print(self.ctc_dat[tel]._start_time)
+                                print(self.ctc_dat[tel]._time_length_list)
                                 slotTime, _ = self._calc_ctc(
                                     tel=tel,
                                     rm_now=rm_now,
                                     first_ctc=first_ctc,
                                     prog_block=self.plan[tel][i]["block"]
                                 )
+                                print(self.ctc_dat[tel]._start_time)
+                                print(self.ctc_dat[tel]._time_length_list)
+                                print('xxxxxxxxxxxxxxxxxxxxxxxxxxx')
                                 logger.info(f'Ut will takes time {slotTime}')
                                 if 'slotTime' in self.plan[tel][i]["meta"]:
                                     if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
@@ -2407,7 +2413,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if "slotTime" in self.plan[tel][i]["meta"].keys():
                                 slotTime = self.plan[tel][i]["meta"]["slotTime"]
                                 ob_time = ob_time + ephem.second * slotTime
-
 
                 # except Exception as e:
                 #     logger.warning(f'TOI: EXCEPTION 16: {e}')
