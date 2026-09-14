@@ -25,8 +25,11 @@ import numpy
 import requests
 import yaml
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, Union, Any, Tuple
 import qasync as qs
+from ctc import CycleTimeCalc
+from pyaraucaria.ffs import FFS
+
 from PyQtX import QtWidgets, QtCore
 from astropy.io import fits
 
@@ -51,9 +54,6 @@ from serverish.messenger.msg_journal_pub import MsgJournalPublisher, get_journal
 from pyaraucaria.ob_validator import ObsValidator
 from pyaraucaria.focus import Focus
 
-#from ctc import CycleTimeCalc
-
-#from aux_gui import AuxGui
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 from calcFocus import calc_focus as calFoc
 from instrument_gui import InstrumentGui
@@ -97,6 +97,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cctv: Optional[CCTV] = None
         self.ephemeris: Optional[Ephemeris] = None
         self.app = app
+        self.ctc_dat: Dict = {}
+        self.active_tel: Optional[str] = None
 
         self.local_cfg = local_cfg
 
@@ -1329,10 +1331,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             #     logger.warning(f'TOI: EXCEPTION 8: {e}')
 
             #DUPA
-            try:
-                self.planGui.update_table()
-            except Exception as e:
-                logger.warning(f'TOI: EXCEPTION 9: {e}')
+            # try:
+            #     self.planGui.update_table()
+            # except Exception as e:
+            #     logger.warning(f'TOI: EXCEPTION 9: {e}')
 
             await asyncio.sleep(1)
 
@@ -1637,11 +1639,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                         try:
                             self.ctc.reset_time()
+                            self.ctc.set_start_time(datetime.datetime.now(datetime.timezone.utc))
                             self.ctc.set_start_rmode(self.ccd_readoutmode)
                             self.ctc.set_telescope_start_az_alt(az=self.mount_az, alt=self.mount_alt)
 
-                            self.ctc_time = self.ctc.calc_time(self.ob[tel]["block"])
-                            self.ob[tel]["meta"]["slot_time"] = self.ctc_time
+                            self.ob[tel]["meta"]["slot_time"] = self.ctc.calc_time(self.ob[tel]["block"])
                             if self.ob[tel]["meta"]["slot_time"] == 0:
                                 print("** CTC time estimation = 0!")
                                 print("** OB: ",self.ob[tel]["block"])
@@ -2184,156 +2186,165 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.next_i[self.active_tel] = self.planGui.next_i
         self.update_plan(self.active_tel)
 
+    def _calc_ctc(
+            self, tel: str, rm_now: int, first_ctc: bool,
+            prog_block: Union[Dict[str, Any], str], start_time: Optional[datetime.datetime] = None) -> Tuple[Optional[float], bool]:
+
+        if os.path.exists(self.local_cfg["ctc"]["ctc_base_folder"]):
+            if tel not in self.ctc_dat.keys() and tel is not None and rm_now is not None:
+                self.ctc_dat[tel] = CycleTimeCalc(
+                    telescope=tel,
+                    base_folder=self.local_cfg["ctc"]["ctc_base_folder"],
+                    tpg=False
+                )
+                self.ctc_dat[tel].set_rm_modes(
+                    self.local_cfg["ctc"]["rm_modes_mhz"]
+                )
+                # TODO do this properly
+                self.ctc_dat[tel].set_observatory_location(
+                    {'latitude': -24.598056, 'longitude': -70.196389, 'elevation': 2817}
+                )
+                self.ctc_dat[tel].set_start_rmode(rm_now)
+            if first_ctc and rm_now is not None:
+                self.ctc_dat[tel].reset_time()
+                self.ctc_dat[tel].set_start_rmode(rm_now)
+                if start_time is not None:
+                    self.ctc_dat[tel].set_start_time(start_time)
+                else:
+                    self.ctc_dat[tel].set_start_time(datetime.datetime.now(datetime.timezone.utc))
+                first_ctc = False
+            slot_time = self.ctc_dat[tel].calc_time(prog_block)
+            return slot_time, first_ctc
+        else:
+            return None, first_ctc
 
     @qs.asyncSlot()
     async def update_plan(self,tel):
             if self.plan[tel] != None:
-                if True:
-                #try:
-                    if len(self.plan[tel]) == 0:
-                        self.planGui.update_table()
-                    else:
-                        self.check_next_i(tel)
+                if len(self.plan[tel]) == 0:
+                    self.planGui.update_table()
+                else:
+                    self.check_next_i(tel)
+                    ob_time = ephem.now()
+                    first_ctc = True
+                    rm_now = self.ccd_readoutmode
+                    start_time = datetime.datetime.now(datetime.timezone.utc)
+                    # TODO do curren time delay list or sum
+                    current_time_lenght = 0
+                    for i, tmp in enumerate(self.plan[tel]):
+                        # liczenie czasu ob
 
-                        ob_time = ephem.now()
-
-                        for i, tmp in enumerate(self.plan[tel]):
-                            # liczenie czasu ob
-
-                            calc_slotTime = False
-                            if "slotTime" not in self.plan[tel][i]["meta"].keys():
+                        calc_slotTime = False
+                        if "slotTime" not in self.plan[tel][i]["meta"].keys():
+                            calc_slotTime = True
+                        else:
+                            if not self.plan[tel][i]["meta"]["slotTime"]:
                                 calc_slotTime = True
-                            else:
-                                if not self.plan[tel][i]["meta"]["slotTime"]:
-                                    calc_slotTime = True
-                                elif "sunrise" in self.plan[tel][i]["ob"] or "sunset" in self.plan[tel][i]["ob"] or "ut" in self.plan[tel][i]["ob"]:
-                                    calc_slotTime = True
-
-                            if calc_slotTime:
-                                if "sec" in self.plan[tel][i]["ob"].keys():
-                                    slotTime = float(self.plan[tel][i]["ob"]["sec"])
+                            if "sunrise" in self.plan[tel][i]["ob"] or "sunset" in self.plan[tel][i]["ob"] \
+                                or "ut" in self.plan[tel][i]["ob"] or "sec" in self.plan[tel][i]["ob"] :
+                                calc_slotTime = True
+                            if "seq" in self.plan[tel][i]["ob"] and \
+                                    self.plan[tel][i]["meta"].get("slotTime_rm") != rm_now:
+                                calc_slotTime = True
+                        if calc_slotTime:
+                            if "sec" in self.plan[tel][i]["ob"].keys():
+                                # slotTime = float(self.plan[tel][i]["ob"]["sec"])
+                                # self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                                slotTime, _ = self._calc_ctc(
+                                    tel=tel,
+                                    rm_now=rm_now,
+                                    first_ctc=first_ctc,
+                                    prog_block=self.plan[tel][i]["block"]
+                                )
+                                if 'slotTime' in self.plan[tel][i]["meta"]:
+                                    if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
+                                        self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                                else:
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
-                                elif "seq" in self.plan[tel][i]["ob"].keys():
+                            elif "seq" in self.plan[tel][i]["ob"].keys():
+
+                                slotTime, first_ctc = self._calc_ctc(
+                                    tel=tel,
+                                    rm_now=rm_now,
+                                    first_ctc=first_ctc,
+                                    prog_block=self.plan[tel][i]["block"]
+                                )
+
+                                if slotTime is None:
                                     seq = self.plan[tel][i]["ob"]["seq"]
-                                    blok = self.plan[tel][i]["block"]
-                                    slotTime = 0
-                                    seq_time = ObsValidator.calc_seq_time(seq, overhead=self.overhed, base_time=5, filter_overhead=2, auto_time=5)
-                                    try:
-                                        ctc_ob_time = 0
-                                        if os.path.exists(self.local_cfg["ctc"]["ctc_base_folder"]):
-                                            ctc_ob_time = 0
-                                            # self.ctc = CycleTimeCalc(telescope=self.parent.parent.active_tel,
-                                            #                          base_folder=self.parent.parent.local_cfg["ctc"][
-                                            #                              "ctc_base_folder"],
-                                            #                          tpg=True)
-                                            # self.ctc.set_rm_modes(self.parent.parent.local_cfg["ctc"]["rm_modes_mhz"])
-                                            # rm = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
-                                            # self.ctc.set_start_rmode(rm)
-                                            # self.ctc.reset_time()
-                                            # ctc_ob_time = self.ctc.calc_time(blok)
-                                    except:
-                                        pass
-                                    if seq_time:
-                                        r = ctc_ob_time/seq_time
-                                        if 0.5 < r < 5:
-                                            slotTime = ctc_ob_time
-                                        else:
-                                            slotTime = seq_time
-                                            logger.warning(f'{self.telescope} CTC/SEQ time: {ctc_ob_time/seq_time}\n{self.plan[tel][i]["ob"]}')
+                                    slotTime = ObsValidator.calc_seq_time(
+                                        seq, overhead=self.overhed, base_time=5,
+                                        filter_overhead=2, auto_time=5
+                                    )
 
+                                self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                                self.plan[tel][i]["meta"]["slotTime_rm"] = rm_now
+
+                            elif "ut" in self.plan[tel][i]["ob"].keys() or \
+                                    "sunset" in self.plan[tel][i]["ob"].keys() \
+                                    or "sunrise" in self.plan[tel][i]["ob"].keys():
+                                slotTime, _ = self._calc_ctc(
+                                    tel=tel,
+                                    rm_now=rm_now,
+                                    first_ctc=True,
+                                    prog_block=self.plan[tel][i]["block"],
+                                    start_time=start_time + datetime.timedelta(seconds=current_time_lenght)
+                                )
+                                if 'slotTime' in self.plan[tel][i]["meta"]:
+                                    if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
+                                        self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                                else:
                                     self.plan[tel][i]["meta"]["slotTime"] = slotTime
 
-                                elif "ut" in self.plan[tel][i]["ob"].keys():
-                                    ut = self.plan[tel][i]["ob"]["ut"]
-                                    today = str(ephem.Date(ob_time)).split()[0]
-                                    t_today = ephem.Date(f"{today} {ut}")
-                                    t_tomorrow = ephem.Date(t_today + 1)
-                                    dt_today = t_today - ob_time
-                                    dt_tomorrow = t_tomorrow - ob_time
-                                    if dt_today > 0 :
-                                        slotTime = dt_today
-                                    else:
-                                        if dt_tomorrow > -1 * dt_today:
-                                            slotTime = 0
-                                        else:
-                                            slotTime = dt_tomorrow
+                        if "slotTime" in self.plan[tel][i]["meta"].keys():
+                            current_time_lenght += self.plan[tel][i]["meta"]["slotTime"]
 
-                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+                        if i == self.next_i[tel] or i == self.current_i[tel]:
+                            if i == self.current_i[tel]:
+                                if "slotTime" in self.ob[tel]["meta"].keys():
+                                    if self.ob[tel]["meta"]["start_time"] and self.ob[tel]["meta"]["slotTime"]:
+                                        t1 = self.time-self.ob[tel]["meta"]["start_time"]
+                                        t2 = self.ob[tel]["meta"]["slotTime"] - t1
+                                        if t2 < 0:
+                                            t2 = 0
 
-                                elif "sunset" in self.plan[tel][i]["ob"].keys():
-                                    oca = ephem.Observer()
-                                    oca.date = ob_time
-                                    oca.lat = self.observatory[0]
-                                    oca.lon = self.observatory[1]
-                                    oca.elevation = float(self.observatory[2])
-                                    oca.horizon = str(self.plan[tel][i]["ob"]["sunset"])
-                                    wait_sunset = oca.next_setting(ephem.Sun(), use_center=True)
-                                    slotTime = wait_sunset - ob_time
-                                    if slotTime > 0.5:
-                                        slotTime = 0
-                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+                                        ob_time = ob_time - (self.ob[tel]["meta"]["slotTime"] - t2) * ephem.second
 
-                                elif "sunrise" in self.plan[tel][i]["ob"].keys():
-                                    oca = ephem.Observer()
-                                    oca.date = ob_time
-                                    oca.lat = self.observatory[0]
-                                    oca.lon = self.observatory[1]
-                                    oca.elevation = float(self.observatory[2])
-                                    oca.horizon = str(self.plan[tel][i]["ob"]["sunrise"])
-                                    wait_sunrise = oca.next_rising(ephem.Sun(), use_center=True)
-                                    slotTime = wait_sunrise - ob_time
-                                    #print(wait_sunrise, ob_time, slotTime)
-                                    if slotTime > 0.5:
-                                        slotTime = 0
-                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime * 24 * 3600
+                        if "uobi" not in self.plan[tel][i]["ob"].keys():  # nadaje uobi jak nie ma
+                            self.plan[tel][i]["ob"]["uobi"] = str(uuid.uuid4())[:8]
+                        # if len(str(self.plan[tel][i]["ob"]["uobi"])) < 1:
+                        #     self.plan[tel][i]["ob"]["uobi"] = str(uuid.uuid4())[:8]
+                        if "ra" in self.plan[tel][i]["ob"].keys():  # liczy aktualna wysokosc na horyzontem
+                            ra = self.plan[tel][i]["ob"]["ra"]
+                            dec = self.plan[tel][i]["ob"]["dec"]
+                            az, alt = RaDec2AltAz(self.observatory, ephem.now(), ra, dec)
+                            alt = f"{deg_to_decimal_deg(str(alt)):.1f}"
+                            az = f"{deg_to_decimal_deg(str(az)):.1f}"
+                            self.plan[tel][i]["meta"]["alt"] = alt
+                            self.plan[tel][i]["meta"]["az"] = az
+                        # liczy planowana wysokosc nad horyzontem
+                        tmp_ok = False
+                        if self.current_i[tel] > -1 and i >= self.current_i[tel]:
+                            tmp_ok = True
+                        if self.next_i[tel] > -1 and i >= self.next_i[tel]:
+                            tmp_ok = True
+                        if tmp_ok:
+                            self.plan[tel][i]["meta"]["plan_ut"] = str(ephem.Date(ob_time))
 
-                            # koniec liczenia czasu ob
-
-                            if i == self.next_i[tel] or i == self.current_i[tel]:
-                                if i == self.current_i[tel]:
-                                    if "slotTime" in self.ob[tel]["meta"].keys():
-                                        if self.ob[tel]["meta"]["start_time"] and self.ob[tel]["meta"]["slotTime"]:
-                                            t1 = self.time-self.ob[tel]["meta"]["start_time"]
-                                            t2 = self.ob[tel]["meta"]["slotTime"] - t1
-                                            if t2 < 0:
-                                                t2 = 0
-                                            ob_time = ob_time - t2 * ephem.second
-                            if "uobi" not in self.plan[tel][i]["ob"].keys():  # nadaje uobi jak nie ma
-                                self.plan[tel][i]["ob"]["uobi"] = str(uuid.uuid4())[:8]
-                            # if len(str(self.plan[tel][i]["ob"]["uobi"])) < 1:
-                            #     self.plan[tel][i]["ob"]["uobi"] = str(uuid.uuid4())[:8]
-                            if "ra" in self.plan[tel][i]["ob"].keys():  # liczy aktualna wysokosc na horyzontem
+                            if "ra" in self.plan[tel][i]["ob"].keys():
                                 ra = self.plan[tel][i]["ob"]["ra"]
                                 dec = self.plan[tel][i]["ob"]["dec"]
-                                az, alt = RaDec2AltAz(self.observatory, ephem.now(), ra, dec)
+                                az, alt = RaDec2AltAz(self.observatory, ob_time, ra, dec)
                                 alt = f"{deg_to_decimal_deg(str(alt)):.1f}"
-                                az = f"{deg_to_decimal_deg(str(az)):.1f}"
-                                self.plan[tel][i]["meta"]["alt"] = alt
-                                self.plan[tel][i]["meta"]["az"] = az
-                            # liczy planowana wysokosc nad horyzontem
-                            tmp_ok = False
-                            if self.current_i[tel] > -1 and i >= self.current_i[tel]:
-                                tmp_ok = True
-                            if self.next_i[tel] > -1 and i >= self.next_i[tel]:
-                                tmp_ok = True
-                            if tmp_ok:
-                                self.plan[tel][i]["meta"]["plan_ut"] = str(ephem.Date(ob_time))
-
-                                if "ra" in self.plan[tel][i]["ob"].keys():
-                                    ra = self.plan[tel][i]["ob"]["ra"]
-                                    dec = self.plan[tel][i]["ob"]["dec"]
-                                    az, alt = RaDec2AltAz(self.observatory, ob_time, ra, dec)
-                                    alt = f"{deg_to_decimal_deg(str(alt)):.1f}"
-                                    az = f"{deg_to_decimal_deg((str(az))):.1f}"
-                                    self.plan[tel][i]["meta"]["plan_alt"] = alt
-                                    self.plan[tel][i]["meta"]["plan_az"] = az
+                                az = f"{deg_to_decimal_deg((str(az))):.1f}"
+                                self.plan[tel][i]["meta"]["plan_alt"] = alt
+                                self.plan[tel][i]["meta"]["plan_az"] = az
 
 
-                                if "slotTime" in self.plan[tel][i]["meta"].keys():
-                                    slotTime = self.plan[tel][i]["meta"]["slotTime"]
-                                    ob_time = ob_time + ephem.second * slotTime
-
+                            if "slotTime" in self.plan[tel][i]["meta"].keys():
+                                slotTime = self.plan[tel][i]["meta"]["slotTime"]
+                                ob_time = ob_time + ephem.second * slotTime
 
                 # except Exception as e:
                 #     logger.warning(f'TOI: EXCEPTION 16: {e}')

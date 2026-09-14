@@ -32,7 +32,6 @@ from base_window import BaseWindow
 
 from toi_lib import *
 from tpg.telescope_plan_generator import TelescopePlanGenerator as tpg
-from ctc import CycleTimeCalc
 
 from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
 from pyaraucaria.ob_validator import ObsValidator
@@ -848,20 +847,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                         data["meta"] = {"ok":True}
                                         data["block"] = line
 
-                                        try:
-                                            if os.path.exists(self.parent.local_cfg["ctc"]["ctc_base_folder"]):
-                                                self.ctc = CycleTimeCalc(telescope=self.parent.active_tel,
-                                                                         base_folder=self.parent.local_cfg["ctc"][
-                                                                             "ctc_base_folder"], tpg=True)
-                                                self.ctc.set_rm_modes(self.parent.local_cfg["ctc"]["rm_modes_mhz"])
-                                                rm = int(self.parent.instGui.ccd_tab.inst_setRead_e.currentIndex())
-                                                self.ctc.set_start_rmode(
-                                                    rm)  # tutaj zmienic defoult read mode dla teleskopu
-                                                self.ctc.reset_time()
-                                                ctc_ob_time = self.ctc.calc_time(data["block"])
-                                                data["meta"]["slotTime"] = ctc_ob_time
-                                        except:
-                                            pass
+                                        # slotTime liczy update_plan (jedna instancja CTC, aktualny tryb odczytu)
 
                                     else:
                                         print(f'Error plan reading: \n {line}')
@@ -1610,6 +1596,13 @@ class PlotWindow(BaseWindow):
                         tmp_ok = False
 
                 if tmp_ok:
+                    # czas startu wiersza bierzemy z tabeli (meta["plan_ut"]), zeby wykres
+                    # nie liczyl wlasnej osi czasu. Brak plan_ut -> stara akumulacja slotTime.
+                    if "plan_ut" in self.parent.plan[i]["meta"].keys():
+                        try:
+                            self.t = ephem.Date(parse_plan_ut_str(str(self.parent.plan[i]["meta"]["plan_ut"])))
+                        except (ValueError, TypeError):
+                            pass
                     if 'command_name' in self.parent.plan[i]["ob"].keys():
                         if self.parent.plan[i]["ob"]["command_name"] == "STOP":
                             txt = "STOP"

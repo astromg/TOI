@@ -112,7 +112,7 @@ class BaseAsyncWidget(ABC):
                 if result[0].value.v is None:
                     field.setText("--")  # rich None: no fresh data (Staleness Contract)
                     return
-                logger.info(f"updater named {name} change field value")
+                # logger.info(f"updater named {name} change field value")
                 tex_to_put = result[0].value.v
                 field.setText(f"{tex_to_put}")  # update field in GUI
 
@@ -129,9 +129,9 @@ class BaseAsyncWidget(ABC):
             if response and response.value:
                 return response.value.v
         except CommunicationRuntimeError:
-            logger.info(f"Can not {action if action else f'call {address}'}: CommunicationRuntimeError")
+            logger.warning(f"Can not {action if action else f'call {address}'}: CommunicationRuntimeError")
         except CommunicationTimeoutError:
-            logger.info(f"Can not {action if action else f'call {address}'}: CommunicationTimeoutError")
+            logger.warning(f"Can not {action if action else f'call {address}'}: CommunicationTimeoutError")
         except Exception as e:
             logger.error(f"Unexpected error when {action if action else f'call {address}'}: {e}")
         return None
@@ -144,14 +144,14 @@ class BaseAsyncWidget(ABC):
                                                        time_of_data=time_of_data, parameters_dict=parameters_dict,
                                                        no_wait=no_wait)
             if response and response.value and response.value.v is True:
-                logger.info(f"Successfully {action if action else f'call {address}'}")
+                logger.debug(f"Successfully {action if action else f'call {address}'}")
                 return True
             else:
-                logger.info(f"Can not {action if action else f'call {address}'}: Normal")
+                logger.warning(f"Can not {action if action else f'call {address}'}: Normal")
         except CommunicationRuntimeError:
-            logger.info(f"Can not {action if action else f'call {address}'}: CommunicationRuntimeError")
+            logger.warning(f"Can not {action if action else f'call {address}'}: CommunicationRuntimeError")
         except CommunicationTimeoutError:
-            logger.info(f"Can not {action if action else f'call {address}'}: CommunicationTimeoutError")
+            logger.warning(f"Can not {action if action else f'call {address}'}: CommunicationTimeoutError")
         except Exception as e:
             logger.error(f"Unexpected error when {action if action else f'call {address}'}: {e}")
         return False
@@ -180,7 +180,7 @@ class BaseAsyncWidget(ABC):
                 if not bt.created:
                     name = bt.name
                     co = bt.coro
-                    logger.info(f"Starting task: {name}")
+                    # logger.info(f"Starting task: {name}")
                     t = self.loop.create_task(co, name=name)
                     bt.task = t
                     bt.created = True
@@ -203,7 +203,7 @@ class BaseAsyncWidget(ABC):
                 t = bt.task
                 if t and t in asyncio.all_tasks(self.loop) and not t.done():
                     t.cancel()
-                    logger.info(f'Cancel task: {t.get_name()}')
+                    # logger.info(f'Cancel task: {t.get_name()}')
 
         for gr in to_stop:
             to_stop = []
@@ -223,7 +223,7 @@ class BaseAsyncWidget(ABC):
             try:
                 await wait_for_psce(su.stop_and_wait(),
                                     timeout=time_to_close)  # the task should finish in less than 0.5 seconds
-                logger.info(f'Ended subscription: {su.get_name()}')
+                logger.debug(f'Ended subscription: {su.get_name()}')
             except asyncio.TimeoutError:
                 logger.error(f"The subscription {su.get_name()} did not close in the required time: {time_to_close}s")
 
