@@ -616,7 +616,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.run_method_in_background(self.dome.asubscribe_shutterstatus(self.domeShutterStatus_update),group="subscribe")
         await self.run_method_in_background(self.dome.asubscribe_az(self.domeAZ_update), group="subscribe")
         await self.run_method_in_background(self.dome.asubscribe_slewing(self.domeStatus_update), group="subscribe")
-        await self.run_method_in_background(self.dome.asubscribe_dome_fans_running(self.Ventilators_update),group="subscribe")
+        await self.run_method_in_background(self.dome.asubscribe_dome_fans_running(self.Ventilators_update), group="subscribe")
         #
         await self.run_method_in_background(self.mount.asubscribe_connected(self.mount_con_update), group="subscribe")
         await self.run_method_in_background(self.mount.asubscribe_ra(self.ra_update), group="subscribe")
@@ -640,10 +640,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.run_method_in_background(self.focus.asubscribe_ismoving(self.focus_update), group="subscribe")
         #
         if bool(self.cfg_showRotator):
-            await self.run_method_in_background(self.rotator.asubscribe_connected(self.rotator_con_update),group="subscribe")
-            await self.run_method_in_background(self.rotator.asubscribe_position(self.rotator_update),group="subscribe")
-            await self.run_method_in_background(self.rotator.asubscribe_mechanicalposition(self.rotator_update),group="subscribe")
-            await self.run_method_in_background(self.rotator.asubscribe_ismoving(self.rotator_update),group="subscribe")
+            await self.run_method_in_background(self.rotator.asubscribe_connected(self.rotator_con_update), group="subscribe")
+            await self.run_method_in_background(self.rotator.asubscribe_position(self.rotator_update), group="subscribe")
+            await self.run_method_in_background(self.rotator.asubscribe_mechanicalposition(self.rotator_update), group="subscribe")
+            await self.run_method_in_background(self.rotator.asubscribe_ismoving(self.rotator_update), group="subscribe")
         #
         await self.run_method_in_background(self.ccd.asubscribe_connected(self.ccd_con_update), group="subscribe")
         await self.run_method_in_background(self.ccd.asubscribe_ccdtemperature(self.ccd_current_temp_update), group="subscribe")
@@ -674,6 +674,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         #self.add_background_task(self.nats_toi_focus_record_reader(), group="telescope_task")
 
         self.add_background_task(self.reader_nats_flat_overwatch(), group="telescope_task")
+        self.add_background_task(self.dome_follower_reader(), group="telescope_task")
 
 
         await self.run_background_tasks(group="telescope_task")
@@ -3032,8 +3033,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if self.mount.motorstatus == "true":
                 #self.mntGui.mntStat_e.setText(txt)
                 self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,0,0); background-color: rgb(233, 233, 233);")
-                self.mntGui.domeAuto_c.setChecked(False)
-                await self.domeFollow()
+                await self.dome.aput_dome_follower_off()
                 await self.mount.aput_park()
                 await self.dome.aput_slewtoazimuth(180.)
                 await self.update_log(f'parking', "TOI RESPONDER", self.active_tel)
@@ -3372,22 +3372,42 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def domeFollow(self):
-        pass
-        # if self.tel_acces[self.active_tel]:
-        #     self.toi_status["dome_follow_switch"] = self.mntGui.domeAuto_c.isChecked()
-        #     try:
-        #         s = self.nats_pub_toi_status[self.active_tel]
-        #         data = self.toi_status
-        #         await s.publish(data=data, timeout=10)
-        #     except Exception as e:
-        #         logger.warning(f'TOI: EXCEPTION 41: {e}')
-        # else:
-        #     txt="WARNING: U don't have control"
-        #     self.WarningWindow(txt)
-        #     if self.mntGui.domeAuto_c.isChecked():
-        #         self.mntGui.domeAuto_c.setChecked(False)
-        #     else:
-        #         self.mntGui.domeAuto_c.setChecked(True)
+        await self.update_log(f'dome FOLLOW ON/OFF', "OPERATOR", self.active_tel)
+        if self.tel_acces[self.active_tel]:
+            if self.dome_follow:
+                ok = await self.dome.aput_dome_follower_off()
+                await self.update_log(f'stopping dome follow', "TOI RESPONDER", self.active_tel)
+            else:
+                ok = await self.dome.aput_dome_follower_on()
+                await self.update_log(f'starting dome follow', "TOI RESPONDER", self.active_tel)
+            if not ok:
+                await self.update_log(f'dome follow request failed', "WARNING", self.active_tel)
+        else:
+            txt="WARNING: U don't have control"
+            self.WarningWindow(txt)
+        # stan suwaka ustawia tylko subskrypcja
+        self.mntGui.domeAuto_c.setChecked(bool(self.dome_follow))
+
+    async def dome_follower_reader(self):
+        self.dome_follow = None
+        self.mntGui.domeAuto_c.setChecked(False)
+        self.mntGui.domeAuto_c.setEnabled(False)
+        sub = await self.dome.asubscribe_dome_follower_status(self.dome_follower_status_update)
+        try:
+            await sub
+        finally:
+            sub.cancel()
+
+    async def dome_follower_status_update(self, data, meta):
+        try:
+            if data is not None and data['status'] == 'ok':
+                self.dome_follow = data['follow_on']
+            else:
+                self.dome_follow = None
+        except (LookupError, TypeError, ValueError):
+            self.dome_follow = None
+        self.mntGui.domeAuto_c.setChecked(bool(self.dome_follow))
+        self.mntGui.domeAuto_c.setEnabled(self.dome_follow is not None)
 
     async def domeShutterStatus_update(self, event):
            self.dome_shutterstatus=await self.dome.aget_shutterstatus()
@@ -3922,8 +3942,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def EmStop(self):
         await self.update_log(f'EMERGENCY STOP', "OPERATOR", self.active_tel)
         if self.telescope is not None:
-            self.mntGui.domeAuto_c.setChecked(False)
             await self.tic_telescopes[self.active_tel].emergency_stop()
+            await self.dome.aput_dome_follower_off()
             await self.update_log(f'EMERGENCY STOP', "TOI RESPONDER", self.active_tel)
 
         else:
@@ -3956,7 +3976,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.update_log(f'SHUTDOWN', "OPERATOR", self.active_tel)
         if self.telescope is not None:
             if self.tel_acces[self.active_tel]:
-                self.mntGui.domeAuto_c.setChecked(False)
+                await self.dome.aput_dome_follower_off()
                 # await self.dome.aput_slewtoazimuth(180.)
                 await self.tic_telescopes[self.active_tel].shutdown(dome_park_az=180)
                 await self.update_log(f'shutdowning', "TOI RESPONDER", self.active_tel)
@@ -4420,6 +4440,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mount_parked="--"
         self.mount_slewing="--"
         self.mount_tracking="--"
+        self.dome_follow = None
         self.pulseRa = 0
         self.pulseDec = 0
         self.cover_status = None

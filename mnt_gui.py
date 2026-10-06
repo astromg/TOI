@@ -398,7 +398,8 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeAuto_c = QCheckBox()
         self.domeAuto_c.setChecked(False)
         self.domeAuto_c.setLayoutDirection(Qt.RightToLeft)
-        self.domeAuto_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.domeAuto_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}::indicator:disabled {image: url(./Icons/SwitchOffGrey.png)}")
+        self.domeAuto_c.setEnabled(False)   # aktywny dopiero po odpowiedzi serwisu dome follower
         self.domeAuto_c.clicked.connect(self.parent.domeFollow)
 
         w = w + 1
