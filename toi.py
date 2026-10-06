@@ -3374,19 +3374,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def domeFollow(self):
         await self.update_log(f'dome FOLLOW ON/OFF', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
-            if self.dome_follow:
-                ok = await self.dome.aput_dome_follower_off()
-                await self.update_log(f'stopping dome follow', "TOI RESPONDER", self.active_tel)
+            self.dome_follow_busy = True   # w trakcie komendy subskrypcja przynosi jeszcze stary stan
+            try:
+                if self.dome_follow:
+                    ok = await self.dome.aput_dome_follower_off()
+                    await self.update_log(f'stopping dome follow', "TOI RESPONDER", self.active_tel)
+                else:
+                    ok = await self.dome.aput_dome_follower_on()
+                    await self.update_log(f'starting dome follow', "TOI RESPONDER", self.active_tel)
+            finally:
+                self.dome_follow_busy = False
+            if ok:
+                # suwak zostaje w stanie po kliknieciu, subskrypcja go potwierdzi
+                self.dome_follow = not self.dome_follow
             else:
-                ok = await self.dome.aput_dome_follower_on()
-                await self.update_log(f'starting dome follow', "TOI RESPONDER", self.active_tel)
-            if not ok:
                 await self.update_log(f'dome follow request failed', "WARNING", self.active_tel)
+                self.mntGui.domeAuto_c.setChecked(bool(self.dome_follow))
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
-        # stan suwaka ustawia tylko subskrypcja
-        self.mntGui.domeAuto_c.setChecked(bool(self.dome_follow))
+            self.mntGui.domeAuto_c.setChecked(bool(self.dome_follow))
 
     async def dome_follower_reader(self):
         self.dome_follow = None
@@ -3399,6 +3406,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             sub.cancel()
 
     async def dome_follower_status_update(self, data, meta):
+        if self.dome_follow_busy:
+            return
         try:
             if data is not None and data['status'] == 'ok':
                 self.dome_follow = data['follow_on']
@@ -4441,6 +4450,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mount_slewing="--"
         self.mount_tracking="--"
         self.dome_follow = None
+        self.dome_follow_busy = False
         self.pulseRa = 0
         self.pulseDec = 0
         self.cover_status = None
