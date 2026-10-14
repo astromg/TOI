@@ -93,8 +93,46 @@ class main_app():
 
     ######### WEATHER ###################
 
+    async def test_wk06(self):
+        try:
+            time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=4)  # do konfiguracji
+            reader = get_reader('tic.status.wk06.toi.focus_record', deliver_policy='by_start_time',opt_start_time=time)
+            async for data, meta in reader:
+                tmp = data
+                print("wk06: ", tmp)
 
-    async def test(self):
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION test: {e}')
+
+    async def test_zb08(self):
+        try:
+            time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=4)  # do konfiguracji
+            reader = get_reader('tic.status.zb08.toi.focus_record', deliver_policy='by_start_time',opt_start_time=time)
+            async for data, meta in reader:
+                tmp = data
+                print("zb08: ", tmp)
+
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION test: {e}')
+
+    async def test_jk15(self):
+        try:
+            time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=4)  # do konfiguracji
+            reader = get_reader('tic.status.jk15.toi.focus_record', deliver_policy='by_start_time',opt_start_time=time)
+            async for data, meta in reader:
+                tmp = data
+                print("jk15: ", tmp)
+
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION test: {e}')
+
+    async def test1(self):
         try:
             #time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=25)  # do konfiguracji
             #reader = get_reader('tic.status.zb08.fits.pipeline.faststat', deliver_policy='by_start_time',opt_start_time=time)
