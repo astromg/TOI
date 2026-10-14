@@ -3086,20 +3086,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                        await self.update_log(f'slewing to ra dec {ra} {dec}', "TOI RESPONDER", self.active_tel)
 
                     az=float(self.mntGui.nextAz_e.text())
-                    if self.mntGui.domeAuto_c.isChecked():
-                        if self.active_tel == "wk06":
-                            side_of_pier = await self.mount.aget_sideofpier()
-                            if self.mount_ra is None or self.mount_dec is None or side_of_pier is None:
-                                await self.update_log('dome auto-sync skipped - mount position unknown', "TOI RESPONDER", self.active_tel)
-                            else:
-                                dome_eq_az, info_dict = dome_eq_azimuth(
-                                    ra=self.mount_ra, dec=self.mount_dec, r_dome=2050, spx=-110, spy=-110,
-                                    gem=670, side_of_pier=side_of_pier, latitude=-24.598056,
-                                    longitude=-70.196389, elevation=2817
-                                )
-                                az = dome_eq_az
-                        await self.dome.aput_slewtoazimuth(az)
-                        await self.update_log(f'moving dome to {az}', "TOI RESPONDER", self.active_tel)
+                    ## mikolaj - disable TOI auto dome slew logic (dome-follower takes)
+                    # if self.mntGui.domeAuto_c.isChecked():
+                    #     if self.active_tel == "wk06":
+                    #         side_of_pier = await self.mount.aget_sideofpier()
+                    #         if self.mount_ra is None or self.mount_dec is None or side_of_pier is None:
+                    #             await self.update_log('dome auto-sync skipped - mount position unknown', "TOI RESPONDER", self.active_tel)
+                    #         else:
+                    #             dome_eq_az, info_dict = dome_eq_azimuth(
+                    #                 ra=self.mount_ra, dec=self.mount_dec, r_dome=2050, spx=-110, spy=-110,
+                    #                 gem=670, side_of_pier=side_of_pier, latitude=-24.598056,
+                    #                 longitude=-70.196389, elevation=2817
+                    #             )
+                    #             az = dome_eq_az
+                    #     await self.dome.aput_slewtoazimuth(az)
+                    #     await self.update_log(f'moving dome to {az}', "TOI RESPONDER", self.active_tel)
                 else:
                     await self.update_log(f'SLEW not allowed', "WARNING", self.active_tel)
             else:
