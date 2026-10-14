@@ -1150,6 +1150,7 @@ class TPGWindow(BaseWindow):
 
         wind = None
         fwhm = None
+        tag = None
         try:
             wind = float(self.wind_e.text()) if self.wind_c.isChecked() else None
             fwhm = float(self.fwhm_e.text()) if self.fwhm_c.isChecked() else None
