@@ -75,7 +75,9 @@ class main_app():
         tasks = []
         tasks.append(asyncio.create_task(self.boring_loop()))
         #tasks.append(asyncio.create_task(self.reader_weather_davis()))
-        tasks.append(asyncio.create_task(self.test()))
+        tasks.append(asyncio.create_task(self.test_wk06()))
+        tasks.append(asyncio.create_task(self.test_zb08()))
+        tasks.append(asyncio.create_task(self.test_jk15()))
 
         await self.safety_run_tasks(tasks)
 
