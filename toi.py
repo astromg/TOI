@@ -1806,22 +1806,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if "auto_focus" in info["id"] and info["started"]==True and info["done"]==True:
                                 self.autofocus_started[tel] = False
 
-                                # if "switchOnFocusAdjast" in self.ob[tel]["meta"].keys():
-                                #     if self.ob[tel]["meta"]["switchOnFocusAdjast"]:
-                                #         await self.update_log(f'turning focus adjust ON', "TOI RESPONDER",tel)
-                                #         self.toi_switch_status[tel]["focus_adjust"] = True
-                                #         await self.nats_toi_switch_synchro[tel].publish(data=self.toi_switch_status[tel], timeout=10)
-
-
-
                                 result = Focus.calculate(fits_path=self.local_cfg[tel]["tel_directory"] + "focus/actual",method=self.focus_method)
 
                                 if result is None:
-                                    await self.tel_focusers[self.active_tel].aput_move(
-                                        int(self.last_focus_position[self.active_tel]))
+                                    await self.tel_focusers[tel].aput_move(
+                                        int(self.last_focus_position[tel]))
                                     await self.update_log(
-                                        f'focusing FAILED. Focus set to previous value {int(self.last_focus_position[self.active_tel])}',
-                                        "TOI", self.active_tel)
+                                        f'focusing FAILED. Focus set to previous value {int(self.last_focus_position[tel])}',
+                                        "TOI", tel)
                                 else:
                                     max_sharpness_focus, calc_metadata = result
 
@@ -1861,6 +1853,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         data_short["method"] = data["method"]
 
                                         await self.nats_toi_focus_record[tel].publish(data=data_short, timeout=10)
+                                        self.nats_focus_record[tel] = data_short
 
                                     except Exception as e:
                                         logger.warning(f'TOI: EXCEPTION 42: {e}')
@@ -1869,11 +1862,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         await self.tel_focusers[tel].aput_move(int(max_sharpness_focus))
                                         await self.update_log(f'focus set to {int(max_sharpness_focus)}', "TOI", tel)
                                     else:
-                                        await self.tel_focusers[self.active_tel].aput_move(
-                                            int(self.last_focus_position[self.active_tel]))
+                                        await self.tel_focusers[tel].aput_move(
+                                            int(self.last_focus_position[tel]))
                                         await self.update_log(
-                                            f'focusing FAILED. Focus set to previous value {int(self.last_focus_position[self.active_tel])}',
-                                            "TOI", self.active_tel)
+                                            f'focusing FAILED. Focus set to previous value {int(self.last_focus_position[tel])}',
+                                            "TOI", tel)
+
+
+                                if "switchOnFocusAdjast" in self.ob[tel]["meta"].keys():
+                                    if self.ob[tel]["meta"]["switchOnFocusAdjast"]:
+                                        await self.update_log(f'turning focus adjust ON', "TOI RESPONDER",tel)
+                                        self.toi_switch_status[tel]["focus_adjust"] = True
+                                        await self.nats_toi_switch_synchro[tel].publish(data=self.toi_switch_status[tel], timeout=10)
 
 
                 except Exception as e:
@@ -3727,7 +3727,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 
-    # DUPA
     # ta funkacja porpawia focus uwzgledniajac zmiany temperatury i wilgotnosci od ostatniego udanego ostrzenia!!!!
     @qs.asyncSlot()
     async def focus_auto_adjast(self):
@@ -3736,7 +3735,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             for t in self.local_cfg["toi"]["telescopes"]:
                 if self.tel_acces[t]:
 
-                    # DUPA
                     var = self.toi_switch_status[t]["focus_adjust"]
                     self.report["focus_adjust"]["status"] = var
                     self.report["focus_adjust"]["type"] = type(var)
@@ -3755,8 +3753,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 foc_set = int(self.nats_focus_record[t]["max_sharpness_focus"] + diff)
                                 focus_value_now = await self.tel_focusers[t].aget_position()
                                 if abs(focus_value_now - foc_set) > focus_adjast_step:
-                                    #DUPA2
-                                    await self.focus.aput_move(foc_set)
+                                    await self.tel_focusers[t].aput_move(foc_set)
                                     await self.update_log(f'adjusting focus to {foc_set}', "TOI", t)
 
                                     data_short = {}
