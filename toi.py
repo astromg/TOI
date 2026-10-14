@@ -438,13 +438,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             reader = get_reader('telemetry.weather.davis', deliver_policy='last')
             async for data, meta in reader:
-                weather = data['measurements']
-                self.telemetry_temp = weather["temperature_C"]
-                self.telemetry_wind = weather["wind_10min_ms"]
-                self.telemetry_wind_direction = weather["wind_dir_deg"]
-                self.telemetry_humidity = weather["humidity"]
-                self.telemetry_pressure = weather["pressure_Pa"]
-                self.updateWeather()
+                try:
+                    weather = data['measurements']
+                    self.telemetry_temp = weather["temperature_C"]
+                    self.telemetry_wind = weather["wind_10min_ms"]
+                    self.telemetry_wind_direction = weather["wind_dir_deg"]
+                    self.telemetry_humidity = weather["humidity"]
+                    self.telemetry_pressure = weather["pressure_Pa"]
+                    self.updateWeather()
+                except Exception as e:
+                    logger.exception(f'EXCEPTION 102a: bad weather message: {e}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1223,8 +1226,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
             # sterowanie wykonywaniem planu
-            if True:
-            #try:
+            #if True:
+            try:
                 for tel in self.local_cfg["toi"]["telescopes"]:
                     if tel in self.planrunners.keys():
                         if "done" in self.ob[tel]["meta"].keys() and "run" in self.ob[tel]["meta"].keys() and "seq" in self.ob[tel]["ob"].keys():
@@ -1263,7 +1266,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.update_plan(tel)
 
                     if self.telescope and self.tel_acces[tel]:
-                        if self.ob[tel]["meta"]["origin"]:
+                        if self.ob[tel]["meta"].get("origin"):
                             if "done" in self.ob[tel]["meta"].keys() and "origin" in self.ob[tel]["meta"].keys() and "continue_plan" in self.ob[tel]["meta"].keys():
                                 if self.ob[tel]["meta"]["done"] and "plan" in self.ob[tel]["meta"]["origin"] and self.ob[tel]["meta"]["continue_plan"]:
                                     await self.plan_start(tel)
@@ -1328,14 +1331,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                                 tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sunset={self.ob[tel]["ob"]["sunset"]}'}},"time": {"end_dt": time}}
                                                 self.plan_log_agregator(tel, tmp)
 
-            # except Exception as e:
-            #     logger.warning(f'TOI: EXCEPTION 8: {e}')
-
-            #DUPA
-            # try:
-            #     self.planGui.update_table()
-            # except Exception as e:
-            #     logger.warning(f'TOI: EXCEPTION 9: {e}')
+            except Exception as e:
+                logger.exception(f'TOI: EXCEPTION 8 (plan control): {e}')
 
             await asyncio.sleep(1)
 
@@ -2182,10 +2179,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # ########### LOKALNA OBSLGA PLANU ##################
 
     def upload_plan(self):
-        self.planGui.update_table()
         self.plan[self.active_tel] = self.planGui.plan
         self.next_i[self.active_tel] = self.planGui.next_i
+        self.planGui.update_table()
         self.update_plan(self.active_tel)
+
 
     def _calc_ctc(
             self, tel: str, rm_now: int, first_ctc: bool,

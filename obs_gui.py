@@ -13,6 +13,7 @@ from qasync import QEventLoop
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from base_window import BaseWindow
+from claude_report import write_claude_report
 from toi_lib import *
 
 
@@ -637,12 +638,14 @@ class ReportWindow(BaseWindow):
             try:
                 txt = txt + "------------------------\n"
                 txt = txt + f"*** {k}\n"
-                val = eval(self.parent.plan[k])
+                val = self.parent.plan[k]
                 txt = txt + f'{val}' + "\n"
             except:
                 pass
         with open(self.dir_name + "/local_plan.txt", "w") as file5:
             file5.write(txt)
+
+        write_claude_report(self.parent, self.dir_name)
 
         txt=f"Report created. Please send email to mgorski and mkicia with files located in {self.dir_name}"
         self.parent.WarningWindow(txt)
