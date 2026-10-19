@@ -1,5 +1,10 @@
 <h4>Whats New?</h4>
 
+--- 19.10.2026 --- <br>
+Optical path (jk15). Instrument tabs show what the detector sees, the path to it from the light source (sky, lamp)
+and the functions it can be switched to (SET PATH); unknown parts are named with their cause and can be declared by
+the operator. The sky window has an "Optical path" tab with the whole telescope. Requires the optics service.
+<br><br>
 --- 30.04.2026 --- <br>
 Add OB window restored. Edit OB window reworked. OB validation from pyraucaria introduced. FFS reworked and import from pyraucaria.
 Focus Adjust introduced. Bug fixed with continuing plan after plan has finished and loaded new. Plan time calculation reworked and bug-fixed.

@@ -6,6 +6,7 @@ from PyQtX.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox
 from qasync import QEventLoop
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from base_window import BaseWindow
+from optics_gui import OpticsPanel
 
 class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
@@ -98,6 +99,12 @@ class BesoGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         w = w + 1
         self.info2_l = QLabel("Let's be clear: No control here")
         grid.addWidget(self.info2_l, w, 0)
+        w = w + 1
+        grid.setRowMinimumHeight(w, 12)  # air between the instrument's controls and its optical path
+        w = w + 1
+        self.optics_p = OpticsPanel(self.parent, self.parent.optics_model, 'beso')
+        grid.addWidget(self.optics_p, w, 0)
+        grid.setRowStretch(w + 1, 1)  # spare height below, the panel keeps its own
 
         self.setLayout(grid)
 
@@ -334,6 +341,13 @@ class AndorGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           grid.addWidget(self.inst_Pause_p, w,1) 
           grid.addWidget(self.inst_Stop_p, w,2) 
           grid.addWidget(self.inst_Start_p, w,3)
+
+          w=w+1
+          grid.setRowMinimumHeight(w, 12)  # air between the instrument's controls and its optical path
+          w=w+1
+          self.optics_p = OpticsPanel(self.parent, self.parent.optics_model, 'camera')
+          grid.addWidget(self.optics_p, w, 0, 1, 5)
+          grid.setRowStretch(w + 1, 1)  # spare height below, the panel keeps its own
 
           self.setLayout(grid)
 

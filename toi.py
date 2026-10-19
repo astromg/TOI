@@ -60,6 +60,7 @@ from instrument_gui import InstrumentGui
 from mnt_gui import MntGui
 from sky_gui import SkyGui
 from obs_gui import ObsGui, CzuwakWindow
+from optics_model import OpticsModel
 from plan_gui import PlanGui
 from fits_gui import FitsWindow
 from focus_gui import FocusWindow
@@ -109,6 +110,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         user = pwd.getpwuid(os.getuid())[0]
         self.myself=f'{user}@{host}'
         self.observatory_model = observatory_model
+        self.optics_model = OpticsModel()  # the active telescope's optical path: instrument panels, sky window
 
         self.variables_init()
 
@@ -599,6 +601,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             logger.warning(f'CTC not instanted: {e}')
             self.ctc = None
 
+        published = self.observatory_model.get_telescopes_configuration().get(self.active_tel, {})
+        self.optics_model.load(self.active_tel, published.get("observatory", {}).get("components", {}))
+
         # updating things before starting subsriptions
         # bo na te dzialaja subskrypcje
         self.mntGui.updateUI()
@@ -634,6 +639,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.run_method_in_background(self.focus.asubscribe_fansstatus(self.mirrorFans_update), group="subscribe")
         #
         await self.run_method_in_background(self.m3.asubscribe_tertiarystatus(self.m3_update), group="subscribe")
+        await self.run_method_in_background(self.optics_model.asubscribe(self.telescope), group="subscribe")
         #
         await self.run_method_in_background(self.fw.asubscribe_connected(self.filter_con_update), group="subscribe")
         await self.run_method_in_background(self.fw.asubscribe_position(self.filter_update), group="subscribe")
