@@ -18,9 +18,9 @@ import base64
 from dataclasses import dataclass, replace
 
 from datamodels.optics import DARK, UNDEFINED, Archetype
-from obcom.optics import OpticalGraph, StopRole, component_label, emerging, published_values, schematic
+from obcom.optics import OpticalGraph, StopRole, component_label, emerging, place_labels, published_values, schematic
 from obcom.optics.look import glyph_of, glyph_svg, glyph_title, theme
-from PyQtX.QtCore import QBuffer, QByteArray, QEvent, QIODevice, QPointF, QRectF, QSize, Qt, QTimer
+from PyQtX.QtCore import QBuffer, QByteArray, QEvent, QIODevice, QPointF, QRectF, QSize, QSizeF, Qt, QTimer
 from PyQtX.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PyQtX.QtSvg import QSvgRenderer
 from PyQtX.QtWidgets import QSizePolicy, QToolTip, QWidget
@@ -211,8 +211,9 @@ def hint_html(size: int = 12) -> str:
 
 
 def paint_text(painter: QPainter, rect: QRectF, text: str, color: str, pixels: int, bold: bool = False,
-               backdrop: bool = False):
-    """One centred line, cut to ``rect``; ``backdrop`` lifts it off the wires running under it."""
+               backdrop: bool = False, align: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignHCenter):
+    """One line in ``rect`` (centred, or ``align``-ed left or right), cut to its width; ``backdrop``
+    lifts it off the wires running under it."""
     font = QFont(painter.font())
     font.setPixelSize(pixels)
     font.setBold(bold)
@@ -221,9 +222,10 @@ def paint_text(painter: QPainter, rect: QRectF, text: str, color: str, pixels: i
     elided = metrics.elidedText(text, Qt.TextElideMode.ElideRight, int(rect.width()))
     if backdrop and elided:
         w = metrics.horizontalAdvance(elided) + 4
-        painter.fillRect(QRectF(rect.center().x() - w / 2, rect.top(), w, metrics.height()), QColor(THEME.ground))
+        x = {Qt.AlignmentFlag.AlignLeft: rect.left() - 2, Qt.AlignmentFlag.AlignRight: rect.right() - w + 2}.get(align, rect.center().x() - w / 2)
+        painter.fillRect(QRectF(x, rect.top(), w, metrics.height()), QColor(THEME.ground))
     painter.setPen(QColor(color))
-    painter.drawText(rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop, elided)
+    painter.drawText(rect, align | Qt.AlignmentFlag.AlignTop, elided)
 
 
 class _Flowing(QWidget):
@@ -527,12 +529,15 @@ def describe_node(model: OpticsModel, name: str) -> str:
 
 class SchematicView(_Flowing):
     """The whole optical path of the telescope: light down the view (``vertical``, the narrow sky
-    window) or across it. It fits the space it gets — no scrolling: rings, type and the state line
-    follow the cell size; what does not fit (long names, causes, the key) is in the tooltips."""
+    window) or across it, laid out by ``obcom.optics.schematic`` — the trunk in the middle, equal
+    branches on both sides — every label where it hits no wire nor another label
+    (``obcom.optics.place_labels``). It fits the space it gets, no scrolling: rings and type follow
+    the cell size; what does not fit (long causes, the key) is in the tooltips."""
 
-    MIN_WIDE, MIN_HIGH = 64, 44  #: the smallest cell that still carries a glyph and its name
+    MIN_LANE, MIN_LAYER = 40, 44  #: the smallest spacing that still carries a glyph and its name
     MARGIN = 8
     LEGEND = 22  #: the key under the drawing, when there is room for it
+    _LEFT, _RIGHT = Qt.AlignmentFlag.AlignLeft, Qt.AlignmentFlag.AlignRight
 
     def __init__(self, model: OpticsModel, vertical: bool = True):
         super().__init__(model)
@@ -551,7 +556,7 @@ class SchematicView(_Flowing):
         self.update()
 
     def _cells(self) -> tuple[float, float]:
-        """Cells across and down the view."""
+        """Lanes across and layers down the view (the other way round across the light)."""
         layout = schematic(self.model.graph)
         return (layout.rows, layout.columns) if self.vertical else (layout.columns, layout.rows)
 
@@ -559,11 +564,11 @@ class SchematicView(_Flowing):
         if self.model.graph is None:
             return QSize(0, 0)
         across, down = self._cells()
-        return QSize(int(across * self.MIN_WIDE) + 2 * self.MARGIN, int(down * self.MIN_HIGH) + 2 * self.MARGIN)
+        return QSize(int(across * self.MIN_LANE) + 2 * self.MARGIN, int(down * self.MIN_LAYER) + 2 * self.MARGIN)
 
     def sizeHint(self):
         across, down = self._cells() if self.model.graph is not None else (0, 0)
-        return QSize(int(across * 110) + 2 * self.MARGIN, int(down * 72) + 2 * self.MARGIN + self.LEGEND)
+        return QSize(int(across * 64) + 2 * self.MARGIN, int(down * 72) + 2 * self.MARGIN + self.LEGEND)
 
     def paintEvent(self, event):
         graph = self.model.graph
@@ -573,19 +578,21 @@ class SchematicView(_Flowing):
         layout = schematic(graph)
         values_of = published_values(self.model.positions)
         across, down = self._cells()
+        legend = self.height() - 2 * self.MARGIN - self.LEGEND >= down * 60
         width = self.width() - 2 * self.MARGIN
-        legend = self.height() - 2 * self.MARGIN - self.LEGEND >= down * 64
         height = self.height() - 2 * self.MARGIN - (self.LEGEND if legend else 0)
         cell_x, cell_y = width / max(across, 1), height / max(down, 1)
-        radius = max(9.0, min(18.0, cell_x * 0.2, cell_y * 0.28))
-        name_px = 11 if cell_y >= 64 else 10 if cell_y >= 48 else 9
-        state_line = cell_y >= 2 * radius + 2 * name_px + 12
-        block = 2 * radius + 3 + (name_px + 2) * (2 if state_line else 1)  # glyph and its text, centred in the cell
+        cell_x, cell_y = min(cell_x, 1.3 * cell_y), min(cell_y, 1.3 * cell_x)  # never stretched: centred in the room left
+        left = self.MARGIN + (width - across * cell_x) / 2
+        top = self.MARGIN + (height - down * cell_y) / 2
+        radius = max(9.0, min(18.0, cell_x * 0.3, cell_y * 0.26))
+        name_px = 11 if cell_y >= 60 else 10 if cell_y >= 48 else 9
         self._radius = radius
 
-        def center(column: float, row: float) -> QPointF:
+        def center(point) -> QPointF:
+            column, row = point
             x, y = (row, column) if self.vertical else (column, row)
-            return QPointF(self.MARGIN + (x + 0.5) * cell_x, self.MARGIN + y * cell_y + (cell_y - block) / 2 + radius)
+            return QPointF(left + (x + 0.5) * cell_x, top + (y + 0.5) * cell_y)
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -597,10 +604,15 @@ class SchematicView(_Flowing):
             if light is not None and light not in (DARK, UNDEFINED):
                 lit_from[wire.upstream] = light
                 flowing = True
-            paint_wire(painter, rounded_path([center(*p) for p in wire.points], min(10.0, radius * 0.6)), light, self.phase)
+            paint_wire(painter, rounded_path([center(p) for p in wire.points], min(10.0, radius * 0.6)), light, self.phase)
+
+        looks, texts = {}, {}
+        name_font, state_font = QFont(painter.font()), QFont(painter.font())
+        name_font.setPixelSize(name_px)
+        state_font.setPixelSize(name_px - 1)
         self._drawn = []
         for name, place in layout.places.items():
-            c = center(place.column, place.row)
+            c = center((place.column, place.row))
             self._drawn.append((c, name))
             node = graph.node(name)
             if node.archetype == Archetype.DETECTOR:
@@ -608,13 +620,27 @@ class SchematicView(_Flowing):
                 light = dominant({r.light_class for r in seen}) if seen else None
             else:
                 light = lit_from.get(name)
-            look = node_look(self.model, name, light, True)
-            paint_node(painter, c, radius, glyph_of(graph, name), look)
-            box = QRectF(c.x() - cell_x / 2 + 1, c.y() + radius + 3, cell_x - 2, name_px + 3)
-            paint_text(painter, box, component_label(graph, name), THEME.text, name_px,
-                       bold=node.archetype == Archetype.DETECTOR, backdrop=True)
-            if state_line and look.state:
-                paint_text(painter, box.translated(0, name_px + 2), look.state, look.state_color, name_px - 1, backdrop=True)
+            looks[name] = node_look(self.model, name, light, True)
+            paint_node(painter, c, radius, glyph_of(graph, name), looks[name])
+            name_font.setBold(node.archetype == Archetype.DETECTOR)
+            label, state = component_label(graph, name), looks[name].state
+            w = max(QFontMetrics(name_font).horizontalAdvance(label), QFontMetrics(state_font).horizontalAdvance(state) if state else 0)
+            w = min(w + 2, max(64.0, 2.2 * cell_x))  # at most about two lanes: the rest is in the tooltip
+            texts[name] = (label, state, QSizeF(w, name_px + 3 + (name_px + 2 if state else 0)))
+
+        bounds = (0.0, 0.0, float(self.width()), float(self.height() - (self.LEGEND if legend else 0)))
+        labels = place_labels(layout, {n: (t[2].width(), t[2].height()) for n, t in texts.items()},
+                              lambda p: (center(p).x(), center(p).y()), radius, bounds, gap=3.0,
+                              narrow=max(48.0, 1.15 * cell_x))  # under or over a component: about one lane
+        for name, box in labels.items():
+            label, state, _ = texts[name]
+            align = {"right": self._LEFT, "left": self._RIGHT}.get(box.side, Qt.AlignmentFlag.AlignHCenter)
+            rect = QRectF(box.x, box.y, box.width, name_px + 3)
+            paint_text(painter, rect, label, THEME.text, name_px, bold=graph.node(name).archetype == Archetype.DETECTOR,
+                       backdrop=True, align=align)
+            if state:
+                paint_text(painter, rect.translated(0, name_px + 2), state, looks[name].state_color, name_px - 1,
+                           backdrop=True, align=align)
         if legend:
             self._paint_legend(painter, graph, values_of, self.height() - self.LEGEND)
         self._paint_hint_corner(painter)
