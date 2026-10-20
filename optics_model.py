@@ -10,7 +10,7 @@ import logging
 from functools import partial
 
 from datamodels.optics import SeesRecord, Verdict
-from obcom.optics import GraphInvalid, OpticalGraph, Ribbon, parse_graph, published_values, ribbon, seen_positions
+from obcom.optics import GraphInvalid, OpticalGraph, Ribbon, parse_graph, published_values, ribbon
 from pydantic import TypeAdapter, ValidationError
 from PyQtX.QtCore import QObject, pyqtSignal
 
@@ -62,11 +62,8 @@ class OpticsModel(QObject):
 
     @property
     def positions(self) -> dict[str, str | None]:
-        """Every published axis; one the service does not publish (optics < 1.5: no sources, no
-        derived dome) is read back from what the detectors see, so the drawing never contradicts ``sees``."""
-        seen = seen_positions(self.graph, self.sees)
-        published = {key: entry.get('position') for key, entry in self.selectors.items()}
-        return {**{key: value for key, value in seen.items() if key not in published}, **published}
+        """Every state axis as published (optics >= 1.5 publishes them all: sources, the derived dome)."""
+        return {key: entry.get('position') for key, entry in self.selectors.items()}
 
     def ribbon(self, detector: str, target: dict[str, str] | None = None) -> Ribbon:
         return ribbon(self.graph, published_values(self.positions), detector, target)

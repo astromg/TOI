@@ -1,5 +1,10 @@
 <h4>Whats New?</h4>
 
+--- 20.10.2026 --- <br>
+Optical path panel redone in TOI's look: the path ribbon (with what the instrument sees), FUNCTION with SET PATH,
+and one status line - READY, SETTABLE, BLOCKED, NOT POSSIBLE, MOVING, FAILED - saying what to do in plain words.
+Confirm by hand appears only when a part on the path has no reading. Requires ocabox-common 1.9.
+<br><br>
 --- 19.10.2026 --- <br>
 Optical path (jk15). Instrument tabs show what the detector sees, the path to it from the light source (sky, lamp)
 and the functions it can be switched to (SET PATH); unknown parts are named with their cause and can be declared by

@@ -4,7 +4,10 @@
   feeds it now (sky, lamp, flat screen) to the detector; when it sees dark or unknown the line goes
   on, dimmed, past the blocking component back to an emitter (``obcom.optics.ribbon``);
 - :class:`SchematicView` — the whole telescope on the grid of ``obcom.optics.schematic``: authored
-  places from the config, automatic elsewhere.
+  places from the config, automatic elsewhere;
+- :class:`StatusLine` — one status in TOI's read-only field: a chip saying what it is (READY,
+  BLOCKED, MOVING …, theme tokens ``status``), the words beside it always in the text colour —
+  colour says the state, never the prose.
 
 Both draw only what the service published (:class:`optics_model.OpticsModel`). The language: a
 wire is coloured by what travels on it (light by class, dotted dark, dashed red unknown, thin grey
@@ -18,7 +21,7 @@ from datamodels.optics import DARK, UNDEFINED, Archetype
 from obcom.optics import OpticalGraph, StopRole, component_label, emerging, published_values, schematic
 from obcom.optics.look import glyph_of, glyph_svg, glyph_title, theme
 from PyQtX.QtCore import QBuffer, QByteArray, QEvent, QIODevice, QPointF, QRectF, QSize, Qt, QTimer
-from PyQtX.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen, QPixmap
+from PyQtX.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PyQtX.QtSvg import QSvgRenderer
 from PyQtX.QtWidgets import QSizePolicy, QToolTip, QWidget
 
@@ -78,7 +81,7 @@ def node_look(model: OpticsModel, name: str, light: str | None, arrives: bool) -
     if node.archetype == Archetype.DETECTOR:
         seen = light or DARK
         return NodeLook(THEME.light_color(seen), ring["accent_width"], seen == UNDEFINED, THEME.glyph,
-                        state=f"sees {light_word(seen)}", state_color=THEME.sees if seen not in (DARK, UNDEFINED) else THEME.light_color(seen))
+                        state=f"sees {light_word(seen)}", state_color=THEME.muted if seen == DARK else THEME.light_color(seen))
     state = position if node.archetype == Archetype.SELECTOR and position else ""
     if arrives and light is not None and light not in (DARK, UNDEFINED):
         return NodeLook(THEME.light_color(light), ring["width"], False, THEME.glyph, state=state)
@@ -230,6 +233,7 @@ class _Flowing(QWidget):
     FRAME_MS = 40
     RADIUS = 18
     LEGEND_BUBBLE = True  #: the big legend over the drawing's empty space
+    CORNER_HINT = True  #: the "?" in the top right corner
 
     def __init__(self, model: OpticsModel):
         super().__init__()
@@ -262,12 +266,13 @@ class _Flowing(QWidget):
         return QPointF(self.width() - self.HINT - 3, self.HINT + 3)
 
     def _paint_hint_corner(self, painter: QPainter):
-        paint_hint(painter, self._hint_center(), self.HINT)
+        if self.CORNER_HINT:
+            paint_hint(painter, self._hint_center(), self.HINT)
 
     def event(self, event):
         if event.type() == QEvent.Type.ToolTip:
             at = QPointF(event.pos())
-            if _length(at - self._hint_center()) <= self.HINT + 4:
+            if self.CORNER_HINT and _length(at - self._hint_center()) <= self.HINT + 4:
                 if self.model.graph is not None and self.LEGEND_BUBBLE:
                     QToolTip.hideText()
                     self._bubble().show_for(self.model, event.globalPos())
@@ -315,26 +320,39 @@ class _Flowing(QWidget):
 
 class RibbonView(_Flowing):
     """The path to ``detector``; ``target`` (the selected function's moves) chooses the way past a
-    blocker, never what is lit."""
+    blocker, never what is lit. Under every glyph its name (on two lines when it must) and its
+    state: a selector's position, what the detector sees."""
 
     RADIUS = 16
     LABEL_PX = 10
+    LINE_PX = 12
     LEGEND_BUBBLE = False  #: a small strip: the legend is the sky window's
+    CORNER_HINT = False  #: the panel's title carries the hint
 
     def __init__(self, model: OpticsModel, detector: str):
         super().__init__(model)
         self.detector = detector
         self.target: dict[str, str] = {}
-        self.setMinimumHeight(68)
+        self.setFixedHeight(2 * self.RADIUS + 3 + 4 + 3 * self.LINE_PX + 3)  # glyph, name (≤ 2 lines), state
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setAccessibleName(f"optical path to {detector}")
 
     def sizeHint(self):
-        return QSize(520, 68)
+        return QSize(520, self.height())
 
     def set_target(self, target: dict[str, str]):
         self.target = dict(target or {})
         self.update()
+
+    def _state(self, name: str, light: str) -> str | None:
+        """The line under the name: a selector's position, what the detector sees."""
+        node = self.model.graph.node(name)
+        if node.archetype == Archetype.DETECTOR:
+            return light_word(light)
+        entry = self.model.selectors.get(name)
+        if entry is not None and node.archetype == Archetype.SELECTOR:
+            return entry.get('position') or "?"
+        return None
 
     def paintEvent(self, event):
         graph = self.model.graph
@@ -344,7 +362,7 @@ class RibbonView(_Flowing):
         stops = self.model.ribbon(self.detector, self.target).stops
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        r, step = self.RADIUS, (self.width() - 2 * self.HINT - 4) / len(stops)  # the corner "?" keeps its place
+        r, step = self.RADIUS, self.width() / len(stops)
         y = r + 3
         centers = [QPointF((i + 0.5) * step, y) for i in range(len(stops))]
         self._drawn = [(c, s.name) for c, s in zip(centers, stops)]
@@ -353,21 +371,139 @@ class RibbonView(_Flowing):
             light = dominant(stop.light)
             lit |= light not in (DARK, UNDEFINED) and stop.arrives
             paint_wire(painter, rounded_path([start, end], 0), light, self.phase, 1.0 if stop.arrives else 0.5)
+        font = QFont(painter.font())
+        font.setPixelSize(self.LABEL_PX)
         for stop, center in zip(stops, centers):
-            look = node_look(self.model, stop.name, dominant(stop.light), stop.arrives)
+            light = dominant(stop.light)
+            look = node_look(self.model, stop.name, light, stop.arrives)
             if stop.role == StopRole.BLOCKER and look.badge is None:
                 look = replace(look, ring=THEME.blocker, ring_width=THEME.ring["accent_width"])
             paint_node(painter, center, r, glyph_of(graph, stop.name), look, 1.0 if stop.arrives else 0.6)
             color = {"?": THEME.unknown, "D": THEME.warning}.get(look.badge, THEME.text if stop.role == StopRole.BLOCKER else THEME.muted)
-            box = QRectF(center.x() - step / 2, y + r + 4, step, 14)
-            paint_text(painter, box, component_label(graph, stop.name), color, self.LABEL_PX,
-                       bold=stop.role in (StopRole.DETECTOR, StopRole.BLOCKER))
-            entry = self.model.selectors.get(stop.name)
-            if entry is not None and graph.node(stop.name).archetype == Archetype.SELECTOR:
-                paint_text(painter, box.translated(0, 12), entry.get('position') or "?", color, self.LABEL_PX)
-        self._paint_hint_corner(painter)
+            bold = stop.role in (StopRole.DETECTOR, StopRole.BLOCKER)
+            box = QRectF(center.x() - step / 2 + 1, y + r + 4, step - 2, self.LINE_PX + 2)
+            font.setBold(bold)
+            lines = wrapped(component_label(graph, stop.name), font, int(box.width()), 2)
+            for line in lines:
+                paint_text(painter, box, line, color, self.LABEL_PX, bold=bold)
+                box.translate(0, self.LINE_PX)
+            state = self._state(stop.name, light)
+            if state is not None:
+                if stop.role == StopRole.DETECTOR and look.badge is None:
+                    color = look.state_color
+                paint_text(painter, box, state, color, self.LABEL_PX)
         painter.end()
         self._flow(lit)
+
+
+def wrapped(text: str, font: QFont, width: int, lines: int) -> list[str]:
+    """``text`` broken between words into at most ``lines`` lines of ``width`` px, the last one cut
+    with an ellipsis when it still does not fit."""
+    metrics = QFontMetrics(font)
+    out: list[str] = []
+    words = text.split()
+    while words and len(out) < lines - 1:
+        taken = 1
+        while taken < len(words) and metrics.horizontalAdvance(" ".join(words[:taken + 1])) <= width:
+            taken += 1
+        if taken == len(words):
+            break
+        out.append(" ".join(words[:taken]))
+        words = words[taken:]
+    if words:
+        out.append(metrics.elidedText(" ".join(words), Qt.TextElideMode.ElideRight, width))
+    return out
+
+
+# --- the status line ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Status:
+    """What :class:`StatusLine` shows: ``kind`` names a chip of the theme's ``status`` tokens
+    (active, settable, collision, impossible, invalid, moving, failed, none), ``word`` is written on
+    it, ``text`` beside it; ``details`` is the tooltip (``text`` when ``None``)."""
+
+    kind: str
+    word: str
+    text: str = ""
+    details: str | None = None
+
+
+def _scaled(font: QFont, factor: float) -> QFont:
+    """``font`` ``factor`` times as large, whether it was sized in points or in pixels."""
+    scaled = QFont(font)
+    if font.pointSizeF() > 0:
+        scaled.setPointSizeF(font.pointSizeF() * factor)
+    else:
+        scaled.setPixelSize(max(7, round(font.pixelSize() * factor)))
+    return scaled
+
+
+def status_icon(kind: str, size: int = 12) -> QIcon:
+    """A dot in the chip colour of ``kind`` — for a list of functions, whose words stay black."""
+    pixmap = QPixmap(2 * size, 2 * size)
+    pixmap.setDevicePixelRatio(2)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(QColor(THEME.status[kind]["fill"]))
+    painter.drawEllipse(QRectF(2, 2, size - 4, size - 4))
+    painter.end()
+    return QIcon(pixmap)
+
+
+class StatusLine(QWidget):
+    """One status in TOI's read-only field: the chip, then the words in the text colour, cut to the
+    width — the whole of it in the tooltip. One line, always the same height."""
+
+    PAD = 5
+
+    def __init__(self):
+        super().__init__()
+        self.status = Status("none", "")
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+    def sizeHint(self):
+        return QSize(320, self.fontMetrics().height() + 10)
+
+    def minimumSizeHint(self):
+        return QSize(80, self.sizeHint().height())
+
+    def set_status(self, status: Status):
+        self.status = status
+        self.setToolTip(status.details if status.details is not None else status.text)
+        self.setAccessibleDescription(f"{status.word}: {status.text}" if status.word else status.text)
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        field = QRectF(self.rect())
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(THEME.status["field"]))
+        painter.drawRoundedRect(field, 3, 3)
+        x = field.left() + self.PAD
+        if self.status.word:
+            chip_font = _scaled(self.font(), 0.8)
+            chip_font.setBold(True)
+            metrics = QFontMetrics(chip_font)
+            h = min(field.height() - 2 * 3, metrics.height() + 4)
+            chip = QRectF(x, field.center().y() - h / 2, metrics.horizontalAdvance(self.status.word) + h, h)
+            colors = THEME.status[self.status.kind]
+            painter.setBrush(QColor(colors["fill"]))
+            painter.drawRoundedRect(chip, h / 2, h / 2)
+            painter.setFont(chip_font)
+            painter.setPen(QColor(colors["ink"]))
+            painter.drawText(chip, Qt.AlignmentFlag.AlignCenter, self.status.word)
+            x = chip.right() + 8
+        painter.setFont(self.font())
+        painter.setPen(QColor(THEME.text))
+        room = QRectF(x, field.top(), field.right() - self.PAD - x, field.height())
+        painter.drawText(room, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
+                         self.fontMetrics().elidedText(self.status.text, Qt.TextElideMode.ElideRight, int(room.width())))
+        painter.end()
 
 
 def describe_node(model: OpticsModel, name: str) -> str:
