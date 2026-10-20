@@ -1,6 +1,9 @@
 <h4>Whats New?</h4>
 
 --- 20.10.2026 --- <br>
+Sky window, Optical path tab: the telescope drawn as a tree - the trunk in the middle, the camera and BESO branches
+on both sides of M3 - with every label placed where it covers no line. Requires ocabox-common 1.10.
+<br>
 Optical path panel redone in TOI's look: the path ribbon (with what the instrument sees), FUNCTION with SET PATH,
 and one status line - READY, SETTABLE, BLOCKED, NOT POSSIBLE, MOVING, FAILED - saying what to do in plain words.
 Confirm by hand appears only when a part on the path has no reading. Requires ocabox-common 1.9.
