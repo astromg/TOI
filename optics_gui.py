@@ -343,20 +343,25 @@ class OpticsPanel(QGroupBox):
                     choices[f"{name} is at {position}"] = (key, position)
         return choices
 
-    @qs.asyncSlot()
-    async def declare(self):
+    def declare(self):
+        """Open the "Confirm by hand" choice without blocking: a modal ``exec``/``getItem`` inside a
+        qasync task stops every other task (TIC, NATS, all subscriptions) until it closes."""
         choices = self.declaration_choices()
         if not choices:
             return
-        item, ok = QInputDialog.getItem(
-            self, "Confirm by hand",
-            "No sensor reports where this part is.\n"
-            "If you have checked it yourself, choose where it is.\n"
-            "Your name is shown with it until its sensor works again (at most 12 hours).",
-            list(choices), 0, False)
-        if not ok:
-            return
-        key, position = choices[item]
+        dialog = QInputDialog(self)
+        dialog.setWindowTitle("Confirm by hand")
+        dialog.setLabelText("No sensor reports where this part is.\n"
+                            "If you have checked it yourself, choose where it is.\n"
+                            "Your name is shown with it until its sensor works again (at most 12 hours).")
+        dialog.setComboBoxItems(list(choices))
+        dialog.setComboBoxEditable(False)
+        dialog.textValueSelected.connect(lambda item: self._declare(item, choices[item]))
+        dialog.open()
+
+    @qs.asyncSlot()
+    async def _declare(self, item: str, choice: tuple[str, str | None]):
+        key, position = choice
         tel = self.toi.active_tel
         if not await self._allowed(f'DECLARE {item}'):
             return
