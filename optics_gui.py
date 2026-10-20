@@ -14,8 +14,9 @@ never decides itself whether a function can be set:
 the ``Operation`` line (moving → done | failed).
 
 What is unknown on the detector's path is listed with its cause ("dome — shutter reports Error
-(ShutterState 4)"); ``Declare…`` lets the operator vouch for it when they know better than the
-sensor (the shutter opened by hand) — visible as declared by whom until a reading proves it again.
+(ShutterState 4)"); ``Confirm by hand…`` lets the operator vouch for it when they know better than
+the sensor (the shutter opened by hand) — a *declaration*, shown with who made it until a reading
+proves it again.
 Names are the ones people use ("mirror covers", "M3"), from ``obcom.optics.label`` over the
 published graph — the same words the service's reasons use.
 
@@ -26,7 +27,7 @@ blocker. The panel reads the shared :class:`optics_model.OpticsModel`, it subscr
 import logging
 
 import qasync as qs
-from datamodels.optics import UNDEFINED, SeesRecord, VerdictKind, split_state_key
+from datamodels.optics import DARK, UNDEFINED, SeesRecord, VerdictKind, split_state_key
 from obcom.optics import OpticalGraph, label
 from ocaboxapi.exceptions import OcaboxError
 from PyQtX.QtCore import Qt
@@ -35,7 +36,7 @@ from PyQtX.QtGui import QFontMetrics
 from PyQtX.QtWidgets import QComboBox, QGridLayout, QGroupBox, QInputDialog, QLabel, QPushButton, QSizePolicy
 
 from optics_model import OpticsModel
-from optics_view import RibbonView, info_html
+from optics_view import RibbonView, hint_html
 
 logger = logging.getLogger(__name__.rsplit('.')[-1])
 
@@ -54,39 +55,48 @@ _FOREGROUND_ROLE = Qt.ItemDataRole.ForegroundRole
 _TOOLTIP_ROLE = Qt.ItemDataRole.ToolTipRole
 _IDLE_STYLE = "background-color: rgb(233, 233, 233); color: black;"
 _UNKNOWN_STYLE = "color: rgb(220, 120, 0);"
-_WITHDRAW = "withdraw"
+_CONFIRMED_STYLE = "color: rgb(0, 150, 0);"
 
-#: what each row of the panel is, for the operator who points at it
+#: what each row of the panel is, in plain words, for the operator who points at its "?"
 HINTS = {
-    "ribbon": "The path to this detector: from the light that feeds it now (sky, lamp, flat screen) to the detector.\n"
-              "When it sees dark or unknown, the part beyond what blocks it is drawn dimmed.\n"
-              "Point at a component for its positions and causes; the legend is in the sky window's Optical path tab.",
-    "sees": "What reaches the detector now, as the optics service proves it from readings:\n"
-            "a light class (sky.science, lamp.thar …), dark — and what blocks it, or unknown — and what is unproven.",
-    "unknown": "Components on this path no reading proves, with the reason.\n"
-               "Declare… lets you vouch for one you know (e.g. the shutter opened by hand):\n"
-               "shown with your name until a reading returns, at most 12 h.",
-    "declare": "Vouch for a position no reading proves, or withdraw your declaration. Needs Take Control.",
-    "function": "What this detector can be set up for. Colour is the optics service's verdict:\n"
-                "green active — already so;  black settable — SET PATH moves what is listed;\n"
-                "orange collision — something on the way is held (an exposure, an operator);  grey impossible — and why.",
-    "set": "Make the selected function so: the optics service moves the listed components (needs Take Control).\n"
-           "It runs like a slew — follow it in Operation.",
-    "operation": "The switch the optics service runs or ran last: moving → done | failed, with what moved.",
+    "ribbon": "How light gets to this camera, starting where it comes from (the sky or a lamp).\n"
+              "Blue/coloured line: light.  Grey dots: no light.  Red dashes: not known.\n"
+              "Point at a part to see where it is set.",
+    "sees": "What this camera gets right now: sky light, lamp light, or nothing (dark).",
+    "sensors": "Whether the position of every part on this path is reported by a sensor.\n"
+               "If a part has no working sensor, the system cannot tell where it is.\n"
+               "If you have checked it yourself, use \"Confirm by hand…\" to tell the system.\n"
+               "Your name is shown with it until the sensor works again (at most 12 hours).",
+    "confirm": "Tell the system where a part is when no sensor can (you have checked it yourself).\n"
+               "You can also remove your own confirmation. Needs Take Control.",
+    "function": "What you want this camera to do.\n"
+                "Green: ready.  Black: SET PATH will move things to make it ready.\n"
+                "Orange: something is in the way (e.g. an exposure).  Grey: not possible now — the reason is below.",
+    "set": "Move mirrors and covers so the chosen function is ready. Needs Take Control.\n"
+           "Progress is shown in Operation.",
+    "operation": "The last move started with SET PATH, and whether it finished.",
 }
 
 
 def light_name(light_class: str) -> str:
-    """The model's ``undefined`` is what an operator calls unknown."""
-    return "unknown" if light_class == UNDEFINED else light_class
+    """The model's ``undefined`` is what an operator calls not known."""
+    return "not known" if light_class == UNDEFINED else light_class
 
 
 def describe_sees(graph: OpticalGraph, records: list[SeesRecord]) -> str:
-    """``sky.science``, ``dark — mirror covers``, ``unknown — dome``; several records joined."""
+    """In plain words: ``sky light (sky.science)``, ``no light — blocked by mirror covers``,
+    ``not known — because of M4 entrance mirror``; several records joined."""
     if not records:
         return "nothing"
-    return "; ".join(r.light_class if r.light_class.startswith(r.terminal) else f"{light_name(r.light_class)} — {label(graph, r.terminal)}"
-                     for r in records)
+    texts = []
+    for r in records:
+        if r.light_class == DARK:
+            texts.append(f"no light — blocked by {label(graph, r.terminal)}")
+        elif r.light_class == UNDEFINED:
+            texts.append(f"not known — because of {label(graph, r.terminal)}")
+        else:
+            texts.append(f"{label(graph, r.terminal)} light ({r.light_class})")
+    return "; ".join(texts)
 
 
 def describe_moves(graph: OpticalGraph, moves: dict) -> str:
@@ -115,8 +125,8 @@ def describe_operation(graph: OpticalGraph, operation: dict) -> str:
 
 
 def _hinted(text: str, hint: str) -> QLabel:
-    """A row title with the small "i" saying there is a hint on it."""
-    label = QLabel(f"{text}&nbsp;{info_html()}")
+    """A row title with the small "?" saying there is a hint on it."""
+    label = QLabel(f"{text}&nbsp;{hint_html()}")
     label.setToolTip(hint)
     return label
 
@@ -161,7 +171,7 @@ class OpticsPanel(QGroupBox):
         self.ribbon = RibbonView(model, detector)
         self.sees_l = ElidedLabel()
         self.unknown_l = ElidedLabel()
-        self.declare_p = QPushButton("Declare…")
+        self.declare_p = QPushButton("Confirm by hand…")
         self.declare_p.clicked.connect(self.declare)
         self.function_s = QComboBox()
         self.function_s.currentIndexChanged.connect(self._show_selected)
@@ -175,12 +185,12 @@ class OpticsPanel(QGroupBox):
         grid.setVerticalSpacing(2)
         grid.addWidget(self.ribbon, 0, 0, 1, 3)
         self.ribbon.setToolTip(HINTS["ribbon"])
-        self.declare_p.setToolTip(HINTS["declare"])
+        self.declare_p.setToolTip(HINTS["confirm"])
         self.function_s.setToolTip(HINTS["function"])
         self.set_p.setToolTip(HINTS["set"])
         grid.addWidget(_hinted("Sees:", HINTS["sees"]), 1, 0)
         grid.addWidget(self.sees_l, 1, 1, 1, 2)
-        grid.addWidget(_hinted("Unknown:", HINTS["unknown"]), 2, 0)
+        grid.addWidget(_hinted("Sensors:", HINTS["sensors"]), 2, 0)
         grid.addWidget(self.unknown_l, 2, 1)
         grid.addWidget(self.declare_p, 2, 2)
         grid.addWidget(_hinted("Function:", HINTS["function"]), 3, 0)
@@ -274,17 +284,22 @@ class OpticsPanel(QGroupBox):
         return {key: entry for key, entry in self.model.selectors.items() if split_state_key(key)[0] in on_path}
 
     def _show_unknown(self):
-        """Unknown axes on the path with their causes, and declared ones with who vouched; Declare…
-        only when there is something to vouch for (or withdraw)."""
+        """Whether a sensor reports every part on the path; the parts it does not, and why, and
+        those confirmed by hand and by whom. "Confirm by hand…" only when there is one."""
         items = []
         for key, entry in self._path_axes().items():
             name = entry.get('label') or key
             if entry.get('position') is None:
-                items.append(f"{name} — {entry.get('cause') or 'no reading'}")
+                items.append(f"{name}: not known ({entry.get('cause') or 'no reading'})")
             elif entry.get('origin') == 'declared':
-                items.append(f"{name} declared {entry['position']} by {entry.get('by')} — {entry.get('cause') or 'no reading'}")
-        self.unknown_l.set_text("; ".join(items) or "—", "\n".join(items))
-        self.unknown_l.setStyleSheet(_UNKNOWN_STYLE if items else "")
+                items.append(f"{name}: {entry['position']} — confirmed by hand by {entry.get('by')}")
+        if items:
+            self.unknown_l.set_text("; ".join(items), "\n".join(items))
+        elif self.records:
+            self.unknown_l.set_text("every part on the path is reported by its sensor")
+        else:
+            self.unknown_l.set_text("--")
+        self.unknown_l.setStyleSheet(_UNKNOWN_STYLE if items else _CONFIRMED_STYLE if self.records else "")
         self.declare_p.setEnabled(bool(items))
 
     # ------------------------------------------------------------------ commands
@@ -321,11 +336,11 @@ class OpticsPanel(QGroupBox):
             name = entry.get('label') or key
             component, aspect = split_state_key(key)
             if entry.get('origin') == 'declared':
-                choices[f"{name}: {_WITHDRAW} the declaration ({entry['position']} by {entry.get('by')})"] = (key, None)
+                choices[f"{name}: remove the confirmation ({entry['position']}, by {entry.get('by')})"] = (key, None)
             elif entry.get('position') is None:
                 axis = next(a for a in self.graph.node(component).axes if a.name == aspect)
                 for position in axis.vocabulary:
-                    choices[f"{name} is {position}"] = (key, position)
+                    choices[f"{name} is at {position}"] = (key, position)
         return choices
 
     @qs.asyncSlot()
@@ -333,7 +348,12 @@ class OpticsPanel(QGroupBox):
         choices = self.declaration_choices()
         if not choices:
             return
-        item, ok = QInputDialog.getItem(self, "Declare", "Vouch for what no reading proves:", list(choices), 0, False)
+        item, ok = QInputDialog.getItem(
+            self, "Confirm by hand",
+            "No sensor reports where this part is.\n"
+            "If you have checked it yourself, choose where it is.\n"
+            "Your name is shown with it until its sensor works again (at most 12 hours).",
+            list(choices), 0, False)
         if not ok:
             return
         key, position = choices[item]

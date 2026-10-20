@@ -70,11 +70,11 @@ def node_look(model: OpticsModel, name: str, light: str | None, arrives: bool) -
     if unknown:
         cause = unknown[0].get('cause') or "no reading"
         return NodeLook(THEME.unknown, ring["accent_width"], True, THEME.unknown, "?", THEME.unknown,
-                        state=f"unknown · {cause}", state_color=THEME.unknown)
+                        state=f"not known · {cause}", state_color=THEME.unknown)
     declared = [a for a in axes.values() if a.get('origin') == 'declared']
     if declared:
         return NodeLook(THEME.declared, ring["accent_width"], False, THEME.glyph, "D", THEME.declared,
-                        state=f"{position} · declared by {declared[0].get('by')}", state_color=THEME.warning)
+                        state=f"{position} · by hand: {declared[0].get('by')}", state_color=THEME.warning)
     if node.archetype == Archetype.DETECTOR:
         seen = light or DARK
         return NodeLook(THEME.light_color(seen), ring["accent_width"], seen == UNDEFINED, THEME.glyph,
@@ -176,27 +176,29 @@ def paint_node(painter: QPainter, center: QPointF, radius: float, glyph: str, lo
     painter.restore()
 
 
-def paint_info(painter: QPainter, center: QPointF, radius: float = 6.0):
-    """The small "i": there is a hint here — on labels and drawings, never on component glyphs."""
+def paint_hint(painter: QPainter, center: QPointF, radius: float = 6.0):
+    """The small "?": point here for a hint — on labels and drawings, never on component glyphs."""
     painter.save()
     painter.setPen(QPen(QColor(THEME.muted), 1.1))
     painter.setBrush(QColor(THEME.ground))
     painter.drawEllipse(center, radius, radius)
-    painter.setPen(Qt.PenStyle.NoPen)
-    painter.setBrush(QColor(THEME.muted))
-    painter.drawEllipse(QPointF(center.x(), center.y() - radius * 0.45), radius * 0.13, radius * 0.13)
-    painter.drawRoundedRect(QRectF(center.x() - radius * 0.11, center.y() - radius * 0.15, radius * 0.22, radius * 0.62), 0.6, 0.6)
+    font = QFont(painter.font())
+    font.setPixelSize(max(7, int(radius * 1.45)))
+    font.setBold(True)
+    painter.setFont(font)
+    painter.setPen(QColor(THEME.muted))
+    painter.drawText(QRectF(center.x() - radius, center.y() - radius, 2 * radius, 2 * radius), Qt.AlignmentFlag.AlignCenter, "?")
     painter.restore()
 
 
-def info_html(size: int = 12) -> str:
-    """The small "i" for rich-text labels (``Sees: ⓘ``), drawn by :func:`paint_info`."""
+def hint_html(size: int = 12) -> str:
+    """The small "?" for rich-text labels (``Sees: (?)``), drawn by :func:`paint_hint`."""
     pixmap = QPixmap(size * 2, size * 2)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.scale(2, 2)
-    paint_info(painter, QPointF(size / 2, size / 2), size / 2 - 1)
+    paint_hint(painter, QPointF(size / 2, size / 2), size / 2 - 1)
     painter.end()
     data = QByteArray()
     buffer = QBuffer(data)
@@ -254,18 +256,18 @@ class _Flowing(QWidget):
         elif not lit and self.timer.isActive():
             self.timer.stop()
 
-    INFO = 6.0  #: radius of the corner "i"
+    HINT = 6.0  #: radius of the corner "?"
 
-    def _info_center(self) -> QPointF:
-        return QPointF(self.width() - self.INFO - 3, self.INFO + 3)
+    def _hint_center(self) -> QPointF:
+        return QPointF(self.width() - self.HINT - 3, self.HINT + 3)
 
-    def _paint_info_corner(self, painter: QPainter):
-        paint_info(painter, self._info_center(), self.INFO)
+    def _paint_hint_corner(self, painter: QPainter):
+        paint_hint(painter, self._hint_center(), self.HINT)
 
     def event(self, event):
         if event.type() == QEvent.Type.ToolTip:
             at = QPointF(event.pos())
-            if _length(at - self._info_center()) <= self.INFO + 4:
+            if _length(at - self._hint_center()) <= self.HINT + 4:
                 if self.model.graph is not None and self.LEGEND_BUBBLE:
                     QToolTip.hideText()
                     self._bubble().show_for(self.model, event.globalPos())
@@ -342,7 +344,7 @@ class RibbonView(_Flowing):
         stops = self.model.ribbon(self.detector, self.target).stops
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        r, step = self.RADIUS, (self.width() - 2 * self.INFO - 4) / len(stops)  # the corner "i" keeps its place
+        r, step = self.RADIUS, (self.width() - 2 * self.HINT - 4) / len(stops)  # the corner "?" keeps its place
         y = r + 3
         centers = [QPointF((i + 0.5) * step, y) for i in range(len(stops))]
         self._drawn = [(c, s.name) for c, s in zip(centers, stops)]
@@ -363,7 +365,7 @@ class RibbonView(_Flowing):
             entry = self.model.selectors.get(stop.name)
             if entry is not None and graph.node(stop.name).archetype == Archetype.SELECTOR:
                 paint_text(painter, box.translated(0, 12), entry.get('position') or "?", color, self.LABEL_PX)
-        self._paint_info_corner(painter)
+        self._paint_hint_corner(painter)
         painter.end()
         self._flow(lit)
 
@@ -375,7 +377,7 @@ def describe_node(model: OpticsModel, name: str) -> str:
         position = entry.get('position')
         text = f"{entry.get('label') or key}: {position if position is not None else 'unknown'}"
         if entry.get('origin') == 'declared':
-            text += f" (declared by {entry.get('by')})"
+            text += f" (confirmed by hand by {entry.get('by')})"
         if entry.get('cause'):
             text += f" — {entry['cause']}"
         lines.append(text)
@@ -479,7 +481,7 @@ class SchematicView(_Flowing):
                 paint_text(painter, box.translated(0, name_px + 2), look.state, look.state_color, name_px - 1, backdrop=True)
         if legend:
             self._paint_legend(painter, graph, values_of, self.height() - self.LEGEND)
-        self._paint_info_corner(painter)
+        self._paint_hint_corner(painter)
         painter.end()
         self._flow(flowing)
 
@@ -547,19 +549,19 @@ def legend_sections(model: OpticsModel) -> list[tuple[str, list[LegendRow]]]:
     lines = [LegendRow(f"light from the {label}", light, light=light)
              for label, light in source_lights(graph, published_values(model.positions))]
     lines += [
-        LegendRow("dark", "proven darkness: a closed cover, M3 turned away", light=DARK),
-        LegendRow("unknown", "nothing proves what travels here", light=UNDEFINED),
-        LegendRow("a way nothing takes now", light=None),
-        LegendRow("sparks flow towards the detector;", "dimmed: beyond what blocks it", sample=False),
+        LegendRow("no light", "e.g. covers closed, M3 turned away", light=DARK),
+        LegendRow("not known", "no sensor tells whether light gets here", light=UNDEFINED),
+        LegendRow("a way not used now", light=None),
+        LegendRow("moving dots show the light going to the camera;", "pale: past the part that blocks it", sample=False),
     ]
     rings = [
-        LegendRow("on a lit path", look=NodeLook(sky, width, False, THEME.glyph)),
-        LegendRow("nothing passes now", look=NodeLook(THEME.idle, width, False, THEME.glyph_idle)),
-        LegendRow("blocks what the detector sees", look=NodeLook(THEME.blocker, accent, False, THEME.glyph)),
-        LegendRow("moving", "a switch is running", look=NodeLook(THEME.moving, accent, False, THEME.glyph)),
-        LegendRow("position unknown", "why: point at it", look=NodeLook(THEME.unknown, accent, True, THEME.unknown, "?", THEME.unknown)),
-        LegendRow("declared by an operator", "until a reading returns", look=NodeLook(THEME.declared, accent, False, THEME.glyph, "D", THEME.declared)),
-        LegendRow("a detector", "the ring is what it sees", look=NodeLook(sky, accent, False, THEME.glyph), glyph="camera"),
+        LegendRow("light passes", look=NodeLook(sky, width, False, THEME.glyph)),
+        LegendRow("no light passes", look=NodeLook(THEME.idle, width, False, THEME.glyph_idle)),
+        LegendRow("blocks the light to the camera", look=NodeLook(THEME.blocker, accent, False, THEME.glyph)),
+        LegendRow("moving", "SET PATH is moving it", look=NodeLook(THEME.moving, accent, False, THEME.glyph)),
+        LegendRow("not known where it is", "point at it to see why", look=NodeLook(THEME.unknown, accent, True, THEME.unknown, "?", THEME.unknown)),
+        LegendRow("confirmed by hand", "until its sensor works again", look=NodeLook(THEME.declared, accent, False, THEME.glyph, "D", THEME.declared)),
+        LegendRow("a camera", "ring colour: what it gets", look=NodeLook(sky, accent, False, THEME.glyph), glyph="camera"),
     ]
     by_glyph: dict[str, list[str]] = {}
     for name in graph.nodes:
@@ -639,5 +641,5 @@ class LegendBubble(QWidget):
         painter.setFont(self.font_text)
         painter.setPen(QColor(THEME.muted))
         painter.drawText(QPointF(self.PAD, self.height() - self.PAD + 2),
-                         "Point at a component for its positions, causes and declarations — all as the optics service publishes them.")
+                         "Point at a part to see where it is set, and why something is not known.")
         painter.end()
