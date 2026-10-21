@@ -25,7 +25,7 @@ reasons. The panel reads the shared :class:`optics_model.OpticsModel`; it subscr
 import logging
 
 import qasync as qs
-from datamodels.optics import VerdictKind, split_state_key
+from datamodels.optics import Impossible, VerdictKind, split_state_key
 from obcom.optics import OpticalGraph, label
 from ocaboxapi.exceptions import OcaboxError
 from PyQtX.QtCore import Qt
@@ -271,7 +271,7 @@ class OpticsPanel(QWidget):
         if self.graph is None:
             return choices
         verdict = self.functions.get(self.function_s.currentText())
-        needed = set(getattr(verdict, 'undefined_at', ()) or ())
+        needed = set(verdict.undefined_at) if isinstance(verdict, Impossible) else set()  # only Impossible has it
         axes = {**{key: self.model.selectors[key] for key in needed if key in self.model.selectors}, **self._path_axes()}
         for key, entry in axes.items():
             name = entry.get('label') or key
@@ -279,7 +279,10 @@ class OpticsPanel(QWidget):
             if entry.get('origin') == 'declared':
                 choices[f"{name}: take back the confirmation ({entry['position']}, by {entry.get('by')})"] = (key, None)
             elif entry.get('position') is None:
-                axis = next(a for a in self.graph.node(component).axes if a.name == aspect)
+                node = self.graph.nodes.get(component)
+                axis = next((a for a in node.axes if a.name == aspect), None) if node is not None else None
+                if axis is None:
+                    continue  # published by a newer service than this client's graph knows (a rollout)
                 switched = set(axis.vocabulary) == {'off', 'on'}  # a lamp is on, a mirror is at a position
                 for position in axis.vocabulary:
                     choices[f"{name} is {position}" if switched else f"{name} is at {position}"] = (key, position)
