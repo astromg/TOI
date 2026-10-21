@@ -65,7 +65,8 @@ HINTS = {
     "function": "What you want this instrument to do. The dot says whether it is ready:\n"
                 "green ready, grey SET PATH will do it, orange blocked, red not possible now.",
     "set": "Move mirrors and covers so the chosen function is ready. Needs Take Control.",
-    "confirm": "A part on this path has no working sensor, so the system cannot tell where it is.\n"
+    "confirm": "A part on this path, or one the chosen function needs, has no working sensor,\n"
+               "so the system cannot tell where it is (or whether a lamp is on).\n"
                "If you have checked it yourself, tell the system here; your name is shown with it\n"
                "until the sensor works again (at most 12 hours). You can take it back here too.\n"
                "Needs Take Control.",
@@ -209,6 +210,7 @@ class OpticsPanel(QWidget):
         verdict = self.functions.get(self.function_s.currentText())
         settable = verdict is not None and verdict.kind == VerdictKind.SETTABLE
         self.ribbon.set_target(verdict.moves if settable else {})
+        self.declare_p.setVisible(bool(self.declaration_choices()))
         self._show_status()
 
     def _show_status(self):
@@ -260,20 +262,25 @@ class OpticsPanel(QWidget):
                                   "TOI RESPONDER", tel)
 
     def declaration_choices(self) -> dict[str, tuple[str, str | None]]:
-        """Dialog item → (state key, position): every position of an unknown axis on the path, and
-        taking back a confirmation."""
+        """Dialog item → (state key, position): every position of an unknown axis on the path or
+        needed by the selected function (the flat screen's lamps before the telescope points at
+        it), and taking back a confirmation."""
         choices = {}
         if self.graph is None:
             return choices
-        for key, entry in self._path_axes().items():
+        verdict = self.functions.get(self.function_s.currentText())
+        needed = set(getattr(verdict, 'undefined_at', ()) or ())
+        axes = {**{key: self.model.selectors[key] for key in needed if key in self.model.selectors}, **self._path_axes()}
+        for key, entry in axes.items():
             name = entry.get('label') or key
             component, aspect = split_state_key(key)
             if entry.get('origin') == 'declared':
                 choices[f"{name}: take back the confirmation ({entry['position']}, by {entry.get('by')})"] = (key, None)
             elif entry.get('position') is None:
                 axis = next(a for a in self.graph.node(component).axes if a.name == aspect)
+                switched = set(axis.vocabulary) == {'off', 'on'}  # a lamp is on, a mirror is at a position
                 for position in axis.vocabulary:
-                    choices[f"{name} is at {position}"] = (key, position)
+                    choices[f"{name} is {position}" if switched else f"{name} is at {position}"] = (key, position)
         return choices
 
     def declare(self):

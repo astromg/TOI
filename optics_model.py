@@ -5,6 +5,10 @@ One model per TOI, subscribed once per telescope; the instrument panels and the 
 published telescope config, the state axes (``self.selectors``: selectors and sources, with
 causes and declarations), what every detector sees, the verdicts of the detectors' functions and
 the running operation — and derives nothing the service decides.
+
+Its subscriptions get the values themselves (``ocabox`` ≥ 2.11): ``None`` is the Staleness
+Contract saying TIC has no truthful value (the service silent past ``max_data_age``) — then nothing
+is shown as known, never an old path as the current one.
 """
 import logging
 from functools import partial
@@ -18,12 +22,6 @@ logger = logging.getLogger(__name__.rsplit('.')[-1])
 
 _SEES = TypeAdapter(list[SeesRecord])
 _FUNCTIONS = TypeAdapter(dict[str, Verdict])
-
-
-def event_value(event):
-    """The value an ocabox subscription event announces: the public parameter is computed from the
-    cached value (``event.new`` is its function), so the value is read from the component."""
-    return getattr(event.obj, event.name)
 
 
 class OpticsModel(QObject):
@@ -88,26 +86,26 @@ class OpticsModel(QObject):
 
     # ------------------------------------------------------------------ updates
 
-    def _sees_update(self, detector: str, event):
+    def _sees_update(self, detector: str, value):
         try:
-            self.sees[detector] = _SEES.validate_python(event_value(event) or [])
+            self.sees[detector] = _SEES.validate_python(value or [])
         except ValidationError as e:
             logger.warning(f'optics {detector}: malformed sees: {e}')
             return
         self.sees_changed.emit(detector)
 
-    def _functions_update(self, detector: str, event):
+    def _functions_update(self, detector: str, value):
         try:
-            self.functions[detector] = _FUNCTIONS.validate_python(event_value(event) or {})
+            self.functions[detector] = _FUNCTIONS.validate_python(value or {})
         except ValidationError as e:
             logger.warning(f'optics {detector}: malformed functions: {e}')
             return
         self.functions_changed.emit(detector)
 
-    def _selectors_update(self, event):
-        self.selectors = event_value(event) or {}
+    def _selectors_update(self, value):
+        self.selectors = value or {}
         self.selectors_changed.emit()
 
-    def _operation_update(self, event):
-        self.operation = event_value(event) or {}
+    def _operation_update(self, value):
+        self.operation = value or {}
         self.operation_changed.emit()
