@@ -89,10 +89,11 @@ def describe_verdict(graph: OpticalGraph, verdict) -> str:
 
 
 def path_status(graph: OpticalGraph, detector: str, function: str, verdict, operation: dict,
-                confirmed: list[str]) -> Status:
+                confirmed: list[str], unknown: str | None = None) -> Status:
     """The status of ``detector``: its switch while it runs (and how it failed, for the function that
     failed), else the verdict of the selected ``function``; ``confirmed`` are the parts on the path
-    people vouch for, named wherever the path relies on them."""
+    people vouch for, named wherever the path relies on them; ``unknown`` why the verdicts are not
+    known now (TIC or the service silent)."""
     if operation.get('detector') == detector:
         state, switched = operation.get('state'), operation.get('function')
         if state == 'moving':
@@ -100,7 +101,7 @@ def path_status(graph: OpticalGraph, detector: str, function: str, verdict, oper
         if state == 'failed' and switched == function:
             return Status('failed', "FAILED", operation.get('message') or f"{switched}: the switch failed")
     if verdict is None:
-        return Status('none', "NO DATA", "the optics service publishes nothing for this instrument")
+        return Status('none', "NO DATA", unknown or "the optics service publishes nothing for this instrument")
     text = describe_verdict(graph, verdict)
     if confirmed and verdict.kind in (VerdictKind.ACTIVE, VerdictKind.SETTABLE):
         text += " · " + "; ".join(confirmed)
@@ -225,7 +226,8 @@ class OpticsPanel(QWidget):
         verdict = self.functions.get(function)
         self.set_p.setEnabled(verdict is not None and verdict.kind == VerdictKind.SETTABLE
                               and self.model.operation.get('state') != 'moving')  # one switch at a time
-        status = path_status(self.graph, self.detector, function, verdict, self.model.operation, confirmed)
+        status = path_status(self.graph, self.detector, function, verdict, self.model.operation, confirmed,
+                             self.model.unknown.get(self.detector))
         unread = [f"{entry.get('label') or key}: not known — {entry.get('cause') or 'no reading'}"
                   for key, entry in axes.items() if entry.get('position') is None]
         self.status.set_status(Status(status.kind, status.word, status.text, "\n".join([status.text, *unread, *confirmed])))

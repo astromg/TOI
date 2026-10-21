@@ -6,14 +6,16 @@ published telescope config, the state axes (``self.selectors``: selectors and so
 causes and declarations), what every detector sees, the verdicts of the detectors' functions and
 the running operation — and derives nothing the service decides.
 
-Its subscriptions get the values themselves (``ocabox`` ≥ 2.11): ``None`` is the Staleness
-Contract saying TIC has no truthful value (the service silent past ``max_data_age``) — then nothing
-is shown as known, never an old path as the current one.
+Its subscriptions get what TIC delivered, the obcom ``Value`` (``ocabox`` ≥ 2.11). A ``None`` is
+the Staleness Contract saying TIC has no truthful value — then nothing is shown as known, never an
+old path as the current one — and its ``reason`` says why (:func:`why_none`): the panel tells the
+operator whether TIC or the optics service is silent.
 """
 import logging
 from functools import partial
 
 from datamodels.optics import SeesRecord, Verdict
+from obcom.data_colection.value import Value
 from obcom.optics import GraphInvalid, OpticalGraph, Ribbon, parse_graph, published_values, ribbon
 from pydantic import TypeAdapter, ValidationError
 from PyQtX.QtCore import QObject, pyqtSignal
@@ -22,6 +24,15 @@ logger = logging.getLogger(__name__.rsplit('.')[-1])
 
 _SEES = TypeAdapter(list[SeesRecord])
 _FUNCTIONS = TypeAdapter(dict[str, Verdict])
+#: what the reason of a delivered ``None`` means to an operator (obcom / TIC codes)
+_REASONS = {2003: "out of date", 4002: "TIC does not answer", 4005: "the optics service does not answer"}
+
+
+def why_none(value: Value) -> str:
+    """Why a delivered ``Value`` has no truthful value, in words, the code in brackets."""
+    reason = value.tags.get('reason')
+    words = _REASONS.get(reason) or value.tags.get('message') or "no current data"
+    return f"{words} ({reason})" if reason is not None else words
 
 
 class OpticsModel(QObject):
@@ -41,12 +52,13 @@ class OpticsModel(QObject):
         self.selectors: dict[str, dict] = {}  #: state key → {position, origin, moving, cause, by, label}
         self.sees: dict[str, list[SeesRecord]] = {}
         self.functions: dict[str, dict[str, Verdict]] = {}
+        self.unknown: dict[str, str] = {}  #: detector → why its functions are not known now
         self.operation: dict = {}
 
     def load(self, telescope_name: str | None, components: dict) -> None:
         """The graph of ``telescope_name`` from its published ``components:``; none without optics."""
         self.telescope_name, self.graph, self.telescope = telescope_name, None, None
-        self.selectors, self.sees, self.functions, self.operation = {}, {}, {}, {}
+        self.selectors, self.sees, self.functions, self.unknown, self.operation = {}, {}, {}, {}, {}
         if any((spec or {}).get("paths") for spec in components.values()):
             try:
                 self.graph = parse_graph(components, telescope=telescope_name)
@@ -86,26 +98,32 @@ class OpticsModel(QObject):
 
     # ------------------------------------------------------------------ updates
 
-    def _sees_update(self, detector: str, value):
+    def _sees_update(self, detector: str, value: Value):
         try:
-            self.sees[detector] = _SEES.validate_python(value or [])
+            self.sees[detector] = _SEES.validate_python(value.v or [])
         except ValidationError as e:
             logger.warning(f'optics {detector}: malformed sees: {e}')
             return
         self.sees_changed.emit(detector)
 
-    def _functions_update(self, detector: str, value):
+    def _functions_update(self, detector: str, value: Value):
+        if value.v is None:
+            if detector not in self.unknown:
+                logger.warning(f'optics {detector}: functions not known: {why_none(value)}')
+            self.unknown[detector] = why_none(value)
+        else:
+            self.unknown.pop(detector, None)
         try:
-            self.functions[detector] = _FUNCTIONS.validate_python(value or {})
+            self.functions[detector] = _FUNCTIONS.validate_python(value.v or {})
         except ValidationError as e:
             logger.warning(f'optics {detector}: malformed functions: {e}')
             return
         self.functions_changed.emit(detector)
 
-    def _selectors_update(self, value):
-        self.selectors = value or {}
+    def _selectors_update(self, value: Value):
+        self.selectors = value.v or {}
         self.selectors_changed.emit()
 
-    def _operation_update(self, value):
-        self.operation = value or {}
+    def _operation_update(self, value: Value):
+        self.operation = value.v or {}
         self.operation_changed.emit()
