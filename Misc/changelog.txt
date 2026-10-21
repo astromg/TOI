@@ -3,7 +3,7 @@
 --- 21.10.2026 --- <br>
 Optical path: values come straight from the subscriptions (ocabox 2.11). Dome flats with the shutter closed work:
 point the telescope at the flat screen, confirm the flat screen lamps by hand (the button appears whenever the chosen
-function needs it), SET PATH opens the covers. Requires ocabox 2.11, ocabox-common 1.11, optics service 1.6.
+function needs it), SET PATH opens the covers. Requires ocabox 2.11, ocabox-common 1.12, optics service 1.6.
 <br><br>
 --- 20.10.2026 --- <br>
 Sky window, Optical path tab: the telescope drawn as a tree - the trunk in the middle, the camera and BESO branches
