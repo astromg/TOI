@@ -95,6 +95,12 @@ class MainForm(QWidget):
 
             lay.addWidget(QLabel(f'{t}'))
 
+            if self.parent.safety_cutoff.get(t):
+                icon_hat = QLabel()
+                icon_hat.setPixmap(ToiIcon("icon_hat", "red", size=14).pixmap(14, 14))
+                icon_hat.setToolTip("safety cutoff ON")
+                lay.addWidget(icon_hat)
+
 
             if self.parent.nats_toi_op_status[t]:
 

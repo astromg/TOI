@@ -198,11 +198,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_safety_reader(self,tel):
         try:
-            reader = get_reader(f'tic.status.{tel}.access_grantors.safety_cutoff_state', deliver_policy='last')
+            reader = get_reader(f'tic.status.{tel}.access_grantor.safety_cutoff_state', deliver_policy='last')
             async for data, meta in reader:
-                pass
-                #print("DUPA",data)
-                #self.safety_state.append(data)
+                state = data["measurements"][f"{tel}.access_grantor.safety_cutoff_state"]
+                if isinstance(state, dict):
+                    state = state.get("engaged")
+                self.safety_cutoff[tel] = None if state is None else bool(state)
+                self.obsGui.main_form.update_table()
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -4286,6 +4288,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         tmp = {"dome_ventilators":{"state":False,"defoult":False}, "mirror_fans":{"state":False,"defoult":False},"flat_lamps":{"state":False,"defoult":False},"dome_lights":{"state":False,"defoult":False}}
         self.toi_op_status = {t:copy.deepcopy(tmp) for t in self.local_cfg["toi"]["telescopes"]}
+        self.safety_cutoff = {t:None for t in self.local_cfg["toi"]["telescopes"]}   # z tic.status.<tel>.access_grantor.safety_cutoff_state
 
         tmp = {"focus_adjust":None}
         self.toi_switch_status = {t:copy.deepcopy(tmp) for t in self.local_cfg["toi"]["telescopes"]}
