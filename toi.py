@@ -1296,12 +1296,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                                 self.plan_log_agregator(tel, tmp)
                                     if "ut" in self.ob[tel]["ob"].keys():
                                         if self.ob[tel]["ob"]["ut"] != "":
-                                            req_ut = str(self.ob[tel]["ob"]["ut"])
-                                            ut = str(self.almanac["ut"]).split()[1]
-                                            ut = 3600 * float(ut.split(":")[0]) + 60 * float(ut.split(":")[1]) + float(ut.split(":")[2])
-                                            req_ut = 3600 * float(req_ut.split(":")[0]) + 60 * float(req_ut.split(":")[1]) + float(
-                                                req_ut.split(":")[2])
-                                            if req_ut < ut:
+                                            if wait_ut_sec(self.ob[tel]["ob"]["ut"], ephem.now()) <= 0:
                                                 self.ob[tel]["meta"]["done"] = True
                                                 await self.msg(f' {tel} PLAN: WAIT ut={self.ob[tel]["ob"]["ut"]} DONE', "green")
                                                 self.next_i[tel] = self.current_i[tel]
@@ -2233,126 +2228,93 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.planGui.update_table()
                 else:
                     self.check_next_i(tel)
-                    ob_time = ephem.now()
-                    first_ctc = True
                     rm_now = self.ccd_readoutmode
-                    start_time = datetime.datetime.now(datetime.timezone.utc)
-                    # TODO do curren time delay list or sum
-                    current_time_lenght = 0
+                    now = ephem.now()
+
+                    # Jedna os czasu: ob_time = planowany start kolejnego OB.
+                    # CTC liczy na wlasnej osi (start_time + suma czasow), wiec pilnujemy zeby byla
+                    # zgodna z ob_time - jak nie jest (ctc_synced=False), CTC startuje od nowa od ob_time.
+                    ob_time = now
+                    ctc_synced = False
+
+                    # planujemy od biezacego OB (albo od next, jak nic nie leci)
+                    starts = [k for k in (self.current_i[tel], self.next_i[tel]) if k > -1]
+                    first_i = min(starts) if starts else len(self.plan[tel])
+
                     for i, tmp in enumerate(self.plan[tel]):
+                        ob = self.plan[tel][i]["ob"]
+                        meta = self.plan[tel][i]["meta"]
+                        scheduled = i >= first_i
+                        running = i == self.current_i[tel]
+                        skipped = self._ob_skipped(meta) and not running
+                        on_timeline = scheduled and not running and not skipped
+
+                        if running and meta.get("start_time"):
+                            ob_time = now - (self.time - meta["start_time"]) * ephem.second
+                        # dla biezacego OB czekanie liczymy od teraz, dla reszty od planowanego startu
+                        t0 = now if running else ob_time
+                        t0_dt = ephem.Date(t0).datetime().replace(tzinfo=datetime.timezone.utc)
+                        elapsed = (t0 - ob_time) / ephem.second
+
                         # liczenie czasu ob
+                        is_wait = ob.get("command_name") == "WAIT"
+                        if is_wait and "ut" in ob:
+                            # tak samo jak wykonanie WAIT ut w petli planu (wait_ut_sec)
+                            meta["slotTime"] = elapsed + wait_ut_sec(ob["ut"], t0)
+                            ctc_synced = False
 
-                        calc_slotTime = False
-                        if "slotTime" not in self.plan[tel][i]["meta"].keys():
-                            calc_slotTime = True
-                        else:
-                            if not self.plan[tel][i]["meta"]["slotTime"]:
-                                calc_slotTime = True
-                            if "sunrise" in self.plan[tel][i]["ob"] or "sunset" in self.plan[tel][i]["ob"] \
-                                or "ut" in self.plan[tel][i]["ob"] or "sec" in self.plan[tel][i]["ob"] :
-                                calc_slotTime = True
-                            if "seq" in self.plan[tel][i]["ob"] and \
-                                    self.plan[tel][i]["meta"].get("slotTime_rm") != rm_now:
-                                calc_slotTime = True
-                        if calc_slotTime:
-                            if "sec" in self.plan[tel][i]["ob"].keys():
-                                # slotTime = float(self.plan[tel][i]["ob"]["sec"])
-                                # self.plan[tel][i]["meta"]["slotTime"] = slotTime
-                                slotTime, _ = self._calc_ctc(
-                                    tel=tel,
-                                    rm_now=rm_now,
-                                    first_ctc=first_ctc,
-                                    prog_block=self.plan[tel][i]["block"]
-                                )
-                                if 'slotTime' in self.plan[tel][i]["meta"]:
-                                    if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
-                                        self.plan[tel][i]["meta"]["slotTime"] = slotTime
-                                else:
-                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                        elif is_wait and ("sunset" in ob or "sunrise" in ob):
+                            wait, _ = self._calc_ctc(tel=tel, rm_now=rm_now, first_ctc=True,
+                                                     prog_block=self.plan[tel][i]["block"], start_time=t0_dt)
+                            if wait is not None:
+                                meta["slotTime"] = elapsed + wait
+                            # CTC wystartowal od t0 i skonczyl na koncu WAIT
+                            ctc_synced = wait is not None and (on_timeline or running)
 
-                            elif "seq" in self.plan[tel][i]["ob"].keys():
+                        elif is_wait and "sec" in ob:
+                            try:
+                                meta["slotTime"] = float(ob["sec"])
+                            except (TypeError, ValueError):
+                                meta["slotTime"] = 0
+                            ctc_synced = False
 
-                                slotTime, first_ctc = self._calc_ctc(
-                                    tel=tel,
-                                    rm_now=rm_now,
-                                    first_ctc=first_ctc,
-                                    prog_block=self.plan[tel][i]["block"]
-                                )
-
+                        elif "seq" in ob:
+                            if not meta.get("slotTime") or meta.get("slotTime_rm") != rm_now:
+                                slotTime, _ = self._calc_ctc(tel=tel, rm_now=rm_now, first_ctc=not (ctc_synced and on_timeline),
+                                                             prog_block=self.plan[tel][i]["block"], start_time=t0_dt)
                                 if slotTime is None:
-                                    seq = self.plan[tel][i]["ob"]["seq"]
                                     slotTime = ObsValidator.calc_seq_time(
-                                        seq, overhead=self.overhed, base_time=5,
+                                        ob["seq"], overhead=self.overhed, base_time=5,
                                         filter_overhead=2, auto_time=5
                                     )
-
-                                self.plan[tel][i]["meta"]["slotTime"] = slotTime
-                                self.plan[tel][i]["meta"]["slotTime_rm"] = rm_now
-
-                            elif "ut" in self.plan[tel][i]["ob"].keys() or \
-                                    "sunset" in self.plan[tel][i]["ob"].keys() \
-                                    or "sunrise" in self.plan[tel][i]["ob"].keys():
-                                slotTime, _ = self._calc_ctc(
-                                    tel=tel,
-                                    rm_now=rm_now,
-                                    first_ctc=True,
-                                    prog_block=self.plan[tel][i]["block"],
-                                    start_time=start_time + datetime.timedelta(seconds=current_time_lenght)
-                                )
-                                if 'slotTime' in self.plan[tel][i]["meta"]:
-                                    if abs(self.plan[tel][i]["meta"]["slotTime"] - slotTime) > 60:
-                                        self.plan[tel][i]["meta"]["slotTime"] = slotTime
                                 else:
-                                    self.plan[tel][i]["meta"]["slotTime"] = slotTime
+                                    ctc_synced = on_timeline
+                                meta["slotTime"] = slotTime
+                                meta["slotTime_rm"] = rm_now
+                            else:
+                                ctc_synced = False   # czas z cache, CTC tego OB nie widzial
 
-                        if "slotTime" in self.plan[tel][i]["meta"].keys():
-                            current_time_lenght += self.plan[tel][i]["meta"]["slotTime"]
+                        if "uobi" not in ob.keys():  # nadaje uobi jak nie ma
+                            ob["uobi"] = str(uuid.uuid4())[:8]
+                        if "ra" in ob.keys():  # liczy aktualna wysokosc na horyzontem
+                            az, alt = RaDec2AltAz(self.observatory, now, ob["ra"], ob["dec"])
+                            meta["alt"] = f"{deg_to_decimal_deg(str(alt)):.1f}"
+                            meta["az"] = f"{deg_to_decimal_deg(str(az)):.1f}"
 
-                        if i == self.next_i[tel] or i == self.current_i[tel]:
-                            if i == self.current_i[tel]:
-                                if "slotTime" in self.ob[tel]["meta"].keys():
-                                    if self.ob[tel]["meta"]["start_time"] and self.ob[tel]["meta"]["slotTime"]:
-                                        t1 = self.time-self.ob[tel]["meta"]["start_time"]
-                                        t2 = self.ob[tel]["meta"]["slotTime"] - t1
-                                        if t2 < 0:
-                                            t2 = 0
+                        # planowany start i wysokosc
+                        if scheduled:
+                            meta["plan_ut"] = str(ephem.Date(ob_time))
+                            if "ra" in ob.keys():
+                                az, alt = RaDec2AltAz(self.observatory, ob_time, ob["ra"], ob["dec"])
+                                meta["plan_alt"] = f"{deg_to_decimal_deg(str(alt)):.1f}"
+                                meta["plan_az"] = f"{deg_to_decimal_deg(str(az)):.1f}"
 
-                                        ob_time = ob_time - (self.ob[tel]["meta"]["slotTime"] - t2) * ephem.second
-
-                        if "uobi" not in self.plan[tel][i]["ob"].keys():  # nadaje uobi jak nie ma
-                            self.plan[tel][i]["ob"]["uobi"] = str(uuid.uuid4())[:8]
-                        # if len(str(self.plan[tel][i]["ob"]["uobi"])) < 1:
-                        #     self.plan[tel][i]["ob"]["uobi"] = str(uuid.uuid4())[:8]
-                        if "ra" in self.plan[tel][i]["ob"].keys():  # liczy aktualna wysokosc na horyzontem
-                            ra = self.plan[tel][i]["ob"]["ra"]
-                            dec = self.plan[tel][i]["ob"]["dec"]
-                            az, alt = RaDec2AltAz(self.observatory, ephem.now(), ra, dec)
-                            alt = f"{deg_to_decimal_deg(str(alt)):.1f}"
-                            az = f"{deg_to_decimal_deg(str(az)):.1f}"
-                            self.plan[tel][i]["meta"]["alt"] = alt
-                            self.plan[tel][i]["meta"]["az"] = az
-                        # liczy planowana wysokosc nad horyzontem
-                        tmp_ok = False
-                        if self.current_i[tel] > -1 and i >= self.current_i[tel]:
-                            tmp_ok = True
-                        if self.next_i[tel] > -1 and i >= self.next_i[tel]:
-                            tmp_ok = True
-                        if tmp_ok:
-                            self.plan[tel][i]["meta"]["plan_ut"] = str(ephem.Date(ob_time))
-
-                            if "ra" in self.plan[tel][i]["ob"].keys():
-                                ra = self.plan[tel][i]["ob"]["ra"]
-                                dec = self.plan[tel][i]["ob"]["dec"]
-                                az, alt = RaDec2AltAz(self.observatory, ob_time, ra, dec)
-                                alt = f"{deg_to_decimal_deg(str(alt)):.1f}"
-                                az = f"{deg_to_decimal_deg((str(az))):.1f}"
-                                self.plan[tel][i]["meta"]["plan_alt"] = alt
-                                self.plan[tel][i]["meta"]["plan_az"] = az
-
-
-                            if "slotTime" in self.plan[tel][i]["meta"].keys():
-                                slotTime = self.plan[tel][i]["meta"]["slotTime"]
-                                ob_time = ob_time + ephem.second * slotTime
+                            # pominiete OB nie zajmuja czasu
+                            if not skipped and meta.get("slotTime"):
+                                ob_time = ob_time + ephem.second * meta["slotTime"]
+                                if running and ob_time < now:   # biezacy OB przeciagnal sie
+                                    ob_time = now
+                                    ctc_synced = False
 
                 # except Exception as e:
                 #     logger.warning(f'TOI: EXCEPTION 16: {e}')
@@ -2367,25 +2329,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 self.planGui.update_table()
 
+    @staticmethod
+    def _ob_skipped(meta):
+        # OB ktore planrunner przeskakuje (check_next_i) - nie zajmuja czasu w planie
+        return bool(meta.get("skip")) or bool(meta.get("skip_alt")) or ("ok" in meta and not meta["ok"])
+
     def check_next_i(self,tel):
-        if self.next_i[tel] > len(self.plan[tel])-1:
-            self.next_i[tel] = -1
-        else:
-
-            if "skip" in self.plan[tel][self.next_i[tel]]["meta"].keys():
-                if self.plan[tel][self.next_i[tel]]["meta"]["skip"]:
-                    self.next_i[tel] = self.next_i[tel] + 1
-                    self.check_next_i(tel)
-
-            if "skip_alt" in self.plan[tel][self.next_i[tel]]["meta"].keys():
-                if self.plan[tel][self.next_i[tel]]["meta"]["skip_alt"]:
-                    self.next_i[tel] = self.next_i[tel] + 1
-                    self.check_next_i(tel)
-
-            if "ok" in self.plan[tel][self.next_i[tel]]["meta"].keys():
-                if not self.plan[tel][self.next_i[tel]]["meta"]["ok"]:
-                    self.next_i[tel] = self.next_i[tel] + 1
-                    self.check_next_i(tel)
+        # przesuwa next_i za pominiete OB, -1 jak nic nie zostalo
+        while -1 < self.next_i[tel] < len(self.plan[tel]):
+            if self._ob_skipped(self.plan[tel][self.next_i[tel]]["meta"]):
+                self.next_i[tel] = self.next_i[tel] + 1
+            else:
+                return
+        self.next_i[tel] = -1
 
     ####################### focus window ##############################
 
