@@ -146,11 +146,15 @@ class MainForm(QWidget):
                 humidity = _f(self.parent.telemetry_humidity)
                 temperature = _f(self.parent.telemetry_temp)
 
-                if wind is not None and wind > float(self.parent.cfg_wind_limit):
+                tel_cfg = self.parent.nats_cfg.get(t, {})
+                wind_limit = _f(tel_cfg.get("wind_limit")) or float(self.parent.cfg_wind_limit)
+                wind_limit_pointing = _f(tel_cfg.get("wind_limit_pointing")) or float(self.parent.cfg_wind_limit_pointing)
+
+                if wind is not None and wind > wind_limit:
                     icon_label5 = QLabel()
                     icon_label5.setPixmap(ToiIcon("icon_wind", "red", size=14).pixmap(14, 14))
                     lay.addWidget(icon_label5)
-                elif wind is not None and wind > float(self.parent.cfg_wind_limit_pointing):
+                elif wind is not None and wind > wind_limit_pointing:
                     icon_label6 = QLabel()
                     icon_label6.setPixmap(ToiIcon("icon_wind", "orange", size=14).pixmap(14, 14))
                     lay.addWidget(icon_label6)

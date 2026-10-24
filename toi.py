@@ -4149,6 +4149,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 tmp = None
             self.nats_cfg[k]["color"] = tmp
 
+            # limity wiatru per teleskop (obs_limits, oca-problems#273); None -> globalne cfg_wind_limit*
+            try:
+                wind_cfg = nats_cfg[k]["observatory"]["obs_limits"]["weather_restrictions"]["wind"]
+            except (KeyError, TypeError):
+                wind_cfg = {}
+            self.nats_cfg[k]["wind_limit"] = wind_cfg.get("observation_stop")
+            self.nats_cfg[k]["wind_limit_pointing"] = wind_cfg.get("pointing")
+
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["mount"]["min_alt"]
             except KeyError:
