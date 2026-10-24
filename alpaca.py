@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 
-import json
-import requests
 
 
 # 100 wk06

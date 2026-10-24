@@ -18,7 +18,6 @@ import sys
 import uuid
 import copy
 import time
-from xmlrpc.client import ResponseError
 
 import ephem
 import numpy
@@ -33,29 +32,22 @@ from pyaraucaria.ffs import FFS
 from PyQtX import QtWidgets, QtCore
 from astropy.io import fits
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap, QPainter, QColor, QIcon
 
 from obcom.comunication.base_client_api import BaseClientAPI
 from ocaboxapi import Observatory, Telescope, AccessGrantor, Dome, Mount, CoverCalibrator, Focuser, Camera, \
     FilterWheel, Rotator, CCTV
 from ocaboxapi.ephemeris import Ephemeris
-from ocaboxapi.plan import ObservationPlan
-from ocaboxapi.exceptions import OcaboxServerError
 from pyaraucaria.coordinates import *
 # from astropy.io import fits
 from pyaraucaria.dome_eq import dome_eq_azimuth
-from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
 
-from serverish.messenger import Messenger, single_read, get_reader, get_journalreader
-from serverish.messenger.msg_publisher import MsgPublisher, get_publisher
-from serverish.messenger.msg_journal_pub import MsgJournalPublisher, get_journalpublisher, JournalEntry
+from serverish.messenger import Messenger, get_reader, get_journalreader
+from serverish.messenger.msg_publisher import get_publisher
 
 from pyaraucaria.ob_validator import ObsValidator
 from pyaraucaria.focus import Focus
 
 from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
-from calcFocus import calc_focus as calFoc
 from instrument_gui import InstrumentGui
 from mnt_gui import MntGui
 from sky_gui import SkyGui
@@ -1166,7 +1158,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 if self.active_tel == "wk06":
                                     if self.mount_ra and self.mount_dec:
                                         side_of_pier = await self.mount.aget_sideofpier()
-                                        dome_eq_az, info_dict = dome_eq_azimuth(
+                                        dome_eq_az, _ = dome_eq_azimuth(
                                             ra=self.mount_ra, dec=self.mount_dec, r_dome=2050, spx=-110, spy=-110,
                                             gem=670, side_of_pier=side_of_pier, latitude=-24.598056,
                                             longitude=-70.196389, elevation=2817
@@ -1298,7 +1290,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                             dt = self.time - self.ob[tel]["meta"]["start_time"]
                                             if float(dt) > float(self.ob[tel]["ob"]["sec"]):
                                                 self.ob[tel]["meta"]["done"] = True
-                                                await self.msg(f' {tel} PLAN: WAIT sec={self.ob[tel]["ob"]["sec"]} s DONE', "green")
                                                 self.next_i[tel] = self.current_i[tel]
                                                 self.plan[tel].pop(self.current_i[tel])
                                                 await self.check_plan_finished(tel)
@@ -1311,7 +1302,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         if self.ob[tel]["ob"]["ut"] != "":
                                             if wait_ut_sec(self.ob[tel]["ob"]["ut"], ephem.now()) <= 0:
                                                 self.ob[tel]["meta"]["done"] = True
-                                                await self.msg(f' {tel} PLAN: WAIT ut={self.ob[tel]["ob"]["ut"]} DONE', "green")
                                                 self.next_i[tel] = self.current_i[tel]
                                                 self.plan[tel].pop(self.current_i[tel])
                                                 await self.check_plan_finished(tel)
@@ -1324,7 +1314,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         if self.ob[tel]["ob"]["sunrise"] != "":
                                             if deg_to_decimal_deg(self.almanac["sun_alt"]) > float(self.ob[tel]["ob"]["sunrise"]):
                                                 self.ob[tel]["meta"]["done"] = True
-                                                await self.msg(f' {tel} PLAN: WAIT sunrise={self.ob[tel]["ob"]["sunrise"]} DONE', "green")
                                                 self.next_i[tel] = self.current_i[tel]
                                                 self.plan[tel].pop(self.current_i[tel])
                                                 await self.check_plan_finished(tel)
@@ -1337,7 +1326,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         if self.ob[tel]["ob"]["sunset"] != "":
                                             if deg_to_decimal_deg(self.almanac["sun_alt"]) < float(self.ob[tel]["ob"]["sunset"]):
                                                 self.ob[tel]["meta"]["done"] = True
-                                                await self.msg(f' {tel} PLAN: WAIT sunset={self.ob[tel]["ob"]["sunset"]} DONE', "green")
 
                                                 self.next_i[tel] = self.current_i[tel]
                                                 self.plan[tel].pop(self.current_i[tel])
@@ -1383,7 +1371,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             if self.guiderGui.guiderView.guiderCameraOn_c.isChecked():
                                 try:
                                     await self.guider.aput_startexposure(exp, True)
-                                except Exception as e:
+                                except Exception:
                                     pass
 
                         # ######## Analiza obrazu guider
@@ -1490,8 +1478,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                             mk1 = x_diff < 3
                                             mk2 = y_diff < 3
                                             mk = [k and z for k, z in zip(mk1, mk2)]
-                                            tmp_rx0 = xr0[mk]
-                                            tmp_ry0 = yr0[mk]
                                             j_list = j_list[mk]
                                             prev_diff = 10000
                                             # jak juz wybralismy gwiazdy z obrazka referencyjnego ktore
@@ -1647,7 +1633,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 if "name" in info.keys() and "started" in info.keys() and "done" in info.keys():
                     if info["name"] == "NIGHTPLAN" and info["started"] and not info["done"]:
-                        await self.msg(f" {tel} PLAN: Plan started","black")
                         self.ob[tel]["meta"]["run"] = True     # to swiadczy o tym czy planrunner dziala
                         self.ob[tel]["meta"]["done"] = False
                         self.ob_start_time = self.time
@@ -1722,11 +1707,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         except Exception as e:
                             logger.warning(f'TOI: EXCEPTION 47: {e}')
 
-                    elif info["name"] == "SKYFLAT" and info["started"] and not info["done"]:  # SKYFLAT
-                        await self.msg(f" {tel} PLAN: AUTO FLAT program started", "black")                       # SKYFLAT
-
-                    elif info["name"] == "SKYFLAT" and info["done"]:
-                        await self.msg(f"{tel} PLAN: AUTO FLAT program finished", "black")
 
 
                 if "exp_started" in info.keys() and "exp_done" in info.keys():
@@ -1744,7 +1724,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         except Exception as e:
                             logger.warning(f'TOI: EXCEPTION 48: {e}')
 
-                        #await self.msg(f" {tel} PLAN: {self.ob_progress[tel]['dit_exp']} [s] exposure started","black")
 
                     elif info["exp_done"] and info["exp_saved"]:
                         self.ob_progress[tel]["ndit"]=float(info["n_exp"])
@@ -1774,14 +1753,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                             logger.warning(f'TOI: EXCEPTION 50: {e}')
 
 
-                        #await self.msg(f" {tel} PLAN: {self.ob_progress[tel]['dit_exp']} [s] test exposure started","black")
 
                     elif info["auto_exp_finnished"]:
                         pass
-                        #await self.msg(f" {tel} PLAN: test exposure done", "black")
 
                 if "test_exp_mean" in info.keys():                                                        # SKYFLAT
-                    #await self.msg(f" {tel} PLAN: mean {int(info['test_exp_mean'])} ADU measured", "black")
                     pass
 
                 if "id" in info.keys():  # to jest tylko do wyswietlania w oknie loga planu
@@ -1845,12 +1821,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         data["method"] = self.focus_method
                                         try:
                                             data["temperature"] = self.sensors[tel]["dome_conditions"]["temperature"]
-                                        except Exception as e:
+                                        except Exception:
                                             data["temperature"] = "--"
                                         try:
                                             pos = self.oca_tel_state[tel]["fw_position"]["val"]
                                             data["filter"] = self.nats_cfg[tel]["filter_list_names"][pos]
-                                        except Exception as e:
+                                        except Exception:
                                             data["filter"] = "--"
 
                                         await self.nats_toi_focus_status[tel].publish(data=data, timeout=10)
@@ -2389,12 +2365,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     data["method"] = self.focus_method
                     try:
                         data["temperature"] = self.sensors[self.active_tel]["dome_conditions"]["temperature"]
-                    except Exception as e:
+                    except Exception:
                         data["temperature"] = "--"
                     try:
                         pos = self.oca_tel_state[self.active_tel]["fw_position"]["val"]
                         data["filter"] = self.nats_cfg[self.active_tel]["filter_list_names"][pos]
-                    except Exception as e:
+                    except Exception:
                         data["filter"] = "--"
 
                     await self.nats_toi_focus_status[self.active_tel].publish(data=data, timeout=10)
@@ -2535,7 +2511,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if exp>=0:
                     ok_exp=True
                     self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
-            except Exception as e:
+            except Exception:
                 ok_exp=False
                 await self.update_log(f'wrong EXP format', "WARNING", self.active_tel)
                 self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
@@ -2547,7 +2523,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if ndit>0:
                     ok_ndit=True
                     self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
-            except Exception as e:
+            except Exception:
                 ok_exp=False
                 await self.update_log(f'wrong N format', "WARNING", self.active_tel)
                 self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
@@ -2601,7 +2577,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if exp>-0.0001:
                         ok_exp=True
                         self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
-                except Exception as e:
+                except Exception:
                     ok_exp=False
                     await self.update_log(f'wrong EXP TIME format', "WARNING", self.active_tel)
                     self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
@@ -2614,7 +2590,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if ndit>0:
                         ok_ndit=True
                         self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
-                except Exception as e:
+                except Exception:
                     ok_exp=False
                     await self.update_log(f'wrong N format', "WARNING", self.active_tel)
                     self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
@@ -2668,8 +2644,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if self.instGui.ccd_tab.test_c.isChecked():
                     txt = txt + " test=1"
 
-                uobi = str(uuid.uuid4())[:8]
-                self.ob[self.active_tel]["block"] = txt #+ f' uobi={uobi}'
+                self.ob[self.active_tel]["block"] = txt
                 self.ob[self.active_tel]["meta"]["origin"] = "manual"
                 self.planrunner_start(self.active_tel)
                 await self.update_log(f'starting planrunner', "TOI RESPONDER", self.active_tel)
@@ -2698,7 +2673,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             try:
                 await self.planrunners[self.active_tel].astop_nightplan()
                 await self.update_log(f'stopping program', "TOI RESPONDER", self.active_tel)
-            except Exception as e:
+            except Exception:
                 pass
             await self.ccd.aput_stopexposure()
             await self.update_log(f'stopping exposure', "TOI RESPONDER", self.active_tel)
@@ -2824,7 +2799,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if self.cfg_inst_defSetUp["gain"] in txt:
                     self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
                 else: self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
-            except Exception as e: pass
+            except Exception: pass
         self.telescope_switch_status["gain"] = True
 
     async def ccd_rm_update(self, event):
@@ -3613,7 +3588,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             temp = self.sensors[self.active_tel]["dome_conditions"]["temperature"]
             if temp:
                 self.mntGui.domeTemp_e.setText(str(temp))
-        except Exception as e:
+        except Exception:
             pass
 
 
@@ -3815,7 +3790,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.update_log(f'SET M3', "OPERATOR", self.active_tel)
 
         if self.tel_acces[self.active_tel]:
-            name = self.mntGui.telM3_s.currentText()
             m3_i = int(self.mntGui.telM3_s.currentIndex())
             m3_i = str(m3_i + 1) # bo jest 1 based
             await self.m3.aput_selectnasmythport(m3_i)
@@ -3946,7 +3920,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await self.update_log(f'EMERGENCY STOP', "TOI RESPONDER", self.active_tel)
 
         else:
-            txt = f"REQUEST: emergency stop but no telescope is selected"
+            logger.warning(f"REQUEST: emergency stop but no telescope is selected")
 
 
     @qs.asyncSlot()
@@ -4019,13 +3993,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         try:
             await self.user.aput_break_control()
-        except Exception as e:
+        except Exception:
             pass
         try:
             await self.user.aput_take_control(84000)
             self.upload_plan()
             self.update_plan(self.active_tel)
-        except Exception as e:
+        except Exception:
             pass
 
 
@@ -4128,18 +4102,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 #print("LOG: no acces! ", txt)
 
 
-        except Exception as e:
+        except Exception:
             pass
             #print(f"TOI EXCEPTION (update_log): {e}")
-
-    @qs.asyncSlot()
-    async def msg(self, txt, color):
-        c = QtCore.Qt.black
-        if "yellow" in color: c = QtCore.Qt.darkYellow
-        if "green" in color: c = QtCore.Qt.darkGreen
-        if "red" in color: c = QtCore.Qt.darkRed
-        self.obsGui.main_form.msg_e.setTextColor(c)
-        ut = str(self.ut).split()[1].split(":")[0] + ":" + str(self.ut).split()[1].split(":")[1]
 
     def update_oca(self):
         self.obsGui.main_form.update_table()

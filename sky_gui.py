@@ -6,10 +6,10 @@
 # ----------------
 
 from PyQtX.QtCore import Qt
-from PyQtX import QtCore, QtGui
+from PyQtX import QtGui
 from PyQtX.QtGui import QFont
-from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
-    QVBoxLayout, QTableWidget, QTableWidgetItem, QTabWidget
+from PyQtX.QtWidgets import QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
+    QVBoxLayout, QTabWidget
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from pyaraucaria.coordinates import *
@@ -110,7 +110,7 @@ class SkyView(QWidget):
         QWidget.__init__(self)
         self.parent = parent
         self.mkUI()
-        cid = self.canvas.mpl_connect('button_press_event', self.zaznaczenie)
+        self.canvas.mpl_connect('button_press_event', self.zaznaczenie)
 
         self.canSetNext = False
 
@@ -230,7 +230,7 @@ class SkyView(QWidget):
         # ### STARS ###
         try:
             for p in self.stars: p[0].remove()
-        except Exception as e:
+        except Exception:
             pass
         self.stars = []
         self.plan = []
@@ -288,7 +288,7 @@ class SkyView(QWidget):
                 point = self.axes.plot(az, alt, color="b", marker="D", markersize="5", markerfacecolor="white",
                                        alpha=0.9)
                 self.stars.append(point)
-            except Exception as e:
+            except Exception:
                 pass
             self.updateTrack()
             self.canvas.draw()
@@ -297,7 +297,7 @@ class SkyView(QWidget):
     def updateTrack(self):
         try:
             for p in self.track: p[0].remove()
-        except Exception as e:
+        except Exception:
             pass
         self.track = []
 
@@ -396,7 +396,7 @@ class SkyView(QWidget):
     def updateWind(self, parent):
         try:
             self.wind.remove()
-        except Exception as e:
+        except Exception:
             pass
 
         self.parent = parent

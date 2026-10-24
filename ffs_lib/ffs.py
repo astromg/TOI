@@ -2,7 +2,6 @@
 
 import numpy
 from scipy.signal import convolve2d
-from scipy.signal import find_peaks
 from scipy.ndimage.filters import maximum_filter
 
 """

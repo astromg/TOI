@@ -4,18 +4,12 @@ import datetime
 
 from PyQtX.QtCore import Qt
 from PyQtX.QtGui import QFont, QTextCursor
-from PyQtX import QtCore, QtGui
-from PyQtX.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
-                             QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout,
-                             QVBoxLayout, QTableWidget, QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame,
-                             QComboBox, QProgressBar, QHeaderView)
+from PyQtX import QtGui
+from PyQtX.QtWidgets import (QAbstractItemView, QTextEdit,
+                             QLineEdit, QGridLayout, QTableWidget, QTableWidgetItem, QHeaderView)
 
 
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
-import numpy
 from base_window import BaseWindow
 
 class FlatWindow(BaseWindow):

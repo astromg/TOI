@@ -7,22 +7,19 @@ import os
 #----------------
 
 import uuid
-import time
 
 import ephem
 import datetime
 import qasync as qs
 from qasync import QEventLoop
 from PyQtX import QtCore, QtGui
-from PyQtX.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
-                             QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout,
-                             QVBoxLayout, QTableWidget, QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame,
+from PyQtX.QtWidgets import (QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
+                             QLineEdit, QPushButton, QGridLayout, QTableWidget, QTableWidgetItem, QCompleter, QFileDialog, QFrame,
                              QComboBox, QProgressBar, QHeaderView)
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-import matplotlib
 
 from astropy.table import Table
 
@@ -803,8 +800,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           if self.fileName:
               with open(self.fileName, "w") as plik:
                   plik.write(txt)
-              txt = f"TOI: plan saved to {self.fileName} file"
-              self.parent.msg(txt, "black")
 
 
     def loadPlan(self):

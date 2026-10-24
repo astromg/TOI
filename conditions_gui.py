@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
-import datetime
 
 import ephem
 from scipy.ndimage import gaussian_filter1d
 
-from PyQtX.QtCore import Qt
-from PyQtX.QtGui import QFont
-from PyQtX import QtCore, QtGui
-from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QComboBox, QPushButton
+from PyQtX.QtWidgets import QGridLayout, QLineEdit, QLabel, QPushButton
 import copy
 from matplotlib.figure import Figure
-from matplotlib.dates import date2num
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 

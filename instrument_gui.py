@@ -2,7 +2,7 @@
 
 import qasync as qs
 from PyQtX.QtCore import Qt
-from PyQtX.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QRadioButton, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
+from PyQtX.QtWidgets import QWidget, QLabel,QCheckBox, QRadioButton, QLineEdit, QTabWidget, QPushButton, QGridLayout, QComboBox, QProgressBar
 from qasync import QEventLoop
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from base_window import BaseWindow

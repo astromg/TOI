@@ -2,7 +2,6 @@
 
 import os
 import numpy
-from ffs_lib.ffs import FFS_old
 from scipy.optimize import curve_fit
 
 from astropy.io import fits
@@ -67,8 +66,6 @@ def calculate(fits_path, focus_keyword="FOCUS", focus_list=None, crop=10, method
 
         data = data[edge_rows:-edge_rows, edge_cols:-edge_cols]
 
-        mean = numpy.mean(data)
-        median = numpy.median(data)
         rms = numpy.std(data)
         sharpness = rms
 

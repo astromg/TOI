@@ -6,8 +6,6 @@ from PyQtX import QtCore, QtGui
 from PyQtX.QtCore import Qt
 from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
     QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 

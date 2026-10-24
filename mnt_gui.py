@@ -5,8 +5,6 @@
 # Marek Gorski
 # ----------------
 import logging
-import time
-from typing import Tuple
 
 import qasync as qs
 from PyQtX.QtCore import Qt
@@ -14,7 +12,7 @@ from PyQtX.QtWidgets import QCompleter, QWidget, QLabel, QCheckBox, QLineEdit, Q
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
-from PyQtX import QtWidgets, QtCore, QtGui
+from PyQtX import QtCore
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from toi_lib import *

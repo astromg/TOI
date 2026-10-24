@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
-import time
 
 import numpy as np
 
 from PyQtX.QtCore import Qt
 from PyQtX.QtGui import QFont
 from PyQtX import QtCore, QtGui
-from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit
+from PyQtX.QtWidgets import QTextEdit, QGridLayout, QLineEdit
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 import numpy
-from ffs_lib.ffs import FFS_old
 from pyaraucaria.ffs import FFS
 from toi_lib import *
 from base_window import BaseWindow
@@ -56,7 +53,7 @@ class FitsWindow(BaseWindow):
             vmin = numpy.mean(self.image) - 1 * numpy.std(self.image)
             vmax = numpy.mean(self.image) + 1 * numpy.std(self.image)
 
-            im = self.axes.imshow(self.image, vmin=vmin, vmax=vmax, interpolation='none', resample=False)
+            self.axes.imshow(self.image, vmin=vmin, vmax=vmax, interpolation='none', resample=False)
 
             self.canvas.draw()
             self.show()

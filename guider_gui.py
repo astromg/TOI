@@ -2,13 +2,10 @@
 
 
 from PyQtX.QtCore import Qt
-from PyQtX.QtGui import QFont
-from PyQtX import QtCore, QtGui
-from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QSlider, QFrame, QComboBox
+from PyQtX.QtWidgets import QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QSlider, QFrame, QComboBox
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib
 
 import numpy
@@ -56,7 +53,7 @@ class GuiderView(BaseWindow):
         if len(self.image)>0:
             vmin = numpy.mean(self.image) - 1 * numpy.std(self.image)
             vmax = numpy.mean(self.image) + 1 * numpy.std(self.image)
-            im = self.axes.imshow(self.image, vmin=vmin, vmax=vmax, cmap=matplotlib.colormaps["ocean"])
+            self.axes.imshow(self.image, vmin=vmin, vmax=vmax, cmap=matplotlib.colormaps["ocean"])
             self.canvas.draw()
             self.show()
 
