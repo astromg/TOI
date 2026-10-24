@@ -155,6 +155,12 @@ class MainForm(QWidget):
                     icon_label6.setPixmap(ToiIcon("icon_wind", "orange", size=14).pixmap(14, 14))
                     lay.addWidget(icon_label6)
 
+                rain = _f(self.parent.telemetry_rain)
+                if rain is not None and rain > 0:
+                    icon_label9 = QLabel()
+                    icon_label9.setPixmap(ToiIcon("icon_rain", "red", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label9)
+
                 if humidity is not None and humidity > float(self.parent.cfg_humidity_limit):
                     icon_label7 = QLabel()
                     icon_label7.setPixmap(ToiIcon("icon_water", "red", size=14).pixmap(14, 14))
@@ -559,6 +565,7 @@ class ReportWindow(BaseWindow):
                    "telemetry_wind_direction",
                    "telemetry_humidity",
                    "telemetry_pressure",
+                   "telemetry_rain",
                    "autofocus_started",
                    "last_focus_position",
                    "ut",

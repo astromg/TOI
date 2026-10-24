@@ -449,6 +449,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.telemetry_wind_direction = weather["wind_dir_deg"]
                     self.telemetry_humidity = weather["humidity"]
                     self.telemetry_pressure = weather["pressure_Pa"]
+                    self.telemetry_rain = weather.get("rain_mm")   # biezacy opad z deszczomierza Davisa
                     self.updateWeather()
                 except Exception as e:
                     logger.exception(f'EXCEPTION 102a: bad weather message: {e}')
@@ -4015,7 +4016,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.wind_e.setText(f"{self.telemetry_wind:.1f} [m/s]")
             self.obsGui.main_form.windDir_e.setText(f"{self.telemetry_wind_direction:.0f} [deg]")
             self.obsGui.main_form.temp_e.setText(f"{self.telemetry_temp:.1f} [C]")
-            self.obsGui.main_form.hummidity_e.setText(f"{self.telemetry_humidity:.0f} [%]")
+            rain = self.telemetry_rain is not None and float(self.telemetry_rain) > 0
+            if rain:
+                self.obsGui.main_form.hummidity_e.setText(f"RAIN {self.telemetry_humidity:.0f} [%]")
+            else:
+                self.obsGui.main_form.hummidity_e.setText(f"{self.telemetry_humidity:.0f} [%]")
             #self.obsGui.main_form.pressure_e.setText(f"{self.telemetry_pressure:.1f} [hPa]")
 
             if float(self.telemetry_wind) > float(self.cfg_wind_limit):
@@ -4028,7 +4033,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.obsGui.main_form.wind_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
                 self.obsGui.main_form.windDir_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
 
-            if float(self.telemetry_humidity)> float(self.cfg_humidity_limit):
+            if rain or float(self.telemetry_humidity)> float(self.cfg_humidity_limit):
                 self.obsGui.main_form.hummidity_e.setStyleSheet("color: rgb(0, 0, 0); background-color: red;")
             else:
                 self.obsGui.main_form.hummidity_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
@@ -4038,6 +4043,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             else:
                 self.obsGui.main_form.temp_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
 
+
+            self.obsGui.main_form.update_table()   # ikonki pogody (wiatr, deszcz, wilgotnosc, zimno)
 
             #self.obsGui.main_form.skyView.updateWind(self)
             if self.skyGui.skyView:
@@ -4320,6 +4327,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.telemetry_wind_direction = None
         self.telemetry_humidity = None
         self.telemetry_pressure = None
+        self.telemetry_rain = None
 
         # aux zmienne
         #self.exp_prog_status = {"plan_runner_status":"","ndit_req":1,"ndit":0,"dit_exp":0,"dit_start":0}
