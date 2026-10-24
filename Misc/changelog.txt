@@ -1,5 +1,8 @@
 <h4>Whats New?</h4>
 
+--- 24.10.2026 --- <br>
+Night monitor option added to tpg window. 
+<br><br>
 --- 21.10.2026 --- <br>
 Optical path: values come straight from the subscriptions (ocabox 2.11); NO DATA says why (TIC or the optics service silent). Dome flats with the shutter closed work:
 point the telescope at the flat screen, confirm the flat screen lamps by hand (the button appears whenever the chosen

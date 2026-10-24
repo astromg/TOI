@@ -1349,16 +1349,18 @@ class TPGWindow(BaseWindow):
         grid.addWidget(self.fwhm_c, 3, 0)
         grid.addWidget(self.fwhm_e, 3, 1)
 
-        grid.addWidget(self.tag_c, 4, 0)
-        grid.addWidget(self.tag_e, 4, 1)
+        grid.addWidget(self.night_monitor_c, 4, 0, 1, 2)
+
+        #grid.addWidget(self.tag_c, 4, 0)
+        #grid.addWidget(self.tag_e, 4, 1)
 
         grid.addWidget(self.repeat_c, 5, 0, 1, 2)
-        grid.addWidget(self.night_monitor_c, 6, 0, 1, 2)
 
-        grid.addWidget(self.info_e, 7, 0, 1, 2)
 
-        grid.addWidget(self.add_p, 8, 1)
-        grid.addWidget(self.close_p, 8, 0)
+        grid.addWidget(self.info_e, 6, 0, 1, 2)
+
+        grid.addWidget(self.add_p, 7, 1)
+        grid.addWidget(self.close_p, 7, 0)
 
         self.setLayout(grid)
         self.show()
