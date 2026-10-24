@@ -14,7 +14,6 @@ $ ./toi.py
 - _toi.py_ - Monitor do sygnalow i komunikacji z AutoSlew, odpala tez wszytskie okna GUI
 - _tel_gui.py_ - nic ciekawego, ale tylko tutaj jest **EXIT**
 - _mnt_gui.py_ - Mount Controll - uzywa Monitora
-- _pery_gui.py_ - sterowanie peryferiami - swiatla, M3, etc. 
 - _instrument_gui.py_ - instrument Window
 - _plan_gui.py_ - Plan Manager
 - _sky_gui.py_ - Radarek nieba
@@ -49,7 +48,7 @@ $ ./toi.py
 - wyswietlanie ut, sid, jd, programu, tel status, dome status, mirror covers, lights, flatfiled lights
 - dodac ksiezyc, slonce, (planety?)
 
-## MOUNT + PERYPHERICAL (mnt_gui.py pery_gui.py)
+## MOUNT + PERYPHERICAL (mnt_gui.py)
 - uzywa **Monitor** 
 - polaczyc dwa okna
 - dodac _fans_ on off / power

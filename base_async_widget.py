@@ -9,7 +9,6 @@ from obcom.comunication.base_client_api import BaseClientAPI
 from obcom.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 from obcom.comunication.cycle_query import BaseCycleQuery
 from qasync import QEventLoop
-from config_service import Config as Cfg
 from util_functions.asyncio_util_functions import wait_for_psce
 
 logger = logging.getLogger(__name__)
@@ -155,11 +154,6 @@ class BaseAsyncWidget(ABC):
         except Exception as e:
             logger.error(f"Unexpected error when {action if action else f'call {address}'}: {e}")
         return False
-
-    @staticmethod
-    def get_address(method_name: str):
-        address = Cfg.get("OCA_ADDRESS_DICT", {}).get(method_name, None)
-        return address
 
     async def run_background_tasks(self, group: str = ""):
         await self._run_all_background_task(group=group)
