@@ -6,7 +6,6 @@ import asyncio
 import datetime
 
 import os
-import sys
 import pwd
 import socket
 
@@ -22,7 +21,6 @@ class main_app():
 
         self.args = args
 
-        self.app_name = sys.argv[0]
         host = socket.gethostname()
         user = pwd.getpwuid(os.getuid())[0]
         self.myself = f'{user}@{host}'

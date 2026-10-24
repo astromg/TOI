@@ -39,8 +39,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     def __init__(self, parent, loop: QEventLoop = None, client_api=None):
           BaseWindow.__init__(self)
           BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
-          self.subscriber_delay = 1
-          self.subscriber_time_of_data_tolerance = 0.5
 
           self.parent=parent
 

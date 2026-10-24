@@ -112,36 +112,17 @@ class SkyView(QWidget):
         self.mkUI()
         self.canvas.mpl_connect('button_press_event', self.zaznaczenie)
 
-        self.canSetNext = False
-
-        self.tel_az = 5
-        self.tel_alt = 90
-
         self.a = []
         self.h = []
-        self.symbol = []
-
-        self.silent_a = []
-        self.silent_h = []
-        self.silent_symbol = []
 
         self.rmax = 110
-        self.marc_point = False
 
         self.a = [10, 20, 30, 40, 50, 100, 40, 40, 70]
         self.h = [50, 50, 50, 50, 50, 30, 40, 40, 20]
-        self.symbol = ["b*", "b*", "b*", "b*", "b*", "ok", "or", "+r", ".r"]
-        self.alpha = [0.8, 0.6, 0.5, 0.3, 0.3, 0.6, 0.3, 1, 1]
-
-        self.log_a = [10, 20, 30]
-        self.log_h = [30, 30, 30]
-        self.log_s = ["k*", "k*", "k*"]
-        self.log_alh = [0.5, 0.5, 0.5]
 
         self.update()
 
         self.dome_az = 0
-        self.dome_color = "r"
 
         # self.updateDome()
 

@@ -566,12 +566,12 @@ to report *which* line failed to the operator).
 
 **Problem.** Per-telescope data is baked into branches: instrument option lists
 (`toi.py:536-558`), focus coefficients (`toi.py:3605-3607`), dome geometry
-(`toi.py:1175/3057`), `m3_list`, and a hardcoded telescope list
+(`toi.py:1175/3057`), and a hardcoded telescope list
 (`toi.py:4255`) duplicating `toi_config.yaml`. Same pattern in `aux_gui.py`,
 `mnt_gui.py`, `fits_gui.py`.
 
 **Change.** Extend `toi_config.yaml` per-telescope with the currently-hardcoded
-fields (instrument obstype/mode/bins/subraster/defSetUp, `m3_list`, focus
+fields (instrument obstype/mode/bins/subraster/defSetUp, focus
 coefficients `aTemp/aHum/a0`, dome geometry `r_dome/spx/spy/gem`). Load into a
 `TelescopeProfile` dataclass per telescope; replace every `if active_tel ==`
 chain with `self.profiles[active_tel].<field>`. The active telescope list comes

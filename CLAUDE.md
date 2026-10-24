@@ -31,6 +31,14 @@ unconfigured). The `test_geometry_*.py` files at the repo root are standalone ma
 debugging Qt window-positioning bugs (esp. under Wayland) — run directly with `python3 test_geometry_v3.py`,
 not via pytest. There is no CI. Verify changes by launching the app and exercising the affected window(s).
 
+For dead-code checks, run linters ad hoc without adding them to the project: `uvx ruff check --select
+F401,F841,F811 .` and `uvx --from vulture python -m vulture . --exclude 'test_geometry_*,PyQtX'` (the plain
+`uvx vulture` launcher fails on macOS without `realpath`). Treat vulture's "unused attribute" hits with care:
+`ReportWindow.report()` in `obs_gui.py` reads a list of `TOI` attribute names via `eval` and dumps them to
+`telemetry.txt`, and `claude_report.py` reads attributes via `getattr`, so string references are real uses.
+Assignments to `mousePressEvent`, attributes of `ephem` bodies (`_ra`, `_dec`, `_epoch`, `horizon`), and
+window references kept on `self` only to prevent garbage collection are also not dead.
+
 ## Architecture
 
 ### Entry point and app lifecycle
@@ -72,8 +80,10 @@ that are created hidden get positioned correctly once shown.
 ### GUI window map
 `TOI` (in `toi.py`) is the top-level widget that owns one instance of each major window/controller:
 - `mnt_gui.py` (`MntGui`) — mount control (slew, track, park), uses `BaseAsyncWidget` subscriptions.
-- `obs_gui.py` (`ObsGui`, `CzuwakWindow`) — main observation window; `CzuwakWindow` ("watcher") is a
-  cross-telescope status/alert monitor.
+- `obs_gui.py` (`ObsGui`, `CzuwakWindow`) — main observation window. Its operator message box (`msg_e`) is
+  filled only from the `tic.status.<tel>.toi.log` subscription, so operator-visible messages go through
+  `TOI.update_log(...)` (the old `TOI.msg()` was a no-op and has been removed). `CzuwakWindow` ("watcher") is
+  still constructed as `TOI.czuwakGui`, but all code that used it is commented out.
 - `instrument_gui.py` (`InstrumentGui`, `CCDGui`) — camera/instrument control, including CCD tab.
 - `plan_gui.py` (`PlanGui`, huge file, ~2000+ lines) — observation plan/queue manager: load/edit/reorder
   observing blocks (OBs), talks to `tpg` (`TelescopePlanGenerator`) and `ctc` (`CycleTimeCalc`, cycle-time

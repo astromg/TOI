@@ -26,8 +26,6 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     def __init__(self, parent, loop: QEventLoop = None, client_api=None):
         BaseWindow.__init__(self)
         BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
-        self.subscriber_delay = 1
-        self.subscriber_time_of_data_tolerance = 0.5
 
         self.parent = parent
         self.set_initial_geometry(
@@ -236,7 +234,6 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntAirmass_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         self.mntAirmass_e.setText(" -- ")
 
-        self.nextAirmass_l = QLabel("Next Airmass: ")
         self.nextAirmass_e = QLineEdit()
         self.nextAirmass_e.setReadOnly(True)
         self.nextAirmass_e.setStyleSheet("background-color: rgb(233, 233, 233);")
@@ -263,11 +260,9 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntDec_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
 
-        self.nextRa_l = QLabel("NEXT RA: ")
         self.nextRa_e = QLineEdit("")
         self.nextRa_e.mousePressEvent = self.selectRaDec
 
-        self.nextDec_l = QLabel("NEXT DEC: ")
         self.nextDec_e = QLineEdit("")
         self.nextDec_e.mousePressEvent = self.selectRaDec
 
@@ -299,12 +294,10 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntAlt_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
 
 
-        self.nextAz_l = QLabel("NEXT AZ: ")
         self.nextAz_e = QLineEdit()
         self.nextAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         self.nextAz_e.mousePressEvent = self.selectAltAz
 
-        self.nextAlt_l = QLabel("NEXT ALT: ")
         self.nextAlt_e = QLineEdit()
         self.nextAlt_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
         self.nextAlt_e.mousePressEvent = self.selectAltAz

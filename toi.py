@@ -526,18 +526,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.active_tel = self.local_cfg["toi"]["telescopes"][self.active_tel_i]
 
         self.filter_list = self.nats_cfg[self.active_tel]["filter_list_names"]  # tu sa nazwy
-        self.filter_list_i = self.nats_cfg[self.active_tel]["filter_list"]      # a tu sa wartosci do put
         self.cfg_inst_gain = self.nats_cfg[self.active_tel]["gain_list_names"]
         self.cfg_inst_gain_i = self.nats_cfg[self.active_tel]["gain_list"]
         self.cfg_inst_rm = self.nats_cfg[self.active_tel]["rm_list_names"]
         self.cfg_inst_rm_i = self.nats_cfg[self.active_tel]["rm_list"]
         self.cfg_inst_temp = self.nats_cfg[self.active_tel]["ccd_temp"]
-        self.cfg_focuser_defpos = f'{self.nats_cfg[self.active_tel]["focus_def_pos"]}/{self.nats_cfg[self.active_tel]["focus_def_step"]}'
-        self.cfg_focuser_seq = "8/V/5"
 
         self.cfg_tel_directory = self.local_cfg[self.active_tel]["tel_directory"]
         self.cfg_tel_ob_list = self.local_cfg[self.active_tel]["tel_ob_list"]
-        self.flat_log_files = self.local_cfg[self.active_tel]["flat_log_files"]
         self.cfg_showRotator = self.local_cfg[self.active_tel]["showRotator"]
 
         self.overhed = self.local_cfg[self.active_tel]["overhead"]
@@ -555,7 +551,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
             self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
             self.cfg_inst_defSetUp = {"gain": "x4", "rm": "1MHz","bin":"1x1", "temp":-58}
-            self.m3_list = ["ccd"]
 
         elif self.active_tel == "zb08":
             self.cfg_inst_obstype =  ["Science","Zero","Dark","Sky Flat","Dome Flat"]
@@ -563,7 +558,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_bins = ["1x1","2x2","1x2","2x1"]
             self.cfg_inst_subraster = ["No","Subraster1","Subraster2","Subraster3"]
             self.cfg_inst_defSetUp = {"gain": "x4", "rm": "1MHz","bin":"1x1", "temp":-58}
-            self.m3_list = ["ccd","cmos"]
 
         elif self.active_tel == "jk15":
             self.cfg_inst_obstype = ["Science", "Zero", "Dark", "Sky Flat", "Dome Flat"]
@@ -571,7 +565,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
             self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
             self.cfg_inst_defSetUp = {"gain": "Gain 2", "rm": "1MHz 18-bit","bin":"1x1", "temp":-58}
-            self.m3_list = ["ccd","beso"]
 
 
         # obsluga subskrypcji
@@ -2810,7 +2803,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             i = int(self.ccd_readoutmode)
             i = self.cfg_inst_rm_i.index(str(i))
             txt = self.cfg_inst_rm[i]
-            self.ccd_readmode=txt
             self.instGui.ccd_tab.inst_read_e.setText(txt)
             if self.cfg_inst_defSetUp["rm"] in txt:
                 self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
@@ -3012,7 +3004,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if self.mount.motorstatus == "true":
                 self.req_ra=""
                 self.req_dec=""
-                self.req_epoq=""
+                self.req_epoch=""
                 if self.nextOB_ok:
                     await self.mount.aput_unpark()
 
@@ -3818,7 +3810,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             self.mntGui.telM3_e.setText(txt)
 
-            self.m3_pos = pos
             self.m3_name = txt
 
             # print("=======================")
@@ -4326,7 +4317,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.nextOB_ok = None
         self.flag_newimage = None
         self.image = []
-        self.prev_image = []
 
         # observer
         self.observer = ""
@@ -4382,7 +4372,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # obs model
         self.obs_tel_tic_names=["wk06","zb08","jk15"]  # wg25 is not working
-        self.obs_tel_in_table = self.obs_tel_tic_names
 
         # active telescope & universal
         self.ut=str(ephem.now())
@@ -4406,8 +4395,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.filter_list = None
 
         # M3
-        self.m3_list = None
-        self.m3_pos = None
         self.m3_name = None
         self.inst_tab_switch = None
 

@@ -427,7 +427,6 @@ class MainForm(QWidget):
         grid.addWidget(self.obs_t, w, 0, 1, 8)
 
 
-        self.SpecialPocisk_p = QPushButton('NO')
         #self.testowyPocisk_p.clicked.connect(self.parent.force_update)
 
 
@@ -463,7 +462,6 @@ class MainForm(QWidget):
         grid.addWidget(self.guider_p, w, 7)
 
         w = w + 1
-        #grid.addWidget(self.SpecialPocisk_p, w, 0, 1, 2)
         grid.addWidget(self.log_p, w, 5)
         grid.addWidget(self.fits_p, w, 7)
 

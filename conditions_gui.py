@@ -34,8 +34,6 @@ class ConditionsWindow(BaseWindow):
 
     def update(self):
         fits_photo_z0_data_copy = copy.deepcopy(self.parent.fits_photo_z0_data)
-        self.z0 = {t:[] for t in fits_photo_z0_data_copy.keys()}
-        self.z0_time = {t: [] for t in fits_photo_z0_data_copy.keys()}
 
         self.fwhm = {t:[] for t in self.parent.fits_ffs_data.keys()}
         self.time = {t: [] for t in self.parent.fits_ffs_data.keys()}
