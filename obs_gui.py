@@ -146,9 +146,7 @@ class MainForm(QWidget):
                 humidity = _f(self.parent.telemetry_humidity)
                 temperature = _f(self.parent.telemetry_temp)
 
-                tel_cfg = self.parent.nats_cfg.get(t, {})
-                wind_limit = _f(tel_cfg.get("wind_limit")) or float(self.parent.cfg_wind_limit)
-                wind_limit_pointing = _f(tel_cfg.get("wind_limit_pointing")) or float(self.parent.cfg_wind_limit_pointing)
+                wind_limit, wind_limit_pointing = self.parent.wind_limits(t)
 
                 if wind is not None and wind > wind_limit:
                     icon_label5 = QLabel()

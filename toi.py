@@ -4011,6 +4011,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.guider_passive_dx = []
             self.guider_passive_dy = []
 
+    def wind_limits(self, tel):
+        # (observation_stop, pointing) w m/s dla teleskopu z obs_limits; brak w configu -> globalne cfg_wind_limit*
+        def _limit(key, default):
+            try:
+                return float(self.nats_cfg[tel][key])
+            except (KeyError, TypeError, ValueError):
+                return float(default)
+        return _limit("wind_limit", self.cfg_wind_limit), _limit("wind_limit_pointing", self.cfg_wind_limit_pointing)
+
     def updateWeather(self):
         try:
             self.obsGui.main_form.wind_e.setText(f"{self.telemetry_wind:.1f} [m/s]")

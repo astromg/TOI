@@ -402,9 +402,10 @@ class SkyView(QWidget):
         self.parent = parent
         try:
             wind = float(self.parent.telemetry_wind)
-            if wind < float(self.parent.cfg_wind_limit_pointing):
+            wind_limit, wind_limit_pointing = self.parent.wind_limits(self.parent.active_tel)
+            if wind < wind_limit_pointing:
                 color = "g"
-            elif wind < float(self.parent.cfg_wind_limit):
+            elif wind < wind_limit:
                 color = "orange"
             else:
                 color = "r"
