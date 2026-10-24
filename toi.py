@@ -511,6 +511,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # tez trzeba resetowac, bo jest tylko wyslwietlany
         self.ob_log = []
+        self.done_uobi = []   # uobi z plan_log nowego teleskopu
         self.flat_log = []
 
         # TELESCOPE CONFIGURATION HARDCODED

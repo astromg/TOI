@@ -1076,7 +1076,7 @@ class TPG_Worker(QtCore.QObject):
     update_signal = QtCore.pyqtSignal(str)
     error_signal = QtCore.pyqtSignal(str)
 
-    def __init__(self, tel, dt, wind=None, uobi_done=None,fwhm=None, tag=None):
+    def __init__(self, tel, dt, wind=None, uobi_done=None,fwhm=None, tag=None, night_monitor=False):
 
         super().__init__()
         self.tel = tel
@@ -1085,11 +1085,19 @@ class TPG_Worker(QtCore.QObject):
         self.uobi_done = uobi_done or []
         self.fwhm = fwhm
         self.tag = tag
+        self.night_monitor = night_monitor
 
     def run(self):
         try:
-            p = tpg(self.tel,self.dt,wind=self.wind,fwhm=self.fwhm,tag=self.tag)
+            p = tpg(self.tel,self.dt,wind=self.wind,fwhm=self.fwhm,tag=self.tag,done_uobi=self.uobi_done,night_monitor=self.night_monitor)
             p.Initiate()
+            if self.night_monitor:
+                # master file night monitora lezy obok zwyklego master file, np. zb08_night_monitor.txt
+                master_dir = os.path.dirname(p.cfg[self.tel]["master_file"])
+                p.master_file = os.path.join(master_dir, f"{self.tel}_night_monitor.txt")
+                if not os.path.isfile(p.master_file):
+                    raise FileNotFoundError(f"no night monitor master file {p.master_file}")
+                self.update_signal.emit(f"night monitor: {p.master_file}")
             p.init_ctc()
             self.update_signal.emit("TPG init <span style='color: green;'>\u2714</span>")
             p.LoadObjects()
@@ -1159,12 +1167,14 @@ class TPGWindow(BaseWindow):
             print(f'EXCEPTION TPG 2: {e}')
 
         if self.repeat_c.isChecked():
-            uobi_done = self.parent.done
+            uobi_done = list(self.parent.parent.done_uobi)
         else:
             uobi_done = []
 
+        night_monitor = self.night_monitor_c.isChecked()
+
         self.thread = QtCore.QThread()
-        self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm,tag=tag)
+        self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm,tag=tag,night_monitor=night_monitor)
 
         self.worker.moveToThread(self.thread)
 
@@ -1313,6 +1323,13 @@ class TPGWindow(BaseWindow):
             "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
         )
 
+        self.night_monitor_c = QCheckBox("Night monitor")
+        self.night_monitor_c.setChecked(False)
+        self.night_monitor_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
+            "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
+        )
+
         self.add_p = QPushButton('Generate Plan')
         self.add_p.clicked.connect(self.add)
 
@@ -1336,11 +1353,12 @@ class TPGWindow(BaseWindow):
         grid.addWidget(self.tag_e, 4, 1)
 
         grid.addWidget(self.repeat_c, 5, 0, 1, 2)
+        grid.addWidget(self.night_monitor_c, 6, 0, 1, 2)
 
-        grid.addWidget(self.info_e, 6, 0, 1, 2)
+        grid.addWidget(self.info_e, 7, 0, 1, 2)
 
-        grid.addWidget(self.add_p, 7, 1)
-        grid.addWidget(self.close_p, 7, 0)
+        grid.addWidget(self.add_p, 8, 1)
+        grid.addWidget(self.close_p, 8, 0)
 
         self.setLayout(grid)
         self.show()
