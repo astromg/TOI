@@ -84,6 +84,10 @@ that are created hidden get positioned correctly once shown.
   separate `QThread` (`FFS_Worker`) so image analysis doesn't block the Qt main thread.
 - `focus_gui.py` / `calcFocus/calc_focus.py` — autofocus routine; fits sharpness vs. focuser-encoder
   position (methods: `rms`, `rms_quad`, `lorentzian`) across a sequence of FITS frames.
+- Focus auto-adjust (in `toi.py`) — every focuser move made by TOI must go through
+  `focus_move(tel, pos, source)` (not a bare `aput_move`), because it also publishes the adjust baseline to
+  `tic.status.<tel>.toi.focus_reference`. Adjust target = reference position + Δ`focus_model` since the
+  reference was set. See README "FOCUS ADJUST".
 - `flat_gui.py`, `guider_gui.py`, `planrunner_gui.py`, `conditions_gui.py` — flat-fielding, guider,
   plan-runner (automated execution) status, and weather/seeing conditions windows respectively.
 

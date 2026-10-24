@@ -3783,7 +3783,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         ref = self.nats_focus_reference[self.active_tel]
         if ref:
-            tip = f'reference: {ref.get("position")} ({ref.get("source")}, {ref.get("time")}, {ref.get("davis_temperature")}C / {ref.get("davis_humidity")}%)'
+            t_ref, h_ref = ref.get("davis_temperature"), ref.get("davis_humidity")
+            t_txt = f'{float(t_ref):.1f}' if t_ref is not None else '--'
+            h_txt = f'{float(h_ref):.0f}' if h_ref is not None else '--'
+            tip = f'reference: {ref.get("position")} ({ref.get("source")}, {ref.get("time")}, {t_txt}C / {h_txt}%)'
             if target is not None:
                 tip = tip + f'\nmodel target now: {target}'
         else:

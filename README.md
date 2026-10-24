@@ -64,6 +64,48 @@ $ ./toi.py
 ## OKNO GUIDERA 
 - nie ma - nie ma, nie wiem jak dzialac i synchronizowac
 
+## FOCUS ADJUST (automatyczna korekta focusa)
+Wlaczany przelacznikiem **FOCUS ADJUST** w oknie montazu. Stan przelacznika jest wspolny dla wszystkich
+instancji TOI (`tic.status.<tel>.toi.switch_synchro`).
+
+**Jak dziala:** adjust poprawia focus tylko o zmiane temperatury i wilgotnosci (stacja Davis) **od momentu
+ostatniego ustawienia focusa**. Za kazdym razem, gdy TOI ustawia focus, zapamietuje pozycje i warunki
+jako wartosc referencyjna:
+- reczne **SET** w oknie montazu (`manual`),
+- wynik autofocusa, rowniez z planu - OB `FOCUS` (`autofocus`),
+- powrot do poprzedniej pozycji po nieudanym autofocusie (`autofocus_failed`),
+- korekta zrobiona przez sam adjust (`focus_adjust`).
+
+Docelowy focus:
+```
+target = ref_position + model(T_teraz, H_teraz) - model(T_ref, H_ref)
+model  = a0 + aTemp*T + aHum*H          (wspolczynniki per teleskop, toi.py: focus_model)
+```
+Recznie ustawiony focus (takze celowy defocus) jest wiec zachowany jako offset, a adjust tylko prowadzi go
+za temperatura.
+
+**Kiedy rusza focuserem:** co ~1 s, tylko TOI majace dostep do teleskopu, gdy przelacznik jest ON, nie trwa
+autofocus, kamera nie eksponuje/czyta (stan kamery 1-4) i `|target - ref_position| > 5` krokow. Kazda korekta
+staje sie nowa referencja, wiec poprawki sie nie kumuluja.
+
+**Gdzie to widac:**
+- tooltip na polu pozycji focusa w oknie montazu - referencja (pozycja, zrodlo, czas, T/H) i aktualny target,
+- pole pozycji jest zolte, gdy focuser rozni sie od targetu o wiecej niz 10 krokow,
+- log TOI przy kazdej korekcie: `adjusting focus 15320 -> 15293 (ref: manual ..., 8.4C/62% -> 7.1C/65%)`.
+
+**NATS:**
+- `tic.status.<tel>.toi.focus_reference` - aktualna referencja
+  `{position, davis_temperature, davis_humidity, time, source}`,
+- `tic.status.<tel>.toi.focus_record` - tylko wyniki autofocusa (log w oknie focusa).
+
+**Ograniczenia:**
+- referencje zapisuje tylko TOI. Jesli focus przestawi inna aplikacja, adjust przywroci `ref + delta`. Inne
+  aplikacje ruszajace focuserem powinny publikowac na `focus_reference`,
+- brak telemetrii Davis w chwili ustawiania focusa: referencja bez T/H, adjust nieaktywny do nastepnego
+  ustawienia focusa (ostrzezenie w logu),
+- po pierwszym wdrozeniu `focus_reference` jest pusty, wiec adjust zacznie dzialac po pierwszym SET albo
+  autofocusie.
+
 ## Installation
 #### Install using the [`poetry` tool](https://python-poetry.org/docs/basic-usage/)
 This procedure installs all dependences includin proper python version in isolated virtual environment.
