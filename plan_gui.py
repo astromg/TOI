@@ -703,7 +703,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               if self.i > self.parent.current_i[self.parent.active_tel] and self.parent.current_i[self.parent.active_tel]>-1:
                   self.parent.current_i[self.parent.active_tel] = self.parent.current_i[self.parent.active_tel] + 1
                   self.parent.next_i[self.parent.active_tel] = self.parent.next_i[self.parent.active_tel] + 1
-                  self.parent.check_next_i()
+                  self.parent.check_next_i(self.parent.active_tel)
               self.i=self.i+1
               if self.i+1>len(self.parent.plan[self.parent.active_tel]): self.i=self.i-1
               self.parent.update_plan(self.parent.active_tel)
@@ -723,7 +723,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               if self.i < self.parent.current_i[self.parent.active_tel] and self.parent.current_i[self.parent.active_tel]>-1:
                   self.parent.current_i[self.parent.active_tel] = self.parent.current_i[self.parent.active_tel] - 1
                   self.parent.next_i[self.parent.active_tel] = self.parent.next_i[self.parent.active_tel] - 1
-                  self.parent.check_next_i()
+                  self.parent.check_next_i(self.parent.active_tel)
               self.parent.update_plan(self.parent.active_tel)
               #self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               #self.repaint()
@@ -796,8 +796,11 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   block = block + "\n"
               txt = txt + block
           if self.fileName:
-              with open(self.fileName, "w") as plik:
-                  plik.write(txt)
+              try:
+                  with open(self.fileName, "w") as plik:
+                      plik.write(txt)
+              except OSError as e:
+                  self.parent.WarningWindow(f"WARNING: can't save plan to {self.fileName}: {e}")
 
 
     def loadPlan(self):
@@ -819,39 +822,51 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
 
             if self.fileName:
-                with open(self.fileName, "r") as plik:
-                    if plik != None:
-                        tmp_plan = []
-                        for line in plik:
-                            data = None
-                            if len(line.strip())>0:
-                                if line.strip()[0]!="#":
-                                    if "TEL: zb08" in line:
-                                       pass  # wprowadzic do planow jako obowiazek?
+                try:
+                    with open(self.fileName, "r") as plik:
+                        lines = plik.readlines()
+                except (OSError, UnicodeDecodeError) as e:
+                    self.parent.WarningWindow(f"WARNING: can't read plan file {self.fileName}: {e}")
+                    return
+                tmp_plan = []
+                for line in lines:
+                    data = None
+                    if len(line.strip())>0:
+                        if line.strip()[0]!="#":
+                            if "TEL: zb08" in line:
+                               pass  # wprowadzic do planow jako obowiazek?
 
-                                    BASE_SCHEMA = ObsValidator.load_schema("base_schema")
-                                    COMMAND_RULES = ObsValidator.load_schema("base_rules.yaml")
+                            BASE_SCHEMA = ObsValidator.load_schema("base_schema")
+                            COMMAND_RULES = ObsValidator.load_schema("base_rules.yaml")
 
-                                    validator = ObsValidator(BASE_SCHEMA, COMMAND_RULES)
-                                    result = validator.validate_txt(line,allowed_filters=self.parent.nats_cfg[self.parent.active_tel]["filter_list_names"])
-                                    if result["valid"]:
-                                        data = {}
-                                        data["ob"] = result["data"]
-                                        data["meta"] = {"ok":True}
-                                        data["block"] = line
+                            validator = ObsValidator(BASE_SCHEMA, COMMAND_RULES)
+                            result = validator.validate_txt(line,allowed_filters=self.parent.nats_cfg[self.parent.active_tel]["filter_list_names"])
+                            if result["valid"]:
+                                data = {}
+                                data["ob"] = result["data"]
+                                data["meta"] = {"ok":True}
+                                data["block"] = line
 
-                                        # slotTime liczy update_plan (jedna instancja CTC, aktualny tryb odczytu)
+                                # slotTime liczy update_plan (jedna instancja CTC, aktualny tryb odczytu)
 
-                                    else:
-                                        print(f'Error plan reading: \n {line}')
+                            else:
+                                print(f'Error plan reading: \n {line}')
 
-                            if data:
-                                tmp_plan.append(data)
+                    if data:
+                        tmp_plan.append(data)
 
 
-                    self.plan[self.i + 1:self.i + 1] = tmp_plan
-                    self.parent.upload_plan()
-                    self.parent.update_plan(self.parent.active_tel)
+                tel = self.parent.active_tel
+                pos = min(self.i + 1, len(self.plan))
+                self.plan[pos:pos] = tmp_plan
+                # wczytane OB nad wykonywanym przesuwaja current_i; wstawione na miejscu next_i staja sie nastepnymi
+                n = len(tmp_plan)
+                if -1 < self.parent.current_i[tel] and pos <= self.parent.current_i[tel]:
+                    self.parent.current_i[tel] += n
+                if -1 < self.next_i and pos < self.next_i:
+                    self.next_i += n
+                self.parent.upload_plan()
+                self.parent.update_plan(self.parent.active_tel)
             self.parent.upload_plan()
             self.update_table()
         else:
@@ -1128,6 +1143,10 @@ class TPG_Worker(QtCore.QObject):
             self.plan_ready_signal.emit(p.plan)
             self.done_signal.emit()
 
+        except SystemExit:
+            # tpg robi sys.exit() przy zlej dacie lub braku master file - nie moze zamknac TOI
+            self.error_signal.emit("TPG stopped: wrong date (use yyyy/mm/dd) or missing master file")
+            self.done_signal.emit()
         except Exception as e:
             self.error_signal.emit(str(e))
             self.done_signal.emit()
@@ -2097,13 +2116,16 @@ class AddWindow(QWidget):
             tmp["block"] = self.validator.convert_from_obdict(ob)
             tmp["meta"] = {"ok": True}
 
-            if len(self.parent.plan) > self.parent.i:
-                self.parent.plan.append(tmp)
-                self.parent.i += 1
-            else:
-                self.parent.plan[self.parent.i + 1:self.parent.i + 1] = tmp
-            self.parent.i = self.parent.i + 1
-            self.parent.parent.update_plan(self.parent.parent.active_tel)
+            tel = self.parent.parent.active_tel
+            pos = min(self.parent.i + 1, len(self.parent.plan))
+            self.parent.plan.insert(pos, tmp)
+            # OB wstawione nad wykonywanym przesuwa current_i; wstawione na miejscu next_i staje sie nastepnym
+            if -1 < self.parent.parent.current_i[tel] and pos <= self.parent.parent.current_i[tel]:
+                self.parent.parent.current_i[tel] += 1
+            if -1 < self.parent.next_i and pos < self.parent.next_i:
+                self.parent.next_i += 1
+            self.parent.i = pos
+            self.parent.parent.upload_plan()
             self.close()
 
 

@@ -194,11 +194,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             reader = get_reader(f'tic.status.{tel}.access_grantor.safety_cutoff_state', deliver_policy='last')
             async for data, meta in reader:
-                state = data["measurements"][f"{tel}.access_grantor.safety_cutoff_state"]
-                if isinstance(state, dict):
-                    state = state.get("engaged")
-                self.safety_cutoff[tel] = None if state is None else bool(state)
-                self.obsGui.main_form.update_table()
+                try:
+                    state = data["measurements"][f"{tel}.access_grantor.safety_cutoff_state"]
+                    if isinstance(state, dict):
+                        state = state.get("engaged")
+                    self.safety_cutoff[tel] = None if state is None else bool(state)
+                    self.obsGui.main_form.update_table()
+                except Exception as e:
+                    logger.exception(f'EXCEPTION 99c: bad safety cutoff message for {tel}: {e}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -539,9 +542,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.overhed = self.local_cfg[self.active_tel]["overhead"]
 
         self.cfg_alt_limits = {}
-        self.cfg_alt_limits["min"] = float(self.nats_cfg[self.active_tel]["min_alt"])
-        self.cfg_alt_limits["max"] = float(self.nats_cfg[self.active_tel]["max_alt"])
-        self.cfg_alt_limits["low"] = float(self.nats_cfg[self.active_tel]["low_alt"])
+        for key, cfg_key, default in (("min", "min_alt", 0.0), ("max", "max_alt", 90.0), ("low", "low_alt", 0.0)):
+            val = self.nats_cfg[self.active_tel][cfg_key]
+            if val is None:
+                logger.warning(f'TOI: no {cfg_key} for {self.active_tel} in TIC config, using {default}')
+                val = default
+            self.cfg_alt_limits[key] = float(val)
 
         self.catalog_file = self.local_cfg[self.active_tel]["object_catalog"]
 
@@ -4147,6 +4153,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 wind_cfg = nats_cfg[k]["observatory"]["obs_limits"]["weather_restrictions"]["wind"]
             except (KeyError, TypeError):
                 wind_cfg = {}
+            if not isinstance(wind_cfg, dict):
+                wind_cfg = {}
             self.nats_cfg[k]["wind_limit"] = wind_cfg.get("observation_stop")
             self.nats_cfg[k]["wind_limit_pointing"] = wind_cfg.get("pointing")
 
@@ -4313,6 +4321,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.cfg_humidity_limit = 70  # %
         self.cfg_temperature_limit = 0
         self.overhed = 10
+        # limity wysokosci; wartosci z TIC ustawia telescope_switched
+        self.cfg_alt_limits = {"min": 0.0, "max": 90.0, "low": 0.0}
 
         self.nextOB_ok = None
         self.flag_newimage = None

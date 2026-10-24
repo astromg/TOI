@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import logging
 import os.path
 import qasync as qs
 from PyQtX import QtCore, QtGui
@@ -13,6 +14,8 @@ from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from base_window import BaseWindow
 from claude_report import write_claude_report
 from toi_lib import *
+
+logger = logging.getLogger(__name__)
 
 
 class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
@@ -513,7 +516,14 @@ class ReportWindow(BaseWindow):
 
 
     def report(self):
-        self.rep_name = self.parent.ut.replace("/","_").replace(" ","_").replace(":","_")
+        try:
+            self._write_report()
+        except Exception as e:
+            logger.exception("TOI: report failed")
+            self.parent.WarningWindow(f"WARNING: report failed: {e}")
+
+    def _write_report(self):
+        self.rep_name =self.parent.ut.replace("/","_").replace(" ","_").replace(":","_")
         if self.parent.active_tel:
             self.rep_name = self.rep_name + "_" + self.parent.active_tel
         self.dir_name = "./Reports/"+self.rep_name

@@ -73,6 +73,16 @@ conflict between Qt and Python's `ABC`. This pattern repeats in `toi.py` (`TOI`)
 - Every subclass must implement `on_start_app()` (abstract) — this is where a window kicks off its
   background tasks and does async initialization after construction (Qt widgets can't have async `__init__`).
 
+**What kills the app (no `sys.excepthook` is installed yet):** an exception escaping a *plain* Qt slot or a Qt
+virtual override (`paintEvent`, `QThread`/worker `run`, …) makes PyQt6 call qFatal → `Aborted (core dumped)`.
+In an `@qs.asyncSlot` coroutine or a background task it only prints a traceback. A NATS reader whose
+`try` wraps the whole `async for` dies silently on its first bad message — put a per-message `try` inside the
+loop (see `nats_weather_loop`, `nats_safety_reader`). `tpg` calls `sys.exit()` on bad input, so `TPG_Worker.run`
+catches `SystemExit` — without that the whole process silently exits with code 0. `plan_gui.py` has no
+`asyncSlot`s, so every plan-window button is a plain slot. When inserting OBs into a running plan, shift
+`current_i`/`next_i` (see `AddWindow.save_ob`, `loadPlan`). Open crash items are tracked in the knowledge-base
+note "TOI Crash Review 2026-10-14".
+
 `BaseWindow` (`base_window.py`) is a much simpler, unrelated base class used by windows that don't need
 async behavior (popups, plot/report windows) — it just defers `setGeometry()` until `showEvent` so windows
 that are created hidden get positioned correctly once shown.
