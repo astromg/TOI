@@ -1,5 +1,12 @@
 <h4>Whats New?</h4>
 
+--- 25.10.2026 --- <br>
+Optical path: a change that moves something big (the telescope and the dome to the flat screen, the mirror covers by
+day) waits for a person - CONFIRM in the status line on every TOI, whoever asked (you or a planrunner); click CONFIRM,
+the button says what will move, click again within 5 s to move, or Reject. WAITING: light still to come (the sky at
+dusk), SET PATH prepares the path now. "Confirm by hand..." is a table: a button per position of each part no sensor
+reads. The optics journal shows in the log. Requires ocabox 2.12, ocabox-common 1.13, datamodels 0.7, optics service 1.7.
+<br><br>
 --- 24.10.2026 --- <br>
 Night monitor option added to tpg window.
 <br><br>
