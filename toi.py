@@ -161,6 +161,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.add_background_task(self.nats_journal_ofp_reader(t))
             self.add_background_task(self.nats_journal_downloader_reader(t))
             self.add_background_task(self.nats_journal_guider_reader(t))
+            self.add_background_task(self.nats_journal_optics_reader(t))
 
             self.add_background_task(self.oca_telemetry_conditions_reader(t))
 
@@ -337,6 +338,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             logger.warning(f'TOI: EXCEPTION 4b3: {e}')
         except Exception as e:
             logger.warning(f'EXCEPTION 110b: {e}')
+
+    async def nats_journal_optics_reader(self, tel):
+        """The optics service's journal: light-path changes that wait for a person, and their outcome."""
+        try:
+            r = get_journalreader(f'tic.journal.{tel}.optics', deliver_policy='new')
+            async for data, meta in r:
+                if self.tel_acces[tel]:
+                    await self.update_log(data.message, "OPTICS", tel, level=data.level)
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'TOI: optics journal reader: {e}')
 
     async def nats_journal_guider_reader(self,tel):
         try:
