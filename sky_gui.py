@@ -6,10 +6,10 @@
 # ----------------
 
 from PyQtX.QtCore import Qt
-from PyQtX import QtCore, QtGui
+from PyQtX import QtGui
 from PyQtX.QtGui import QFont
-from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
-    QVBoxLayout, QTableWidget, QTableWidgetItem, QTabWidget
+from PyQtX.QtWidgets import QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
+    QVBoxLayout, QTabWidget
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from pyaraucaria.coordinates import *
@@ -110,38 +110,19 @@ class SkyView(QWidget):
         QWidget.__init__(self)
         self.parent = parent
         self.mkUI()
-        cid = self.canvas.mpl_connect('button_press_event', self.zaznaczenie)
-
-        self.canSetNext = False
-
-        self.tel_az = 5
-        self.tel_alt = 90
+        self.canvas.mpl_connect('button_press_event', self.zaznaczenie)
 
         self.a = []
         self.h = []
-        self.symbol = []
-
-        self.silent_a = []
-        self.silent_h = []
-        self.silent_symbol = []
 
         self.rmax = 110
-        self.marc_point = False
 
         self.a = [10, 20, 30, 40, 50, 100, 40, 40, 70]
         self.h = [50, 50, 50, 50, 50, 30, 40, 40, 20]
-        self.symbol = ["b*", "b*", "b*", "b*", "b*", "ok", "or", "+r", ".r"]
-        self.alpha = [0.8, 0.6, 0.5, 0.3, 0.3, 0.6, 0.3, 1, 1]
-
-        self.log_a = [10, 20, 30]
-        self.log_h = [30, 30, 30]
-        self.log_s = ["k*", "k*", "k*"]
-        self.log_alh = [0.5, 0.5, 0.5]
 
         self.update()
 
         self.dome_az = 0
-        self.dome_color = "r"
 
         # self.updateDome()
 
@@ -230,7 +211,7 @@ class SkyView(QWidget):
         # ### STARS ###
         try:
             for p in self.stars: p[0].remove()
-        except Exception as e:
+        except Exception:
             pass
         self.stars = []
         self.plan = []
@@ -288,7 +269,7 @@ class SkyView(QWidget):
                 point = self.axes.plot(az, alt, color="b", marker="D", markersize="5", markerfacecolor="white",
                                        alpha=0.9)
                 self.stars.append(point)
-            except Exception as e:
+            except Exception:
                 pass
             self.updateTrack()
             self.canvas.draw()
@@ -297,7 +278,7 @@ class SkyView(QWidget):
     def updateTrack(self):
         try:
             for p in self.track: p[0].remove()
-        except Exception as e:
+        except Exception:
             pass
         self.track = []
 
@@ -396,15 +377,16 @@ class SkyView(QWidget):
     def updateWind(self, parent):
         try:
             self.wind.remove()
-        except Exception as e:
+        except Exception:
             pass
 
         self.parent = parent
         try:
             wind = float(self.parent.telemetry_wind)
-            if wind < float(self.parent.cfg_wind_limit_pointing):
+            wind_limit, wind_limit_pointing = self.parent.wind_limits(self.parent.active_tel)
+            if wind < wind_limit_pointing:
                 color = "g"
-            elif wind < float(self.parent.cfg_wind_limit):
+            elif wind < wind_limit:
                 color = "orange"
             else:
                 color = "r"

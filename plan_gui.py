@@ -7,22 +7,19 @@ import os
 #----------------
 
 import uuid
-import time
 
 import ephem
 import datetime
 import qasync as qs
 from qasync import QEventLoop
 from PyQtX import QtCore, QtGui
-from PyQtX.QtWidgets import (QMainWindow, QApplication, QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
-                             QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout,
-                             QVBoxLayout, QTableWidget, QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame,
+from PyQtX.QtWidgets import (QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
+                             QLineEdit, QPushButton, QGridLayout, QTableWidget, QTableWidgetItem, QCompleter, QFileDialog, QFrame,
                              QComboBox, QProgressBar, QHeaderView)
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-import matplotlib
 
 from astropy.table import Table
 
@@ -42,8 +39,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     def __init__(self, parent, loop: QEventLoop = None, client_api=None):
           BaseWindow.__init__(self)
           BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
-          self.subscriber_delay = 1
-          self.subscriber_time_of_data_tolerance = 0.5
 
           self.parent=parent
 
@@ -708,7 +703,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               if self.i > self.parent.current_i[self.parent.active_tel] and self.parent.current_i[self.parent.active_tel]>-1:
                   self.parent.current_i[self.parent.active_tel] = self.parent.current_i[self.parent.active_tel] + 1
                   self.parent.next_i[self.parent.active_tel] = self.parent.next_i[self.parent.active_tel] + 1
-                  self.parent.check_next_i()
+                  self.parent.check_next_i(self.parent.active_tel)
               self.i=self.i+1
               if self.i+1>len(self.parent.plan[self.parent.active_tel]): self.i=self.i-1
               self.parent.update_plan(self.parent.active_tel)
@@ -728,7 +723,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               if self.i < self.parent.current_i[self.parent.active_tel] and self.parent.current_i[self.parent.active_tel]>-1:
                   self.parent.current_i[self.parent.active_tel] = self.parent.current_i[self.parent.active_tel] - 1
                   self.parent.next_i[self.parent.active_tel] = self.parent.next_i[self.parent.active_tel] - 1
-                  self.parent.check_next_i()
+                  self.parent.check_next_i(self.parent.active_tel)
               self.parent.update_plan(self.parent.active_tel)
               #self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               #self.repaint()
@@ -801,10 +796,11 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   block = block + "\n"
               txt = txt + block
           if self.fileName:
-              with open(self.fileName, "w") as plik:
-                  plik.write(txt)
-              txt = f"TOI: plan saved to {self.fileName} file"
-              self.parent.msg(txt, "black")
+              try:
+                  with open(self.fileName, "w") as plik:
+                      plik.write(txt)
+              except OSError as e:
+                  self.parent.WarningWindow(f"WARNING: can't save plan to {self.fileName}: {e}")
 
 
     def loadPlan(self):
@@ -826,39 +822,51 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.fileName = self.File_dialog.getOpenFileName(None,"Open file")[0]
 
             if self.fileName:
-                with open(self.fileName, "r") as plik:
-                    if plik != None:
-                        tmp_plan = []
-                        for line in plik:
-                            data = None
-                            if len(line.strip())>0:
-                                if line.strip()[0]!="#":
-                                    if "TEL: zb08" in line:
-                                       pass  # wprowadzic do planow jako obowiazek?
+                try:
+                    with open(self.fileName, "r") as plik:
+                        lines = plik.readlines()
+                except (OSError, UnicodeDecodeError) as e:
+                    self.parent.WarningWindow(f"WARNING: can't read plan file {self.fileName}: {e}")
+                    return
+                tmp_plan = []
+                for line in lines:
+                    data = None
+                    if len(line.strip())>0:
+                        if line.strip()[0]!="#":
+                            if "TEL: zb08" in line:
+                               pass  # wprowadzic do planow jako obowiazek?
 
-                                    BASE_SCHEMA = ObsValidator.load_schema("base_schema")
-                                    COMMAND_RULES = ObsValidator.load_schema("base_rules.yaml")
+                            BASE_SCHEMA = ObsValidator.load_schema("base_schema")
+                            COMMAND_RULES = ObsValidator.load_schema("base_rules.yaml")
 
-                                    validator = ObsValidator(BASE_SCHEMA, COMMAND_RULES)
-                                    result = validator.validate_txt(line,allowed_filters=self.parent.nats_cfg[self.parent.active_tel]["filter_list_names"])
-                                    if result["valid"]:
-                                        data = {}
-                                        data["ob"] = result["data"]
-                                        data["meta"] = {"ok":True}
-                                        data["block"] = line
+                            validator = ObsValidator(BASE_SCHEMA, COMMAND_RULES)
+                            result = validator.validate_txt(line,allowed_filters=self.parent.nats_cfg[self.parent.active_tel]["filter_list_names"])
+                            if result["valid"]:
+                                data = {}
+                                data["ob"] = result["data"]
+                                data["meta"] = {"ok":True}
+                                data["block"] = line
 
-                                        # slotTime liczy update_plan (jedna instancja CTC, aktualny tryb odczytu)
+                                # slotTime liczy update_plan (jedna instancja CTC, aktualny tryb odczytu)
 
-                                    else:
-                                        print(f'Error plan reading: \n {line}')
+                            else:
+                                print(f'Error plan reading: \n {line}')
 
-                            if data:
-                                tmp_plan.append(data)
+                    if data:
+                        tmp_plan.append(data)
 
 
-                    self.plan[self.i + 1:self.i + 1] = tmp_plan
-                    self.parent.upload_plan()
-                    self.parent.update_plan(self.parent.active_tel)
+                tel = self.parent.active_tel
+                pos = min(self.i + 1, len(self.plan))
+                self.plan[pos:pos] = tmp_plan
+                # wczytane OB nad wykonywanym przesuwaja current_i; wstawione na miejscu next_i staja sie nastepnymi
+                n = len(tmp_plan)
+                if -1 < self.parent.current_i[tel] and pos <= self.parent.current_i[tel]:
+                    self.parent.current_i[tel] += n
+                if -1 < self.next_i and pos < self.next_i:
+                    self.next_i += n
+                self.parent.upload_plan()
+                self.parent.update_plan(self.parent.active_tel)
             self.parent.upload_plan()
             self.update_table()
         else:
@@ -1076,7 +1084,7 @@ class TPG_Worker(QtCore.QObject):
     update_signal = QtCore.pyqtSignal(str)
     error_signal = QtCore.pyqtSignal(str)
 
-    def __init__(self, tel, dt, wind=None, uobi_done=None,fwhm=None, tag=None):
+    def __init__(self, tel, dt, wind=None, uobi_done=None,fwhm=None, tag=None, night_monitor=False):
 
         super().__init__()
         self.tel = tel
@@ -1085,11 +1093,19 @@ class TPG_Worker(QtCore.QObject):
         self.uobi_done = uobi_done or []
         self.fwhm = fwhm
         self.tag = tag
+        self.night_monitor = night_monitor
 
     def run(self):
         try:
-            p = tpg(self.tel,self.dt,wind=self.wind,fwhm=self.fwhm,tag=self.tag)
+            p = tpg(self.tel,self.dt,wind=self.wind,fwhm=self.fwhm,tag=self.tag,done_uobi=self.uobi_done,night_monitor=self.night_monitor)
             p.Initiate()
+            if self.night_monitor:
+                # master file night monitora lezy obok zwyklego master file, np. zb08_night_monitor.txt
+                master_dir = os.path.dirname(p.cfg[self.tel]["master_file"])
+                p.master_file = os.path.join(master_dir, f"{self.tel}_night_monitor.txt")
+                if not os.path.isfile(p.master_file):
+                    raise FileNotFoundError(f"no night monitor master file {p.master_file}")
+                self.update_signal.emit(f"night monitor: {p.master_file}")
             p.init_ctc()
             self.update_signal.emit("TPG init <span style='color: green;'>\u2714</span>")
             p.LoadObjects()
@@ -1127,6 +1143,10 @@ class TPG_Worker(QtCore.QObject):
             self.plan_ready_signal.emit(p.plan)
             self.done_signal.emit()
 
+        except SystemExit:
+            # tpg robi sys.exit() przy zlej dacie lub braku master file - nie moze zamknac TOI
+            self.error_signal.emit("TPG stopped: wrong date (use yyyy/mm/dd) or missing master file")
+            self.done_signal.emit()
         except Exception as e:
             self.error_signal.emit(str(e))
             self.done_signal.emit()
@@ -1159,12 +1179,14 @@ class TPGWindow(BaseWindow):
             print(f'EXCEPTION TPG 2: {e}')
 
         if self.repeat_c.isChecked():
-            uobi_done = self.parent.done
+            uobi_done = list(self.parent.parent.done_uobi)
         else:
             uobi_done = []
 
+        night_monitor = self.night_monitor_c.isChecked()
+
         self.thread = QtCore.QThread()
-        self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm,tag=tag)
+        self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm,tag=tag,night_monitor=night_monitor)
 
         self.worker.moveToThread(self.thread)
 
@@ -1313,6 +1335,13 @@ class TPGWindow(BaseWindow):
             "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
         )
 
+        self.night_monitor_c = QCheckBox("Night monitor")
+        self.night_monitor_c.setChecked(False)
+        self.night_monitor_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
+            "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
+        )
+
         self.add_p = QPushButton('Generate Plan')
         self.add_p.clicked.connect(self.add)
 
@@ -1332,10 +1361,13 @@ class TPGWindow(BaseWindow):
         grid.addWidget(self.fwhm_c, 3, 0)
         grid.addWidget(self.fwhm_e, 3, 1)
 
-        grid.addWidget(self.tag_c, 4, 0)
-        grid.addWidget(self.tag_e, 4, 1)
+        grid.addWidget(self.night_monitor_c, 4, 0, 1, 2)
+
+        #grid.addWidget(self.tag_c, 4, 0)
+        #grid.addWidget(self.tag_e, 4, 1)
 
         grid.addWidget(self.repeat_c, 5, 0, 1, 2)
+
 
         grid.addWidget(self.info_e, 6, 0, 1, 2)
 
@@ -2084,13 +2116,16 @@ class AddWindow(QWidget):
             tmp["block"] = self.validator.convert_from_obdict(ob)
             tmp["meta"] = {"ok": True}
 
-            if len(self.parent.plan) > self.parent.i:
-                self.parent.plan.append(tmp)
-                self.parent.i += 1
-            else:
-                self.parent.plan[self.parent.i + 1:self.parent.i + 1] = tmp
-            self.parent.i = self.parent.i + 1
-            self.parent.parent.update_plan(self.parent.parent.active_tel)
+            tel = self.parent.parent.active_tel
+            pos = min(self.parent.i + 1, len(self.parent.plan))
+            self.parent.plan.insert(pos, tmp)
+            # OB wstawione nad wykonywanym przesuwa current_i; wstawione na miejscu next_i staje sie nastepnym
+            if -1 < self.parent.parent.current_i[tel] and pos <= self.parent.parent.current_i[tel]:
+                self.parent.parent.current_i[tel] += 1
+            if -1 < self.parent.next_i and pos < self.parent.next_i:
+                self.parent.next_i += 1
+            self.parent.i = pos
+            self.parent.parent.upload_plan()
             self.close()
 
 

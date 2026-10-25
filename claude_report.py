@@ -30,7 +30,7 @@ _TOI_ATTRS = ["active_tel", "tel_acces", "tel_users", "telescope_switch_status",
               "autofocus_started", "last_focus_position", "focus_method", "ccd_readoutmode",
               "telemetry_temp", "telemetry_humidity", "telemetry_wind", "telemetry_wind_direction",
               "ut", "current_i", "next_i", "ob_progress", "nats_ob_progress", "report",
-              "nats_focus_record", "program_id"]
+              "nats_focus_record", "nats_focus_reference", "program_id"]
 
 _GUI_ATTRS = ["obsGui", "mntGui", "instGui", "planGui", "skyGui", "fitsGui", "focusGui", "flatGui",
               "conditionsGui", "guiderGui", "planrunnerGui"]
@@ -178,9 +178,10 @@ def _focus(toi):
     out = {}
     for tel in toi.local_cfg["toi"]["telescopes"]:
         try:
-            out[tel] = {"focus_difference": toi.focus_difference(tel)}
+            out[tel] = {"focus_reference": toi.nats_focus_reference[tel],
+                        "focus_adjust_target": toi.focus_adjust_target(tel)}
         except Exception as e:
-            out[tel] = {"focus_difference": f"<{type(e).__name__}: {e}>"}
+            out[tel] = {"focus_adjust_target": f"<{type(e).__name__}: {e}>"}
     return out
 
 

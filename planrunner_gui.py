@@ -3,14 +3,9 @@
 
 from PyQtX.QtCore import Qt
 from PyQtX.QtGui import QFont, QTextCursor
-from PyQtX import QtCore, QtGui
-from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QSlider, QFrame, QComboBox
+from PyQtX.QtWidgets import QTextEdit, QGridLayout, QLineEdit
 
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
-import numpy
 from base_window import BaseWindow
 
 class PlanrunnerWindow(BaseWindow):

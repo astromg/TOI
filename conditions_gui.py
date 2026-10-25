@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
-import datetime
 
 import ephem
 from scipy.ndimage import gaussian_filter1d
 
-from PyQtX.QtCore import Qt
-from PyQtX.QtGui import QFont
-from PyQtX import QtCore, QtGui
-from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit, QLabel, QComboBox, QPushButton
+from PyQtX.QtWidgets import QGridLayout, QLineEdit, QLabel, QPushButton
 import copy
 from matplotlib.figure import Figure
-from matplotlib.dates import date2num
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
@@ -39,8 +34,6 @@ class ConditionsWindow(BaseWindow):
 
     def update(self):
         fits_photo_z0_data_copy = copy.deepcopy(self.parent.fits_photo_z0_data)
-        self.z0 = {t:[] for t in fits_photo_z0_data_copy.keys()}
-        self.z0_time = {t: [] for t in fits_photo_z0_data_copy.keys()}
 
         self.fwhm = {t:[] for t in self.parent.fits_ffs_data.keys()}
         self.time = {t: [] for t in self.parent.fits_ffs_data.keys()}

@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
-import time
 
 import numpy as np
 
 from PyQtX.QtCore import Qt
 from PyQtX.QtGui import QFont
 from PyQtX import QtCore, QtGui
-from PyQtX.QtWidgets import QWidget, QCheckBox, QTextEdit, QGridLayout, QLineEdit
+from PyQtX.QtWidgets import QTextEdit, QGridLayout, QLineEdit
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 import numpy
-from ffs_lib.ffs import FFS_old
 from pyaraucaria.ffs import FFS
 from toi_lib import *
 from base_window import BaseWindow
@@ -28,7 +25,6 @@ class FitsWindow(BaseWindow):
         self.setWindowTitle('Fits')
         self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1910, self.parent.obs_window_geometry[1], 1000, 700)
         self.mkUI()
-        self.colorbar = None
         self.image=[]
         self.coo = []
         self.sat_coo = []
@@ -56,7 +52,7 @@ class FitsWindow(BaseWindow):
             vmin = numpy.mean(self.image) - 1 * numpy.std(self.image)
             vmax = numpy.mean(self.image) + 1 * numpy.std(self.image)
 
-            im = self.axes.imshow(self.image, vmin=vmin, vmax=vmax, interpolation='none', resample=False)
+            self.axes.imshow(self.image, vmin=vmin, vmax=vmax, interpolation='none', resample=False)
 
             self.canvas.draw()
             self.show()
@@ -68,9 +64,6 @@ class FitsWindow(BaseWindow):
         self.coo = []
         self.adu = []
         self.sat_coo = []
-        self.sat_adu = []
-        self.ok_coo = []
-        self.ok_adu = []
         self.fwhm_x = None
         self.fwhm_y = None
 
@@ -116,10 +109,6 @@ class FitsWindow(BaseWindow):
             self.adu = self.ffs.adu
             maska1 = numpy.array(self.adu) > self.saturation
             self.sat_coo = self.coo[maska1]
-            self.sat_adu = self.adu[maska1]
-            maska2 = [not val for val in maska1]
-            self.ok_coo = self.coo[maska2]
-            self.ok_adu = self.adu[maska2]
         self.update_fits_data()
 
 
@@ -205,7 +194,7 @@ class FitsWindow(BaseWindow):
                         if "saturation_max" in self.parent.fits_ofp_data['raw']['objects'][k].keys():
                             txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
                 if self.pointing_x:
-                    self.poining_center = self.axes.plot(self.pointing_x,self.pointing_x,"k+",markersize=20)
+                    self.axes.plot(self.pointing_x,self.pointing_y,"k+",markersize=20)
                 if len(self.ob_x)>0:
                     self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")
 

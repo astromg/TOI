@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
+import logging
 import os.path
 import qasync as qs
 from PyQtX import QtCore, QtGui
 from PyQtX.QtCore import Qt
 from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
     QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
@@ -15,6 +14,8 @@ from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from base_window import BaseWindow
 from claude_report import write_claude_report
 from toi_lib import *
+
+logger = logging.getLogger(__name__)
 
 
 class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
@@ -95,6 +96,12 @@ class MainForm(QWidget):
 
             lay.addWidget(QLabel(f'{t}'))
 
+            if self.parent.safety_cutoff.get(t):
+                icon_hat = QLabel()
+                icon_hat.setPixmap(ToiIcon("icon_hat", "red", size=14).pixmap(14, 14))
+                icon_hat.setToolTip("safety cutoff ON")
+                lay.addWidget(icon_hat)
+
 
             if self.parent.nats_toi_op_status[t]:
 
@@ -140,14 +147,22 @@ class MainForm(QWidget):
                 humidity = _f(self.parent.telemetry_humidity)
                 temperature = _f(self.parent.telemetry_temp)
 
-                if wind is not None and wind > float(self.parent.cfg_wind_limit):
+                wind_limit, wind_limit_pointing = self.parent.wind_limits(t)
+
+                if wind is not None and wind > wind_limit:
                     icon_label5 = QLabel()
                     icon_label5.setPixmap(ToiIcon("icon_wind", "red", size=14).pixmap(14, 14))
                     lay.addWidget(icon_label5)
-                elif wind is not None and wind > float(self.parent.cfg_wind_limit_pointing):
+                elif wind is not None and wind > wind_limit_pointing:
                     icon_label6 = QLabel()
                     icon_label6.setPixmap(ToiIcon("icon_wind", "orange", size=14).pixmap(14, 14))
                     lay.addWidget(icon_label6)
+
+                rain = _f(self.parent.telemetry_rain)
+                if rain is not None and rain > 0:
+                    icon_label9 = QLabel()
+                    icon_label9.setPixmap(ToiIcon("icon_rain", "red", size=14).pixmap(14, 14))
+                    lay.addWidget(icon_label9)
 
                 if humidity is not None and humidity > float(self.parent.cfg_humidity_limit):
                     icon_label7 = QLabel()
@@ -415,7 +430,6 @@ class MainForm(QWidget):
         grid.addWidget(self.obs_t, w, 0, 1, 8)
 
 
-        self.SpecialPocisk_p = QPushButton('NO')
         #self.testowyPocisk_p.clicked.connect(self.parent.force_update)
 
 
@@ -451,7 +465,6 @@ class MainForm(QWidget):
         grid.addWidget(self.guider_p, w, 7)
 
         w = w + 1
-        #grid.addWidget(self.SpecialPocisk_p, w, 0, 1, 2)
         grid.addWidget(self.log_p, w, 5)
         grid.addWidget(self.fits_p, w, 7)
 
@@ -503,7 +516,14 @@ class ReportWindow(BaseWindow):
 
 
     def report(self):
-        self.rep_name = self.parent.ut.replace("/","_").replace(" ","_").replace(":","_")
+        try:
+            self._write_report()
+        except Exception as e:
+            logger.exception("TOI: report failed")
+            self.parent.WarningWindow(f"WARNING: report failed: {e}")
+
+    def _write_report(self):
+        self.rep_name =self.parent.ut.replace("/","_").replace(" ","_").replace(":","_")
         if self.parent.active_tel:
             self.rep_name = self.rep_name + "_" + self.parent.active_tel
         self.dir_name = "./Reports/"+self.rep_name
@@ -553,6 +573,7 @@ class ReportWindow(BaseWindow):
                    "telemetry_wind_direction",
                    "telemetry_humidity",
                    "telemetry_pressure",
+                   "telemetry_rain",
                    "autofocus_started",
                    "last_focus_position",
                    "ut",

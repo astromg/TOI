@@ -1,22 +1,15 @@
 #!/usr/bin/env python3
 
-import copy
-import yaml
 import argparse
 import logging
 import asyncio
 import datetime
-import time
-import copy
 
 import os
-import sys
 import pwd
 import socket
 
-from serverish.messenger import Messenger, single_read, get_reader, get_journalreader
-from serverish.messenger.msg_publisher import MsgPublisher, get_publisher
-from serverish.messenger.msg_journal_pub import MsgJournalPublisher, get_journalpublisher, JournalEntry
+from serverish.messenger import Messenger, single_read, get_reader
 
 logger = logging.getLogger('main')
 
@@ -28,7 +21,6 @@ class main_app():
 
         self.args = args
 
-        self.app_name = sys.argv[0]
         host = socket.gethostname()
         user = pwd.getpwuid(os.getuid())[0]
         self.myself = f'{user}@{host}'
@@ -225,5 +217,5 @@ def main():
     #argparser.add_argument('--reset_agregator', action='store_true', help='use if new telescope added, or subject is empty')
 
     args = argparser.parse_args()
-    app = main_app(args)
+    main_app(args)
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from collections import OrderedDict
+import datetime as _datetime   # z podkreslnikiem, zeby "from toi_lib import *" go nie eksportowal
 import ephem
 import numpy
 
@@ -48,6 +49,23 @@ def parse_plan_ut_str(s):
     if 'T' in s and '-' in s:
         return s.replace('-', '/').replace('T', ' ')
     return s
+
+
+def wait_ut_sec(ut, t):
+    """Ile sekund od chwili t (ephem.Date) do WAIT ut=HH:MM[:SS]; 0 jak ut juz minelo.
+
+    Bierze wystapienie ut najblizsze t (+-12 h), wiec dziala przez polnoc UT:
+    o 23:50 WAIT ut=00:30 czeka 40 min, a o 00:40 jest juz zrobiony.
+    """
+    h, m, s = ([float(x) for x in str(ut).strip().split(":")] + [0.0, 0.0])[:3]
+    dt = ephem.Date(t).datetime()
+    target = dt.replace(hour=0, minute=0, second=0, microsecond=0) + _datetime.timedelta(seconds=h * 3600 + m * 60 + s)
+    diff = (target - dt).total_seconds()
+    if diff > 43200:
+        diff -= 86400
+    elif diff < -43200:
+        diff += 86400
+    return max(diff, 0.0)
 
 
 def seq_parser(seq):

@@ -2,7 +2,7 @@
 
 import qasync as qs
 from PyQtX.QtCore import Qt
-from PyQtX.QtWidgets import QMainWindow, QApplication, QWidget, QLabel,QCheckBox, QRadioButton, QTextEdit, QLineEdit, QDialog, QTabWidget, QPushButton, QFileDialog, QGridLayout, QHBoxLayout, QVBoxLayout, QTableWidget,QTableWidgetItem, QSlider, QCompleter, QFileDialog, QFrame, QComboBox, QProgressBar
+from PyQtX.QtWidgets import QWidget, QLabel,QCheckBox, QRadioButton, QLineEdit, QTabWidget, QPushButton, QGridLayout, QComboBox, QProgressBar
 from qasync import QEventLoop
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from base_window import BaseWindow
@@ -13,8 +13,6 @@ class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidg
       def __init__(self, parent, loop: QEventLoop = None, client_api=None):
           BaseWindow.__init__(self)
           BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
-          self.subscriber_delay = 1
-          self.subscriber_time_of_data_tolerance = 0.5
 
           self.parent = parent
           self.setStyleSheet("font-size: 11pt;")
