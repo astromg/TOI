@@ -317,21 +317,17 @@ class MainForm(QWidget):
     def set_hints(self):
         # okienka z wyjasnieniem po najechaniu na pole; Wind/Direction dopisuja limity w TOI.wind_field_style
         hints = {
-            "ticStatus2": "Connection to TIC (the telescope server), checked every 3 s.\n"
-                          "Green: TIC answers. Red: no answer.",
-            "natsStatus": "TOI's own connection to NATS (the message bus), checked every second.\n"
-                          "Green: connected. Orange: reconnecting. Red: disconnected.",
-            "temp": "Outside air temperature from the weather station.\nRed: below -1 °C.",
-            "hummidity": f"Relative humidity from the weather station.\n"
-                         f"Red: above {self.parent.cfg_humidity_limit} % or rain (RAIN).",
-            "wind": "Wind speed from the weather station.",
-            "windDir": "Wind direction from the weather station (where the wind comes from).",
-            "fwhm": "Seeing (FWHM) - not available yet.",
-            "zeropoint": "Photometric zero point - not available yet.",
-            "clouds": "Cloud cover - not available yet.",
+            "ticStatus2": "TIC server, checked every 3 s.",
+            "natsStatus": "TOI connection to NATS. Orange: reconnecting.",
+            "temp": "Davis weather station. Red below -1 °C.",
+            "hummidity": f"Davis weather station. Red above {self.parent.cfg_humidity_limit} % or rain.",
+            "wind": "Davis weather station.",
+            "windDir": "Davis weather station.",
+            "fwhm": "Not available yet.",
+            "zeropoint": "Not available yet.",
+            "clouds": "Not available yet.",
             "date": "UT date.",
-            "ut": "Universal Time.\nBackground: yellow - Sun above 1°; pale blue - twilight "
-                  "(Sun between 1° and -18°); grey - night (Sun below -18°).",
+            "ut": "Yellow: Sun above 1°. Blue: Sun 1° to -18°.",
             "ojd": "Julian Date.",
             "sid": "Local sidereal time.",
         }

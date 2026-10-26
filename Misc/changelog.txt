@@ -1,14 +1,14 @@
 <h4>Whats New?</h4>
 
 --- 26.10.2026 --- <br>
-"Flat Log" is now the Calibration window: last EVENING FLAT and MORNING FLAT per filter (separately) and the last
-OBJECT, from the new flat_overwatch subjects; filters never used are hidden. Green - flats from the last 20 h,
-orange - older than 10 days, red - the filter was used in the last 10 days and had no flats of that session since.
-The flat log is a table with a fixed header.
+TPG: "Make SKYFLATS" adds evening and morning sky flats to the plan.
 <br>
-TPG window: "Make SKYFLATS" (on by default) adds the evening and morning sky flat sessions to the plan - field and
-filters chosen by tpg's sky flat selector from the flat history; a session already over is left out (a plan made at
-night gets only the morning one). The result for each session is shown in the window.
+New Aux window with tabs: Telescope (OCA manual page), Optical path, Calibration, Focus, Guider, Plan Runner,
+Conditions. Tabs come up by themselves (M3 move, flats, focus).
+<br>
+Focus: Recalculate no longer moves the focuser - use SET. Exposure time and filter added.
+<br>
+Main window: NATS lamp, wind and direction coloured by per-telescope limits, UT coloured by Sun altitude.
 <br><br>
 --- 25.10.2026 --- <br>
 Optical path: a change that moves something big (the telescope and the dome to the flat screen, the mirror covers by

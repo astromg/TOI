@@ -4037,8 +4037,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else:
             color = "rgb(255, 140, 0)"
         field.setStyleSheet(f"color: black; background-color: {color};")
-        tip = hint + "\n\nLimits [m/s]: " + ", ".join(f"{t} {limits[t]:g}" for t in tels)
-        tip += f"\nExceeded now: {', '.join(over)}" if over else "\nExceeded now: none"
+        tip = f"{hint} [m/s]: " + ", ".join(f"{t} {limits[t]:g}" for t in tels)
+        if over:
+            tip += f"\nExceeded: {', '.join(over)}"
         field.setToolTip(tip)
 
     def updateWeather(self):
@@ -4054,14 +4055,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             #self.obsGui.main_form.pressure_e.setText(f"{self.telemetry_pressure:.1f} [hPa]")
 
             # Wind: przerwanie obserwacji (observation_stop), Direction: zakaz celowania pod wiatr (pointing)
-            self.wind_field_style(self.obsGui.main_form.wind_e, 0,
-                                  "Wind speed from the weather station.\n"
-                                  "Background: telescopes above their observation stop limit -\n"
-                                  "yellow one, orange several, red all.")
-            self.wind_field_style(self.obsGui.main_form.windDir_e, 1,
-                                  "Wind direction from the weather station (where the wind comes from).\n"
-                                  "Background: telescopes above their pointing limit, i.e. not allowed to point\n"
-                                  "into the wind (dome within ±30° of it) - yellow one, orange several, red all.")
+            self.wind_field_style(self.obsGui.main_form.wind_e, 0, "Davis weather station.\nStop limits")
+            self.wind_field_style(self.obsGui.main_form.windDir_e, 1, "Davis weather station.\nPointing limits")
 
             if rain or float(self.telemetry_humidity)> float(self.cfg_humidity_limit):
                 self.obsGui.main_form.hummidity_e.setStyleSheet("color: rgb(0, 0, 0); background-color: red;")

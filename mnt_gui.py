@@ -218,7 +218,9 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.mntConn1_l, w, 1)
 
         #self.grid.addWidget(self.mntStat_l, w, 4)
-        self.grid.addWidget(self.mntStat_e, w, 2, 1, 3)
+        self.grid.addWidget(self.mntStat_e, w, 2)
+        # SAFETY CUTOFF tworzony nizej (sekcja przyciskow), stawiany tutaj
+        self.safety_row = w
 
         self.grid.addWidget(self.mntMotors_l, w, 6)
         self.grid.addWidget(self.mntMotors_c, w, 7)
@@ -553,6 +555,52 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         #########################################################
 
+        self.focusConn_l = QLabel(" ")
+        #self.focusConn_l.setText("\U0001F534")
+        self.telFocus_l = QLabel("FOCUS: ")
+        self.telFocus_l.setStyleSheet("color: rgb(150,0,0);")
+        self.telFocus_e = QLineEdit()
+        self.telFocus_e.setReadOnly(True)
+        self.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.setFocus_s = QSpinBox()
+        if self.parent.active_tel != None:
+            tel = self.parent.obs_tel_tic_names[self.parent.active_tel_i]
+            if tel=="zb08":
+                self.setFocus_s.setRange(0,28000)
+                self.setFocus_s.setSingleStep(10)
+            elif tel=="wk06":
+                self.setFocus_s.setRange(0,28000)
+                self.setFocus_s.setSingleStep(10)
+            elif tel=="jk15":
+                self.setFocus_s.setRange(0,50000)
+                self.setFocus_s.setSingleStep(10)
+        #self.setFocus_s.valueChanged.connect(self.parent.focusClicked)
+        self.setFocus_p = QPushButton('SET')
+        self.setFocus_p.clicked.connect(self.parent.set_focus)
+
+        self.calcFocus_p = QPushButton('CALC MODEL')
+        self.calcFocus_p.clicked.connect(self.parent.focus_set_update)
+
+        self.telAutoFocus_l = QLabel("FOCUS ADJUST:")
+        self.telAutoFocus_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        self.telAutoFocus_c = QCheckBox()
+        self.telAutoFocus_c.setChecked(False)
+        self.telAutoFocus_c.setLayoutDirection(Qt.RightToLeft)
+        self.telAutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        self.telAutoFocus_c.clicked.connect(self.parent.focus_auto_adjust_OnOff)
+
+        w = w + 1
+        self.grid.addWidget(self.focusConn_l, w, 0)
+        self.grid.addWidget(self.telFocus_l, w, 1)
+        self.grid.addWidget(self.telFocus_e, w, 2)
+        self.grid.addWidget(self.setFocus_s, w, 3)
+        self.grid.addWidget(self.setFocus_p, w, 4)
+        self.grid.addWidget(self.calcFocus_p, w, 5)
+        self.grid.addWidget(self.telAutoFocus_l, w,6,1,1)
+        self.grid.addWidget(self.telAutoFocus_c, w,7)
+
+        ##########################################################
+
         self.telM3_l = QLabel("M3: ")
         self.telM3_e = QLineEdit()
         self.telM3_e.setReadOnly(True)
@@ -571,7 +619,14 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.telM3_s, w, 3)
         self.grid.addWidget(self.telM3_p, w, 4)
 
+        ##########################################################
+        # M3 przelacza instrument, a z nim ROTATOR i FILTER - sa pod linia
 
+        self.lineM3_l = QFrame()
+        self.lineM3_l.setFrameShape(QFrame.HLine)
+        self.lineM3_l.setFrameShadow(QFrame.Raised)
+        w = w + 1
+        self.grid.addWidget(self.lineM3_l, w, 0, 1, 8)
 
         ##########################################################
 
@@ -630,52 +685,6 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.FilterAutoOffset_l, w,5,1,2)
         self.grid.addWidget(self.FilterAutoOffset_c, w,7)
 
-        ######################################################
-
-        self.focusConn_l = QLabel(" ")
-        #self.focusConn_l.setText("\U0001F534")
-        self.telFocus_l = QLabel("FOCUS: ")
-        self.telFocus_l.setStyleSheet("color: rgb(150,0,0);")
-        self.telFocus_e = QLineEdit()
-        self.telFocus_e.setReadOnly(True)
-        self.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.setFocus_s = QSpinBox()
-        if self.parent.active_tel != None:
-            tel = self.parent.obs_tel_tic_names[self.parent.active_tel_i]
-            if tel=="zb08":
-                self.setFocus_s.setRange(0,28000)
-                self.setFocus_s.setSingleStep(10)
-            elif tel=="wk06":
-                self.setFocus_s.setRange(0,28000)
-                self.setFocus_s.setSingleStep(10)
-            elif tel=="jk15":
-                self.setFocus_s.setRange(0,50000)
-                self.setFocus_s.setSingleStep(10)
-        #self.setFocus_s.valueChanged.connect(self.parent.focusClicked)
-        self.setFocus_p = QPushButton('SET')
-        self.setFocus_p.clicked.connect(self.parent.set_focus)
-
-        self.calcFocus_p = QPushButton('CALC MODEL')
-        self.calcFocus_p.clicked.connect(self.parent.focus_set_update)
-
-        self.telAutoFocus_l = QLabel("FOCUS ADJUST:")
-        self.telAutoFocus_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        self.telAutoFocus_c = QCheckBox()
-        self.telAutoFocus_c.setChecked(False)
-        self.telAutoFocus_c.setLayoutDirection(Qt.RightToLeft)
-        self.telAutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
-        self.telAutoFocus_c.clicked.connect(self.parent.focus_auto_adjust_OnOff)
-
-        w = w + 1
-        self.grid.addWidget(self.focusConn_l, w, 0)
-        self.grid.addWidget(self.telFocus_l, w, 1)
-        self.grid.addWidget(self.telFocus_e, w, 2)
-        self.grid.addWidget(self.setFocus_s, w, 3)
-        self.grid.addWidget(self.setFocus_p, w, 4)
-        self.grid.addWidget(self.calcFocus_p, w, 5)
-        self.grid.addWidget(self.telAutoFocus_l, w,6,1,1)
-        self.grid.addWidget(self.telAutoFocus_c, w,7)
-
         ##########################################################
 
         self.line_l = QFrame()
@@ -706,8 +715,8 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.grid.addWidget(self.shutdown_p, w, 5,1,2)
 
-        self.grid.addWidget(self.SafetySwitch_l, w, 3, 1, 2)
-        self.grid.addWidget(self.SafetySwitch_c, w, 4, 1, 1)
+        self.grid.addWidget(self.SafetySwitch_l, self.safety_row, 3, 1, 2)
+        self.grid.addWidget(self.SafetySwitch_c, self.safety_row, 5)
 
         #self.grid.addWidget(self.weatherStop_p, w, 3,1,2)
         self.grid.addWidget(self.EmStop_p, w, 0,1,3)
