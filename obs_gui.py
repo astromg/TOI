@@ -6,7 +6,7 @@ import qasync as qs
 from PyQtX import QtCore, QtGui
 from PyQtX.QtCore import Qt
 from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
-    QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox
+    QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox, QMenu
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
@@ -38,12 +38,14 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.show()
         self.raise_()
 
-    # okna TOI zamkniete krzyzykiem tylko sie chowaja - z menu Windows wracaja albo wychodza na wierzch
+    # okna TOI zamkniete krzyzykiem tylko sie chowaja - z menu pod przyciskiem ⚙ wracaja albo wychodza na wierzch
     WINDOWS = [("Observation", "obsGui"), ("Mount", "mntGui"), ("Instrument", "instGui"), ("Plan", "planGui"),
                ("Sky", "skyGui"), ("FITS", "fitsGui"), ("Aux", "auxGui")]
 
     def mk_windows_menu(self):
-        menu = self.menuBar().addMenu("Windows")
+        menu = QMenu(self.main_form.config_p)
+        self.main_form.config_p.setMenu(menu)
+        self.main_form.config_p.setToolTip("Show a TOI window or bring it to the front.")
         for title, attr in self.WINDOWS:
             # _ - triggered(checked) podaje bool, nie moze trafic do attr
             menu.addAction(title, lambda _=False, attr=attr: self.bring_up(getattr(self.parent, attr)))
@@ -84,7 +86,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         await self.run_background_tasks()
 
     def closeEvent(self, event):
-        # to okno ma menu Windows, wiec zamkniete krzyzykiem pyta, czy zamknac caly TOI
+        # to okno ma menu okien (⚙), wiec zamkniete krzyzykiem pyta, czy zamknac caly TOI
         # (bez exec - modalne okno w petli qasync blokuje inne zadania, stad open() i sygnal)
         if self._quitting:
             super().closeEvent(event)
