@@ -66,7 +66,7 @@ class SkyGui(BaseWindow):
             self.layout.addWidget(self.skyView, w, 0, 1, 3)
             w = 2
             self.exit_p = QPushButton('EXIT')
-            self.exit_p.clicked.connect(lambda: self.parent.app.closeAllWindows())
+            self.exit_p.clicked.connect(lambda: self.parent.obsGui.quit_toi())
             self.layout.addWidget(self.exit_p, w, 0, 1, 3)
             self.layout.setColumnStretch(0, 0)
             self.layout.setColumnStretch(1, 1)
@@ -92,7 +92,7 @@ class SkyGui(BaseWindow):
             self.layout.addWidget(self.info_e, w, 0, 1, 1)
             w = 2
             self.exit_p = QPushButton('EXIT')
-            self.exit_p.clicked.connect(lambda: self.parent.app.closeAllWindows())
+            self.exit_p.clicked.connect(lambda: self.parent.obsGui.quit_toi())
             self.layout.addWidget(self.exit_p, w, 0, 1, 1)
 
         self.setLayout(self.layout)

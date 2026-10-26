@@ -6,7 +6,7 @@ import qasync as qs
 from PyQtX import QtCore, QtGui
 from PyQtX.QtCore import Qt
 from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
-    QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMenu
+    QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
@@ -33,8 +33,43 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.parent.obs_window_geometry[2],
             self.parent.obs_window_geometry[3]
         )
+        self._quitting = False
+        self.mk_windows_menu()
         self.show()
         self.raise_()
+
+    # okna TOI zamkniete krzyzykiem tylko sie chowaja - z menu Windows wracaja albo wychodza na wierzch
+    WINDOWS = [("Observation", "obsGui"), ("Mount", "mntGui"), ("Instrument", "instGui"), ("Plan", "planGui"),
+               ("Sky", "skyGui"), ("FITS", "fitsGui"), ("Aux", "auxGui")]
+
+    def mk_windows_menu(self):
+        menu = self.menuBar().addMenu("Windows")
+        for title, attr in self.WINDOWS:
+            # _ - triggered(checked) podaje bool, nie moze trafic do attr
+            menu.addAction(title, lambda _=False, attr=attr: self.bring_up(getattr(self.parent, attr)))
+        aux_tabs = menu.addMenu("Aux tabs")
+        aux_tabs.aboutToShow.connect(lambda: self.fill_aux_menu(aux_tabs))
+
+    def fill_aux_menu(self, menu):
+        menu.clear()
+        tabs = self.parent.auxGui.tabs
+        for i in range(tabs.count()):
+            if tabs.isTabVisible(i):
+                page = tabs.widget(i)
+                menu.addAction(tabs.tabText(i), lambda _=False, page=page: self.show_aux_tab(page))
+
+    def show_aux_tab(self, page):
+        self.bring_up(self.parent.auxGui)
+        self.parent.auxGui.tabs.setCurrentWidget(page)
+
+    @staticmethod
+    def bring_up(window):
+        if window.isMinimized():
+            window.showNormal()
+        else:
+            window.show()
+        window.raise_()
+        window.activateWindow()
 
     def set_initial_geometry(self, x, y, width, height):
         self._geometry = (x, y, width, height)
@@ -48,11 +83,25 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     async def on_start_app(self):
         await self.run_background_tasks()
 
-    @qs.asyncClose
-    async def closeEvent(self, event):
-        await self.stop_background_tasks()
-        await self.stop_background_methods()
-        super().closeEvent(event)
+    def closeEvent(self, event):
+        # to okno ma menu Windows, wiec zamkniete krzyzykiem pyta, czy zamknac caly TOI
+        # (bez exec - modalne okno w petli qasync blokuje inne zadania, stad open() i sygnal)
+        if self._quitting:
+            super().closeEvent(event)
+            return
+        event.ignore()
+        self._close_box = QMessageBox(QMessageBox.Icon.Question, "TOI", "Close TOI (all windows)?",
+                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, self)
+        self._close_box.buttonClicked.connect(self._close_answer)
+        self._close_box.open()
+
+    def _close_answer(self, button):
+        if self._close_box.standardButton(button) == QMessageBox.StandardButton.Yes:
+            self.quit_toi()
+
+    def quit_toi(self):
+        self._quitting = True
+        self.parent.app.closeAllWindows()
 
 
 class MainForm(QWidget):
@@ -352,8 +401,8 @@ class MainForm(QWidget):
         self.natsStatus_l.setStyleSheet("color: red;")
         # serwisy aktywnego teleskopu; szare, dopoki nic o nich nie wiemy
         # krotkie nazwy, zeby caly wiersz sie miescil - pelne w podpowiedziach
-        self.followerStatus_l = QLabel("\u2665 FOLLOWER")
-        self.downloaderStatus_l = QLabel("\u2665 DOWNLOAD")
+        self.followerStatus_l = QLabel("\u2665 DOME FLW")
+        self.downloaderStatus_l = QLabel("\u2665 FITS DWL")
         self.ofpStatus_l = QLabel("\u2665 OFP")
         self.flatOwStatus_l = QLabel("\u2665 FLAT OW")
         self.weatherOwStatus_l = QLabel("\u2665 WEATHER OW")
@@ -517,11 +566,6 @@ class MainForm(QWidget):
 
         self.config_p = QPushButton("\u2699")
         self.config_p.setStyleSheet(" color: gray;")
-        # okna, ktore operator mogl zamknac - stad mozna je otworzyc z powrotem
-        windows_m = QMenu(self.config_p)
-        windows_m.addAction("Aux window", lambda: self.parent.auxGui.show_tab(self.parent.auxGui.tabs.currentWidget()))
-        windows_m.addAction("FITS window", lambda: (self.parent.fitsGui.show(), self.parent.fitsGui.raise_()))
-        self.config_p.setMenu(windows_m)
 
 
         grid.addWidget(self.report_p, w, 0)
