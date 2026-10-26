@@ -328,15 +328,26 @@ class FocusTab(QWidget):
         tel = self.parent.active_tel
         if tel != None:
             cfg = self.parent.nats_cfg[tel]
-            if "focus_def_step" in cfg.keys():
-                self.steps_e.setText(str(cfg["focus_def_step"]))
+            # krok z toi_config.yaml (focus_step), dopiero bez niego focuser.default_step z TIC
+            step = self.parent.local_cfg.get(tel, {}).get("focus_step", cfg.get("focus_def_step"))
+            if step is not None:
+                self.steps_e.setText(str(step))
             model = self.parent.focus_model_now(tel)
             if model is not None:
                 self.last_e.setText(str(int(model)))
             elif "focus_def_pos" in cfg.keys():
                 self.last_e.setText(str(cfg["focus_def_pos"]))
             self.range_e.setText("8")
+            self.set_methods(tel)
         self.draw_log()
+
+    def set_methods(self, tel):
+        # metody z toi_config.yaml, tylko te, ktore zna pyaraucaria.focus
+        known = list(Focus.METHODS)
+        methods = [m for m in self.parent.local_cfg.get(tel, {}).get("focus_methods", known) if m in known] or known
+        self.method_s.clear()
+        self.method_s.addItems(methods)
+        self.method_s.setCurrentText(self.parent.focus_default_method(tel))
 
     def set_camera(self, name):
         """The camera the autofocus run uses; its filters go to the filter combo ("current": leave the wheel)."""
@@ -381,8 +392,22 @@ class FocusTab(QWidget):
             title.append(f'{data["time"]} UT')
         self.axes.set_title("   ".join(title), fontsize=10)
         self.axes.set_xlabel("focus encoder position")
-        self.axes.set_ylabel("sharpness")
+        self.axes.set_ylabel(self.sharpness_label(data.get("method")))
         self.canvas.draw()
+
+    # co mierzy pyaraucaria.focus (Focus.METHODS[metoda]["measurement"]); dopasowanie nie zmienia jednostek
+    SHARPNESS_LABELS = {
+        "rms": "image RMS [ADU]",                   # odchylenie std. pikseli, bez 10% brzegow klatki
+        "laplacian": "Laplacian variance [ADU²]",   # wariancja laplasjanu obrazu - czula na ostre krawedzie gwiazd
+        "fwhm": "(10 − FWHM [px]) × 5",             # FWHM gwiazd z FFS, odwrocone, zeby maksimum bylo ostre
+    }
+
+    def sharpness_label(self, method):
+        try:
+            measurement = Focus.METHODS[method]["measurement"]
+        except (KeyError, TypeError):
+            return "sharpness"
+        return self.SHARPNESS_LABELS.get(measurement, "sharpness")
 
     def add_record(self, tel, data):
         if not data:        # czasem przychodzi pusty, jak nikt dlugo focusa nie robil
@@ -426,8 +451,7 @@ class FocusTab(QWidget):
 
         self.method_l = QLabel("Method:")
         self.method_s = QComboBox()
-        self.method_s.addItems([m for m in Focus.METHODS.keys()])
-        self.method_s.setCurrentText("laplacian")
+        self.method_s.addItems(list(Focus.METHODS))     # lista teleskopu przychodzi w set_methods
         self.recalc_p = QPushButton("Recalculate")
         self.recalc_p.clicked.connect(self.parent.focus_recalc)
 

@@ -2112,7 +2112,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 program_name = "plan_auto_focus"
                                 program = self.ob[tel]["block"]
 
-                                self.focus_method = "laplacian"
+                                self.focus_method = self.focus_default_method(tel)
                                 self.autofocus_started[tel] = True
 
                                 self.ob[tel]["meta"]["switchOnFocusAdjast"] = False
@@ -3612,6 +3612,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             return
         self.mntGui.setFocus_s.setValue(int(focus))
         self.focusGui.last_e.setText(str(int(focus)))
+
+    # domyslna metoda autofocusa z toi_config.yaml (focus_method)
+    def focus_default_method(self, tel):
+        method = self.local_cfg.get(tel, {}).get("focus_method", "laplacian")
+        if method not in Focus.METHODS:
+            logger.warning(f'TOI: focus_method {method} of {tel} unknown to pyaraucaria.focus, using laplacian')
+            return "laplacian"
+        return method
 
     # filtry instrumentu: na razie kazda kamera ma kolo filtrow teleskopu (nats_cfg); kiedy ocaboxapi
     # da det.upstream('filterwheel'), tu bierzemy kolo danego instrumentu
