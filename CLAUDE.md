@@ -102,7 +102,8 @@ that are created hidden get positioned correctly once shown.
 - `sky_gui.py` (`SkyGui`, `SkyView`) — sky-position radar/visualization of telescope pointing.
 - `fits_gui.py` (`FitsWindow`, `FFS_Worker`) — FITS viewer; runs `ffs_lib` star-detection stats in a
   separate `QThread` (`FFS_Worker`) so image analysis doesn't block the Qt main thread.
-- `aux_gui.py` (`AuxWindow`) — one window with tabs, in order: Optical path (`SchematicView`, hidden when the
+- `aux_gui.py` (`AuxWindow`) — one window with tabs, in order: Telescope (the active telescope's
+  OCA manual page fetched over HTTP from the intranet, `toi.oca_manual_url`), Optical path (`SchematicView`, hidden when the
   telescope has no optical graph), Calibration, Focus, Guider (layout template only, guider does not work),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes; drawn only while the tab is shown).
   `TOI` keeps the old names for the tabs: `focusGui` (`FocusTab`), `flatGui` (`CameraCalibration`), `guiderGui`

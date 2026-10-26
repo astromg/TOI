@@ -2,6 +2,7 @@
 """The Aux window: the operator's secondary panels as tabs of one window (second monitor, below FITS).
 
 Tabs, in this order:
+- ``Telescope`` — :class:`TelescopeTab`, the active telescope's page of the OCA manual (intranet, over HTTP);
 - ``Optical path`` — :class:`optics_view.SchematicView` of the active telescope; hidden when the telescope
   publishes no optical graph;
 - ``Calibration`` — :class:`CalibrationTab`, one page per kind of instrument; follows the tab chosen in the
@@ -21,8 +22,11 @@ themselves: M3 changing port → Optical path (:meth:`AuxWindow.m3_moved`), a SK
 Calibration, a FOCUS OB starting → Focus (:meth:`AuxWindow.ob_started`).
 """
 
+import asyncio
 import copy
 import datetime
+import re
+import urllib.request
 
 import ephem
 import matplotlib
@@ -35,11 +39,11 @@ from pyaraucaria.focus import Focus
 from scipy.ndimage import gaussian_filter1d
 
 from PyQtX import QtGui
-from PyQtX.QtCore import Qt
+from PyQtX.QtCore import Qt, QUrl
 from PyQtX.QtGui import QFont, QTextCursor
 from PyQtX.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFrame, QGridLayout, QHeaderView, QLabel,
                              QLineEdit, QPushButton, QSlider, QStackedWidget, QTableWidget, QTableWidgetItem,
-                             QTabWidget, QTextEdit, QVBoxLayout, QWidget)
+                             QTabWidget, QTextBrowser, QTextEdit, QVBoxLayout, QWidget)
 
 from base_window import BaseWindow
 from optics_view import SchematicView
@@ -95,6 +99,7 @@ class AuxWindow(BaseWindow):
         if self.parent.active_tel != None:
             self.tel_e.setText(self.parent.active_tel)
             self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[self.parent.active_tel]['color']};")
+        self.telescope.updateUI()
         self.calibration.updateUI()
         self.focus.updateUI()
         self.planrunner.updateUI()
@@ -110,12 +115,14 @@ class AuxWindow(BaseWindow):
         layout.addWidget(self.tel_e)
 
         self.tabs = QTabWidget()
+        self.telescope = TelescopeTab(self.parent)
         self.optics = SchematicView(self.parent.optics_model, vertical=False)
         self.calibration = CalibrationTab(self.parent)
         self.focus = FocusTab(self.parent)
         self.guider = GuiderTab(self.parent)
         self.planrunner = PlanrunnerTab(self.parent)
         self.conditions = ConditionsTab(self.parent)
+        self.tabs.addTab(self.telescope, "Telescope")
         self.tabs.addTab(self.optics, "Optical path")
         self.tabs.addTab(self.calibration, "Calibration")
         self.tabs.addTab(self.focus, "Focus")
@@ -125,6 +132,84 @@ class AuxWindow(BaseWindow):
         self.tabs.currentChanged.connect(self.tab_changed)
         layout.addWidget(self.tabs)
         self.setLayout(layout)
+
+
+# ############### TELESCOPE ##########################
+
+class TelescopeTab(QWidget):
+    """The active telescope's page of the OCA manual, fetched over HTTP from the intranet copy (``toi.oca_manual_url``
+    in ``toi_config.yaml``; the server pulls the manual from GitHub every hour): the description first, the log of
+    events after it. Fetched on every telescope switch and with Reload."""
+
+    TIMEOUT = 5     # s
+
+    def __init__(self, parent):
+        super(TelescopeTab, self).__init__()
+        self.parent = parent
+        self.mkUI()
+
+    def updateUI(self):
+        if self.parent.active_tel != None:
+            asyncio.ensure_future(self.load(self.parent.active_tel))
+
+    def page_url(self, tel):
+        base = self.parent.local_cfg["toi"].get("oca_manual_url", "http://docker.oca.lan:8081").rstrip("/")
+        return f"{base}/telescope_{tel}/"
+
+    async def load(self, tel):
+        url = self.page_url(tel)
+        self.source_l.setText(f"{url}   loading...")
+        try:
+            # urllib blokuje, wiec w osobnym watku - petla Qt/asyncio nie moze stanac na czas pobierania
+            html = await asyncio.to_thread(self._fetch, url)
+            body = self.for_qt(html)
+        except Exception as e:
+            body = (f"<p><b>No OCA manual page for {tel}</b></p><p>{url}</p><p>{e}</p>"
+                    f"<p>Check <code>toi.oca_manual_url</code> in <code>toi_config.yaml</code>.</p>")
+        if tel != self.parent.active_tel:      # w miedzyczasie zmieniono teleskop
+            return
+        self.text_b.document().setBaseUrl(QUrl(url))    # wzgledne linki manuala
+        self.text_b.setHtml(body)
+        self.source_l.setText(f"{url}   (fetched {datetime.datetime.now().strftime('%H:%M')})")
+
+    def _fetch(self, url):
+        with urllib.request.urlopen(url, timeout=self.TIMEOUT) as r:
+            return r.read().decode("utf-8")
+
+    @staticmethod
+    def for_qt(html):
+        """The page of mkdocs Material → what QTextBrowser draws: only the article, without the ¶ anchors,
+        admonitions as quotes, tables with lines, the log of events last."""
+        start = html.find('<article')
+        end = html.find('</article>')
+        if start < 0 or end < 0:
+            raise ValueError("no <article> in the page (has the manual's theme changed?)")
+        body = html[html.index('>', start) + 1:end]
+        body = re.sub(r'<a class="headerlink"[^>]*>.*?</a>', '', body)
+        body = re.sub(r'<div class="admonition[^"]*">\s*<p class="admonition-title">(.*?)</p>(.*?)</div>',
+                      r'<blockquote><b>\1:</b>\2</blockquote>', body, flags=re.S)
+        body = body.replace('<table>', '<table border="1" cellspacing="0" cellpadding="3">')
+
+        # sekcje <h2>: opis teleskopu jest wazniejszy niz log zdarzen, wiec log idzie na koniec
+        parts = re.split(r'(?=<h2[ >])', body)
+        head, sections = parts[0], parts[1:]
+        log = [p for p in sections if 'id="log-of-events' in p[:80]]
+        rest = [p for p in sections if p not in log]
+        return head + "".join(rest + log)
+
+    def mkUI(self):
+        grid = QGridLayout()
+        self.text_b = QTextBrowser()
+        self.text_b.setOpenExternalLinks(True)
+        grid.addWidget(self.text_b, 0, 0, 1, 2)
+        self.source_l = QLabel("")
+        self.source_l.setStyleSheet("color: gray;")
+        grid.addWidget(self.source_l, 1, 0)
+        self.reload_p = QPushButton("Reload")
+        self.reload_p.clicked.connect(self.updateUI)
+        grid.addWidget(self.reload_p, 1, 1)
+        grid.setColumnStretch(0, 1)
+        self.setLayout(grid)
 
 
 # ############### CALIBRATION ##########################
