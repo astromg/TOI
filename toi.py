@@ -124,6 +124,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.tic_con_loop())
         self.add_background_task(self.nats_con_loop())
         self.add_background_task(self.service_lamps_loop())
+        # heartbeaty serwisow spoza ocabox-tcs (overwatche); subject pusty -> lampka szara
+        self.heartbeat_subjects = self.local_cfg["toi"].get("heartbeat_subjects") or {}
+        self.heartbeat_seen = {name: None for name in self.heartbeat_subjects}
+        for name, subject in self.heartbeat_subjects.items():
+            if subject:
+                self.add_background_task(self.heartbeat_reader(name, subject))
         self.add_background_task(self.almanac_loop())
         self.add_background_task(self.alpaca_con_loop())
         self.add_background_task(self.tel_con_loop())
@@ -481,10 +487,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             try:
                 self.tic_con = await self.observatory_model.is_tic_server_available()
                 if self.tic_con == True:
-                    self.obsGui.main_form.ticStatus2_l.setText("\u2665  TIC")
+                    self.obsGui.main_form.ticStatus2_l.setText("\u2665 TIC")
                     self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: green;")
                 else:
-                    self.obsGui.main_form.ticStatus2_l.setText("\u2665  TIC")
+                    self.obsGui.main_form.ticStatus2_l.setText("\u2665 TIC")
                     self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
                 await asyncio.sleep(3)
             except (asyncio.CancelledError, asyncio.TimeoutError):
@@ -524,6 +530,24 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 110c: {e}')
 
+    async def heartbeat_reader(self, name, subject):
+        try:
+            r = get_reader(subject, deliver_policy='new')
+            async for data, meta in r:
+                self.heartbeat_seen[name] = time.time()
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 110d ({name}): {e}')
+
+    def heartbeat_color(self, seen, since, green="green", red="red", grey="rgb(190,190,190)"):
+        now = time.time()
+        if seen is not None and now - seen < self.SERVICE_STALE:
+            return green
+        if now - since < self.SERVICE_STALE:
+            return grey     # jeszcze czekamy na pierwszy heartbeat
+        return red
+
     async def ofp_alive(self, tel, service):
         # subject jak w GUI TEXT (ocabox-cli): site.global.nats.subjects.rpc.<serwis>_alive z configu TIC
         try:
@@ -543,14 +567,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 tel = self.active_tel
                 if tel is not None:
                     f = self.obsGui.main_form
-                    now = time.time()
-                    if self.dome_follower_seen is not None and now - self.dome_follower_seen < self.SERVICE_STALE:
-                        color = green
-                    elif now - self.services_since < self.SERVICE_STALE:
-                        color = grey        # po zmianie teleskopu czekamy na pierwszy heartbeat
-                    else:
-                        color = red
+                    color = self.heartbeat_color(self.dome_follower_seen, self.services_since)
                     f.followerStatus_l.setStyleSheet(f"color: {color};")
+                    # overwatche nie zaleza od teleskopu
+                    for name, lamp in (("flat_overwatch", f.flatOwStatus_l), ("weather_overwatch", f.weatherOwStatus_l)):
+                        if self.heartbeat_subjects.get(name):
+                            color = self.heartbeat_color(self.heartbeat_seen.get(name), self.started)
+                        else:
+                            color = grey
+                        lamp.setStyleSheet(f"color: {color};")
                     download, pipeline = await asyncio.gather(self.ofp_alive(tel, "download"),
                                                               self.ofp_alive(tel, "pipeline"))
                     if tel == self.active_tel:
@@ -4512,6 +4537,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.m3_port = None     # ostatni port M3 aktywnego teleskopu
         self.dome_follower_seen = None
         self.services_since = time.time()
+        self.started = time.time()
         self.inst_tab_switch = None
 
         # guider

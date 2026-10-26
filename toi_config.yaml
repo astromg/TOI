@@ -16,6 +16,11 @@ toi:
   # Aux "Telescope" tab: <url>/telescope_<tel>/ of the OCA manual on the intranet
   oca_manual_url: http://docker.oca.lan:8081
 
+  # heartbeat subjects of services outside ocabox-tcs (top row of the obs window); empty: the lamp stays grey
+  heartbeat_subjects:
+    flat_overwatch:
+    weather_overwatch:
+
 
 wk06:
   tel_directory: /data/fits/wk06/

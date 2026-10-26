@@ -322,6 +322,8 @@ class MainForm(QWidget):
             "followerStatus": "Dome follower of the active telescope: heartbeat every 10 s. Red: none for 30 s.",
             "downloaderStatus": "OFP downloader of the active telescope, asked every 5 s (alive RPC).",
             "ofpStatus": "OFP pipeline of the active telescope, asked every 5 s (alive RPC).",
+            "flatOwStatus": "flat_overwatch heartbeat. Grey: no heartbeat subject yet (toi_config.yaml).",
+            "weatherOwStatus": "weather_overwatch heartbeat. Grey: no heartbeat subject yet (toi_config.yaml).",
             "temp": "Davis weather station. Red below -1 °C.",
             "hummidity": f"Davis weather station. Red above {self.parent.cfg_humidity_limit} % or rain.",
             "wind": "Davis weather station.",
@@ -349,15 +351,21 @@ class MainForm(QWidget):
         self.natsStatus_l = QLabel("\u2665  NATS")
         self.natsStatus_l.setStyleSheet("color: red;")
         # serwisy aktywnego teleskopu; szare, dopoki nic o nich nie wiemy
-        self.followerStatus_l = QLabel("\u2665  DOME FOLLOWER")
-        self.downloaderStatus_l = QLabel("\u2665  DOWNLOADER")
-        self.ofpStatus_l = QLabel("\u2665  OFP")
+        # krotkie nazwy, zeby caly wiersz sie miescil - pelne w podpowiedziach
+        self.followerStatus_l = QLabel("\u2665 FOLLOWER")
+        self.downloaderStatus_l = QLabel("\u2665 DOWNLOAD")
+        self.ofpStatus_l = QLabel("\u2665 OFP")
+        self.flatOwStatus_l = QLabel("\u2665 FLAT OW")
+        self.weatherOwStatus_l = QLabel("\u2665 WEATHER OW")
+        self.ticStatus2_l.setText("\u2665 TIC")
+        self.natsStatus_l.setText("\u2665 NATS")
         status_box = QHBoxLayout()
-        for lamp in (self.ticStatus2_l, self.natsStatus_l, self.followerStatus_l, self.downloaderStatus_l, self.ofpStatus_l):
-            if lamp is not self.ticStatus2_l:
-                status_box.addSpacing(20)
+        status_box.setSpacing(12)
+        lamps = (self.ticStatus2_l, self.natsStatus_l, self.followerStatus_l, self.downloaderStatus_l,
+                 self.ofpStatus_l, self.flatOwStatus_l, self.weatherOwStatus_l)
+        for lamp in lamps:
             status_box.addWidget(lamp)
-        for lamp in (self.followerStatus_l, self.downloaderStatus_l, self.ofpStatus_l):
+        for lamp in lamps[2:]:
             lamp.setStyleSheet("color: rgb(190,190,190);")
         status_box.addStretch(1)
         grid.addLayout(status_box, w, 0, 1, 8)
