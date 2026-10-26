@@ -1084,7 +1084,8 @@ class TPG_Worker(QtCore.QObject):
     update_signal = QtCore.pyqtSignal(str)
     error_signal = QtCore.pyqtSignal(str)
 
-    def __init__(self, tel, dt, wind=None, uobi_done=None,fwhm=None, tag=None, night_monitor=False):
+    def __init__(self, tel, dt, wind=None, uobi_done=None,fwhm=None, tag=None, night_monitor=False,
+                 skyflats=False, flat_history=None, now=None):
 
         super().__init__()
         self.tel = tel
@@ -1094,10 +1095,14 @@ class TPG_Worker(QtCore.QObject):
         self.fwhm = fwhm
         self.tag = tag
         self.night_monitor = night_monitor
+        self.skyflats = skyflats
+        self.flat_history = flat_history
+        self.now = now
 
     def run(self):
         try:
-            p = tpg(self.tel,self.dt,wind=self.wind,fwhm=self.fwhm,tag=self.tag,done_uobi=self.uobi_done,night_monitor=self.night_monitor)
+            p = tpg(self.tel,self.dt,wind=self.wind,fwhm=self.fwhm,tag=self.tag,done_uobi=self.uobi_done,night_monitor=self.night_monitor,
+                    skyflats=self.skyflats,flat_history=self.flat_history,now=self.now)
             p.Initiate()
             if self.night_monitor:
                 # master file night monitora lezy obok zwyklego master file, np. zb08_night_monitor.txt
@@ -1137,6 +1142,10 @@ class TPG_Worker(QtCore.QObject):
             p.allocate()
             self.update_signal.emit("allocating objects <span style='color: green;'>\u2714</span>")
             p.export()
+            # wynik sfs dla kazdej sesji: wstawiony SKYFLAT albo dlaczego nie
+            for session, info in getattr(p, "skyflat_info", {}).items():
+                color = "green" if info["line"] else "orange"
+                self.update_signal.emit(f"<span style='color: {color};'>{info['note']}</span>")
             if hasattr(p, "SavePlan"):
                 p.SavePlan()
             self.update_signal.emit("<span style='color: green; font-weight: bold;'>\u2714 DONE \u2714</span>")
@@ -1185,8 +1194,12 @@ class TPGWindow(BaseWindow):
 
         night_monitor = self.night_monitor_c.isChecked()
 
+        skyflats = self.skyflats_c.isChecked()
+        flat_history = self._flat_history(tel) if skyflats else None
+
         self.thread = QtCore.QThread()
-        self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm,tag=tag,night_monitor=night_monitor)
+        self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm,tag=tag,night_monitor=night_monitor,
+                                 skyflats=skyflats,flat_history=flat_history,now=self.parent.parent.ut)
 
         self.worker.moveToThread(self.thread)
 
@@ -1201,6 +1214,25 @@ class TPGWindow(BaseWindow):
         self.thread.finished.connect(self.thread.deleteLater)
 
         self.thread.start()
+
+    def _flat_history(self, tel):
+        """Historia flatow dla sfs z okna Calibration (kanaly flat_overwatch):
+        {"evening"|"morning": {filtr: dni od ostatnich flatow tej sesji | None}}."""
+        records = self.parent.parent.flatGui.flat_records.get(tel, {})
+        if not records:
+            self.info_e.append("<span style='color: orange;'>no flat history from flat_overwatch, SKYFLAT filters in group order</span>")
+        now = datetime.datetime.now(datetime.timezone.utc)
+        history = {}
+        for session in ("evening", "morning"):
+            history[session] = {}
+            for f, v in records.get(f"flats_{session}", {}).items():
+                t = v.get("last")
+                if t:
+                    t = datetime.datetime.fromisoformat(t).replace(tzinfo=datetime.timezone.utc)
+                    history[session][f] = (now - t).total_seconds() / 86400.
+                else:
+                    history[session][f] = None
+        return history
 
     def update_status(self, txt):
         if "wind masking" in txt and not self.wind_c.isChecked():
@@ -1225,7 +1257,10 @@ class TPGWindow(BaseWindow):
                 data["meta"] = {"ok": True}
                 data["block"] = blok
             else:
+                # wczesniej zla linia dokladala do planu poprzednia (albo NameError na pierwszej)
                 print(f'Error plan reading: \n {blok}')
+                self.show_error(f"invalid plan line skipped: {blok}")
+                continue
 
             tmp_plan.append(data)
 
@@ -1335,6 +1370,13 @@ class TPGWindow(BaseWindow):
             "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
         )
 
+        self.skyflats_c = QCheckBox("Make SKYFLATS")
+        self.skyflats_c.setChecked(False)
+        self.skyflats_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
+            "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
+        )
+
         self.night_monitor_c = QCheckBox("Night monitor")
         self.night_monitor_c.setChecked(False)
         self.night_monitor_c.setStyleSheet(
@@ -1354,6 +1396,7 @@ class TPGWindow(BaseWindow):
 
         grid.addWidget(self.ut_e, 0, 0, 1, 2)
         grid.addWidget(self.sunset_c, 1, 0)
+        grid.addWidget(self.skyflats_c, 1, 1)
 
         grid.addWidget(self.wind_c, 2, 0)
         grid.addWidget(self.wind_e, 2, 1)
