@@ -10,19 +10,29 @@ Tabs, in this order:
 - ``Focus`` — :class:`FocusTab`, autofocus curve and focus log;
 - ``Guider`` — :class:`GuiderTab`, layout template, the guider does not work yet;
 - ``Plan Runner`` — :class:`PlanrunnerTab`, what the plan runner says.
+- ``Conditions`` — :class:`ConditionsTab`, night plots of all telescopes; a combo chooses what (FWHM, zero point;
+  more weather telemetry later).
 
-``TOI`` keeps its old names for the tabs (``focusGui``, ``flatGui``, ``guiderGui``, ``planrunnerGui``), so the
+``TOI`` keeps its old names for the tabs (``focusGui``, ``flatGui``, ``guiderGui``, ``planrunnerGui``,
+``conditionsGui``), so the
 code that feeds them did not change. Tabs are pages of a ``QTabWidget``: never ``show()`` a tab — that
-draws it over the current one; :meth:`AuxWindow.show_tab` brings a tab to the front.
+draws it over the current one; :meth:`AuxWindow.show_tab` brings a tab to the front. Events bring tabs up by
+themselves: M3 changing port → Optical path (:meth:`AuxWindow.m3_moved`), a SKYFLAT/DOMEFLAT OB starting →
+Calibration, a FOCUS OB starting → Focus (:meth:`AuxWindow.ob_started`).
 """
 
+import copy
 import datetime
 
+import ephem
 import matplotlib
 import numpy
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+from pyaraucaria.date import datetime_to_julian, get_oca_jd
 from pyaraucaria.focus import Focus
+from scipy.ndimage import gaussian_filter1d
 
 from PyQtX import QtGui
 from PyQtX.QtCore import Qt
@@ -51,10 +61,31 @@ class AuxWindow(BaseWindow):
         self.show()
         self.raise_()
 
+    # pierwsze slowo OB -> zakladka, ktora sie podnosi, gdy ten OB rusza
+    OB_TABS = {"SKYFLAT": "calibration", "DOMEFLAT": "calibration", "FOCUS": "focus"}
+
+    def ob_started(self, program):
+        """An OB started on the active telescope: bring up the tab that shows it."""
+        words = program.split() if program else []
+        tab = self.OB_TABS.get(words[0]) if words else None
+        if tab:
+            self.show_tab(getattr(self, tab))
+
+    def m3_moved(self):
+        if self.tabs.isTabVisible(self.tabs.indexOf(self.optics)):
+            self.show_tab(self.optics)
+
     def set_instrument(self, kind, name):
         """The instrument window switched to instrument ``name`` of ``kind`` (camera / spectrograph)."""
         self.calibration.set_instrument(kind, name)
+        if kind == "camera":
+            self.focus.set_camera(name)
         self.tabs.setTabText(self.tabs.indexOf(self.calibration), f"Calibration · {name}")
+
+    def tab_changed(self):
+        # wykresy warunkow rysujemy dopiero, gdy ktos na nie patrzy
+        if self.tabs.currentWidget() is self.conditions:
+            self.conditions.redraw()
 
     def optics_changed(self):
         self.tabs.setTabVisible(self.tabs.indexOf(self.optics), self.parent.optics_model.graph is not None)
@@ -84,11 +115,14 @@ class AuxWindow(BaseWindow):
         self.focus = FocusTab(self.parent)
         self.guider = GuiderTab(self.parent)
         self.planrunner = PlanrunnerTab(self.parent)
+        self.conditions = ConditionsTab(self.parent)
         self.tabs.addTab(self.optics, "Optical path")
         self.tabs.addTab(self.calibration, "Calibration")
         self.tabs.addTab(self.focus, "Focus")
         self.tabs.addTab(self.guider, "Guider")
         self.tabs.addTab(self.planrunner, "Plan Runner")
+        self.tabs.addTab(self.conditions, "Conditions")
+        self.tabs.currentChanged.connect(self.tab_changed)
         layout.addWidget(self.tabs)
         self.setLayout(layout)
 
@@ -275,109 +309,207 @@ class SpectrographCalibration(QWidget):
 # ############### FOCUS ##########################
 
 class FocusTab(QWidget):
+    """Autofocus of the active telescope: the last result (points, fit, maximum), a new run, the focus log.
+
+    Recalculate only computes (and publishes the result); SET moves the focuser to it. The run uses the camera
+    chosen in the instrument window (:meth:`set_camera`) and its filters (``TOI.instrument_filters``)."""
+
     def __init__(self, parent):
         super(FocusTab, self).__init__()
         self.parent = parent
+        self.camera = None
+        self.status = {}            # ostatni wynik aktywnego teleskopu (tic.status.<tel>.toi.focus)
+        self.focus_records = {}     # {tel: [rekord, ...]} z tic.status.<tel>.toi.focus_record
         self.mkUI()
-        self.x = []
-        self.y = []
-        self.fit_x = []
-        self.fit_y = []
-        self.method = None
-        self.max_sharp = None
+        self.show_status({})
+
+    def updateUI(self):
+        # po zmianie teleskopu
+        tel = self.parent.active_tel
+        if tel != None:
+            cfg = self.parent.nats_cfg[tel]
+            if "focus_def_step" in cfg.keys():
+                self.steps_e.setText(str(cfg["focus_def_step"]))
+            model = self.parent.focus_model_now(tel)
+            if model is not None:
+                self.last_e.setText(str(int(model)))
+            elif "focus_def_pos" in cfg.keys():
+                self.last_e.setText(str(cfg["focus_def_pos"]))
+            self.range_e.setText("8")
+        self.draw_log()
+
+    def set_camera(self, name):
+        """The camera the autofocus run uses; its filters go to the filter combo ("current": leave the wheel)."""
+        self.camera = name
+        self.camera_e.setText(name)
+        chosen = self.filter_s.currentText()
+        self.filter_s.clear()
+        self.filter_s.addItems(["current"] + self.parent.instrument_filters(name))
+        if self.filter_s.findText(chosen) >= 0:
+            self.filter_s.setCurrentText(chosen)
+
+    def show_status(self, data):
+        self.status = data or {}
+        state = self.status.get("status")
+        result = self.status.get("max_sharpness_focus")
+        if state == "ok" and result is not None:
+            self.result_e.setText(f"{int(result)}")
+        else:
+            self.result_e.setText(state or "")
+        self.set_p.setEnabled(state == "ok" and result is not None)
         self.redraw()
 
     def redraw(self):
+        data = self.status
+        x, y = data.get("focus_values") or [], data.get("sharpness_values") or []
+        fit_x, fit_y = data.get("fit_x") or [], data.get("fit_y") or []
+        result = data.get("max_sharpness_focus")
+
         self.axes.clear()
-        if len(self.x) > 1 and len(self.y) > 1:
-            self.axes.plot(self.x, self.y, "r.")
-        if len(self.fit_x) > 1 and len(self.fit_y) > 1:
-            self.axes.plot(self.fit_x, self.fit_y)
-        if self.max_sharp:
-            self.axes.axvline(x=self.max_sharp, color="red", alpha=1)
-        if self.method:
-            self.axes.set_title(f"{self.method}")
+        if len(x) > 0 and len(x) == len(y):
+            self.axes.plot(x, y, "r.", markersize=8)
+        if len(fit_x) > 1 and len(fit_x) == len(fit_y):
+            self.axes.plot(fit_x, fit_y)
+        if result is not None:
+            # maksimum dopasowania zawsze widac; czerwone tylko, gdy wynik jest dobry
+            if data.get("status") == "ok":
+                self.axes.axvline(x=result, color="red")
+            else:
+                self.axes.axvline(x=result, color="gray", linestyle="--")
+        title = [str(data[k]) for k in ("method", "filter") if data.get(k)]
+        if data.get("time"):
+            title.append(f'{data["time"]} UT')
+        self.axes.set_title("   ".join(title), fontsize=10)
         self.axes.set_xlabel("focus encoder position")
         self.axes.set_ylabel("sharpness")
         self.canvas.draw()
 
-    def updateUI(self):
-        if self.parent.active_tel != None:
-            if "focus_def_step" in self.parent.nats_cfg[self.parent.active_tel].keys():
-                self.steps_e.setText(str(self.parent.nats_cfg[self.parent.active_tel]["focus_def_step"]))
-            if "focus_def_pos" in self.parent.nats_cfg[self.parent.active_tel].keys():
-                self.last_e.setText(str(self.parent.nats_cfg[self.parent.active_tel]["focus_def_pos"]))
-            self.range_e.setText("8")
-            self.log_e.clear()
-            self.log_e.append("     DATE                             FOC              TEMP           STAT  ")
-            self.log_e.append("                         UT                         FILTER            HUMID          METH")
-            self.log_e.append("------------------------------------------------------------------------------------------------")
+    def add_record(self, tel, data):
+        if not data:        # czasem przychodzi pusty, jak nikt dlugo focusa nie robil
+            return
+        self.focus_records.setdefault(tel, []).append(data)
+        if tel == self.parent.active_tel:
+            self.draw_log()
+
+    FOCUS_FAILED = QtGui.QColor(255, 153, 153)
+
+    def draw_log(self):
+        records = self.focus_records.get(self.parent.active_tel, [])
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        self.log_t.setRowCount(len(records))
+        for i, r in enumerate(records):
+            date, ut = (str(r.get("time") or "").split() + ["", ""])[:2]
+            row = [date, ut, self._num(r.get("max_sharpness_focus"), "{:.0f}"), r.get("filter") or "--",
+                   self._num(r.get("davis_temperature"), "{:.1f}"), self._num(r.get("davis_humidity"), "{:.0f}%"),
+                   r.get("status") or "--", r.get("method") or "--"]
+            for col, txt in enumerate(row):
+                cell = QTableWidgetItem(str(txt))
+                cell.setFont(font)
+                if r.get("status") != "ok":
+                    cell.setBackground(self.FOCUS_FAILED)
+                self.log_t.setItem(i, col, cell)
+        self.log_t.resizeColumnsToContents()
+        self.log_t.scrollToBottom()
+
+    @staticmethod
+    def _num(value, fmt):
+        try:
+            return fmt.format(float(value))
+        except (TypeError, ValueError):
+            return "--"
 
     def mkUI(self):
 
         grid = QGridLayout()
         w = 0
 
-        self.recalc_p = QPushButton("Recalculate")
-        self.recalc_p.clicked.connect(self.parent.focus_recalc)
-
         self.method_l = QLabel("Method:")
         self.method_s = QComboBox()
         self.method_s.addItems([m for m in Focus.METHODS.keys()])
         self.method_s.setCurrentText("laplacian")
+        self.recalc_p = QPushButton("Recalculate")
+        self.recalc_p.clicked.connect(self.parent.focus_recalc)
 
-        self.fig = Figure((1, 1), linewidth=1, dpi=100)
+        grid.addWidget(self.method_l, w, 0)
+        grid.addWidget(self.method_s, w, 1)
+        grid.addWidget(self.recalc_p, w, 2, 1, 2)
+
+        w = w + 1
+        self.fig = Figure((1, 1), linewidth=1, dpi=100, layout="constrained")   # opisy osi zawsze sie mieszcza
         self.canvas = FigureCanvas(self.fig)
-        self.axes = self.fig.add_axes([0.1, 0.2, 0.8, 0.7])
-        self.log_e = QTextEdit("")
-        self.log_e.setReadOnly(True)
-        self.log_e.setMinimumWidth(465)
-
-        grid.addWidget(self.recalc_p, w, 0,1,2)
-
-        grid.addWidget(self.method_l, w, 2)
-        grid.addWidget(self.method_s, w, 3)
-
-        grid.addWidget(self.log_e, w, 5, 5, 1)
-
-        w = w + 1
-
-        self.log_e.setStyleSheet("background-color: rgb(235,235,235);")
+        self.axes = self.fig.add_subplot(111)
         grid.addWidget(self.canvas, w, 0, 1, 4)
-
-        w = w + 1
-
-        self.range_l = QLabel("Steps No.:")
-        self.range_e = QLineEdit()
-
-        self.steps_l = QLabel("Step:")
-        self.steps_e = QLineEdit()
-
-        grid.addWidget(self.steps_l, w, 0)
-        grid.addWidget(self.steps_e, w, 1)
-
-        grid.addWidget(self.range_l, w, 2)
-        grid.addWidget(self.range_e, w, 3)
-
-        w = w + 1
-
-        self.last_l = QLabel("Central Value:")
-        self.last_e = QLineEdit()
-
-        grid.addWidget(self.last_l, w, 0)
-        grid.addWidget(self.last_e, w, 1)
+        grid.setRowStretch(w, 1)
 
         w = w + 1
         self.result_l = QLabel("RESULT:")
         self.result_e = QLineEdit()
         self.result_e.setReadOnly(True)
         self.result_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-
-        self.autoFocus_p = QPushButton('FIND FOCUS')
-        self.autoFocus_p.clicked.connect(self.parent.auto_focus)
+        self.set_p = QPushButton("SET")
+        self.set_p.clicked.connect(self.parent.focus_set_result)
         grid.addWidget(self.result_l, w, 0)
         grid.addWidget(self.result_e, w, 1)
-        grid.addWidget(self.autoFocus_p, w, 2, 1, 2)
+        grid.addWidget(self.set_p, w, 2, 1, 2)
+
+        w = w + 1
+        self.line_l = QFrame()
+        self.line_l.setFrameShape(QFrame.HLine)
+        self.line_l.setFrameShadow(QFrame.Raised)
+        grid.addWidget(self.line_l, w, 0, 1, 4)
+
+        w = w + 1
+        self.camera_l = QLabel("Camera:")
+        self.camera_e = QLineEdit()
+        self.camera_e.setReadOnly(True)
+        self.camera_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.filter_l = QLabel("Filter:")
+        self.filter_s = QComboBox()
+        self.filter_s.addItems(["current"])
+        grid.addWidget(self.camera_l, w, 0)
+        grid.addWidget(self.camera_e, w, 1)
+        grid.addWidget(self.filter_l, w, 2)
+        grid.addWidget(self.filter_s, w, 3)
+
+        w = w + 1
+        self.last_l = QLabel("Central Value:")
+        self.last_e = QLineEdit()
+        self.exp_l = QLabel("Exp. time:")
+        self.exp_e = QLineEdit("5")
+        grid.addWidget(self.last_l, w, 0)
+        grid.addWidget(self.last_e, w, 1)
+        grid.addWidget(self.exp_l, w, 2)
+        grid.addWidget(self.exp_e, w, 3)
+
+        w = w + 1
+        self.steps_l = QLabel("Step:")
+        self.steps_e = QLineEdit()
+        self.range_l = QLabel("Steps No.:")
+        self.range_e = QLineEdit()
+        grid.addWidget(self.steps_l, w, 0)
+        grid.addWidget(self.steps_e, w, 1)
+        grid.addWidget(self.range_l, w, 2)
+        grid.addWidget(self.range_e, w, 3)
+
+        w = w + 1
+        self.autoFocus_p = QPushButton('FIND FOCUS')
+        self.autoFocus_p.clicked.connect(self.parent.auto_focus)
+        grid.addWidget(self.autoFocus_p, w, 0, 1, 4)
+
+        self.log_t = QTableWidget(0, 8)
+        self.log_t.setHorizontalHeaderLabels(["DATE", "UT", "FOCUS", "FILTER", "TEMP", "HUMID", "STATUS", "METHOD"])
+        self.log_t.setShowGrid(False)
+        self.log_t.verticalHeader().hide()
+        self.log_t.verticalHeader().setDefaultSectionSize(10)
+        self.log_t.setSelectionMode(QAbstractItemView.NoSelection)
+        self.log_t.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.log_t.horizontalHeader().setStretchLastSection(True)
+        self.log_t.setStyleSheet("background-color: rgb(235,235,235);")
+        grid.addWidget(self.log_t, 0, 4, w + 1, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(3, 1)
+        grid.setColumnStretch(4, 3)
 
         self.setLayout(grid)
 
@@ -533,3 +665,229 @@ class PlanrunnerTab(QWidget):
         self.prog_call_e.setStyleSheet("background-color: rgb(235,235,235);")
         grid.addWidget(self.prog_call_e, 0, 0)
         self.setLayout(grid)
+
+
+# ############### CONDITIONS ##########################
+
+class ConditionsTab(QWidget):
+    """Night plots of all telescopes; the combo chooses what is drawn. Filter/airmass cuts apply to FWHM."""
+
+    PLOTS = ["FWHM", "Zero point"]
+
+    def __init__(self, parent):
+        super(ConditionsTab, self).__init__()
+        self.parent = parent
+        self.mkUI()
+
+        self.fwhm = {t:[] for t in self.parent.fits_ffs_data.keys()}
+        self.time = {t: [] for t in self.parent.fits_ffs_data.keys()}
+        self.airmass = {t: [] for t in self.parent.fits_ffs_data.keys()}
+
+        self.focus_time = {t: [] for t in self.parent.fits_ffs_data.keys()}
+
+    def redraw(self):
+        plot = self.plot_s.currentText()
+        self.filter_e.setEnabled(plot == "FWHM")
+        self.airmass_e.setEnabled(plot == "FWHM")
+        self.ax.clear()
+        if self.parent.jd:
+            if plot == "FWHM":
+                self.plot_fwhm()
+            elif plot == "Zero point":
+                self.plot_zero_point()
+        self.fig.subplots_adjust(bottom=0.15, top=0.95, left=0.08, right=0.988)
+        self.canvas.draw()
+
+    def plot_fwhm(self):
+        self.fwhm = {t:[] for t in self.parent.fits_ffs_data.keys()}
+        self.time = {t: [] for t in self.parent.fits_ffs_data.keys()}
+        self.airmass = {t: [] for t in self.parent.fits_ffs_data.keys()}
+
+        self.focus_time = {t: [] for t in self.parent.fits_ffs_data.keys()}
+
+        for t in self.parent.fits_ffs_data.keys():
+            for x in self.parent.fits_ffs_data[t]:
+                try:
+                    if x["raw"]["header"]["OBSTYPE"] != "focus":
+                        if str(self.filter_e.text()) in x["raw"]["header"]["FILTER"]:
+                            if "fwhm" in x["raw"].keys():
+                                airmass = float(x["raw"]["header"]["AIRMASS"])
+                                cond = True
+                                try:
+                                    if len(str(self.airmass_e.text())) > 0:
+                                        cond = float(self.airmass_e.text()) > airmass
+                                except ValueError:
+                                    pass
+                                if cond:
+                                    self.airmass[t].append(airmass)
+                                    fwhm = (float(x["raw"]["fwhm"]["fwhm_x"])+float(x["raw"]["fwhm"]["fwhm_y"]))/2.
+                                    fwhm = fwhm *  self.parent.nats_cfg[t]["pixel_scale"]
+                                    self.fwhm[t].append(fwhm)
+                                    time = float(x["raw"]["header"]["JD"])
+                                    self.time[t].append(time)
+
+                    if "OBSTYPE" in x["raw"]["header"].keys() and "NLOOPS" in x["raw"]["header"].keys() and "LOOP" in x["raw"]["header"].keys():
+                        if x["raw"]["header"]["OBSTYPE"] == "focus" and float(x["raw"]["header"]["NLOOPS"]) == float(x["raw"]["header"]["LOOP"]):
+                            self.focus_time[t].append(float(x["raw"]["header"]["JD"]))
+                except (ValueError, TypeError):   # TyoeError - na wypadek waretosci nan
+                    pass
+
+        x0 = float(str(self.parent.jd).split(".")[0])+0.4
+        x1 = x0 + 0.6
+
+        for t in self.parent.fits_ffs_data.keys():
+            x = self.time[t]
+            y = self.fwhm[t]
+            x = numpy.array(x)
+            y = numpy.array(y)
+            mk = x < x0
+            x = x[mk]
+            y = y[mk]
+            x = x + 1
+            self.ax.scatter(x, y, marker=".", color=self.parent.nats_cfg[t]['color'], alpha=0.05)
+
+            x = self.time[t]
+            y = self.fwhm[t]
+            self.ax.scatter(x, y, marker=".", color=self.parent.nats_cfg[t]['color'], alpha=1, s=100, label=t)
+
+            ft = numpy.array(self.focus_time[t])
+            mk = ft > x0
+            ft = ft[mk]
+
+            for focus_time in ft:
+                self.ax.axvline(x=focus_time, color=self.parent.nats_cfg[t]['color'],alpha=0.8)
+
+        xtics = []
+        t =  ephem.Date(x0)
+        while t < ephem.Date(x1):
+            t = ephem.Date(t) + ephem.hour
+            h = str(ephem.Date(t)).split()
+            xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
+        xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
+        self.ax.set_xticks(xtics)
+        self.ax.set_xticklabels(xtics_labels,rotation=45,minor=False)
+
+        self.ax.set_xlim(x0,x1)
+        self.ax.set_ylim(0,5)
+        self.ax.legend()
+        self.ax.set_xlabel("UT")
+        self.ax.set_ylabel("fwhm [arcsec]")
+
+    def plot_zero_point(self):
+        # fits_photo_z0_data: {tel: [{'filter', 'zero_value', 'oca_jd', 'mode'}, ...]}
+        fits_photo_z0_data_copy = copy.deepcopy(self.parent.fits_photo_z0_data)
+        tim_ranges = self.parent.time_ranges()
+        today_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['today']))
+        yesterday_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['yesterday']))
+        color = {'V': 'green', 'B': 'blue', 'Ic': 'red'}
+
+        all_val_td = []
+        all_dat_td = []
+        try:
+            for t in fits_photo_z0_data_copy.keys():
+                val_td = []
+                filter_td = []
+                dat_td = []
+                val_yd = []
+                filter_yd = []
+                dat_yd = []
+                for x in fits_photo_z0_data_copy[t]:
+                    if x["oca_jd"] >= today_oca_jd:
+                        val_td.append(x["zero_value"])
+                        all_val_td.append(x["zero_value"])
+                        filter_td.append(color[x["filter"]])
+                        dat_td.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
+                        all_dat_td.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
+                    if today_oca_jd > x["oca_jd"] >= yesterday_oca_jd:
+                        val_yd.append(x["zero_value"])
+                        filter_yd.append(color[x["filter"]])
+                        dat_yd.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
+                self.ax.scatter(
+                    dat_td, val_td, edgecolor=filter_td, alpha=0.8,
+                    facecolors="none", linewidths=1, s=30
+                )
+                self.ax.scatter(
+                    dat_td, val_td, c=self.parent.nats_cfg[t]['color'], alpha=0.7, label=t, s=13
+                )
+                self.ax.scatter(
+                    dat_yd, val_yd, edgecolor=filter_yd, alpha=0.1,
+                    facecolors="none", linewidths=1, s=30
+                )
+                self.ax.scatter(
+                    dat_yd, val_yd, c=self.parent.nats_cfg[t]['color'], alpha=0.1, s=13
+                )
+
+            self.ax.axhline(y=0, color="black", linewidth=0.5)
+            self.ax.axhline(y=-0.05, color="orange", linestyle="--", linewidth=1)
+            self.ax.axhline(y=-0.1, color="red", linestyle="--", linewidth=1)
+
+            x = numpy.asarray(all_dat_td)
+            y = numpy.asarray(all_val_td)
+
+            rem_nan_y = ~numpy.isnan(y)
+            x = x[rem_nan_y]
+            y = y[rem_nan_y]
+
+            idx = numpy.argsort(x)
+
+            x_sorted = x[idx]
+            y_sorted = y[idx]
+
+            self.ax.plot(x_sorted, gaussian_filter1d(y_sorted, sigma=6), color='#2E8B57', linewidth=1)
+
+            x0 = 0.4
+            x1 = 0.99
+            xtics = []
+            t = ephem.Date(x0)
+            while t < ephem.Date(x1):
+                t = ephem.Date(t) + ephem.hour
+                h = str(ephem.Date(t)).split()
+                xtics.append(ephem.Date(h[0] + " " + h[1].split(":")[0] + ":00:00"))
+            xtics_labels = [str(x).split()[1].split(":")[0] + ":" + str(x).split()[1].split(":")[1] for x in xtics]
+            self.ax.set_xticks(xtics)
+            self.ax.set_xticklabels(xtics_labels, rotation=45, minor=False)
+            self.ax.set_xlim(x0, x1)
+            self.ax.legend()
+            self.ax.set_xlabel("UT")
+            self.ax.set_ylabel("zero point [mag]")
+        except Exception as e:
+            print(f'EXCEPTION plot_zero_point: {e}')
+
+    def mkUI(self):
+
+        grid = QGridLayout()
+        w = 0
+        self.plot_l = QLabel("Plot: ")
+        self.plot_s = QComboBox()
+        self.plot_s.addItems(self.PLOTS)
+        self.plot_s.currentIndexChanged.connect(self.redraw)
+
+        self.filter_l = QLabel("Filter filter: ")
+        self.filter_e = QLineEdit("")
+        self.filter_e.textChanged.connect(self.redraw)
+
+        self.airmass_l = QLabel("Filter airmass: ")
+        self.airmass_e = QLineEdit("")
+        self.airmass_e.textChanged.connect(self.redraw)
+
+        grid.addWidget(self.plot_l, w, 0)
+        grid.addWidget(self.plot_s, w, 1)
+        grid.addWidget(self.filter_l, w, 2)
+        grid.addWidget(self.filter_e, w, 3)
+        grid.addWidget(self.airmass_l, w, 4)
+        grid.addWidget(self.airmass_e, w, 5)
+
+        w = w + 1
+
+        self.fig = Figure((1, 1), linewidth=1, dpi=100)
+        self.canvas = FigureCanvas(self.fig)
+        self.ax = self.fig.add_subplot(111)
+
+        grid.addWidget(self.canvas, w, 0, 1, 6)
+
+        w = w + 1
+        self.toolbar = NavigationToolbar(self.canvas,self)
+        grid.addWidget(self.toolbar, w, 0, 1, 6)
+
+        self.setLayout(grid)
+

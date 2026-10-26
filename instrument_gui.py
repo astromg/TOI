@@ -55,6 +55,10 @@ class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidg
 
 
           self.layout.addWidget(self.tab,0,0)
+          # autofocus mierzy kamera: domyslnie pierwsza kamera teleskopu, nawet gdy otwarty jest spektrograf
+          cameras = [i for i in range(self.tab.count()) if self.tab.widget(i).calibration == "camera"]
+          if cameras:
+              self.parent.auxGui.focus.set_camera(self.tab.tabText(cameras[0]))
           self.tab.currentChanged.connect(self.instrument_changed)
           self.instrument_changed()
 

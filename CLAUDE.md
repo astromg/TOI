@@ -104,9 +104,14 @@ that are created hidden get positioned correctly once shown.
   separate `QThread` (`FFS_Worker`) so image analysis doesn't block the Qt main thread.
 - `aux_gui.py` (`AuxWindow`) — one window with tabs, in order: Optical path (`SchematicView`, hidden when the
   telescope has no optical graph), Calibration, Focus, Guider (layout template only, guider does not work),
-  Plan Runner. `TOI` keeps the old names for the tabs: `focusGui` (`FocusTab`), `flatGui`
-  (`CameraCalibration`), `guiderGui` (`GuiderTab`), `planrunnerGui` (`PlanrunnerTab`). Tabs are pages of a
+  Plan Runner, Conditions (combo: FWHM / zero point of all telescopes; drawn only while the tab is shown).
+  `TOI` keeps the old names for the tabs: `focusGui` (`FocusTab`), `flatGui` (`CameraCalibration`), `guiderGui`
+  (`GuiderTab`), `planrunnerGui` (`PlanrunnerTab`), `conditionsGui` (`ConditionsTab`). The observation window
+  has no buttons for these any more; a closed Aux or FITS window is reopened from the ⚙ menu in `ObsGui`. Tabs are pages of a
   `QTabWidget` — never call `show()` on one (it paints over the current tab); use `auxGui.show_tab(page)`.
+  Tabs come up by themselves: M3 changing port → Optical path (`m3_update` → `auxGui.m3_moved`), a
+  SKYFLAT/DOMEFLAT or FOCUS OB starting → Calibration / Focus (`nats_toi_ob_status_reader` → `auxGui.ob_started`,
+  map `AuxWindow.OB_TABS`); the first reading after a telescope switch never switches.
   Calibration (`CalibrationTab`) has one page per kind of instrument (`camera` → `CameraCalibration`,
   `spectrograph` → `SpectrographCalibration`, still empty); each instrument tab class in `instrument_gui.py`
   declares `calibration = "camera"|"spectrograph"`, and `InstrumentGui.instrument_changed` switches the page.
@@ -114,12 +119,13 @@ that are created hidden get positioned correctly once shown.
   subjects (`toi.flat_overwatch_subject` in `toi_config.yaml`, read by `reader_nats_flat_overwatch(item)`),
   kept per telescope in `flat_records`; the TPG window's "Make SKYFLATS" switch turns those records into the
   `flat_history` passed to tpg (`TPGWindow._flat_history`). Autofocus fits use `pyaraucaria.focus`
-  (`calcFocus/calc_focus.py` is the old local version).
+  (`calcFocus/calc_focus.py` is the old local version). In the Focus tab Recalculate only computes; SET
+  (`focus_set_result`) moves the focuser. Autofocus uses a camera (`FocusTab.set_camera`, from the instrument
+  window's camera tabs) and its filters from `TOI.instrument_filters` (today the telescope's wheel).
 - Focus auto-adjust (in `toi.py`) — every focuser move made by TOI must go through
   `focus_move(tel, pos, source)` (not a bare `aput_move`), because it also publishes the adjust baseline to
   `tic.status.<tel>.toi.focus_reference`. Adjust target = reference position + Δ`focus_model` since the
   reference was set. See README "FOCUS ADJUST".
-- `conditions_gui.py` — weather/seeing conditions window.
 
 Shared, non-GUI helpers live in `toi_lib.py` (OB/sequence parsing, coordinate/time conversions, almanac,
 icon helpers) and are imported with `from toi_lib import *` throughout — check there before adding a

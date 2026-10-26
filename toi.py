@@ -56,7 +56,6 @@ from optics_model import OpticsModel
 from plan_gui import PlanGui
 from fits_gui import FitsWindow
 from aux_gui import AuxWindow
-from conditions_gui import ConditionsWindow
 
 from toi_lib import *
 
@@ -115,11 +114,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.flatGui = self.auxGui.calibration.camera
         self.guiderGui = self.auxGui.guider
         self.planrunnerGui = self.auxGui.planrunner
+        self.conditionsGui = self.auxGui.conditions
 
         self.instGui = InstrumentGui(self, loop=self.loop, client_api=self.client_api)
         self.planGui = PlanGui(self, loop=self.loop, client_api=self.client_api)
         self.fitsGui = FitsWindow(self)
-        self.conditionsGui = ConditionsWindow(self)
         self.czuwakGui = CzuwakWindow()
 
         self.add_background_task(self.tic_con_loop())
@@ -274,7 +273,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             reader = get_reader(f'tic.status.{tel}.toi.focus_record', deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in reader:
                 self.nats_focus_record[tel] = data
-                self.update_focus_log_window()
+                self.focusGui.add_record(tel, data)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -495,6 +494,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def telescope_switched(self):
 
         self.inst_tab_switch = True
+        self.m3_port = None
         # DUPA
         #print(self.telescope_switch_status)
 
@@ -532,6 +532,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ob_log = []
         self.done_uobi = []   # uobi z plan_log nowego teleskopu
         self.flat_log = []
+        # wynik focusa poprzedniego teleskopu nie moze zostac na wykresie
+        self.nats_focus_status = {}
+        self.focusGui.show_status({})
 
         # TELESCOPE CONFIGURATION HARDCODED
 
@@ -716,8 +719,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.auxGui.updateUI()
             self.fitsGui.updateUI()
 
-            self.update_focus_log_window()
-
             if not bool(self.cfg_showRotator):
                 self.set_led(self.mntGui.comRotator1_l, "rgb(190,190,190)")
                 self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
@@ -761,8 +762,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def nats_toi_ob_status_reader(self):
         try:
             reader = get_reader(f'tic.status.{self.active_tel}.toi.ob', deliver_policy='last')
+            last_ob = None      # pierwszy odczyt to stan zastany po zmianie teleskopu - nie przelacza zakladek
             async for status, meta in reader:
                 self.nats_ob_progress = status
+                try:
+                    ob = (status.get("ob_program"), status.get("ob_start_time"))
+                    if last_ob is not None and ob != last_ob and status.get("ob_started") and not status.get("ob_done"):
+                        self.auxGui.ob_started(ob[0])
+                    last_ob = ob
+                except Exception as e:
+                    logger.warning(f'EXCEPTION 105a: {e}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1117,7 +1126,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         while True:
             try:
                 if self.conditionsGui.isVisible():
-                    self.conditionsGui.update()
+                    self.conditionsGui.redraw()
                 if self.ob[self.active_tel]["meta"]["run"] and "name" in self.ob[self.active_tel]["ob"].keys():
                     txt = self.ob["ob"]["name"]
 
@@ -1903,11 +1912,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     await self.update_log(f'Not enough STEPS number', "WARNING", self.active_tel)
 
             if ok:
-                exp=self.instGui.ccd_tab.inst_Dit_e.text()
-                if len(exp)==0:
-                    exp = 5
+                exp = self.focusGui.exp_e.text().strip()
+                try:
+                    ok = float(exp) > 0
+                except ValueError:
+                    ok = False
+                if not ok:
+                    await self.update_log(f'wrong focus exposure time: {exp}', "WARNING", self.active_tel)
+                    return
+                filtr = self.focusGui.filter_s.currentText()
+                if filtr == "current":
+                    filtr = self.curent_filter
 
-                seq = f"{int(number)}/"+str(self.curent_filter)+"/"+str(exp)
+                seq = f"{int(number)}/"+str(filtr)+"/"+str(exp)
                 pos = f"{int(v0)}/{int(step)}"
                 uobi = str(uuid.uuid4())[:8]
                 program = f"FOCUS seq={seq} pos={pos} uobi={uobi}"
@@ -2343,6 +2360,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def focus_recalc(self):
+        # tylko przelicza i publikuje wynik - focus ustawia dopiero SET (focus_set_result)
         if self.tel_acces[self.active_tel]:
 
             self.focus_method = self.focusGui.method_s.currentText()
@@ -2350,10 +2368,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                      method=self.focus_method)
 
             if result is None:
-                await self.focus_move(self.active_tel, self.last_focus_position[self.active_tel], "autofocus_failed")
-                await self.update_log(
-                    f'focusing FAILED. Focus set to previous value {int(self.last_focus_position[self.active_tel])}',
-                    "TOI", self.active_tel)
+                await self.update_log(f'focus recalculation ({self.focus_method}) FAILED', "WARNING", self.active_tel)
 
             else:
 
@@ -2376,97 +2391,45 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         data["temperature"] = self.sensors[self.active_tel]["dome_conditions"]["temperature"]
                     except Exception:
                         data["temperature"] = "--"
-                    try:
-                        pos = self.oca_tel_state[self.active_tel]["fw_position"]["val"]
-                        data["filter"] = self.nats_cfg[self.active_tel]["filter_list_names"][pos]
-                    except Exception:
-                        data["filter"] = "--"
+                    # te same klatki co w ostatnim przebiegu, wiec i ten sam filtr (kolo moglo sie juz przestawic)
+                    data["filter"] = self.nats_focus_status.get("filter", "--")
 
                     await self.nats_toi_focus_status[self.active_tel].publish(data=data, timeout=10)
-
-                    data_short = {}
-                    data_short["status"] = data["status"]
-                    data_short["temperature"] = data["temperature"]
-                    data_short["max_sharpness_focus"] = data["max_sharpness_focus"]
-                    data_short["time"] = data["time"]
-                    data_short["filter"] = data["filter"]
-                    data_short["davis_temperature"] = data["davis_temperature"]
-                    data_short["davis_humidity"] = data["davis_humidity"]
-                    data_short["method"] = data["method"]
-
-                    await self.nats_toi_focus_record[self.active_tel].publish(data=data_short, timeout=10)
+                    await self.update_log(f'focus recalculated ({self.focus_method}): {int(max_sharpness_focus)} '
+                                          f'{data["status"]}', "TOI RESPONDER", self.active_tel)
 
                 except Exception as e:
                     logger.warning(f'TOI: EXCEPTION 67: {e}')
-
-                if calc_metadata["status"] == "ok":
-                    await self.focus_move(self.active_tel, max_sharpness_focus, "autofocus")
-                    await self.update_log(f'focus set to {int(max_sharpness_focus)}', "TOI", self.active_tel)
-                else:
-                    await self.focus_move(self.active_tel, self.last_focus_position[self.active_tel], "autofocus_failed")
-                    await self.update_log(
-                        f'focusing FAILED. Focus set to previous value {int(self.last_focus_position[self.active_tel])}', "TOI", self.active_tel)
 
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
 
+    @qs.asyncSlot()
+    async def focus_set_result(self):
+        await self.update_log(f'SET autofocus result', "OPERATOR", self.active_tel)
+        if self.tel_acces[self.active_tel]:
+            status = self.focusGui.status
+            if status.get("status") == "ok" and status.get("max_sharpness_focus") is not None:
+                pos = int(status["max_sharpness_focus"])
+                await self.focus_move(self.active_tel, pos, "autofocus_set")
+                await self.update_log(f'focus set to {pos}', "TOI RESPONDER", self.active_tel)
+                record = {k: status.get(k) for k in ("status", "temperature", "max_sharpness_focus", "time", "filter",
+                                                     "davis_temperature", "davis_humidity", "method")}
+                try:
+                    await self.nats_toi_focus_record[self.active_tel].publish(data=record, timeout=10)
+                except Exception as e:
+                    logger.warning(f'TOI: EXCEPTION 67a: {e}')
+        else:
+            txt="WARNING: U don't have control"
+            self.WarningWindow(txt)
 
 
     def update_focus_window(self):
         try:
-            if "max_sharpness_focus" in self.nats_focus_status.keys() and "status" in self.nats_focus_status.keys():
-                status = self.nats_focus_status["status"]
-                if status == "ok":
-                    self.focusGui.result_e.setText(f"{int(self.nats_focus_status['max_sharpness_focus'])}")
-                    self.focusGui.max_sharp = self.nats_focus_status["max_sharpness_focus"]
-                else:
-                    self.focusGui.result_e.setText(status)
-                    self.focusGui.max_sharp = None
-
-            if "method" in self.nats_focus_status.keys():
-                self.focusGui.method = self.nats_focus_status["method"]
-
-            if "sharpness_values" in self.nats_focus_status.keys() and "focus_values" in self.nats_focus_status.keys():
-                focus_values = self.nats_focus_status["focus_values"]
-                sharpness_values = self.nats_focus_status["sharpness_values"]
-                fit_x = self.nats_focus_status["fit_x"]
-                fit_y = self.nats_focus_status["fit_y"]
-
-                self.focusGui.fit_x = fit_x
-                self.focusGui.fit_y = fit_y
-                self.focusGui.x = focus_values
-                self.focusGui.y = sharpness_values
-
-                if "fwhm" in self.nats_focus_status.keys():             # to w zasadzie teraz nie dziala
-                    self.focusGui.fwhm = self.nats_focus_status["fwhm"]
-
-            self.focusGui.redraw()
+            self.focusGui.show_status(self.nats_focus_status)
         except Exception as e:
             logger.warning(f'EXCEPTION 45: {e}')
-
-    def update_focus_log_window(self):
-        try:
-            txt = ""
-            if self.active_tel:
-                if self.nats_focus_record[self.active_tel]: # czasami rpzychopdza puste jak nikt dlugo focusa nie robil
-                    method = "--"
-                    if "method" in self.nats_focus_record[self.active_tel].keys():
-                        method = self.nats_focus_record[self.active_tel]["method"]
-                    if "time" in self.nats_focus_record[self.active_tel].keys():
-                        txt = f'{self.nats_focus_record[self.active_tel]["time"]}      '
-                    txt = txt + (f' {self.nats_focus_record[self.active_tel]["max_sharpness_focus"]:.0f}    {self.nats_focus_record[self.active_tel]["filter"]}    {self.nats_focus_record[self.active_tel]["davis_temperature"]:.1f} '
-                                 f'     {self.nats_focus_record[self.active_tel]["davis_humidity"]:.0f}%   {self.nats_focus_record[self.active_tel]["status"]}       {method} ')
-                    self.focusGui.log_e.append(txt)
-                    self.focusGui.log_e.repaint()
-
-        except Exception as e:
-            logger.warning(f'EXCEPTION 45a: {e}')
-
-
-
-
-
 
     # ############ CCD ##################################
 
@@ -3634,19 +3597,28 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else:
             return None
 
-    # ustawia modelowy focus w polu set focus
+    # focus z modelu dla obecnej pogody; None bez telemetrii albo modelu
+    def focus_model_now(self, tel):
+        if self.telemetry_temp is None or self.telemetry_humidity is None:
+            return None
+        return self.focus_model(tel, float(self.telemetry_temp), float(self.telemetry_humidity))
+
+    # ustawia modelowy focus w polu set focus i jako Central Value autofocusa
     @qs.asyncSlot()
     async def focus_set_update(self):
-        if self.telemetry_temp is None or self.telemetry_humidity is None:
-            logger.warning('TOI: focus_set_update skipped - no weather telemetry yet')
-            return
-        temp = float(self.telemetry_temp)
-        hum = float(self.telemetry_humidity)
-
-        focus = self.focus_model(self.active_tel, temp, hum)
+        focus = self.focus_model_now(self.active_tel)
         if focus is None:
+            logger.warning('TOI: focus_set_update skipped - no weather telemetry or focus model')
             return
         self.mntGui.setFocus_s.setValue(int(focus))
+        self.focusGui.last_e.setText(str(int(focus)))
+
+    # filtry instrumentu: na razie kazda kamera ma kolo filtrow teleskopu (nats_cfg); kiedy ocaboxapi
+    # da det.upstream('filterwheel'), tu bierzemy kolo danego instrumentu
+    def instrument_filters(self, instrument):
+        if self.active_tel is None:
+            return []
+        return list(self.nats_cfg[self.active_tel].get("filter_list_names") or [])
 
 
 
@@ -3814,10 +3786,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             txt = "--"
             moving = False
             error = False
+            port = None
             status = await self.m3.aget_tertiarystatus()
             if status != None:
                 try:
                     pos = str(status["NasmythPort"])
+                    port = pos
                     moving = bool(status["Moving"])
                     error = bool(status["ErrorRaised"])
                     txt = self.nats_cfg[self.active_tel]["tertiary_port_dict"][str(pos)]
@@ -3827,6 +3801,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.telM3_e.setText(txt)
 
             self.m3_name = txt
+
+            # M3 zmienil port: podnosi sie zakladka Optical path (event przychodzi tez z drgan Angle, wiec porownujemy port)
+            if port is not None:
+                if self.m3_port is not None and port != self.m3_port:
+                    self.auxGui.m3_moved()
+                self.m3_port = port
 
             # print("=======================")
             # print(status)
@@ -4416,6 +4396,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         # M3
         self.m3_name = None
+        self.m3_port = None     # ostatni port M3 aktywnego teleskopu
         self.inst_tab_switch = None
 
         # guider

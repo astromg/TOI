@@ -6,7 +6,7 @@ import qasync as qs
 from PyQtX import QtCore, QtGui
 from PyQtX.QtCore import Qt
 from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
-    QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame
+    QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMenu
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
@@ -309,10 +309,6 @@ class MainForm(QWidget):
             log = log + "\n" + txt + "\n"
             log_file.write(log)
 
-    def open_conditions(self):
-        self.parent.conditionsGui.update()
-        self.parent.conditionsGui.show()
-
     def report(self):
         self.report_window = ReportWindow(self.parent)
         self.report_window.show()
@@ -438,18 +434,6 @@ class MainForm(QWidget):
         self.report_p.clicked.connect(self.report)
         self.ping_p = QPushButton('PING')
         self.ping_p.clicked.connect(self.parent.ping)
-        self.log_p = QPushButton('PLANRUNNER')
-        self.log_p.clicked.connect(lambda: self.parent.auxGui.show_tab(self.parent.planrunnerGui))
-        self.flats_p = QPushButton('FLATS')
-        self.flats_p.clicked.connect(lambda: self.parent.auxGui.show_tab(self.parent.auxGui.calibration))
-        self.guider_p = QPushButton('GUIDER')
-        self.guider_p.clicked.connect(lambda: self.parent.auxGui.show_tab(self.parent.guiderGui))
-        self.focus_p = QPushButton('AUTO FOCUS')
-        self.focus_p.clicked.connect(lambda: self.parent.auxGui.show_tab(self.parent.focusGui))
-        self.fits_p = QPushButton('FITS')
-        self.fits_p.clicked.connect(lambda: self.parent.fitsGui.raise_())
-        self.conditions_p = QPushButton('CONDITIONS')
-        self.conditions_p.clicked.connect(self.open_conditions)
 
 
         w = 7
@@ -457,23 +441,9 @@ class MainForm(QWidget):
         self.msg_e = QTextEdit()
         self.msg_e.setReadOnly(True)
         self.msg_e.setStyleSheet("background-color: rgb(235,235,235);")
-        grid.addWidget(self.msg_e, w, 0, 3, 5)
+        grid.addWidget(self.msg_e, w, 0, 3, 8)
 
-        w = 7
-
-        grid.addWidget(self.focus_p, w, 5)
-        grid.addWidget(self.guider_p, w, 7)
-
-        w = w + 1
-        grid.addWidget(self.log_p, w, 5)
-        grid.addWidget(self.fits_p, w, 7)
-
-        w = w + 1
-
-        grid.addWidget(self.conditions_p, w, 5)
-        grid.addWidget(self.flats_p, w, 7)
-
-        w = w + 1
+        w = w + 3
 
         self.line_l = QFrame()
         self.line_l.setFrameShape(QFrame.HLine)
@@ -484,6 +454,11 @@ class MainForm(QWidget):
 
         self.config_p = QPushButton("\u2699")
         self.config_p.setStyleSheet(" color: gray;")
+        # okna, ktore operator mogl zamknac - stad mozna je otworzyc z powrotem
+        windows_m = QMenu(self.config_p)
+        windows_m.addAction("Aux window", lambda: self.parent.auxGui.show_tab(self.parent.auxGui.tabs.currentWidget()))
+        windows_m.addAction("FITS window", lambda: (self.parent.fitsGui.show(), self.parent.fitsGui.raise_()))
+        self.config_p.setMenu(windows_m)
 
 
         grid.addWidget(self.report_p, w, 0)
