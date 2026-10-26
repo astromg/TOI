@@ -41,7 +41,7 @@ from pyaraucaria.coordinates import *
 # from astropy.io import fits
 from pyaraucaria.dome_eq import dome_eq_azimuth
 
-from serverish.messenger import Messenger, get_reader, get_journalreader
+from serverish.messenger import Messenger, get_reader, get_journalreader, request
 from serverish.messenger.msg_publisher import get_publisher
 
 from pyaraucaria.ob_validator import ObsValidator
@@ -123,6 +123,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.add_background_task(self.tic_con_loop())
         self.add_background_task(self.nats_con_loop())
+        self.add_background_task(self.service_lamps_loop())
         self.add_background_task(self.almanac_loop())
         self.add_background_task(self.alpaca_con_loop())
         self.add_background_task(self.tel_con_loop())
@@ -480,10 +481,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             try:
                 self.tic_con = await self.observatory_model.is_tic_server_available()
                 if self.tic_con == True:
-                    self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
+                    self.obsGui.main_form.ticStatus2_l.setText("\u2665  TIC")
                     self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: green;")
                 else:
-                    self.obsGui.main_form.ticStatus2_l.setText("\u262F  TIC")
+                    self.obsGui.main_form.ticStatus2_l.setText("\u2665  TIC")
                     self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
                 await asyncio.sleep(3)
             except (asyncio.CancelledError, asyncio.TimeoutError):
@@ -508,11 +509,66 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.natsStatus_l.setStyleSheet(f"color: {color};")
             await asyncio.sleep(1)
 
+    # ---- lampki serwisow aktywnego teleskopu: dome follower (heartbeat ocabox-tcs co 10 s),
+    # downloader i pipeline ofp (RPC tic.rpc.<tel>.<serwis>.alive -> {"status": "ok"}), tak samo jak GUI TEXT
+    SERVICE_STALE = 30      # s bez heartbeatu = dome follower nie dziala
+
+    async def dome_follower_heartbeat_reader(self):
+        try:
+            r = get_reader(f'svc.heartbeat.dome_follower_svc.dome_follower.{self.active_tel}-dome_follower',
+                           deliver_policy='new')
+            async for data, meta in r:
+                self.dome_follower_seen = time.time()
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 110c: {e}')
+
+    async def ofp_alive(self, tel, service):
+        # subject jak w GUI TEXT (ocabox-cli): site.global.nats.subjects.rpc.<serwis>_alive z configu TIC
+        try:
+            subject = self.client_cfg["site"]["global"]["nats"]["subjects"]["rpc"][f"{service}_alive"]
+        except (KeyError, TypeError):
+            subject = "tic.rpc.{telescope}." + service + ".alive"
+        try:
+            data, meta = await request(subject.format(telescope=tel), timeout=3)
+            return data.get("status") == "ok"
+        except Exception:       # brak odpowiedzi, timeout, brak responderow
+            return False
+
+    async def service_lamps_loop(self):
+        green, red, grey = "green", "red", "rgb(190,190,190)"
+        while True:
+            try:
+                tel = self.active_tel
+                if tel is not None:
+                    f = self.obsGui.main_form
+                    now = time.time()
+                    if self.dome_follower_seen is not None and now - self.dome_follower_seen < self.SERVICE_STALE:
+                        color = green
+                    elif now - self.services_since < self.SERVICE_STALE:
+                        color = grey        # po zmianie teleskopu czekamy na pierwszy heartbeat
+                    else:
+                        color = red
+                    f.followerStatus_l.setStyleSheet(f"color: {color};")
+                    download, pipeline = await asyncio.gather(self.ofp_alive(tel, "download"),
+                                                              self.ofp_alive(tel, "pipeline"))
+                    if tel == self.active_tel:
+                        f.downloaderStatus_l.setStyleSheet(f"color: {green if download else red};")
+                        f.ofpStatus_l.setStyleSheet(f"color: {green if pipeline else red};")
+            except (asyncio.CancelledError, asyncio.TimeoutError):
+                raise
+            except Exception as e:
+                logger.warning(f'EXCEPTION 103c: {e}')
+            await asyncio.sleep(5)
+
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def telescope_switched(self):
 
         self.inst_tab_switch = True
         self.m3_port = None
+        self.dome_follower_seen = None          # heartbeat dome followera nowego teleskopu
+        self.services_since = time.time()
         # DUPA
         #print(self.telescope_switch_status)
 
@@ -722,6 +778,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         for item in ("flats_evening", "flats_morning", "science"):
             self.add_background_task(self.reader_nats_flat_overwatch(item), group="telescope_task")
         self.add_background_task(self.dome_follower_reader(), group="telescope_task")
+        self.add_background_task(self.dome_follower_heartbeat_reader(), group="telescope_task")
 
 
         await self.run_background_tasks(group="telescope_task")
@@ -4453,6 +4510,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # M3
         self.m3_name = None
         self.m3_port = None     # ostatni port M3 aktywnego teleskopu
+        self.dome_follower_seen = None
+        self.services_since = time.time()
         self.inst_tab_switch = None
 
         # guider

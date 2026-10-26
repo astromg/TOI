@@ -319,6 +319,9 @@ class MainForm(QWidget):
         hints = {
             "ticStatus2": "TIC server, checked every 3 s.",
             "natsStatus": "TOI connection to NATS. Orange: reconnecting.",
+            "followerStatus": "Dome follower of the active telescope: heartbeat every 10 s. Red: none for 30 s.",
+            "downloaderStatus": "OFP downloader of the active telescope, asked every 5 s (alive RPC).",
+            "ofpStatus": "OFP pipeline of the active telescope, asked every 5 s (alive RPC).",
             "temp": "Davis weather station. Red below -1 °C.",
             "hummidity": f"Davis weather station. Red above {self.parent.cfg_humidity_limit} % or rain.",
             "wind": "Davis weather station.",
@@ -342,13 +345,20 @@ class MainForm(QWidget):
         grid = QGridLayout()
         w = 0
         # lampki polaczen obok siebie, od lewej
-        self.ticStatus2_l = QLabel("\u262F  TIC")
-        self.natsStatus_l = QLabel("\u262F  NATS")
+        self.ticStatus2_l = QLabel("\u2665  TIC")
+        self.natsStatus_l = QLabel("\u2665  NATS")
         self.natsStatus_l.setStyleSheet("color: red;")
+        # serwisy aktywnego teleskopu; szare, dopoki nic o nich nie wiemy
+        self.followerStatus_l = QLabel("\u2665  DOME FOLLOWER")
+        self.downloaderStatus_l = QLabel("\u2665  DOWNLOADER")
+        self.ofpStatus_l = QLabel("\u2665  OFP")
         status_box = QHBoxLayout()
-        status_box.addWidget(self.ticStatus2_l)
-        status_box.addSpacing(20)
-        status_box.addWidget(self.natsStatus_l)
+        for lamp in (self.ticStatus2_l, self.natsStatus_l, self.followerStatus_l, self.downloaderStatus_l, self.ofpStatus_l):
+            if lamp is not self.ticStatus2_l:
+                status_box.addSpacing(20)
+            status_box.addWidget(lamp)
+        for lamp in (self.followerStatus_l, self.downloaderStatus_l, self.ofpStatus_l):
+            lamp.setStyleSheet("color: rgb(190,190,190);")
         status_box.addStretch(1)
         grid.addLayout(status_box, w, 0, 1, 8)
 
