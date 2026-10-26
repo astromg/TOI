@@ -16,7 +16,7 @@ class FlatWindow(BaseWindow):
     def __init__(self, parent):
         super(FlatWindow, self).__init__()
         self.parent = parent
-        self.setWindowTitle('Flat Log')
+        self.setWindowTitle('Calibration')
         self.set_initial_geometry(self.parent.obs_window_geometry[0] + 1940, self.parent.obs_window_geometry[1]+810, 900, 500)
         self.mkUI()
         self.text = {k:"" for k in self.parent.local_cfg["toi"]["telescopes"]}
@@ -98,9 +98,12 @@ class FlatWindow(BaseWindow):
                 self.flat_table_t.setItem(i, col, cell)
             self.flat_table_t.setItem(i, 3, self._flat_cell(self._age_txt(t0, t_obj), font))
 
-        self.flat_table_t.resizeColumnsToContents()
-        for col in range(1, self.flat_table_t.columnCount()):
-            self.flat_table_t.horizontalHeader().setSectionResizeMode(col, QHeaderView.Stretch)
+        # kolumny na szerokosc tekstu, a tabela tylko tak szeroka jak kolumny - reszte okna dostaje log flatow
+        header = self.flat_table_t.horizontalHeader()
+        for col in range(self.flat_table_t.columnCount()):
+            header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
+        width = header.length() + 2 * self.flat_table_t.frameWidth() + self.flat_table_t.verticalScrollBar().sizeHint().width()
+        self.flat_table_t.setFixedWidth(width)
         self.flat_table_t.repaint()
 
     @staticmethod
@@ -123,7 +126,7 @@ class FlatWindow(BaseWindow):
     def mkUI(self):
         grid = QGridLayout()
         self.flat_table_t = QTableWidget(0,4)
-        self.flat_table_t.setHorizontalHeaderLabels(["FILTER", "EVENING", "MORNING", "OBJECT"])
+        self.flat_table_t.setHorizontalHeaderLabels(["FILTER", "EVENING FLAT", "MORNING FLAT", "OBJECT"])
         self.flat_table_t.setSelectionMode(QAbstractItemView.NoSelection)
         self.flat_table_t.verticalHeader().hide()
         self.flat_table_t.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -138,5 +141,6 @@ class FlatWindow(BaseWindow):
         self.info_e.setReadOnly(True)
         self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
         grid.addWidget(self.info_e, 1, 1)
+        grid.setColumnStretch(1, 1)     # dodatkowa szerokosc okna idzie do logu, nie do tabeli
         self.setLayout(grid)
 
