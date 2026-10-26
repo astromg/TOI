@@ -318,11 +318,16 @@ class MainForm(QWidget):
 
         grid = QGridLayout()
         w = 0
+        # lampki polaczen obok siebie, od lewej
         self.ticStatus2_l = QLabel("\u262F  TIC")
-        grid.addWidget(self.ticStatus2_l, w, 0,1,2)
         self.natsStatus_l = QLabel("\u262F  NATS")
         self.natsStatus_l.setStyleSheet("color: red;")
-        grid.addWidget(self.natsStatus_l, w, 2,1,2)
+        status_box = QHBoxLayout()
+        status_box.addWidget(self.ticStatus2_l)
+        status_box.addSpacing(20)
+        status_box.addWidget(self.natsStatus_l)
+        status_box.addStretch(1)
+        grid.addLayout(status_box, w, 0, 1, 8)
 
         w = w + 1
         self.date_l = QLabel("Date:")
@@ -353,19 +358,12 @@ class MainForm(QWidget):
         self.windDir_e.setReadOnly(True)
         self.windDir_e.setStyleSheet("background-color: rgb(235,235,235);")
 
-        grid.addWidget(self.date_l, w, 0)
-        grid.addWidget(self.date_e, w, 1)
+        # u gory warunki (w przyszlosci tez FWHM, clouds, zero point); czas jest obok logu, na dole
+        grid.addWidget(self.wind_l, w, 0)
+        grid.addWidget(self.wind_e, w, 1)
 
-        grid.addWidget(self.ut_l, w, 2)
-        grid.addWidget(self.ut_e, w, 3)
-
-        grid.addWidget(self.wind_l, w, 4)
-        grid.addWidget(self.wind_e, w, 5)
-
-        grid.addWidget(self.windDir_l, w, 6)
-        grid.addWidget(self.windDir_e, w, 7)
-
-        w = w + 1
+        grid.addWidget(self.windDir_l, w, 2)
+        grid.addWidget(self.windDir_e, w, 3)
 
         self.ojd_l = QLabel("JD:")
         self.ojd_l.setAlignment(Qt.AlignCenter)
@@ -394,12 +392,6 @@ class MainForm(QWidget):
         self.hummidity_e.setAlignment(Qt.AlignCenter)
         self.hummidity_e.setReadOnly(True)
         self.hummidity_e.setStyleSheet("background-color: rgb(235,235,235);")
-
-        grid.addWidget(self.ojd_l, w, 0)
-        grid.addWidget(self.ojd_e, w, 1)
-
-        grid.addWidget(self.sid_l, w, 2)
-        grid.addWidget(self.sid_e, w, 3)
 
         grid.addWidget(self.temp_l, w, 4)
         grid.addWidget(self.temp_e, w, 5)
@@ -444,9 +436,14 @@ class MainForm(QWidget):
         self.msg_e = QTextEdit()
         self.msg_e.setReadOnly(True)
         self.msg_e.setStyleSheet("background-color: rgb(235,235,235);")
-        grid.addWidget(self.msg_e, w, 0, 3, 8)
+        grid.addWidget(self.msg_e, w, 0, 4, 5)
 
-        w = w + 3
+        # czas obok logu, w miejscu po przyciskach okien
+        for label, field in ((self.date_l, self.date_e), (self.ut_l, self.ut_e),
+                             (self.ojd_l, self.ojd_e), (self.sid_l, self.sid_e)):
+            grid.addWidget(label, w, 5)
+            grid.addWidget(field, w, 6, 1, 2)
+            w = w + 1
 
         self.line_l = QFrame()
         self.line_l.setFrameShape(QFrame.HLine)
