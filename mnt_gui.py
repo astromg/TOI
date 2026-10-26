@@ -8,7 +8,7 @@ import logging
 
 import qasync as qs
 from PyQtX.QtCore import Qt
-from PyQtX.QtWidgets import QCompleter, QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QSpinBox, QGridLayout, QFrame, QComboBox, QRadioButton
+from PyQtX.QtWidgets import QCompleter, QWidget, QLabel, QCheckBox, QLineEdit, QPushButton, QSpinBox, QGridLayout, QFrame, QComboBox, QRadioButton, QHBoxLayout
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
@@ -715,8 +715,12 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.grid.addWidget(self.shutdown_p, w, 5,1,2)
 
-        self.grid.addWidget(self.SafetySwitch_l, self.safety_row, 3, 1, 2)
-        self.grid.addWidget(self.SafetySwitch_c, self.safety_row, 5)
+        # napis i przelacznik razem, dosuniete w prawo - przed MOTORS
+        safety_box = QHBoxLayout()
+        safety_box.addStretch(1)
+        safety_box.addWidget(self.SafetySwitch_l)
+        safety_box.addWidget(self.SafetySwitch_c)
+        self.grid.addLayout(safety_box, self.safety_row, 3, 1, 3)
 
         #self.grid.addWidget(self.weatherStop_p, w, 3,1,2)
         self.grid.addWidget(self.EmStop_p, w, 0,1,3)
