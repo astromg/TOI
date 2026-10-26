@@ -108,8 +108,12 @@ that are created hidden get positioned correctly once shown.
   `focus_move(tel, pos, source)` (not a bare `aput_move`), because it also publishes the adjust baseline to
   `tic.status.<tel>.toi.focus_reference`. Adjust target = reference position + Δ`focus_model` since the
   reference was set. See README "FOCUS ADJUST".
-- `flat_gui.py`, `guider_gui.py`, `planrunner_gui.py`, `conditions_gui.py` — flat-fielding, guider,
-  plan-runner (automated execution) status, and weather/seeing conditions windows respectively.
+- `flat_gui.py`, `guider_gui.py`, `planrunner_gui.py`, `conditions_gui.py` — calibration (window title
+  "Calibration", class `FlatWindow`), guider, plan-runner (automated execution) status, and weather/seeing
+  conditions windows respectively. The Calibration window shows last evening/morning sky flats and science per
+  filter from the flat_overwatch subjects (`toi.flat_overwatch_subject` in `toi_config.yaml`, read by
+  `reader_nats_flat_overwatch(item)`), kept per telescope in `FlatWindow.flat_records`; the TPG window's "Make
+  SKYFLATS" switch turns those records into the `flat_history` passed to tpg (`TPGWindow._flat_history`).
 
 Shared, non-GUI helpers live in `toi_lib.py` (OB/sequence parsing, coordinate/time conversions, almanac,
 icon helpers) and are imported with `from toi_lib import *` throughout — check there before adding a

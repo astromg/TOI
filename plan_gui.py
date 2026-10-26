@@ -1371,7 +1371,7 @@ class TPGWindow(BaseWindow):
         )
 
         self.skyflats_c = QCheckBox("Make SKYFLATS")
-        self.skyflats_c.setChecked(False)
+        self.skyflats_c.setChecked(True)
         self.skyflats_c.setStyleSheet(
             "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
             "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
