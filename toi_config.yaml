@@ -8,6 +8,11 @@ toi:
 
   show_sat_stars: True
 
+  # Flat Log window: last sky flats (evening/morning) and science per filter, published by flat_overwatch
+  flat_overwatch_subject: "tic.status.{tel}.flat_overwatch.{item}"   # after the NATS RFC: "data.overwatch.{tel}.camera.{item}"
+  flat_fresh_h: 20        # flat younger than this -> green
+  flat_old_days: 10       # flat older than this -> orange; red if the filter was used within this time and had no flats in it
+
 
 wk06:
   tel_directory: /data/fits/wk06/

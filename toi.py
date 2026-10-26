@@ -702,7 +702,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_toi_focus_status_reader(), group="telescope_task")
         #self.add_background_task(self.nats_toi_focus_record_reader(), group="telescope_task")
 
-        self.add_background_task(self.reader_nats_flat_overwatch(), group="telescope_task")
+        for item in ("flats_evening", "flats_morning", "science"):
+            self.add_background_task(self.reader_nats_flat_overwatch(item), group="telescope_task")
         self.add_background_task(self.dome_follower_reader(), group="telescope_task")
 
 
@@ -883,12 +884,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             logger.warning(f'TOI: EXCEPTION 4a: {e}')
 
 
-    async def reader_nats_flat_overwatch(self):
+    async def reader_nats_flat_overwatch(self, item):
+        # flat_overwatch: osobne kanaly na wieczorne i poranne skyflaty oraz nauke, {filtr: {"last": ISO|None}}
         try:
             tel = self.active_tel
-            r = get_reader(f'tic.status.{tel}.flat_overwatch', deliver_policy='last')
+            template = self.local_cfg["toi"].get("flat_overwatch_subject", "tic.status.{tel}.flat_overwatch.{item}")
+            r = get_reader(template.format(tel=tel, item=item), deliver_policy='last')
             async for data, meta in r:
-                self.flatGui.update_flat_overwatch(data)
+                self.flatGui.update_flat_overwatch(tel, item, data)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
