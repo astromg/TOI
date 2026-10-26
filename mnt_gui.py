@@ -636,15 +636,25 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         #self.comRotator1_l.setText("\U0001F534")
         self.telRotator1_l.setStyleSheet("color: rgb(150,0,0);")
         self.telRotator1_l.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+        # pozycja mechaniczna (ja ustawia SET) i katowa na niebie (EQ, ASCOM Position)
         self.telRotator1_e = QLineEdit()
         self.telRotator1_e.setReadOnly(True)
         self.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        self.telRotator1_e.setToolTip("Mechanical position [deg].")
 
         self.setRotator1_e = QLineEdit()
-        self.setRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.setRotator1_e.setReadOnly(True)
+        self.setRotator1_e.setToolTip("Mechanical position to move to [deg], 0-360.")
         self.setRotator1_p = QPushButton('SET')
-        self.setRotator1_p.setStyleSheet(" color: gray;")
+        self.setRotator1_p.clicked.connect(self.parent.set_rotator)
+
+        self.rotatorEq_l = QLabel("EQ:")
+        self.rotatorEq_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        self.rotatorEq_e = QLineEdit()
+        self.rotatorEq_e.setReadOnly(True)
+        self.rotatorEq_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        tip = "Sky position angle [deg] (ASCOM Position, with the sync offset)."
+        self.rotatorEq_l.setToolTip(tip)
+        self.rotatorEq_e.setToolTip(tip)
 
         w=w+1
         self.grid.addWidget(self.comRotator1_l, w, 0)
@@ -652,6 +662,8 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.telRotator1_e, w, 2)
         self.grid.addWidget(self.setRotator1_e, w, 3)
         self.grid.addWidget(self.setRotator1_p, w, 4)
+        self.grid.addWidget(self.rotatorEq_l, w, 5)
+        self.grid.addWidget(self.rotatorEq_e, w, 6, 1, 2)
 
 
         ##########################################################

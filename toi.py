@@ -3891,22 +3891,45 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.rotator_mechpos = self.rotator.mechanicalposition
         self.rotator_pos = self.rotator.position
         self.rotator_moving = self.rotator.ismoving
-        if self.rotator_pos and self.rotator_mechpos:
-            self.mntGui.telRotator1_e.setText(f"{self.rotator_pos:.2f} {self.rotator_mechpos:.2f}")
-            if self.rotator_moving != None:
-                if self.rotator_moving:
-                    self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(234, 245, 249); color: black;")
-                    try:
-                        diff = self.rotator_pos_prev - self.rotator_pos
-                        if diff > 1:
-                            self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
-                    except AttributeError: pass
-                else:
-                    self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        fields = (self.mntGui.telRotator1_e, self.mntGui.rotatorEq_e)
+        if self.rotator_pos is not None and self.rotator_mechpos is not None:
+            self.mntGui.telRotator1_e.setText(f"{self.rotator_mechpos:.2f}")
+            self.mntGui.rotatorEq_e.setText(f"{self.rotator_pos:.2f}")
+            style = "background-color: rgb(233, 233, 233); color: black;"
+            if self.rotator_moving:
+                style = "background-color: rgb(234, 245, 249); color: black;"
+                try:
+                    if self.rotator_pos_prev - self.rotator_pos > 1:
+                        style = "background-color: rgb(136, 142, 228); color: black;"
+                except (AttributeError, TypeError):
+                    pass
         else:
-            self.mntGui.telRotator1_e.setText(f"ERROR")
-            self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
+            for field in fields:
+                field.setText("ERROR")
+            style = "background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);"
+        for field in fields:
+            field.setStyleSheet(style)
         self.rotator_pos_prev = self.rotator_pos
+
+    @qs.asyncSlot()
+    async def set_rotator(self):
+        await self.update_log(f'SET rotator', "OPERATOR", self.active_tel)
+        if self.tel_acces[self.active_tel]:
+            if self.rotator is None or not bool(self.cfg_showRotator):
+                await self.update_log(f'no rotator on {self.active_tel}', "WARNING", self.active_tel)
+                return
+            try:
+                val = float(self.mntGui.setRotator1_e.text())
+            except ValueError:
+                val = None
+            if val is None or not 0 <= val <= 360:
+                await self.update_log(f'wrong rotator position: {self.mntGui.setRotator1_e.text()}', "WARNING", self.active_tel)
+                return
+            await self.rotator.aput_movemechanical(val)
+            await self.update_log(f'moving rotator to mechanical {val:.2f}', "TOI RESPONDER", self.active_tel)
+        else:
+            txt="WARNING: U don't have control"
+            self.WarningWindow(txt)
 
         # ############ TELESCOPE #########################
 
