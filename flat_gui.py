@@ -3,9 +3,9 @@
 import datetime
 
 from PyQtX.QtCore import Qt
-from PyQtX.QtGui import QFont, QTextCursor
+from PyQtX.QtGui import QFont
 from PyQtX import QtGui
-from PyQtX.QtWidgets import (QAbstractItemView, QTextEdit,
+from PyQtX.QtWidgets import (QAbstractItemView,
                              QLineEdit, QGridLayout, QTableWidget, QTableWidgetItem, QHeaderView)
 
 
@@ -31,19 +31,7 @@ class FlatWindow(BaseWindow):
             self.tel_e.setFont(font)
             self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[self.parent.active_tel]['color']};")
 
-            self.info_e.clear()
-            self.info_e.append("date                     UT      filter  (n/n_dit)    exp    h_sun     ADU")
-            for r in self.parent.flat_log:
-                n_exp = "--"
-                exp_no = "--"
-                if "n_exp" in r.keys() and "exp_no" in r.keys():
-                    n_exp = r["n_exp"]
-                    exp_no = r["exp_no"]
-                txt = r["timestamp_utc"].split()[0] + "    " + r["timestamp_utc"].split()[1].split(".")[0]
-                txt = txt + f'   {r["filter"]:8} ({n_exp}/{exp_no})     {r["exp_time"]:.2f}      {r["h_sun"]}      {r["mean"]}'
-                self.info_e.append(txt)
-            self.info_e.moveCursor(QTextCursor.End)
-            self.info_e.repaint()
+            self.draw_flat_log()
             self.draw_flat_table(self.parent.active_tel)
             self.show()
             self.raise_()
@@ -59,6 +47,21 @@ class FlatWindow(BaseWindow):
         self.flat_records.setdefault(tel, {})[item] = data
         if tel == self.parent.active_tel:
             self.draw_flat_table(tel)
+
+    def draw_flat_log(self):
+        # log flatow tej sesji jako tabela bez siatki - naglowek zostaje widoczny przy przewijaniu
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        self.log_t.setRowCount(len(self.parent.flat_log))
+        for i, r in enumerate(self.parent.flat_log):
+            n = f'{r["n_exp"]}/{r["exp_no"]}' if "n_exp" in r and "exp_no" in r else "--"
+            date, ut = r["timestamp_utc"].split()[:2]
+            row = [date, ut.split(".")[0], r["filter"], n, f'{r["exp_time"]:.2f}', r["h_sun"], r["mean"]]
+            for col, txt in enumerate(row):
+                self.log_t.setItem(i, col, self._flat_cell(str(txt), font))
+        self.log_t.resizeColumnsToContents()
+        self.log_t.scrollToBottom()
+        self.log_t.repaint()
 
     def draw_flat_table(self, tel):
         records = self.flat_records.get(tel, {})
@@ -137,10 +140,16 @@ class FlatWindow(BaseWindow):
         self.tel_e = QLineEdit()
         self.tel_e.setReadOnly(True)
         grid.addWidget(self.tel_e, 0, 0,1,2)
-        self.info_e = QTextEdit()
-        self.info_e.setReadOnly(True)
-        self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
-        grid.addWidget(self.info_e, 1, 1)
+        self.log_t = QTableWidget(0, 7)
+        self.log_t.setHorizontalHeaderLabels(["DATE", "UT", "FILTER", "N", "EXP", "H_SUN", "ADU"])
+        self.log_t.setShowGrid(False)
+        self.log_t.verticalHeader().hide()
+        self.log_t.verticalHeader().setDefaultSectionSize(10)
+        self.log_t.setSelectionMode(QAbstractItemView.NoSelection)
+        self.log_t.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.log_t.horizontalHeader().setStretchLastSection(True)
+        self.log_t.setStyleSheet("background-color: rgb(235,235,235);")
+        grid.addWidget(self.log_t, 1, 1)
         grid.setColumnStretch(1, 1)     # dodatkowa szerokosc okna idzie do logu, nie do tabeli
         self.setLayout(grid)
 
