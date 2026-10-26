@@ -3909,6 +3909,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             style = "background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);"
         for field in fields:
             field.setStyleSheet(style)
+        # kat mechaniczny w 10 deg od miekkiego limitu ASA (+-160) - zolte tlo, takze w ruchu
+        if self.rotator_mechpos is not None and abs((self.rotator_mechpos + 180) % 360 - 180) > 150:
+            self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(255, 220, 0); color: black;")
         self.rotator_pos_prev = self.rotator_pos
 
     @qs.asyncSlot()
@@ -3922,9 +3925,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 val = float(self.mntGui.setRotator1_e.text())
             except ValueError:
                 val = None
-            if val is None or not 0 <= val <= 360:
-                await self.update_log(f'wrong rotator position: {self.mntGui.setRotator1_e.text()}', "WARNING", self.active_tel)
+            # ASA podaje kat mechaniczny jako 0..360 (342 = -18); limit miekki +-160 (twardy ogranicznik +-170)
+            # sprawdzamy wiec po przeliczeniu na -180..180, a wysylamy 0..360 jak driver
+            if val is None or abs((val + 180) % 360 - 180) > 160:
+                await self.update_log(f'wrong rotator position: {self.mntGui.setRotator1_e.text()} '
+                                      f'(mechanical limits ±160)', "WARNING", self.active_tel)
                 return
+            val = val % 360
             await self.rotator.aput_movemechanical(val)
             await self.update_log(f'moving rotator to mechanical {val:.2f}', "TOI RESPONDER", self.active_tel)
         else:

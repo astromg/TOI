@@ -636,14 +636,16 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         #self.comRotator1_l.setText("\U0001F534")
         self.telRotator1_l.setStyleSheet("color: rgb(150,0,0);")
         self.telRotator1_l.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
-        # pozycja mechaniczna (ja ustawia SET) i katowa na niebie (EQ, ASCOM Position)
+        # ASA: MechanicalPosition - kat wzgledem tubusu (ja ustawia SET), Position - kat rownikowy na niebie (EQ);
+        # rowne tylko w poludniku. Zakres mechaniczny: +-160 miekki limit, +-170 twardy ogranicznik
         self.telRotator1_e = QLineEdit()
         self.telRotator1_e.setReadOnly(True)
         self.telRotator1_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        self.telRotator1_e.setToolTip("Mechanical position [deg].")
+        self.telRotator1_e.setToolTip("Mechanical angle, relative to the telescope [deg], 0-360 (342 = -18).\n"
+                                      "Limits ±160° (soft), ±170° (hard stop). Yellow: within 10° of the limit.")
 
         self.setRotator1_e = QLineEdit()
-        self.setRotator1_e.setToolTip("Mechanical position to move to [deg], 0-360.")
+        self.setRotator1_e.setToolTip("Mechanical angle to move to [deg]: -160 to 160 or 0-360 (342 = -18).")
         self.setRotator1_p = QPushButton('SET')
         self.setRotator1_p.clicked.connect(self.parent.set_rotator)
 
@@ -652,7 +654,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.rotatorEq_e = QLineEdit()
         self.rotatorEq_e.setReadOnly(True)
         self.rotatorEq_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-        tip = "Sky position angle [deg] (ASCOM Position, with the sync offset)."
+        tip = "Equatorial angle on the sky [deg]; equals the mechanical angle at the meridian."
         self.rotatorEq_l.setToolTip(tip)
         self.rotatorEq_e.setToolTip(tip)
 
