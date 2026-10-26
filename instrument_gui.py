@@ -2,6 +2,7 @@
 
 import qasync as qs
 from PyQtX.QtCore import Qt
+from PyQtX.QtGui import QColor
 from PyQtX.QtWidgets import QWidget, QLabel,QCheckBox, QRadioButton, QLineEdit, QTabWidget, QPushButton, QGridLayout, QComboBox, QProgressBar
 from qasync import QEventLoop
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
@@ -47,18 +48,18 @@ class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidg
               if self.parent.nats_cfg[self.parent.active_tel]["tertiary_port_list"] != None:
                   if "beso" in self.parent.nats_cfg[self.parent.active_tel]["tertiary_port_list"]:
                       self.beso_tab = BesoGui(self.parent, loop=self.parent.loop, client_api=self.parent.client_api)
-                      self.tab.addTab(self.beso_tab, "BESO")
+                      self.add_instrument(self.beso_tab, "BESO")
 
           self.ccd_tab=AndorGui(self.parent,loop=self.parent.loop, client_api=self.parent.client_api)
-          self.tab.addTab(self.ccd_tab,"ANDOR")
+          self.add_instrument(self.ccd_tab, "ANDOR")
 
 
 
           self.layout.addWidget(self.tab,0,0)
           # autofocus mierzy kamera: domyslnie pierwsza kamera teleskopu, nawet gdy otwarty jest spektrograf
-          cameras = [i for i in range(self.tab.count()) if self.tab.widget(i).calibration == "camera"]
+          cameras = [self.tab.widget(i) for i in range(self.tab.count()) if self.tab.widget(i).calibration == "camera"]
           if cameras:
-              self.parent.auxGui.focus.set_camera(self.tab.tabText(cameras[0]))
+              self.parent.auxGui.focus.set_camera(cameras[0].name)
           self.tab.currentChanged.connect(self.instrument_changed)
           self.instrument_changed()
 
@@ -76,7 +77,16 @@ class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidg
       def instrument_changed(self):
           # zakladka Calibration w oknie aux idzie za wybranym tu instrumentem
           page = self.tab.currentWidget()
-          self.parent.auxGui.set_instrument(page.calibration, self.tab.tabText(self.tab.currentIndex()))
+          self.parent.auxGui.set_instrument(page.calibration, page.name)
+
+      def add_instrument(self, page, name):
+          # tytul zakladki to dioda stanu i nazwa; dopoki nic nie wiemy - szary
+          page.name = name
+          self.tab.addTab(page, f"\u25CF {name}")
+          self.set_connected(page, "#bebebe")
+
+      def set_connected(self, page, color):
+          self.tab.tabBar().setTabTextColor(self.tab.indexOf(page), QColor(color))
 
       async def on_start_app(self):
           await self.run_background_tasks()

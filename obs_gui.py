@@ -320,6 +320,9 @@ class MainForm(QWidget):
         w = 0
         self.ticStatus2_l = QLabel("\u262F  TIC")
         grid.addWidget(self.ticStatus2_l, w, 0,1,2)
+        self.natsStatus_l = QLabel("\u262F  NATS")
+        self.natsStatus_l.setStyleSheet("color: red;")
+        grid.addWidget(self.natsStatus_l, w, 2,1,2)
 
         w = w + 1
         self.date_l = QLabel("Date:")

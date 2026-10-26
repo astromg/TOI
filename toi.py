@@ -122,6 +122,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.czuwakGui = CzuwakWindow()
 
         self.add_background_task(self.tic_con_loop())
+        self.add_background_task(self.nats_con_loop())
         self.add_background_task(self.almanac_loop())
         self.add_background_task(self.alpaca_con_loop())
         self.add_background_task(self.tel_con_loop())
@@ -490,6 +491,23 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             except Exception as e:
                 logger.warning(f'EXCEPTION 103: {e}')
 
+    async def nats_con_loop(self):
+        # polaczenie TOI z NATS (nats-py pod serverish); w trakcie ponownego laczenia - pomaranczowy
+        while True:
+            try:
+                nc = Messenger().connection.nc
+                if nc is not None and nc.is_connected:
+                    color = "green"
+                elif nc is not None and nc.is_reconnecting:
+                    color = "orange"
+                else:
+                    color = "red"
+            except Exception as e:
+                logger.warning(f'EXCEPTION 103b: {e}')
+                color = "red"
+            self.obsGui.main_form.natsStatus_l.setStyleSheet(f"color: {color};")
+            await asyncio.sleep(1)
+
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def telescope_switched(self):
 
@@ -720,8 +738,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.fitsGui.updateUI()
 
             if not bool(self.cfg_showRotator):
-                self.set_led(self.mntGui.comRotator1_l, "rgb(190,190,190)")
-                self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
+                self.set_led(self.mntGui.comRotator1_l, self.LED_NA)
+                self.mntGui.telRotator1_l.setStyleSheet(f"color: {self.LED_NA};")
 
             self.updateWeather()
 
@@ -946,48 +964,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         while True:
             try:
                 if self.telescope is not None:
-                    if  bool(self.cfg_showRotator):
-                        if self.rotator_con and self.tel_alpaca_con:
-                            self.set_led(self.mntGui.comRotator1_l, "rgb(0,150,0)")
-                            self.mntGui.telRotator1_l.setStyleSheet("color: rgb(0,150,0);")
-                        else:
-                            self.set_led(self.mntGui.comRotator1_l, "rgb(150,0,0)")
-                            self.mntGui.telRotator1_l.setStyleSheet("color: rgb(150,0,0);")
+                    m = self.mntGui
+                    # (polaczony?, dioda, nazwa) - nazwa w kolorze diody
+                    leds = [(self.mount_con, m.mntConn2_l, m.mntConn1_l),
+                            (self.dome_con, m.domeConn2_l, m.domeConn1_l),
+                            (self.fw_con, m.comFilter_l, m.telFilter_l),
+                            (self.focus_con, m.focusConn_l, m.telFocus_l)]
+                    if bool(self.cfg_showRotator):
+                        leds.append((self.rotator_con, m.comRotator1_l, m.telRotator1_l))
                     else:
-                        self.set_led(self.mntGui.comRotator1_l, "rgb(190,190,190)")
-                        self.mntGui.telRotator1_l.setStyleSheet("color: rgb(190,190,190);")
+                        self.set_led(m.comRotator1_l, self.LED_NA)
+                        m.telRotator1_l.setStyleSheet(f"color: {self.LED_NA};")
+                    for con, led, name in leds:
+                        color = self.LED_ON if con and self.tel_alpaca_con else self.LED_OFF
+                        self.set_led(led, color)
+                        name.setStyleSheet(f"color: {color};")
 
-                    if self.mount_con and self.tel_alpaca_con:
-                        self.set_led(self.mntGui.mntConn2_l, "rgb(0,150,0)")
-                        self.mntGui.mntConn1_l.setStyleSheet("color: rgb(0,150,0);")
-                    else:
-                        self.set_led(self.mntGui.mntConn2_l, "rgb(150,0,0)")
-                        self.mntGui.mntConn1_l.setStyleSheet("color: rgb(150,0,0);")
-
-                    if self.dome_con and self.tel_alpaca_con:
-                        self.set_led(self.mntGui.domeConn2_l, "rgb(0,150,0)")
-                        self.mntGui.domeConn1_l.setStyleSheet("color: rgb(0,150,0);")
-                    else:
-                        self.set_led(self.mntGui.domeConn2_l, "rgb(150,0,0)")
-                        self.mntGui.domeConn1_l.setStyleSheet("color: rgb(150,0,0);")
-
-                    if self.fw_con and self.tel_alpaca_con:
-                        self.set_led(self.mntGui.comFilter_l, "rgb(0,150,0)")
-                        self.mntGui.telFilter_l.setStyleSheet("color: rgb(0,150,0);")
-                    else:
-                        self.set_led(self.mntGui.comFilter_l, "rgb(150,0,0)")
-                        self.mntGui.telFilter_l.setStyleSheet("color: rgb(150,0,0);")
-
-                    if self.focus_con and self.tel_alpaca_con:
-                        self.set_led(self.mntGui.focusConn_l, "rgb(0,150,0)")
-                        self.mntGui.telFocus_l.setStyleSheet("color: rgb(0,150,0);")
-                    else:
-                        self.set_led(self.mntGui.focusConn_l, "rgb(150,0,0)")
-                        self.mntGui.telFocus_l.setStyleSheet("color: rgb(150,0,0);")
-
-
-                    if self.inst_con and self.tel_alpaca_con:
-                        pass
+                    # kamera: kolor tytulu jej zakladki w oknie instrumentu
+                    color = self.LED_ON if self.inst_con and self.tel_alpaca_con else self.LED_OFF
+                    self.instGui.set_connected(self.instGui.ccd_tab, color)
 
             except Exception as e:
                 logger.warning(f'EXCEPTION 2: {e}')
@@ -4104,13 +4099,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     def update_oca(self):
         self.obsGui.main_form.update_table()
 
+    # dioda stanu: znak ● w kolorze stanu
+    LED_ON, LED_OFF, LED_NA = "#009600", "#960000", "#bebebe"   # hex: dziala i w stylesheet, i w QColor
+
     def set_led(self, widget, color):
-        widget.setText("")
-        widget.setFixedSize(14, 14)
-        widget.setStyleSheet(f"""
-            background-color: {color};
-            border-radius: 7px;
-        """)
+        widget.setText("\u25CF")
+        widget.setStyleSheet(f"color: {color}; font-size: 14pt;")
 
 
     def reset_ob(self,tel):
