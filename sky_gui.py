@@ -9,13 +9,12 @@ from PyQtX.QtCore import Qt
 from PyQtX import QtGui
 from PyQtX.QtGui import QFont
 from PyQtX.QtWidgets import QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
-    QVBoxLayout, QTabWidget
+    QVBoxLayout
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from pyaraucaria.coordinates import *
 from toi_lib import *
 from base_window import BaseWindow
-from optics_view import SchematicView
 
 
 
@@ -64,13 +63,7 @@ class SkyGui(BaseWindow):
 
             w = 1
             self.skyView = SkyView(self.parent)
-            self.views = QTabWidget()
-            self.views.setDocumentMode(True)  # no frame, no margins: the radar keeps its size
-            self.views.addTab(self.skyView, "Sky")
-            self.optics_view = SchematicView(self.parent.optics_model)
-            self.optics_tab = self.views.addTab(self.optics_view, "Optical path")
-            self.views.setTabVisible(self.optics_tab, self.parent.optics_model.graph is not None)  # rebuilt on telescope switch
-            self.layout.addWidget(self.views, w, 0, 1, 3)
+            self.layout.addWidget(self.skyView, w, 0, 1, 3)
             w = 2
             self.exit_p = QPushButton('EXIT')
             self.exit_p.clicked.connect(lambda: self.parent.app.closeAllWindows())

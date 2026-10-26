@@ -55,6 +55,8 @@ class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidg
 
 
           self.layout.addWidget(self.tab,0,0)
+          self.tab.currentChanged.connect(self.instrument_changed)
+          self.instrument_changed()
 
           if self.parent.cfg_inst_temp != None:
               self.ccd_tab.inst_setTemp_e.setText(str(self.parent.cfg_inst_temp))
@@ -67,6 +69,11 @@ class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidg
           self.parent.telescope_switch_status["instGui"] = True
 
 
+      def instrument_changed(self):
+          # zakladka Calibration w oknie aux idzie za wybranym tu instrumentem
+          page = self.tab.currentWidget()
+          self.parent.auxGui.set_instrument(page.calibration, self.tab.tabText(self.tab.currentIndex()))
+
       async def on_start_app(self):
           await self.run_background_tasks()
 
@@ -78,6 +85,8 @@ class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidg
 
 
 class BesoGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+    calibration = "spectrograph"    # strona zakladki Calibration w aux_gui
+
     def __init__(self, parent, loop: QEventLoop = None, client_api=None):
         BaseWindow.__init__(self)
         BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
@@ -117,6 +126,8 @@ class BesoGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
 class AndorGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+      calibration = "camera"    # strona zakladki Calibration w aux_gui
+
       def __init__(self, parent, loop: QEventLoop = None, client_api=None):
           BaseWindow.__init__(self)
           BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)

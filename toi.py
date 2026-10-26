@@ -55,10 +55,7 @@ from obs_gui import ObsGui, CzuwakWindow
 from optics_model import OpticsModel
 from plan_gui import PlanGui
 from fits_gui import FitsWindow
-from focus_gui import FocusWindow
-from flat_gui import FlatWindow
-from guider_gui import GuiderWindow
-from planrunner_gui import PlanrunnerWindow
+from aux_gui import AuxWindow
 from conditions_gui import ConditionsWindow
 
 from toi_lib import *
@@ -112,19 +109,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mntGui = MntGui(self, loop=self.loop, client_api=self.client_api)
 
         self.skyGui = SkyGui(self)
+        # przed instGui: zakladka instrumentu przelacza zakladke Calibration w aux
+        self.auxGui = AuxWindow(self)
+        self.focusGui = self.auxGui.focus
+        self.flatGui = self.auxGui.calibration.camera
+        self.guiderGui = self.auxGui.guider
+        self.planrunnerGui = self.auxGui.planrunner
 
         self.instGui = InstrumentGui(self, loop=self.loop, client_api=self.client_api)
         self.planGui = PlanGui(self, loop=self.loop, client_api=self.client_api)
         self.fitsGui = FitsWindow(self)
-        self.focusGui = FocusWindow(self)
-        self.flatGui = FlatWindow(self)
         self.conditionsGui = ConditionsWindow(self)
-        self.guiderGui = GuiderWindow(self)
-        self.planrunnerGui = PlanrunnerWindow(self)
         self.czuwakGui = CzuwakWindow()
-
-
-        #self.auxGui = AuxGui(self)
 
         self.add_background_task(self.tic_con_loop())
         self.add_background_task(self.almanac_loop())
@@ -717,9 +713,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.skyGui.updateUI()
             self.planGui.updateUI()
             #self.instGui.updateUI()
-            self.planrunnerGui.updateUI()
-            self.flatGui.updateUI()
-            self.focusGui.updateUI()
+            self.auxGui.updateUI()
             self.fitsGui.updateUI()
 
             self.update_focus_log_window()
@@ -1373,7 +1367,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 if self.telescope is not None:  # if telescope is selected, other component (e.g. dome ...) also. So no check
                         #guider_loop = int(self.auxGui.guider_tab.guiderView.guiderLoop_e.text())
-                        method = self.guiderGui.guiderView.method_s.currentText()
+                        method = self.guiderGui.method_s.currentText()
 
                         # guider robi sie w petli, co guider_loop robi sie ekspozycja
                         self.tmp_i = self.tmp_i + 1
@@ -1382,8 +1376,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                         # tu sie robie ekspozycja
                         if self.tmp_i == 1:
-                            exp = float(self.guiderGui.guiderView.guiderExp_e.text())
-                            if self.guiderGui.guiderView.guiderCameraOn_c.isChecked():
+                            exp = float(self.guiderGui.guiderExp_e.text())
+                            if self.guiderGui.guiderCameraOn_c.isChecked():
                                 try:
                                     await self.guider.aput_startexposure(exp, True)
                                 except Exception:
@@ -1392,17 +1386,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         # ######## Analiza obrazu guider
                         # poniewaz nie wiem ile sie czyta kamera, to analiza robi sie tuz przed nastepna ekspozycja
                         # nie ma na razie zabezpieczenia ze petla trwa krocej niz ekspozycja
-                        if self.tmp_i == 0 and self.guiderGui.guiderView.guiderCameraOn_c.isChecked():
+                        if self.tmp_i == 0 and self.guiderGui.guiderCameraOn_c.isChecked():
                             self.guider_image = await self.guider.aget_imagearray()
                             if self.guider_image:
                                 image = self.guider_image
                                 image = numpy.asarray(image)
-                                self.guiderGui.guiderView.updateImage(image)  # wyswietla sie obrazek
+                                self.guiderGui.updateImage(image)  # wyswietla sie obrazek
 
                                 # tu licza sie podstawowe statystyki obrazka, potrzebne do dalszej analizy
                                 stats = FFS(image)
-                                th = float(self.guiderGui.guiderView.treshold_s.value())
-                                fwhm = float(self.guiderGui.guiderView.fwhm_s.value())
+                                th = float(self.guiderGui.treshold_s.value())
+                                fwhm = float(self.guiderGui.fwhm_s.value())
 
                                 # a tutaj znajdujemy gwiazdy, ale dla guidera to wychopdzi ledwo co...
                                 coo, adu = stats.find_stars(threshold=th, kernel_size=int(2 * fwhm), fwhm=fwhm)
@@ -1432,7 +1426,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 if len(coo) > 1:
                                     x_tmp, y_tmp = zip(*coo)
                                     # zaznaczamy 10 gwiazd na obrazku
-                                    self.guiderGui.guiderView.updateCoo(x_tmp, y_tmp, color="white")
+                                    self.guiderGui.updateCoo(x_tmp, y_tmp, color="white")
 
                                 dx_multiStars, dy_multiStars = None, None
                                 dx_single, dy_single = None, None
@@ -1545,10 +1539,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         dx = dx_multiStars
                                         dy = dy_multiStars
                                         txt = f"multistar\n dx={dx} dy={dy}"
-                                        self.guiderGui.guiderView.updateCoo(x_matched, y_matched, color="cyan")
+                                        self.guiderGui.updateCoo(x_matched, y_matched, color="cyan")
                                     else:
                                         txt = "multistar failed"
-                                    self.guiderGui.guiderView.result_e.setText(txt)
+                                    self.guiderGui.result_e.setText(txt)
 
                                 # jak wybralismy metode Singlestar
                                 elif method == "Single star":
@@ -1556,10 +1550,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         dx = dx_single
                                         dy = dy_single
                                         txt = f"single star\n dx={dx} dy={dy}"
-                                        self.guiderGui.guiderView.updateCoo([single_x], [single_y], color="magenta")
+                                        self.guiderGui.updateCoo([single_x], [single_y], color="magenta")
                                     else:
                                         txt = "single star failed"
-                                    self.guiderGui.guiderView.result_e.setText(txt)
+                                    self.guiderGui.result_e.setText(txt)
 
                                 # jak wybralismy Auto, to najpierw stara sie multistar a
                                 # jak sie nie uda to single star
@@ -1568,15 +1562,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         dx = dx_multiStars
                                         dy = dy_multiStars
                                         txt = f"Auto (multistar)\n dx={dx} dy={dy}"
-                                        self.guiderGui.guiderView.updateCoo(x_matched, y_matched, color="cyan")
+                                        self.guiderGui.updateCoo(x_matched, y_matched, color="cyan")
                                     elif dx_single != None:
                                         dx = dx_single
                                         dy = dy_single
                                         txt = f"Auto (single star)\n dx={dx} dy={dy}"
-                                        self.guiderGui.guiderView.updateCoo([single_x], [single_y], color="magenta")
+                                        self.guiderGui.updateCoo([single_x], [single_y], color="magenta")
                                     else:
                                         txt = "auto failed"
-                                    self.guiderGui.guiderView.result_e.setText(txt)
+                                    self.guiderGui.result_e.setText(txt)
 
                                 # tutaj jest lista ostatnich 20 pomiarow, sluzaca
                                 # do liczenia kumulatywnego przesuniecia
@@ -1589,7 +1583,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     self.guider_passive_dx = self.guider_passive_dx[1:]
                                     self.guider_passive_dy = self.guider_passive_dy[1:]
 
-                                self.guiderGui.guiderView.update_plot(self.guider_passive_dx, self.guider_passive_dy)
+                                self.guiderGui.update_plot(self.guider_passive_dx, self.guider_passive_dy)
 
                                 # aktualny obrazek staje sie referencyjnym, chyba ze nie udalo znalez sie przesuniecia
                                 # wtedy 1 raz tego nie robi (steruje tym guider_failed)
@@ -2447,7 +2441,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if "fwhm" in self.nats_focus_status.keys():             # to w zasadzie teraz nie dziala
                     self.focusGui.fwhm = self.nats_focus_status["fwhm"]
 
-            self.focusGui.update()
+            self.focusGui.redraw()
         except Exception as e:
             logger.warning(f'EXCEPTION 45: {e}')
 
@@ -4021,7 +4015,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # STAGE 2
     # to nie bedzie na razie obslugiwane
     def GuiderPassiveOnOff(self):
-        if self.guiderGui.guiderView.guiderCameraOn_c.isChecked():
+        if self.guiderGui.guiderCameraOn_c.isChecked():
             self.guider_failed = 1
             self.guider_passive_dx = []
             self.guider_passive_dy = []

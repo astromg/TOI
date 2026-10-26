@@ -1,6 +1,6 @@
 """The optical path of the active telescope, as the ``optics`` service (ocabox-tcs) publishes it.
 
-One model per TOI, subscribed once per telescope; the instrument panels and the sky window's
+One model per TOI, subscribed once per telescope; the instrument panels and the Aux window's
 "Optical path" tab draw from it. It holds only what the service says — the graph from the
 published telescope config, the state axes (``self.selectors``: selectors and sources, with
 causes and declarations), what every detector sees, the verdicts of the detectors' functions and

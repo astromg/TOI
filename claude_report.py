@@ -32,7 +32,7 @@ _TOI_ATTRS = ["active_tel", "tel_acces", "tel_users", "telescope_switch_status",
               "ut", "current_i", "next_i", "ob_progress", "nats_ob_progress", "report",
               "nats_focus_record", "nats_focus_reference", "program_id"]
 
-_GUI_ATTRS = ["obsGui", "mntGui", "instGui", "planGui", "skyGui", "fitsGui", "focusGui", "flatGui",
+_GUI_ATTRS = ["obsGui", "mntGui", "instGui", "planGui", "skyGui", "fitsGui", "auxGui", "focusGui", "flatGui",
               "conditionsGui", "guiderGui", "planrunnerGui"]
 
 
