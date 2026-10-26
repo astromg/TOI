@@ -951,6 +951,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 self.obsGui.main_form.date_e.setText(str(self.date))
                 self.obsGui.main_form.ut_e.setText(str(ut))
+                # tlo UT wg Slonca: dzien zolty, zmierzch (1..-18 deg) bladoniebieski, noc szary
+                sun_alt = deg_to_decimal_deg(self.almanac["sun_alt"])
+                if sun_alt > 1:
+                    ut_color = "rgb(255, 230, 120)"
+                elif sun_alt > -18:
+                    ut_color = "rgb(190, 220, 255)"
+                else:
+                    ut_color = "rgb(233, 233, 233)"
+                self.obsGui.main_form.ut_e.setStyleSheet(f"background-color: {ut_color};")
                 if self.skyGui.skyView:
                     self.skyGui.skyView.updateAlmanac()
                 #self.obsGui.main_form.skyView.updateAlmanac()
@@ -4012,6 +4021,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 return float(default)
         return _limit("wind_limit", self.cfg_wind_limit), _limit("wind_limit_pointing", self.cfg_wind_limit_pointing)
 
+    # pole wiatru w oknie obserwacji: kolor wg tego, dla ilu teleskopow wiatr przekroczyl prog `which`
+    # (0 observation_stop, 1 pointing): jeden - zolty, kilka - pomaranczowy, wszystkie - czerwony
+    def wind_field_style(self, field, which, hint):
+        tels = self.local_cfg["toi"]["telescopes"]
+        wind = float(self.telemetry_wind)
+        limits = {t: self.wind_limits(t)[which] for t in tels}
+        over = [t for t in tels if wind > limits[t]]
+        if not over:
+            color = "rgb(235,235,235)"
+        elif len(over) == len(tels):
+            color = "red"
+        elif len(over) == 1:
+            color = "rgb(255, 220, 0)"
+        else:
+            color = "rgb(255, 140, 0)"
+        field.setStyleSheet(f"color: black; background-color: {color};")
+        tip = hint + "\n\nLimits [m/s]: " + ", ".join(f"{t} {limits[t]:g}" for t in tels)
+        tip += f"\nExceeded now: {', '.join(over)}" if over else "\nExceeded now: none"
+        field.setToolTip(tip)
+
     def updateWeather(self):
         try:
             self.obsGui.main_form.wind_e.setText(f"{self.telemetry_wind:.1f} [m/s]")
@@ -4024,15 +4053,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.obsGui.main_form.hummidity_e.setText(f"{self.telemetry_humidity:.0f} [%]")
             #self.obsGui.main_form.pressure_e.setText(f"{self.telemetry_pressure:.1f} [hPa]")
 
-            if float(self.telemetry_wind) > float(self.cfg_wind_limit):
-                self.obsGui.main_form.wind_e.setStyleSheet("color: rgb(0, 0, 0); background-color: red;")
-                self.obsGui.main_form.windDir_e.setStyleSheet("color: black; background-color: red;")
-            elif float(self.telemetry_wind) > float(self.cfg_wind_limit_pointing):
-                self.obsGui.main_form.wind_e.setStyleSheet("color: rgb(0, 0, 0); background-color: rgb(255, 140, 0);")
-                self.obsGui.main_form.windDir_e.setStyleSheet("color: rgb(0, 0, 0); background-color: rgb(255, 140, 0);")
-            else:
-                self.obsGui.main_form.wind_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
-                self.obsGui.main_form.windDir_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
+            # Wind: przerwanie obserwacji (observation_stop), Direction: zakaz celowania pod wiatr (pointing)
+            self.wind_field_style(self.obsGui.main_form.wind_e, 0,
+                                  "Wind speed from the weather station.\n"
+                                  "Background: telescopes above their observation stop limit -\n"
+                                  "yellow one, orange several, red all.")
+            self.wind_field_style(self.obsGui.main_form.windDir_e, 1,
+                                  "Wind direction from the weather station (where the wind comes from).\n"
+                                  "Background: telescopes above their pointing limit, i.e. not allowed to point\n"
+                                  "into the wind (dome within ±30° of it) - yellow one, orange several, red all.")
 
             if rain or float(self.telemetry_humidity)> float(self.cfg_humidity_limit):
                 self.obsGui.main_form.hummidity_e.setStyleSheet("color: rgb(0, 0, 0); background-color: red;")

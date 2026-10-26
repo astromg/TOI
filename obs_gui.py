@@ -314,6 +314,33 @@ class MainForm(QWidget):
         self.report_window.show()
 
     # =================== OKNO GLOWNE ====================================
+    def set_hints(self):
+        # okienka z wyjasnieniem po najechaniu na pole; Wind/Direction dopisuja limity w TOI.wind_field_style
+        hints = {
+            "ticStatus2": "Connection to TIC (the telescope server), checked every 3 s.\n"
+                          "Green: TIC answers. Red: no answer.",
+            "natsStatus": "TOI's own connection to NATS (the message bus), checked every second.\n"
+                          "Green: connected. Orange: reconnecting. Red: disconnected.",
+            "temp": "Outside air temperature from the weather station.\nRed: below -1 °C.",
+            "hummidity": f"Relative humidity from the weather station.\n"
+                         f"Red: above {self.parent.cfg_humidity_limit} % or rain (RAIN).",
+            "wind": "Wind speed from the weather station.",
+            "windDir": "Wind direction from the weather station (where the wind comes from).",
+            "fwhm": "Seeing (FWHM) - not available yet.",
+            "zeropoint": "Photometric zero point - not available yet.",
+            "clouds": "Cloud cover - not available yet.",
+            "date": "UT date.",
+            "ut": "Universal Time.\nBackground: yellow - Sun above 1°; pale blue - twilight "
+                  "(Sun between 1° and -18°); grey - night (Sun below -18°).",
+            "ojd": "Julian Date.",
+            "sid": "Local sidereal time.",
+        }
+        for name, txt in hints.items():
+            for suffix in ("_l", "_e"):
+                widget = getattr(self, name + suffix, None)
+                if widget is not None:
+                    widget.setToolTip(txt)
+
     def mkUI(self):
 
         grid = QGridLayout()
@@ -358,12 +385,6 @@ class MainForm(QWidget):
         self.windDir_e.setReadOnly(True)
         self.windDir_e.setStyleSheet("background-color: rgb(235,235,235);")
 
-        # u gory warunki (w przyszlosci tez FWHM, clouds, zero point); czas jest obok logu, na dole
-        grid.addWidget(self.wind_l, w, 0)
-        grid.addWidget(self.wind_e, w, 1)
-
-        grid.addWidget(self.windDir_l, w, 2)
-        grid.addWidget(self.windDir_e, w, 3)
 
         self.ojd_l = QLabel("JD:")
         self.ojd_l.setAlignment(Qt.AlignCenter)
@@ -393,11 +414,32 @@ class MainForm(QWidget):
         self.hummidity_e.setReadOnly(True)
         self.hummidity_e.setStyleSheet("background-color: rgb(235,235,235);")
 
-        grid.addWidget(self.temp_l, w, 4)
-        grid.addWidget(self.temp_e, w, 5)
+        # na gorze warunki; czas (Date, UT, JD, SID) jest na dole obok logu
+        grid.addWidget(self.temp_l, w, 0)
+        grid.addWidget(self.temp_e, w, 1)
 
-        grid.addWidget(self.hummidity_l, w, 6)
-        grid.addWidget(self.hummidity_e, w, 7)
+        grid.addWidget(self.hummidity_l, w, 2)
+        grid.addWidget(self.hummidity_e, w, 3)
+
+        grid.addWidget(self.wind_l, w, 4)
+        grid.addWidget(self.wind_e, w, 5)
+
+        grid.addWidget(self.windDir_l, w, 6)
+        grid.addWidget(self.windDir_e, w, 7)
+
+        # na przyszlosc: jakosc nieba - na razie puste
+        w = w + 1
+        for col, (name, txt) in enumerate((("fwhm", "FWHM:"), ("zeropoint", "Zero point:"), ("clouds", "Clouds:"))):
+            label = QLabel(txt)
+            label.setAlignment(Qt.AlignCenter)
+            field = QLineEdit("--")
+            field.setAlignment(Qt.AlignCenter)
+            field.setReadOnly(True)
+            field.setStyleSheet("background-color: rgb(235,235,235);")
+            setattr(self, f"{name}_l", label)
+            setattr(self, f"{name}_e", field)
+            grid.addWidget(label, w, 2 * col)
+            grid.addWidget(field, w, 2 * col + 1)
 
         # w = w + 1
         # self.pressure_l = QLabel("Pressure:")
@@ -436,19 +478,26 @@ class MainForm(QWidget):
         self.msg_e = QTextEdit()
         self.msg_e.setReadOnly(True)
         self.msg_e.setStyleSheet("background-color: rgb(235,235,235);")
-        grid.addWidget(self.msg_e, w, 0, 4, 5)
+        grid.addWidget(self.msg_e, w, 0, 3, 4)
 
-        # czas obok logu, w miejscu po przyciskach okien
-        for label, field in ((self.date_l, self.date_e), (self.ut_l, self.ut_e),
-                             (self.ojd_l, self.ojd_e), (self.sid_l, self.sid_e)):
-            grid.addWidget(label, w, 5)
-            grid.addWidget(field, w, 6, 1, 2)
-            w = w + 1
+        # czas obok logu, w miejscu po przyciskach okien - uklad jak dawniej na gorze
+        grid.addWidget(self.date_l, w, 4)
+        grid.addWidget(self.date_e, w, 5)
+        grid.addWidget(self.ut_l, w, 6)
+        grid.addWidget(self.ut_e, w, 7)
+        grid.addWidget(self.ojd_l, w + 1, 4)
+        grid.addWidget(self.ojd_e, w + 1, 5)
+        grid.addWidget(self.sid_l, w + 1, 6)
+        grid.addWidget(self.sid_e, w + 1, 7)
+
+        w = w + 3
 
         self.line_l = QFrame()
         self.line_l.setFrameShape(QFrame.HLine)
         self.line_l.setFrameShadow(QFrame.Raised)
         grid.addWidget(self.line_l, w, 0, 1, 8)
+
+        self.set_hints()
 
         w = w + 1
 
