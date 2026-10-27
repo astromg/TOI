@@ -31,7 +31,7 @@ $ ./toi.py
 - Zakladki Aux przelaczaja sie same: zmiana portu M3 -> Optical path, start OB SKYFLAT/DOMEFLAT -> Calibration,
   start OB FOCUS -> Focus.
 - Lampki u gory okna obserwacji: TIC, NATS, DOME FLW (heartbeat dome followera), FITS DWL i OFP (RPC alive
-  oca-fits-proc), FLAT OW i WEATHER OW (szare, dopoki overwatche nie wysylaja heartbeatu).
+  oca-fits-proc), FLAT OW i WEATHER OW (RPC alive overwatchy `rpc.overwatch.oca.<nazwa>.alive`).
 
 ## OBSERWATORZY NOCY
 - Lista osob w `observers.yaml` (katalog glowny repo) - tu dopisujemy stalych obserwatorow (samo nazwisko albo
@@ -48,7 +48,7 @@ $ ./toi.py
 - per teleskop: `focus_step` (domyslny krok autofocusa, zamiast `default_step` z TIC), `focus_method`,
   `focus_methods` (nazwy z `pyaraucaria.focus`),
 - `toi.oca_manual_url` - manual w intranecie dla zakladki Telescope (`http://docker.oca.lan:8081`),
-- `toi.heartbeat_subjects` - subjecty heartbeatow overwatchy (puste = lampka szara).
+- `toi.alive_subjects` - subjecty RPC alive overwatchy (puste = lampka szara).
 - Konfiguracji TIC (ocabox-config-ocm) TOI tylko czyta; domyslny gain / read mode bierze z `flags: ['default']`.
 
 

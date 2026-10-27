@@ -6,7 +6,7 @@ setup, ⚙ menu brings any panel up and resets the layout. Panel titles show the
 <br>
 New Aux tabs: Telescope (OCA manual page) and Tasks (for observers, empty for now).
 <br>
-Status lamps: NATS, dome follower, FITS downloader, OFP (overwatches to come). Rotator: mechanical and EQ angle,
+Status lamps: NATS, dome follower, FITS downloader, OFP, flat and weather overwatch (alive RPC, needs updated oca_overwatch). Rotator: mechanical and EQ angle,
 SET moves the mechanical angle (limits ±160°). Gain / read mode defaults from the TIC config. Python 3.14 allowed.
 <br>
 Observers of the night: a window asks once a day who observes (list in observers.yaml, previous night pre-checked),

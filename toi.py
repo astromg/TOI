@@ -129,12 +129,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.service_lamps_loop())
         self.add_background_task(self.nats_observers_reader())
         self.add_background_task(self.observers_check_loop())
-        # heartbeaty serwisow spoza ocabox-tcs (overwatche); subject pusty -> lampka szara
-        self.heartbeat_subjects = self.local_cfg["toi"].get("heartbeat_subjects") or {}
-        self.heartbeat_seen = {name: None for name in self.heartbeat_subjects}
-        for name, subject in self.heartbeat_subjects.items():
-            if subject:
-                self.add_background_task(self.heartbeat_reader(name, subject))
+        # alive RPC serwisow spoza ocabox-tcs (overwatche); subject pusty -> lampka szara
+        self.alive_subjects = self.local_cfg["toi"].get("alive_subjects") or {}
         self.add_background_task(self.almanac_loop())
         self.add_background_task(self.alpaca_con_loop())
         self.add_background_task(self.tel_con_loop())
@@ -521,7 +517,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await asyncio.sleep(1)
 
     # ---- lampki serwisow aktywnego teleskopu: dome follower (heartbeat ocabox-tcs co 10 s),
-    # downloader i pipeline ofp (RPC tic.rpc.<tel>.<serwis>.alive -> {"status": "ok"}), tak samo jak GUI TEXT
+    # downloader i pipeline ofp (RPC tic.rpc.<tel>.<serwis>.alive -> {"status": "ok"}), tak samo jak GUI TEXT;
+    # overwatche tak samo jak ofp (toi.alive_subjects), nie zaleza od teleskopu
     SERVICE_STALE = 30      # s bez heartbeatu = dome follower nie dziala
 
     async def dome_follower_heartbeat_reader(self):
@@ -534,16 +531,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             raise
         except Exception as e:
             logger.warning(f'EXCEPTION 110c: {e}')
-
-    async def heartbeat_reader(self, name, subject):
-        try:
-            r = get_reader(subject, deliver_policy='new')
-            async for data, meta in r:
-                self.heartbeat_seen[name] = time.time()
-        except (asyncio.CancelledError, asyncio.TimeoutError):
-            raise
-        except Exception as e:
-            logger.warning(f'EXCEPTION 110d ({name}): {e}')
 
     def heartbeat_color(self, seen, since, green="green", red="red", grey="rgb(190,190,190)"):
         now = time.time()
@@ -559,8 +546,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             subject = self.client_cfg["site"]["global"]["nats"]["subjects"]["rpc"][f"{service}_alive"]
         except (KeyError, TypeError):
             subject = "tic.rpc.{telescope}." + service + ".alive"
+        return await self.rpc_alive(subject.format(telescope=tel))
+
+    async def rpc_alive(self, subject):
         try:
-            data, meta = await request(subject.format(telescope=tel), timeout=3)
+            data, meta = await request(subject, timeout=3)
             return data.get("status") == "ok"
         except Exception:       # brak odpowiedzi, timeout, brak responderow
             return False
@@ -574,15 +564,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     f = self.obsGui.main_form
                     color = self.heartbeat_color(self.dome_follower_seen, self.services_since)
                     f.followerStatus_l.setStyleSheet(f"color: {color};")
-                    # overwatche nie zaleza od teleskopu
-                    for name, lamp in (("flat_overwatch", f.flatOwStatus_l), ("weather_overwatch", f.weatherOwStatus_l)):
-                        if self.heartbeat_subjects.get(name):
-                            color = self.heartbeat_color(self.heartbeat_seen.get(name), self.started)
-                        else:
-                            color = grey
+                    overwatches = (("flat_overwatch", f.flatOwStatus_l), ("weather_overwatch", f.weatherOwStatus_l))
+                    download, pipeline, *alive = await asyncio.gather(
+                        self.ofp_alive(tel, "download"), self.ofp_alive(tel, "pipeline"),
+                        *(self.rpc_alive(self.alive_subjects[name]) for name, _ in overwatches
+                          if self.alive_subjects.get(name)))
+                    for name, lamp in overwatches:
+                        color = (green if alive.pop(0) else red) if self.alive_subjects.get(name) else grey
                         lamp.setStyleSheet(f"color: {color};")
-                    download, pipeline = await asyncio.gather(self.ofp_alive(tel, "download"),
-                                                              self.ofp_alive(tel, "pipeline"))
                     if tel == self.active_tel:
                         f.downloaderStatus_l.setStyleSheet(f"color: {green if download else red};")
                         f.ofpStatus_l.setStyleSheet(f"color: {green if pipeline else red};")
