@@ -92,6 +92,12 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def dock_panels(self):
         self._geometry = None       # rozmiar okna glownego ustawia uklad, nie obs_window_geometry
+        # panele wyraznie rozdzielone: pasek tytulu z tlem i grubsze, ciemniejsze linie podzialu
+        self.setStyleSheet("""
+            QMainWindow::separator { background: rgb(150, 150, 150); width: 5px; height: 5px; }
+            QMainWindow::separator:hover { background: rgb(100, 100, 100); }
+            QDockWidget::title { background: rgb(205, 210, 220); padding: 3px 6px; }
+        """)
         self.setDockOptions(QMainWindow.DockOption.AnimatedDocks | QMainWindow.DockOption.AllowTabbedDocks
                             | QMainWindow.DockOption.AllowNestedDocks)
         # prawa kolumna na cala wysokosc, Mount tylko pod oknem obserwacji
@@ -152,14 +158,29 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                          Qt.Orientation.Vertical)
         self.resizeDocks([d["skyGui"], d["instGui"]], [height // 2, height // 2], Qt.Orientation.Vertical)
         if floating:
-            for attr in ("fitsGui", "auxGui"):
-                x, y, w, h = o[attr]
-                d[attr].setFloating(True)
-                d[attr].setGeometry(avail.left() + x, avail.top() + y, w, min(h, avail.height() - y))
-                d[attr].show()
+            x, y, w, h = o["fitsGui"]
+            d["fitsGui"].setFloating(True)
+            d["fitsGui"].setGeometry(avail.left() + x, avail.top() + y, w, h)
+            d["fitsGui"].show()
+            d["auxGui"].setFloating(True)
+            d["auxGui"].show()
+            # Aux tuz pod ramka FITS (ramke znamy dopiero po pokazaniu okna) i do dolu okna glownego
+            QTimer.singleShot(100, self._place_aux)
+        else:
+            self._log_layout()
+
+    def _place_aux(self):
+        fits, aux = self.docks["fitsGui"], self.docks["auxGui"]
+        title = aux.frameGeometry().height() - aux.geometry().height()     # pasek tytulu okna
+        top = fits.frameGeometry().bottom() + 1 + title
+        bottom = self.frameGeometry().bottom() - (self.frameGeometry().bottom() - self.geometry().bottom())
+        aux.setGeometry(fits.geometry().left(), top, fits.geometry().width(), max(bottom - top, 300))
+        self._log_layout()
+
+    def _log_layout(self):
         logger.info('TOI layout: ' + ", ".join(
             f'{k} {"floating" if v.isFloating() else self.dockWidgetArea(v).name} {v.geometry().getRect()}'
-            for k, v in d.items()))
+            for k, v in self.docks.items()))
 
     def layout_key(self):
         # osobny uklad dla kazdego ustawienia ekranow (laptop sam / z monitorem / stanowisko)
