@@ -18,6 +18,9 @@ Zero point: the same for the photometric zero point (median of zero_monitor of a
 as oca_monitor; the Conditions plot lines moved to these values).
 <br>
 Calibration: age of the last master zero and master dark (flat_overwatch, from the pipeline journal) under the flats.
+<br>
+Plan: test=True set in the OB edit / add window did not reach the FITS header (the planrunner only reads 1/0);
+Test is now saved as 1 / 0.
 <br><br>
 --- 26.10.2026 --- <br>
 TPG: "Make SKYFLATS" adds evening and morning sky flats to the plan.

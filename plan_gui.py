@@ -1819,6 +1819,19 @@ class PlotWindow(BaseWindow):
 #              EDIT WINDOW
 # ########################################
 
+def ob_value(prop, val):
+    """Wartosc pola OB do bloku. Pola boolean ze schematu (dzis tylko test) jako 1/0: planrunner robi
+    int(kwargs["test"]) i kazdy blad po cichu zamienia na 0, wiec test=True dawalo w naglowku TEST=0.
+    Te same zapisy co ObsValidator.convert_types (true/1, false/0); reszte zostawiamy walidatorowi"""
+    if prop.get("type") == "boolean":
+        low = str(val).strip().lower()
+        if low in ("true", "1"):
+            return "1"
+        if low in ("false", "0"):
+            return "0"
+    return val
+
+
 class EditWindow(QWidget):
     def __init__(self, parent):
         super().__init__()
@@ -1887,7 +1900,7 @@ class EditWindow(QWidget):
 
             val = val_item.text().strip()
             if val != "":
-                data[key] = val
+                data[key] = ob_value(self.schema_prop(key), val)
 
         return data
 
@@ -1918,7 +1931,7 @@ class EditWindow(QWidget):
         prop = self.schema_prop(key)
         ex = prop.get("examples", [])
         if ex:
-            return str(ex[0])
+            return ob_value(prop, str(ex[0]))
         return ""
 
 
@@ -2202,7 +2215,7 @@ class AddWindow(QWidget):
 
             val = val_item.text().strip()
             if val != "":
-                data[key] = val
+                data[key] = ob_value(self.schema_prop(key), val)
 
         return data
 
@@ -2233,7 +2246,7 @@ class AddWindow(QWidget):
         prop = self.schema_prop(key)
         ex = prop.get("examples", [])
         if ex:
-            return str(ex[0])
+            return ob_value(prop, str(ex[0]))
         return ""
 
     def rebuild_table(self, command_name, values=None):
