@@ -29,7 +29,9 @@ used to stop the zero point plot); refreshed every 30 s while shown.
 <br>
 Plot Plan: each object's altitude over the whole night drawn faintly and its slot thick on it (short OBs were
 invisible), one colour per object (repeats keep it), standards dashed, names above only where they fit, the rest
-and details (start, length, altitude) on mouse hover.
+and details (start, length, altitude) on mouse hover. STOP / BELL / WAIT / ZERO labels at the same moment are joined
+("BELL · ZERO · BELL · WAIT sunrise=-10") instead of overlapping; ZERO, DARK and other blocks without coordinates are
+drawn as a grey bar (ZERO used to be invisible).
 <br>
 Plan: OB times (and so the altitudes) of a telescope that is not the active one in TOI were computed with the read
 mode of the active telescope's camera - zb08 got jk15's mode 3 (= 0.05 MHz on zb08), slots x10, objects pushed into

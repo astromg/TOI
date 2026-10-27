@@ -1659,6 +1659,7 @@ class PlotWindow(BaseWindow):
             colors = {}             # nazwa obiektu -> kolor
             self.segments = []      # (t0, t1, opis) slotow OB - dla podpowiedzi pod myszka
             labels = []             # (t, nazwa, kolor, fontsize) - podpisy nad wykresem
+            events = []             # (t, tekst) - STOP, BELL, WAIT, ZERO... - podpisy przy dolnej krawedzi
             x_span = (self.t_end - self.t0) + ephem.hour
             for i, tmp in enumerate(self.parent.plan):
 
@@ -1689,14 +1690,14 @@ class PlotWindow(BaseWindow):
                             txt = "STOP"
                             if "comment" in self.parent.plan[i]["ob"].keys():
                                 txt = txt + f' {self.parent.plan[i]["ob"]["comment"]}'
-                            self.axes.text(self.t,2,txt,rotation=90,fontsize=fontsize)
+                            events.append((self.t, txt))
                             self.axes.axvline(x=self.t, color="red",alpha=0.5)
 
                         elif self.parent.plan[i]["ob"]["command_name"] == "BELL":
                             txt = "BELL"
                             if "comment" in self.parent.plan[i]["ob"].keys():
                                 txt = txt + f' {self.parent.plan[i]["ob"]["comment"]}'
-                            self.axes.text(self.t,2,txt,rotation=90,fontsize=fontsize)
+                            events.append((self.t, txt))
                             self.axes.axvline(x=self.t, color="deepskyblue",alpha=0.5)
 
                         if "slotTime" in self.parent.plan[i]["meta"].keys():
@@ -1704,27 +1705,32 @@ class PlotWindow(BaseWindow):
 
                             if "sec" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
-                                self.axes.text(self.t, 3, f"WAIT sec={int(slotTime):.0f}s", rotation=90, fontsize=fontsize)
+                                events.append((self.t, f"WAIT sec={int(slotTime):.0f}s"))
 
                             elif "ut" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
-                                txt = f'WAIT ut={self.parent.plan[i]["ob"]["ut"]}'
-                                self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
+                                events.append((self.t, f'WAIT ut={self.parent.plan[i]["ob"]["ut"]}'))
 
                             elif "sunset" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
-                                txt = f'WAIT sunset={self.parent.plan[i]["ob"]["sunset"]}'
-                                self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
+                                events.append((self.t, f'WAIT sunset={self.parent.plan[i]["ob"]["sunset"]}'))
 
                             elif "sunrise" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
-                                txt = f'WAIT sunrise={self.parent.plan[i]["ob"]["sunrise"]}'
-                                self.axes.text(self.t, 3, txt, rotation=90, fontsize=fontsize)
+                                events.append((self.t, f'WAIT sunrise={self.parent.plan[i]["ob"]["sunrise"]}'))
 
 
                             else:
 
                                 fontsize = 7 if slotTime < 60 * 10 else 9
+
+                                if "ra" not in self.parent.plan[i]["ob"].keys() and slotTime > 0:
+                                    # ZERO, DARK... - zajmuja czas, a nie maja wspolrzednych: szary pasek
+                                    command = self.parent.plan[i]["ob"]["command_name"]
+                                    self.axes.fill_betweenx([0, 2], self.t, self.t + ephem.second * slotTime, color="grey", alpha=0.5)
+                                    events.append((self.t, command))
+                                    self.segments.append((self.t, self.t + ephem.second * slotTime,
+                                                          f"{command}\nstart {str(ephem.Date(self.t)).split()[1][:5]} UT, {slotTime / 60:.0f} min"))
 
                                 if "ra" in self.parent.plan[i]["ob"].keys():
                                     ra = self.parent.plan[i]["ob"]["ra"]
@@ -1748,6 +1754,16 @@ class PlotWindow(BaseWindow):
                                                           f"{slotTime / 60:.0f} min\nalt {alt_tab[0]:.0f}\u00b0 \u2192 {alt_tab[-1]:.0f}\u00b0"))
 
                             self.t = self.t + ephem.second * slotTime
+
+            # zdarzenia w tym samym miejscu (np. BELL, ZERO, BELL, WAIT rano - BELL i WAIT nie zajmuja czasu) jeden podpis
+            groups = []
+            for t, txt in events:
+                if groups and (t - groups[-1][0]) / x_span < self.LABEL_GAP:
+                    groups[-1][1].append(txt)
+                else:
+                    groups.append((t, [txt]))
+            for t, txts in groups:
+                self.axes.text(t, 3, " \u00b7 ".join(txts), rotation=90, fontsize=8)
 
             # podpisy nad wykresem tylko tam, gdzie sie mieszcza; reszta pod myszka
             last = None
