@@ -397,7 +397,10 @@ class MainForm(QWidget):
                 if self.parent.nats_toi_op_status[t].get(k).get("state") != self.parent.nats_toi_op_status[t].get(k).get("defoult"):
                     vent = True
                 k = "mirror_fans"
-                if self.parent.nats_toi_op_status[t].get(k).get("state") != self.parent.nats_toi_op_status[t].get(k).get("defoult"):
+                mirror = self.parent.mirror_fans_on(t)      # z TIC; bez swiezej wiadomosci - stan zapisany przez TOI
+                if mirror is None:
+                    mirror = self.parent.nats_toi_op_status[t].get(k).get("state") != self.parent.nats_toi_op_status[t].get(k).get("defoult")
+                if mirror:
                     vent = True
 
                 if vent:

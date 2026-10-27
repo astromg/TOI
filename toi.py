@@ -155,6 +155,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.add_background_task(self.nats_safety_reader(t))
 
             self.add_background_task(self.nats_ffs_reader(t))
+            self.add_background_task(self.nats_mirror_fans_reader(t))
             self.add_background_task(self.nats_photo_zo_reader(t))
 
             self.add_background_task(self.nats_journal_planner_reader(t))
@@ -381,6 +382,33 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 110b: {e}')
 
+
+    # wentylatory lustra kazdego teleskopu wprost z TIC - tabela teleskopow w oknie obserwacji. toi.status (stan
+    # zapisywany przez TOI) jest aktualny tylko, gdy jakies TOI ma ten teleskop aktywny z kontrola
+    MIRROR_FANS_STALE = 15 * 60     # s - starsza wiadomosc TIC = nie wiemy
+
+    async def nats_mirror_fans_reader(self, tel):
+        try:
+            r = get_reader(f'tic.status.{tel}.focuser.fansstatus', deliver_policy='last')
+            async for data, meta in r:
+                try:
+                    values = list((data.get("measurements") or {}).values())
+                    state = None if not values or values[0] is None else str(values[0]) == "True"
+                    old = self.mirror_fans.get(tel, (None, 0))[0]
+                    self.mirror_fans[tel] = (state, time.time())
+                    if state != old:
+                        self.obsGui.main_form.update_table()
+                except Exception as e:
+                    logger.warning(f'EXCEPTION 110f: bad mirror fans message: {e}')
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 110g: {e}')
+
+    def mirror_fans_on(self, tel):
+        """Wentylatory lustra z TIC; None - brak swiezej wiadomosci"""
+        state, t = self.mirror_fans.get(tel, (None, 0))
+        return state if time.time() - t < self.MIRROR_FANS_STALE else None
 
     # NATS Conditions reader
     async def nats_ffs_reader(self,tel):
@@ -893,7 +921,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.focus = self.telescope.get_focuser()
         self.m3 = self.telescope.get_tertiary()
         self.ccd = self.telescope.get_camera()
-        self.ccd_tel = self.active_tel      # do ktorego teleskopu nalezy self.ccd (readoutmode_tel)
+        # do ktorego teleskopu naleza self.ccd, self.dome, self.focus... - zdarzenia ich subskrypcji zapisujemy pod nim,
+        # nie pod active_tel (przy przelaczaniu active_tel zmienia sie, zanim subskrypcje starego teleskopu stana)
+        self.component_tel = self.active_tel
         self.guider = self.telescope.get_camera(id='guider')
         self.fw = self.telescope.get_filterwheel()
         if bool(self.cfg_showRotator):
@@ -3025,8 +3055,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def ccd_rm_update(self, event):
         self.ccd_readoutmode = await self.ccd.aget_readoutmode()
         if self.ccd_readoutmode is not None:
-            # ccd_tel, nie active_tel: przy przelaczaniu active_tel zmienia sie, zanim subskrypcja starej kamery stanie
-            self.readoutmode_tel[self.ccd_tel] = int(self.ccd_readoutmode)
+            self.readoutmode_tel[self.component_tel] = int(self.ccd_readoutmode)
         # READ MODES
 
         if self.ccd_readoutmode != None:
@@ -3709,13 +3738,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.dome_fanStatus = bool(r)
         self.mntGui.ventilators_c.setChecked(self.dome_fanStatus)
         txt = "ON" if self.dome_fanStatus else "OFF"
-        if self.tel_acces[self.active_tel]:
-            # publish state CHANGES, not deliveries (recovery re-delivers unchanged values)
-            if self.toi_op_status[self.active_tel]["dome_ventilators"]["state"] != self.dome_fanStatus:
-                self.toi_op_status[self.active_tel]["dome_ventilators"]["state"] = self.dome_fanStatus
-                await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
+        tel = self.component_tel
+        if self.tel_acces[tel]:
+            await self.publish_op_state(tel, "dome_ventilators", self.dome_fanStatus)
         self.mntGui.ventilators_e.setText(txt)
         self.mntGui.ventilators_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+
+    async def publish_op_state(self, tel, key, state):
+        """Stan urzadzenia w tic.status.<tel>.toi.status. Publikujemy, gdy obserwowany stan rozni sie od tego NA NATS
+        (porownanie z lokalna kopia, startujaca z domyslnych, zostawialo stary stan na zawsze - wk06 2026-10-27:
+        wentylatory "wlaczone" od 05:11, choc wylaczone od 05:49). Pozostale pola z wersji na NATS - nie nadpisujemy
+        stanow zapisanych przez inne TOI. Ponowne dostarczenie tej samej wartosci niczego nie wysyla."""
+        self.toi_op_status[tel][key]["state"] = state
+        on_nats = self.nats_toi_op_status.get(tel) or {}
+        if on_nats.get(key, {}).get("state") == state:
+            return
+        data = copy.deepcopy(on_nats) if on_nats else copy.deepcopy(self.toi_op_status[tel])
+        data[key] = copy.deepcopy(self.toi_op_status[tel][key])
+        self.nats_toi_op_status[tel] = data         # zanim wroci z NATS - kolejne zdarzenie nie wysle tego samego
+        await self.nats_pub_toi_status[tel].publish(data=data, timeout=10)
 
     # OTHER COMPONENTS
 
@@ -3724,9 +3765,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.update_log(f'mirror fans ON/OFF', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
            r = await self.focus.aget_fansstatus()
-           if r == "True": self.dome_fanStatus=True
-           else: self.dome_fanStatus=False
-           if self.dome_fanStatus:
+           self.mirror_fanStatus = (r == "True")
+           if self.mirror_fanStatus:
               await self.focus.aput_fansturnoff()
               await self.update_log(f'turning mirror fans OFF', "TOI RESPONDER", self.active_tel)
            else:
@@ -3743,13 +3783,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                self.mntGui.mirrorFans_e.setText("--")
                self.mntGui.mirrorFans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
                return
-           self.dome_fanStatus = (r == "True")
-           self.mntGui.mirrorFans_c.setChecked(self.dome_fanStatus)
-           txt = "FANS ON" if self.dome_fanStatus else "FANS OFF"
-           if self.tel_acces[self.active_tel]:
-               if self.toi_op_status[self.active_tel]["mirror_fans"]["state"] != self.dome_fanStatus:
-                   self.toi_op_status[self.active_tel]["mirror_fans"]["state"] = self.dome_fanStatus
-                   await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
+           self.mirror_fanStatus = (r == "True")
+           self.mntGui.mirrorFans_c.setChecked(self.mirror_fanStatus)
+           txt = "FANS ON" if self.mirror_fanStatus else "FANS OFF"
+           tel = self.component_tel
+           if self.tel_acces[tel]:
+               await self.publish_op_state(tel, "mirror_fans", self.mirror_fanStatus)
            self.mntGui.mirrorFans_e.setText(txt)
            self.mntGui.mirrorFans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
 
@@ -4646,6 +4685,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.fits_ffs_data = {t:[] for t in self.local_cfg["toi"]["telescopes"]}
         self.readoutmode_tel = {}       # tel -> tryb odczytu kamery (READ-MOD z faststat, aktywny z kamery)
+        self.mirror_fans = {}           # tel -> (wentylatory lustra z TIC, time.time() wiadomosci)
+        self.mirror_fanStatus = False
         self.conditions = {}        # rodzaj -> ostatnia wiadomosc z toi.conditions_subjects
         self.fits_photo_z0_data = {t:[] for t in self.local_cfg["toi"]["telescopes"]}
 
