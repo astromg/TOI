@@ -4,7 +4,7 @@ import logging
 import os.path
 import qasync as qs
 from PyQtX import QtCore, QtGui
-from PyQtX.QtCore import Qt, QSettings
+from PyQtX.QtCore import Qt, QSettings, QTimer
 from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
     QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox, QMenu, QDockWidget, QApplication
 from pyaraucaria.coordinates import *
@@ -110,6 +110,12 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def default_layout(self):
         d = self.docks
+        main = QApplication.primaryScreen()
+        avail = main.availableGeometry()
+        others = [sc for sc in QApplication.screens() if sc is not main]
+        logger.info(f'TOI layout: screens {[(sc.name(), sc.geometry().getRect()) for sc in QApplication.screens()]}, '
+                    f'primary {main.name()}')
+        self.setGeometry(avail)         # najpierw okno, potem panele - inaczej nadwyzke bierze srodek
         for dock in d.values():
             self.removeDockWidget(dock)
             dock.setFloating(False)
@@ -118,26 +124,34 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.addDockWidget(right, d["skyGui"])
         self.splitDockWidget(d["skyGui"], d["planGui"], Qt.Orientation.Horizontal)
         self.splitDockWidget(d["skyGui"], d["instGui"], Qt.Orientation.Vertical)
-        main = QApplication.primaryScreen()
-        others = [sc for sc in QApplication.screens() if sc is not main]
-        if others:
-            # drugi monitor: FITS nad Aux, jak dawniej
-            g = others[0].availableGeometry()
-            for attr, top, height in (("fitsGui", g.top(), g.height() * 3 // 5),
-                                      ("auxGui", g.top() + g.height() * 3 // 5, g.height() * 2 // 5)):
-                self.addDockWidget(right, d[attr])
-                d[attr].setFloating(True)
-                d[attr].setGeometry(g.left(), top, g.width() // 2, height)
-        else:
+        if not others:
             # jeden ekran: FITS i Aux jako zakladki obok radaru
             self.tabifyDockWidget(d["skyGui"], d["fitsGui"])
             self.tabifyDockWidget(d["skyGui"], d["auxGui"])
         for dock in d.values():
             dock.show()
         d["skyGui"].raise_()
-        self.resizeDocks([d["skyGui"], d["planGui"]], [500, 490], Qt.Orientation.Horizontal)
-        self.resizeDocks([d["mntGui"]], [450], Qt.Orientation.Vertical)
-        self.setGeometry(main.availableGeometry())
+        # rozmiary dopiero po rozlozeniu okna (resizeDocks wczesniej nie dziala)
+        QTimer.singleShot(0, lambda: self._size_default_layout(avail, others))
+
+    def _size_default_layout(self, avail, others):
+        d = self.docks
+        # formularz obserwacji ~850 px szeroki; reszta szerokosci dla Sky/Instrument i Plan, Mount ~45% wysokosci
+        side = max(avail.width() - 870, 600)
+        self.resizeDocks([d["skyGui"], d["planGui"]], [side // 2, side - side // 2], Qt.Orientation.Horizontal)
+        self.resizeDocks([d["mntGui"]], [avail.height() * 45 // 100], Qt.Orientation.Vertical)
+        self.resizeDocks([d["skyGui"], d["instGui"]], [avail.height() // 2, avail.height() // 2], Qt.Orientation.Vertical)
+        if others:
+            # drugi monitor: FITS nad Aux na jego lewej polowie, jak dawniej
+            g = others[0].availableGeometry()
+            for attr, top, height in (("fitsGui", g.top(), g.height() * 3 // 5),
+                                      ("auxGui", g.top() + g.height() * 3 // 5, g.height() * 2 // 5)):
+                d[attr].setFloating(True)
+                d[attr].setGeometry(g.left(), top, g.width() // 2, height)
+                d[attr].show()
+        logger.info('TOI layout: ' + ", ".join(
+            f'{k} {"floating" if v.isFloating() else self.dockWidgetArea(v).name} {v.geometry().getRect()}'
+            for k, v in d.items()))
 
     def layout_key(self):
         # osobny uklad dla kazdego ustawienia ekranow (laptop sam / z monitorem / stanowisko)
