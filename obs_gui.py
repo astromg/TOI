@@ -90,14 +90,24 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     PANELS = [("mntGui", "Mount"), ("instGui", "Instrument"), ("skyGui", "Sky"),
               ("planGui", "Plan"), ("fitsGui", "FITS"), ("auxGui", "Aux")]
 
+    # panele wyraznie rozdzielone: pasek tytulu z tlem (kolor aktywnego teleskopu) i grubsze linie podzialu
+    PANEL_STYLE = """
+        QMainWindow::separator { background: rgb(150, 150, 150); width: 5px; height: 5px; }
+        QMainWindow::separator:hover { background: rgb(100, 100, 100); }
+        QDockWidget::title { background: TITLE_BG; color: black; padding: 3px 6px; }
+    """
+
+    def set_panel_telescope(self, tel):
+        # paski tytulowe paneli w kolorze aktywnego teleskopu (z configu TIC, dobrane pod czarny tekst) i z jego nazwa
+        color = self.parent.nats_cfg.get(tel, {}).get("color") or "rgb(205, 210, 220)"
+        self.setStyleSheet(self.PANEL_STYLE.replace("TITLE_BG", color))
+        for attr, title in self.PANELS:
+            self.docks[attr].setWindowTitle(f"{title} \u00b7 {tel}")
+        self.setWindowTitle(f"Telescope Operator Interface \u00b7 {tel}")
+
     def dock_panels(self):
         self._geometry = None       # rozmiar okna glownego ustawia uklad, nie obs_window_geometry
-        # panele wyraznie rozdzielone: pasek tytulu z tlem i grubsze, ciemniejsze linie podzialu
-        self.setStyleSheet("""
-            QMainWindow::separator { background: rgb(150, 150, 150); width: 5px; height: 5px; }
-            QMainWindow::separator:hover { background: rgb(100, 100, 100); }
-            QDockWidget::title { background: rgb(205, 210, 220); padding: 3px 6px; }
-        """)
+        self.setStyleSheet(self.PANEL_STYLE.replace("TITLE_BG", "rgb(205, 210, 220)"))
         self.setDockOptions(QMainWindow.DockOption.AnimatedDocks | QMainWindow.DockOption.AllowTabbedDocks
                             | QMainWindow.DockOption.AllowNestedDocks)
         # prawa kolumna na cala wysokosc, Mount tylko pod oknem obserwacji

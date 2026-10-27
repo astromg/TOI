@@ -640,6 +640,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # TELESCOPE CONFIGURATION HARDCODED
 
         self.active_tel = self.local_cfg["toi"]["telescopes"][self.active_tel_i]
+        self.obsGui.set_panel_telescope(self.active_tel)
 
         self.filter_list = self.nats_cfg[self.active_tel]["filter_list_names"]  # tu sa nazwy
         self.cfg_inst_gain = self.nats_cfg[self.active_tel]["gain_list_names"]
