@@ -872,6 +872,8 @@ class ConditionsTab(QWidget):
     MIN_SEGMENT = 4             # krotszych odcinkow nie wygladzamy, zostaja same punkty
     FILTER_EDGE = {"B": "blue", "V": "green", "Ic": "red", "u": "purple", "g": "teal", "r": "orangered",
                    "i": "darkred", "z": "black"}      # obwodka punktu zero pointu wg filtra, inne szare
+    FWHM_TOP = 3.0              # arcsec - gora skali FWHM; wyzszy punkt tej nocy podnosi ja
+    ZP_RANGE = (-0.3, 0.08)     # mag - domyslna skala zero pointu; punkty tej nocy spoza niej ja poszerzaja
     ZP_ZONES = (-0.1, -0.2)     # ostrzezenie / alarm, gdy weather_overwatch jeszcze nie przyslal progow
 
     def __init__(self, parent):
@@ -944,6 +946,7 @@ class ConditionsTab(QWidget):
             max_airmass = float(self.airmass_e.text()) if self.airmass_e.text().strip() else None
         except ValueError:
             max_airmass = None
+        top = self.FWHM_TOP
         for t, frames in self.parent.fits_ffs_data.items():
             color = self.parent.nats_cfg[t]['color']
             jd, fwhm, focus = [], [], []
@@ -971,11 +974,12 @@ class ConditionsTab(QWidget):
             if (~old).sum():
                 sx, sy = self.smoothed(jd[~old], fwhm[~old])
                 self.ax.plot(sx, sy, color=color, linewidth=2)
+                top = max(top, 1.05 * fwhm[~old].max())
             for ft in focus:
                 if ft > x0:
                     self.ax.axvline(x=ft, color=color, alpha=0.8, linewidth=0.8)
         self.night_axis(x0, x1, "FWHM [arcsec]")
-        self.ax.set_ylim(0, 5)
+        self.ax.set_ylim(0, top)
         self.ax.legend(loc="upper right", fontsize=8)
 
     def plot_zero_point(self):
@@ -1028,7 +1032,10 @@ class ConditionsTab(QWidget):
                 self.ax.text(0.01, 0.95, f"{last:+.3f} mag", transform=self.ax.transAxes, fontsize=16,
                              fontweight="bold", color=zone, va="top")
         self.night_axis(0.4, 0.99, "zero point [mag]")
-        self.ax.set_ylim(-0.3, 0.08)
+        bottom, top = self.ZP_RANGE
+        if all_y:
+            bottom, top = min(bottom, min(all_y) - 0.02), max(top, max(all_y) + 0.02)
+        self.ax.set_ylim(bottom, top)
         if all_x:
             self.ax.legend(loc="upper right", fontsize=8)
 
