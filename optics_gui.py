@@ -127,8 +127,9 @@ def path_status(graph: OpticalGraph, detector: str, function: str, verdict, oper
             return Status('failed', "FAILED", operation.get('message') or f"{switched}: the switch failed")
     if verdict is None:
         return Status('none', "NO DATA", unknown or "the optics service publishes nothing for this instrument")
-    if isinstance(verdict, Impossible) and verdict.awaits is not None:
-        prepare = f"SET PATH prepares it now: {describe_moves(graph, verdict.prepare)}" if verdict.prepare else "the path is ready"
+    if isinstance(verdict, Impossible) and getattr(verdict, 'awaits', None) is not None:
+        moves = getattr(verdict, 'prepare', None)
+        prepare = f"SET PATH prepares it now: {describe_moves(graph, moves)}" if moves else "the path is ready"
         return Status('settable', "WAITING", f"{verdict.reason} · {prepare}")
     text = describe_verdict(graph, verdict)
     if verdict.kind == VerdictKind.SETTABLE and verdict.confirm:
@@ -142,7 +143,8 @@ def settable_now(verdict) -> bool:
     """SET PATH has something to do: moves that make the function ready, or prepare for its light."""
     if verdict is None:
         return False
-    return verdict.kind == VerdictKind.SETTABLE or (isinstance(verdict, Impossible) and bool(verdict.prepare))
+    # getattr: datamodels older than the waiting light (no awaits/prepare) aborted TOI here
+    return verdict.kind == VerdictKind.SETTABLE or (isinstance(verdict, Impossible) and bool(getattr(verdict, 'prepare', None)))
 
 
 @dataclass(frozen=True)
