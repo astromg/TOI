@@ -98,9 +98,11 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     """
 
     def set_panel_telescope(self, tel):
-        # paski tytulowe paneli w kolorze aktywnego teleskopu (z configu TIC, dobrane pod czarny tekst) i z jego nazwa
-        color = self.parent.nats_cfg.get(tel, {}).get("color") or "rgb(205, 210, 220)"
-        self.setStyleSheet(self.PANEL_STYLE.replace("TITLE_BG", color))
+        # paski tytulowe paneli w kolorze aktywnego teleskopu (z configu TIC) i z jego nazwa
+        # pol na pol z biela: ciemne kolory (zb08 #0082E8) nie zaglusza czarnego tekstu, odcien zostaje
+        color = QtGui.QColor(self.parent.nats_cfg.get(tel, {}).get("color") or "#cdd2dc")
+        tint = QtGui.QColor((color.red() + 255) // 2, (color.green() + 255) // 2, (color.blue() + 255) // 2)
+        self.setStyleSheet(self.PANEL_STYLE.replace("TITLE_BG", tint.name()))
         for attr, title in self.PANELS:
             self.docks[attr].setWindowTitle(f"{title} \u00b7 {tel}")
         self.setWindowTitle(f"Telescope Operator Interface \u00b7 {tel}")

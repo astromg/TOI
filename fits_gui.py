@@ -2,10 +2,8 @@
 
 import numpy as np
 
-from PyQtX.QtCore import Qt
-from PyQtX.QtGui import QFont
 from PyQtX import QtCore, QtGui
-from PyQtX.QtWidgets import QTextEdit, QGridLayout, QLineEdit
+from PyQtX.QtWidgets import QTextEdit, QGridLayout
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -40,8 +38,6 @@ class FitsWindow(BaseWindow):
         self.axes.axis("off")
         self.canvas.draw()
         self.stat_e.setText("")
-        self.tel_e.setText("")
-        self.tel_e.setStyleSheet(f"background-color: rgb(233, 233, 233);")
 
 
     def plot_image(self):
@@ -298,8 +294,6 @@ class FitsWindow(BaseWindow):
                 except Exception as e:
                     print(f"TOI FITS EXCEPTION 5: {e}")
 
-                self.tel_e.setText(tel)
-                self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[tel]['color']};")
                 self.stat_e.setHtml(txt)
             self.canvas.draw()
             self.raise_()
@@ -312,17 +306,9 @@ class FitsWindow(BaseWindow):
         self.axes.axis("off")
         self.canvas.draw()
         self.stat_e.setText("")
-        self.tel_e.setText("")
-        self.tel_e.setStyleSheet(f"background-color: rgb(233, 233, 233);")
 
+        # nazwa i kolor teleskopu sa w pasku tytulu panelu (ObsGui.set_panel_telescope)
         if self.parent.active_tel:
-            self.tel_e.setText(self.parent.active_tel)
-            self.tel_e.setAlignment(Qt.AlignCenter)
-            font = QFont("Courier New",9)
-            font.setBold(True)
-            self.tel_e.setFont(font)
-            self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[self.parent.active_tel]['color']};")
-
             self.show()
             self.raise_()
 
@@ -342,21 +328,13 @@ class FitsWindow(BaseWindow):
 
         grid.addWidget(self.canvas,0,0,2,1)
 
-        self.tel_e = QLineEdit()
-        self.tel_e.setAlignment(Qt.AlignCenter)
-        font = QFont()
-        font.setBold(True)
-        self.tel_e.setFont(font)
-        self.tel_e.setStyleSheet(f"background-color: rgb(233, 233, 233);")
-        grid.addWidget(self.tel_e, 0, 1)
-
         self.stat_e=QTextEdit()
         self.stat_e.setReadOnly(True)
         self.stat_e.setStyleSheet("background-color: rgb(235,235,235);")
         font=QtGui.QFont("Courier New",9)
         self.stat_e.setFont(font)
         self.stat_e.setMaximumWidth(300)
-        grid.addWidget(self.stat_e,1,1)
+        grid.addWidget(self.stat_e,0,1,2,1)
 
 
         grid.setColumnStretch(0,1)

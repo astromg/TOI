@@ -40,7 +40,7 @@ from scipy.ndimage import gaussian_filter1d
 
 from PyQtX import QtGui
 from PyQtX.QtCore import Qt, QUrl
-from PyQtX.QtGui import QFont, QTextCursor
+from PyQtX.QtGui import QTextCursor
 from PyQtX.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFrame, QGridLayout, QHeaderView, QLabel,
                              QLineEdit, QPushButton, QSlider, QStackedWidget, QTableWidget, QTableWidgetItem,
                              QTabWidget, QTextBrowser, QTextEdit, QVBoxLayout, QWidget)
@@ -94,10 +94,7 @@ class AuxWindow(BaseWindow):
         self.tabs.setTabVisible(self.tabs.indexOf(self.optics), self.parent.optics_model.graph is not None)
 
     def updateUI(self):
-        # po zmianie teleskopu
-        if self.parent.active_tel != None:
-            self.tel_e.setText(self.parent.active_tel)
-            self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[self.parent.active_tel]['color']};")
+        # po zmianie teleskopu; jego nazwa i kolor sa w pasku tytulu panelu (ObsGui.set_panel_telescope)
         self.telescope.updateUI()
         self.calibration.updateUI()
         self.focus.updateUI()
@@ -105,13 +102,6 @@ class AuxWindow(BaseWindow):
 
     def mkUI(self):
         layout = QVBoxLayout()
-        self.tel_e = QLineEdit()
-        self.tel_e.setReadOnly(True)
-        self.tel_e.setAlignment(Qt.AlignCenter)
-        font = QFont("Courier New", 9)
-        font.setBold(True)
-        self.tel_e.setFont(font)
-        layout.addWidget(self.tel_e)
 
         self.tabs = QTabWidget()
         self.telescope = TelescopeTab(self.parent)
