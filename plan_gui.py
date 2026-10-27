@@ -1658,7 +1658,7 @@ class PlotWindow(BaseWindow):
                     self.t = self.t - ephem.second * dt
             colors = {}             # nazwa obiektu -> kolor
             self.segments = []      # (t0, t1, opis) slotow OB - dla podpowiedzi pod myszka
-            labels = []             # (t, nazwa, kolor, fontsize) - podpisy nad wykresem
+            labels = []             # (t0, t1, nazwa, kolor, fontsize) - podpisy nad wykresem
             events = []             # (t, tekst) - STOP, BELL, WAIT, ZERO... - podpisy przy dolnej krawedzi
             x_span = (self.t_end - self.t0) + ephem.hour
             for i, tmp in enumerate(self.parent.plan):
@@ -1748,7 +1748,7 @@ class PlotWindow(BaseWindow):
                                     if i == self.parent.i:
                                         self.axes.axvspan(min(t_tab), max(t_tab), color="grey", alpha=0.15)
                                     self.axes.plot(t_tab, alt_tab, style, color=color, linewidth=3)
-                                    labels.append((self.t, name, color, fontsize))
+                                    labels.append((self.t, self.t + ephem.second * slotTime, name, color, fontsize))
                                     self.segments.append((self.t, self.t + ephem.second * slotTime,
                                                           f"{name}\nstart {str(ephem.Date(self.t)).split()[1][:5]} UT, "
                                                           f"{slotTime / 60:.0f} min\nalt {alt_tab[0]:.0f}\u00b0 \u2192 {alt_tab[-1]:.0f}\u00b0"))
@@ -1765,12 +1765,17 @@ class PlotWindow(BaseWindow):
             for t, txts in groups:
                 self.axes.text(t, 3, " \u00b7 ".join(txts), rotation=90, fontsize=8)
 
-            # podpisy nad wykresem tylko tam, gdzie sie mieszcza; reszta pod myszka
+            # podpisy nad wykresem: na poczatku slotu, a gdy tam ciasno - w pierwszym wolnym miejscu w obrebie slotu
+            # (dlugi OB po krotkim nie traci nazwy); pomijamy tylko OB za krotkie na podpis - te sa pod myszka
+            gap = self.LABEL_GAP * x_span
             last = None
-            for t, name, color, fs in labels:
-                if last is None or (t - last) / x_span >= self.LABEL_GAP:
-                    self.axes.text(t, 93, name, color=color, rotation=90, fontsize=fs)
-                    last = t
+            self.labels_drawn = []
+            for t0, t1, name, color, fs in labels:
+                x = t0 if last is None else max(t0, last + gap)
+                if x <= t1:
+                    self.axes.text(x, 93, name, color=color, rotation=90, fontsize=fs)
+                    self.labels_drawn.append(name)
+                    last = x
 
             self.axes.set_ylim(0, 90)
             self.axes.set_xlim(self.t0-0.5*ephem.hour,self.t_end+0.5*ephem.hour)
