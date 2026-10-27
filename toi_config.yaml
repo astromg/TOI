@@ -22,6 +22,9 @@ toi:
     flat_overwatch: rpc.overwatch.oca.flat_overwatch.alive
     weather_overwatch: rpc.overwatch.oca.weather_overwatch.alive
 
+  # seeing at zenith from weather_overwatch (obs window field "Seeing"); empty: the field stays "--"
+  seeing_subject: tic.status.ocm.weather_overwatch.seeing
+
 
 wk06:
   tel_directory: /data/fits/wk06/

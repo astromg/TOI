@@ -144,6 +144,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.TOItimer())
 
         self.add_background_task(self.nats_weather_loop())
+        self.add_background_task(self.nats_seeing_reader())
         self.add_background_task(self.reader_ocm_messages())
 
         for t in self.oca_tel_state.keys():   # statusy wszystkich teleskopow
@@ -481,6 +482,56 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             raise
         except Exception as e:
             logger.warning(f'EXCEPTION 102: {e}')
+
+    # seeing obserwatorium z weather_overwatch: mediana z klatek wszystkich teleskopow z ostatnich window_min
+    # minut, w zenicie, z progami per teleskop (toi.seeing_subject)
+    async def nats_seeing_reader(self):
+        subject = self.local_cfg["toi"].get("seeing_subject")
+        if not subject:
+            return
+        try:
+            reader = get_reader(subject, deliver_policy='last')
+            async for data, meta in reader:
+                try:
+                    self.seeing = data
+                    self.update_seeing_field()
+                except Exception as e:
+                    logger.warning(f'EXCEPTION 102c: bad seeing message: {e}')
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 102b: {e}')
+
+    def update_seeing_field(self):
+        # wolane tez z updateWeather - wartosc sie starzeje, gdy nikt nie obserwuje (overwatch publikuje przy klatce)
+        field = self.obsGui.main_form.fwhm_e
+        d = self.seeing
+        value, age = None, None
+        if d and d.get("seeing") is not None and d.get("time"):
+            age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(d["time"])).total_seconds()
+            if age <= 60 * float(d.get("window_min", 30)):
+                value = float(d["seeing"])
+        lim = (d or {}).get("limits", {}).get(self.active_tel, {})
+        color = "rgb(235,235,235)"
+        if value is None:
+            field.setText("--")
+        else:
+            field.setText(f'{value:.1f} ["]')
+            if "alert" in lim and value >= lim["alert"]:
+                color = "rgb(255, 140, 0)"
+            elif "warning" in lim and value >= lim["warning"]:
+                color = "rgb(255, 220, 0)"
+        field.setStyleSheet(f"color: black; background-color: {color};")
+        tip = "Seeing at zenith, weather_overwatch: median of science frames of all telescopes"
+        if d:
+            tip += f" from the last {d.get('window_min')} min, {d.get('n')} frames."
+            if age is not None:
+                tip += f"\nLast frame {age / 60:.0f} min ago."
+            if lim:
+                tip += f"\n{self.active_tel} limits: {lim['warning']} / {lim['alert']}"
+        else:
+            tip += ". No data yet."
+        field.setToolTip(tip)
 
 
     async def tic_con_loop(self):
@@ -4273,6 +4324,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
             self.obsGui.main_form.update_table()   # ikonki pogody (wiatr, deszcz, wilgotnosc, zimno)
+            self.update_seeing_field()
 
             #self.obsGui.main_form.skyView.updateWind(self)
             if self.skyGui.skyView:
@@ -4569,6 +4621,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.log_record = {t:"" for t in self.local_cfg["toi"]["telescopes"]}
 
         self.fits_ffs_data = {t:[] for t in self.local_cfg["toi"]["telescopes"]}
+        self.seeing = None          # ostatnia wiadomosc toi.seeing_subject
         self.fits_photo_z0_data = {t:[] for t in self.local_cfg["toi"]["telescopes"]}
 
 

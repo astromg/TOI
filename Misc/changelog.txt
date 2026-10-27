@@ -11,6 +11,9 @@ SET moves the mechanical angle (limits ±160°). Gain / read mode defaults from 
 <br>
 Observers of the night: a window asks once a day who observes (list in observers.yaml, previous night pre-checked),
 shown next to PING; "Only this TOI" sets them for this session without sharing. Panels scroll only on small screens.
+<br>
+Seeing: the observation window shows the site seeing at zenith from weather_overwatch (median of science frames of
+all telescopes, last 30 min); yellow / orange above the warning / alert limit of the active telescope.
 <br><br>
 --- 26.10.2026 --- <br>
 TPG: "Make SKYFLATS" adds evening and morning sky flats to the plan.

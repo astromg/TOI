@@ -602,13 +602,13 @@ class MainForm(QWidget):
             "followerStatus": "Dome follower of the active telescope: heartbeat every 10 s. Red: none for 30 s.",
             "downloaderStatus": "OFP downloader of the active telescope, asked every 5 s (alive RPC).",
             "ofpStatus": "OFP pipeline of the active telescope, asked every 5 s (alive RPC).",
-            "flatOwStatus": "flat_overwatch heartbeat. Grey: no heartbeat subject yet (toi_config.yaml).",
-            "weatherOwStatus": "weather_overwatch heartbeat. Grey: no heartbeat subject yet (toi_config.yaml).",
+            "flatOwStatus": "flat_overwatch, asked every 5 s (alive RPC). Grey: no subject in toi_config.yaml.",
+            "weatherOwStatus": "weather_overwatch, asked every 5 s (alive RPC). Grey: no subject in toi_config.yaml.",
             "temp": "Davis weather station. Red below -1 °C.",
             "hummidity": f"Davis weather station. Red above {self.parent.cfg_humidity_limit} % or rain.",
             "wind": "Davis weather station.",
             "windDir": "Davis weather station.",
-            "fwhm": "Not available yet.",
+            "fwhm": "Seeing at zenith from weather_overwatch.",
             "zeropoint": "Not available yet.",
             "clouds": "Not available yet.",
             "date": "UT date.",
@@ -723,7 +723,7 @@ class MainForm(QWidget):
 
         # na przyszlosc: jakosc nieba - na razie puste
         w = w + 1
-        for col, (name, txt) in enumerate((("fwhm", "FWHM:"), ("zeropoint", "Zero point:"), ("clouds", "Clouds:"))):
+        for col, (name, txt) in enumerate((("fwhm", "Seeing:"), ("zeropoint", "Zero point:"), ("clouds", "Clouds:"))):
             label = QLabel(txt)
             label.setAlignment(Qt.AlignCenter)
             field = QLineEdit("--")
