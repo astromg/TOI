@@ -110,7 +110,8 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
 - `fits_gui.py` (`FitsWindow`, `FFS_Worker`) — FITS viewer; runs `ffs_lib` star-detection stats in a
   separate `QThread` (`FFS_Worker`) so image analysis doesn't block the Qt main thread.
 - `aux_gui.py` (`AuxWindow`) — one window with tabs, in order: Telescope (the active telescope's
-  OCA manual page fetched over HTTP from the intranet, `toi.oca_manual_url`), Optical path (`SchematicView`, hidden when the
+  OCA manual page fetched over HTTP from the intranet, `toi.oca_manual_url`), Tasks (shown first; empty table, later
+  GitHub issues for observers filtered by labels), Optical path (`SchematicView`, hidden when the
   telescope has no optical graph), Calibration, Focus, Guider (layout template only, guider does not work),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes; drawn only while the tab is shown).
   `TOI` keeps the old names for the tabs: `focusGui` (`FocusTab`), `flatGui` (`CameraCalibration`), `guiderGui`

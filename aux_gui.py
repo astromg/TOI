@@ -3,6 +3,8 @@
 
 Tabs, in this order:
 - ``Telescope`` — :class:`TelescopeTab`, the active telescope's page of the OCA manual (intranet, over HTTP);
+- ``Tasks`` — :class:`TasksTab`, tasks for observers of the active telescope; shown first; empty table for now
+  (later: GitHub issues filtered by labels);
 - ``Optical path`` — :class:`optics_view.SchematicView` of the active telescope; hidden when the telescope
   publishes no optical graph;
 - ``Calibration`` — :class:`CalibrationTab`, one page per kind of instrument; follows the tab chosen in the
@@ -105,6 +107,7 @@ class AuxWindow(BaseWindow):
 
         self.tabs = QTabWidget()
         self.telescope = TelescopeTab(self.parent)
+        self.tasks = TasksTab(self.parent)
         self.optics = SchematicView(self.parent.optics_model, vertical=False)
         self.calibration = CalibrationTab(self.parent)
         self.focus = FocusTab(self.parent)
@@ -112,6 +115,7 @@ class AuxWindow(BaseWindow):
         self.planrunner = PlanrunnerTab(self.parent)
         self.conditions = ConditionsTab(self.parent)
         self.tabs.addTab(self.telescope, "Telescope")
+        self.tabs.addTab(self.tasks, "Tasks")
         self.tabs.addTab(self.optics, "Optical path")
         self.tabs.addTab(self.calibration, "Calibration")
         self.tabs.addTab(self.focus, "Focus")
@@ -119,6 +123,7 @@ class AuxWindow(BaseWindow):
         self.tabs.addTab(self.planrunner, "Plan Runner")
         self.tabs.addTab(self.conditions, "Conditions")
         self.tabs.currentChanged.connect(self.tab_changed)
+        self.tabs.setCurrentWidget(self.tasks)      # na start zadania dla obserwatora
         layout.addWidget(self.tabs)
         self.setLayout(layout)
 
@@ -198,6 +203,37 @@ class TelescopeTab(QWidget):
         self.reload_p.clicked.connect(self.updateUI)
         grid.addWidget(self.reload_p, 1, 1)
         grid.setColumnStretch(0, 1)
+        self.setLayout(grid)
+
+
+# ############### TASKS ##########################
+
+class TasksTab(QWidget):
+    """Tasks for observers of the active telescope. For now an empty table; later GitHub issues of a chosen
+    repository, filtered by labels (a task label and the telescope's label)."""
+
+    COLUMNS = ["#", "TASK", "LABELS", "UPDATED"]
+
+    def __init__(self, parent):
+        super(TasksTab, self).__init__()
+        self.parent = parent
+        self.mkUI()
+
+    def mkUI(self):
+        grid = QGridLayout()
+        self.tasks_t = QTableWidget(0, len(self.COLUMNS))
+        self.tasks_t.setHorizontalHeaderLabels(self.COLUMNS)
+        self.tasks_t.verticalHeader().hide()
+        self.tasks_t.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.tasks_t.setSelectionBehavior(QTableWidget.SelectRows)
+        header = self.tasks_t.horizontalHeader()
+        header.setSectionResizeMode(1, QHeaderView.Stretch)     # tytul zadania bierze reszte szerokosci
+        for col in (0, 2, 3):
+            header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
+        grid.addWidget(self.tasks_t, 0, 0)
+        self.info_l = QLabel("Tasks for observers: not available yet.")
+        self.info_l.setStyleSheet("color: gray;")
+        grid.addWidget(self.info_l, 1, 0)
         self.setLayout(grid)
 
 
