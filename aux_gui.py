@@ -78,6 +78,16 @@ class AuxWindow(BaseWindow):
         if tab:
             self.show_tab(getattr(self, tab))
 
+    # etykieta komunikatu z tic.status.ocm.messages -> wykres w zakladce Conditions, ktory sie podnosi
+    ALERT_PLOTS = {"FWHM WARNING": "FWHM", "ZERO POINT WARNING": "Zero point"}
+
+    def alert_received(self, label):
+        """weather_overwatch alert (seeing / zero point): bring up Conditions with the matching plot."""
+        plot = self.ALERT_PLOTS.get(label)
+        if plot:
+            self.conditions.plot_s.setCurrentText(plot)     # zmiana wyboru sama przerysowuje
+            self.show_tab(self.conditions)
+
     def m3_moved(self):
         if self.tabs.isTabVisible(self.tabs.indexOf(self.optics)):
             self.show_tab(self.optics)
@@ -926,6 +936,13 @@ class ConditionsTab(QWidget):
             out_y.extend(gaussian_filter1d(median_filter(sy, size=self.MEDIAN_SIZE, mode="nearest"), sigma=self.SMOOTH_SIGMA))
         return out_x, out_y
 
+    def last_text(self, value, color, tel, filt, when):
+        # ostatni pomiar w rogu: wartosc (kolor wg strefy) i skad jest - teleskop, filtr, czas UT
+        self.ax.text(0.01, 0.95, f"last: {value}", transform=self.ax.transAxes, fontsize=15, fontweight="bold",
+                     color=color, va="top")
+        self.ax.text(0.01, 0.84, f"{tel} {filt} {str(when).split()[1][:5]} UT", transform=self.ax.transAxes,
+                     fontsize=10, color="dimgray", va="top")
+
     def night_axis(self, x0, x1, ylabel):
         xtics = []
         t = ephem.Date(x0)
@@ -949,6 +966,7 @@ class ConditionsTab(QWidget):
         except ValueError:
             max_airmass = None
         top = self.FWHM_TOP[0]
+        latest = None       # (jd, tel, filtr, fwhm) ostatniej klatki tej nocy
         for t, frames in self.parent.fits_ffs_data.items():
             color = self.parent.nats_cfg[t]['color']
             jd, fwhm, focus = [], [], []
@@ -967,6 +985,8 @@ class ConditionsTab(QWidget):
                     if 0 < f < 10:
                         jd.append(float(h["JD"]))
                         fwhm.append(f)
+                        if jd[-1] >= x0 and (latest is None or jd[-1] > latest[0]):
+                            latest = (jd[-1], t, h.get("FILTER", ""), f)
                 except (ValueError, TypeError, KeyError):
                     pass
             jd, fwhm = numpy.array(jd), numpy.array(fwhm)
@@ -982,6 +1002,8 @@ class ConditionsTab(QWidget):
                     self.ax.axvline(x=ft, color=color, alpha=0.8, linewidth=0.8)
         self.night_axis(x0, x1, "FWHM [arcsec]")
         self.ax.set_ylim(0, top)
+        if latest:
+            self.last_text(f'{latest[3]:.2f}"', "black", latest[1], latest[2], ephem.Date(latest[0] - 2415020))
         self.ax.legend(loc="upper right", fontsize=8)
 
     def plot_zero_point(self):
@@ -1001,6 +1023,7 @@ class ConditionsTab(QWidget):
         self.ax.axhline(y=0, color="black", linewidth=0.5)
 
         all_x, all_y = [], []
+        latest = None       # (oca_jd, tel, filtr, wartosc) ostatniego punktu tej nocy
         for t, points in self.parent.fits_photo_z0_data.items():
             color = self.parent.nats_cfg[t]['color']
             seen, td, yd = set(), [], []
@@ -1014,6 +1037,8 @@ class ConditionsTab(QWidget):
                     row = (p["oca_jd"] - numpy.floor(p["oca_jd"]), v, self.FILTER_EDGE.get(p["filter"], "gray"))
                     if p["oca_jd"] >= today:
                         td.append(row)
+                        if latest is None or p["oca_jd"] > latest[0]:
+                            latest = (p["oca_jd"], t, p["filter"], v)
                     elif p["oca_jd"] >= yesterday:
                         yd.append(row)
                 except (ValueError, TypeError, KeyError):
@@ -1028,11 +1053,10 @@ class ConditionsTab(QWidget):
         if all_x:
             sx, sy = self.smoothed(all_x, all_y)
             self.ax.plot(sx, sy, color="#333333", linewidth=2)
-            last = next((v for v in reversed(sy) if numpy.isfinite(v)), None)
-            if last is not None:
-                zone = "green" if last >= warning else "darkorange" if last >= alert else "red"
-                self.ax.text(0.01, 0.95, f"{last:+.3f} mag", transform=self.ax.transAxes, fontsize=16,
-                             fontweight="bold", color=zone, va="top")
+        if latest:
+            v = latest[3]
+            zone = "green" if v >= warning else "darkorange" if v >= alert else "red"
+            self.last_text(f"{v:+.3f} mag", zone, latest[1], latest[2], ephem.Date(latest[0] + 2460000 - 2415020))
         self.night_axis(0.4, 0.99, "zero point [mag]")
         bottom, top = self.ZP_RANGE
         lo, hi = self.ZP_RANGE_MAX

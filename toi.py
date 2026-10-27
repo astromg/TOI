@@ -448,6 +448,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     c = QtCore.Qt.darkYellow
                 if label in ("FWHM WARNING", "ZERO POINT WARNING"):
                     c = QtCore.Qt.darkYellow
+                    try:        # alarm seeingu / zero pointu - zakladka Conditions z tym wykresem na wierzch
+                        self.auxGui.alert_received(label)
+                    except Exception as e:
+                        logger.warning(f'TOI: EXCEPTION alert tab: {e}')
 
                 # if label == "TOI RESPONDER":
                 #     c = QtCore.Qt.darkGreen

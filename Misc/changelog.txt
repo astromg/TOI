@@ -33,6 +33,10 @@ and details (start, length, altitude) on mouse hover. STOP / BELL / WAIT / ZERO 
 ("BELL · ZERO · BELL · WAIT sunrise=-10") instead of overlapping; ZERO, DARK and other blocks without coordinates are
 drawn as a grey bar (ZERO used to be invisible).
 <br>
+Conditions tab comes up by itself on a seeing (FWHM WARNING) or zero point (ZERO POINT WARNING) alert, with that plot.
+Conditions plots show the last measurement in the corner ("last: -0.177 mag", telescope, filter, UT) instead of the
+end of the smoothed trend, which did not say where it came from.
+<br>
 Plan: OB times (and so the altitudes) of a telescope that is not the active one in TOI were computed with the read
 mode of the active telescope's camera - zb08 got jk15's mode 3 (= 0.05 MHz on zb08), slots x10, objects pushed into
 the day. Each telescope now uses its own read mode (READ-MOD of its last frame).

@@ -122,7 +122,9 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   `QTabWidget` — never call `show()` on one (it paints over the current tab); use `auxGui.show_tab(page)`.
   Tabs come up by themselves: M3 changing port → Optical path (`m3_update` → `auxGui.m3_moved`), a
   SKYFLAT/DOMEFLAT or FOCUS OB starting → Calibration / Focus (`nats_toi_ob_status_reader` → `auxGui.ob_started`,
-  map `AuxWindow.OB_TABS`); the first reading after a telescope switch never switches.
+  map `AuxWindow.OB_TABS`), a weather_overwatch `FWHM WARNING` / `ZERO POINT WARNING` → Conditions with that plot
+  (`reader_ocm_messages` → `auxGui.alert_received`, map `AuxWindow.ALERT_PLOTS`); the first reading after a telescope
+  switch never switches.
   Calibration (`CalibrationTab`) has one page per kind of instrument (`camera` → `CameraCalibration`,
   `spectrograph` → `SpectrographCalibration`, still empty); each instrument tab class in `instrument_gui.py`
   declares `calibration = "camera"|"spectrograph"`, and `InstrumentGui.instrument_changed` switches the page.
