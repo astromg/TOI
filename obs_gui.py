@@ -4,7 +4,7 @@ import logging
 import os.path
 import qasync as qs
 from PyQtX import QtCore, QtGui
-from PyQtX.QtCore import Qt, QSettings, QTimer, QSize
+from PyQtX.QtCore import Qt, QSettings, QTimer
 from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, QCheckBox, \
     QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox, QMenu, QDockWidget, QApplication, QScrollArea
 from pyaraucaria.coordinates import *
@@ -16,6 +16,30 @@ from claude_report import write_claude_report
 from toi_lib import *
 
 logger = logging.getLogger(__name__)
+
+
+class FitScrollArea(QScrollArea):
+    """Obszar przewijania panelu. `fit` (duzy ekran): minimum = minimum zawartosci, sledzone na biezaco - okna
+    przebudowuja sie przy zmianie teleskopu (np. Instrument dostaje zakladki BESO/ANDOR), wiec stale minimum ustawione
+    przy budowie ukladu by je przycinalo. Bez `fit` (maly ekran) panel moze byc mniejszy i przewija."""
+
+    def __init__(self, widget):
+        super().__init__()
+        self.fit = True
+        self.setWidgetResizable(True)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setWidget(widget)
+        widget.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if obj is self.widget() and event.type() == QtCore.QEvent.Type.LayoutRequest:
+            self.updateGeometry()       # zawartosc zmienila uklad - niech dok przeliczy rozmiary
+        return super().eventFilter(obj, event)
+
+    def minimumSizeHint(self):
+        if self.fit and self.widget() is not None:
+            return self.widget().minimumSizeHint()
+        return super().minimumSizeHint()
 
 
 class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
@@ -119,10 +143,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.setCorner(Qt.Corner.TopRightCorner, Qt.DockWidgetArea.RightDockWidgetArea)
         self.setCorner(Qt.Corner.BottomRightCorner, Qt.DockWidgetArea.RightDockWidgetArea)
         # formularz obserwacji tez w obszarze przewijania - na malym ekranie oddaje szerokosc panelom
-        central = QScrollArea()
-        central.setWidgetResizable(True)
-        central.setFrameShape(QFrame.Shape.NoFrame)
-        central.setWidget(self.takeCentralWidget())
+        central = FitScrollArea(self.takeCentralWidget())
         self.setCentralWidget(central)
         self.areas = {"main_form": central}
         self.docks = {}
@@ -132,10 +153,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             dock = QDockWidget(title, self)
             dock.setObjectName(f"dock_{attr}")      # po tej nazwie saveState rozpoznaje panel
             # przewijanie zamiast wypychania okna poza ekran, gdy panel dostanie mniej niz minimum zawartosci
-            area = QScrollArea()
-            area.setWidgetResizable(True)
-            area.setFrameShape(QFrame.Shape.NoFrame)
-            area.setWidget(widget)
+            area = FitScrollArea(widget)
             dock.setWidget(area)
             self.areas[attr] = area
             self.docks[attr] = dock
@@ -212,9 +230,9 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             mount_below = False
             steps.append("Mount")
         # przewijanie tylko na malym ekranie: gdy uklad sie miesci, panel nie moze byc mniejszy niz jego zawartosc
-        for attr, area in self.areas.items():
-            content = self.main_form if attr == "main_form" else getattr(self.parent, attr)
-            area.setMinimumSize(QSize(0, 0) if steps else content.minimumSizeHint())
+        for area in self.areas.values():
+            area.fit = not steps
+            area.updateGeometry()
         if steps:
             logger.info(f'TOI layout: small screen {avail.width()}x{avail.height()}, tabbed with Sky: {steps}; '
                         f'minimum widths: form {form.width()}, ' +
