@@ -952,8 +952,8 @@ class ConditionsTab(QWidget):
                 )
 
             self.ax.axhline(y=0, color="black", linewidth=0.5)
-            self.ax.axhline(y=-0.05, color="orange", linestyle="--", linewidth=1)
-            self.ax.axhline(y=-0.1, color="red", linestyle="--", linewidth=1)
+            self.ax.axhline(y=-0.1, color="orange", linestyle="--", linewidth=1)     # strefy jak oca_monitor
+            self.ax.axhline(y=-0.2, color="red", linestyle="--", linewidth=1)
 
             x = numpy.asarray(all_dat_td)
             y = numpy.asarray(all_val_td)

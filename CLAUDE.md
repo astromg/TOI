@@ -22,7 +22,7 @@ poetry run nw           # runs nats_watch.py (standalone NATS message inspector)
 ```
 
 The app reads `toi_config.yaml` (telescope list, NATS host/port, per-telescope paths; also `focus_step` /
-`focus_method(s)` per telescope, `toi.oca_manual_url`, `toi.alive_subjects`, `toi.seeing_subject`) from the current
+`focus_method(s)` per telescope, `toi.oca_manual_url`, `toi.alive_subjects`, `toi.conditions_subjects`) from the current
 working directory at startup, and connects to NATS before building any GUI — if the NATS connection fails,
 the app logs an error and exits without opening a window. All local configuration lives in
 `toi_config.yaml`.

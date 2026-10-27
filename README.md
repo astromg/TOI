@@ -49,7 +49,8 @@ $ ./toi.py
   `focus_methods` (nazwy z `pyaraucaria.focus`),
 - `toi.oca_manual_url` - manual w intranecie dla zakladki Telescope (`http://docker.oca.lan:8081`),
 - `toi.alive_subjects` - subjecty RPC alive overwatchy (puste = lampka szara).
-- `toi.seeing_subject` - seeing obserwatorium z weather_overwatch, pole "Seeing" w oknie obserwacji (puste = "--").
+- `toi.conditions_subjects` - `seeing` i `zero_point` obserwatorium z weather_overwatch, pola "Seeing" i "Zero point"
+  w oknie obserwacji (brak = "--").
 - Konfiguracji TIC (ocabox-config-ocm) TOI tylko czyta; domyslny gain / read mode bierze z `flags: ['default']`.
 
 

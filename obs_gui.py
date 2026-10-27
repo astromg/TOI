@@ -609,7 +609,7 @@ class MainForm(QWidget):
             "wind": "Davis weather station.",
             "windDir": "Davis weather station.",
             "fwhm": "Seeing at zenith from weather_overwatch.",
-            "zeropoint": "Not available yet.",
+            "zeropoint": "Photometric zero point from weather_overwatch.",
             "clouds": "Not available yet.",
             "date": "UT date.",
             "ut": "Yellow: Sun above 1°. Blue: Sun 1° to -18°.",

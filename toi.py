@@ -144,7 +144,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.TOItimer())
 
         self.add_background_task(self.nats_weather_loop())
-        self.add_background_task(self.nats_seeing_reader())
+        for kind, subject in (self.local_cfg["toi"].get("conditions_subjects") or {}).items():
+            if subject and kind in self.CONDITION_FIELDS:
+                self.add_background_task(self.nats_condition_reader(kind, subject))
         self.add_background_task(self.reader_ocm_messages())
 
         for t in self.oca_tel_state.keys():   # statusy wszystkich teleskopow
@@ -439,7 +441,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     c = QtCore.Qt.darkRed
                 if label == "WEATHER WARNING":
                     c = QtCore.Qt.darkYellow
-                if label == "FWHM WARNING":
+                if label in ("FWHM WARNING", "ZERO POINT WARNING"):
                     c = QtCore.Qt.darkYellow
 
                 # if label == "TOI RESPONDER":
@@ -483,50 +485,56 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 102: {e}')
 
-    # seeing obserwatorium z weather_overwatch: mediana z klatek wszystkich teleskopow z ostatnich window_min
-    # minut, w zenicie, z progami per teleskop (toi.seeing_subject)
-    async def nats_seeing_reader(self):
-        subject = self.local_cfg["toi"].get("seeing_subject")
-        if not subject:
-            return
+    # seeing i zero point obserwatorium z weather_overwatch (toi.conditions_subjects): mediana punktow wszystkich
+    # teleskopow z ostatnich window_min minut, z progami per teleskop. Pole w oknie obserwacji, format, kierunek
+    # (+1 gorzej, gdy rosnie; -1 gdy maleje) i opis
+    CONDITION_FIELDS = {
+        "seeing": ("fwhm_e", '{:.1f} ["]', +1, "frames",
+                   "Seeing at zenith, weather_overwatch: median of science frames of all telescopes"),
+        "zero_point": ("zeropoint_e", "{:+.2f} [mag]", -1, "points",
+                       "Photometric zero point, weather_overwatch: median of zero_monitor of all telescopes"),
+    }
+
+    async def nats_condition_reader(self, kind, subject):
         try:
             reader = get_reader(subject, deliver_policy='last')
             async for data, meta in reader:
                 try:
-                    self.seeing = data
-                    self.update_seeing_field()
+                    self.conditions[kind] = data
+                    self.update_condition_field(kind)
                 except Exception as e:
-                    logger.warning(f'EXCEPTION 102c: bad seeing message: {e}')
+                    logger.warning(f'EXCEPTION 102c: bad {kind} message: {e}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
-            logger.warning(f'EXCEPTION 102b: {e}')
+            logger.warning(f'EXCEPTION 102b ({kind}): {e}')
 
-    def update_seeing_field(self):
-        # wolane tez z updateWeather - wartosc sie starzeje, gdy nikt nie obserwuje (overwatch publikuje przy klatce)
-        field = self.obsGui.main_form.fwhm_e
-        d = self.seeing
+    def update_condition_field(self, kind):
+        # wolane tez z updateWeather - wartosc sie starzeje, gdy nikt nie obserwuje (overwatch publikuje przy punkcie)
+        name, fmt, worse, unit, hint = self.CONDITION_FIELDS[kind]
+        field = getattr(self.obsGui.main_form, name)
+        d = self.conditions.get(kind)
         value, age = None, None
-        if d and d.get("seeing") is not None and d.get("time"):
+        if d and d.get(kind) is not None and d.get("time"):
             age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(d["time"])).total_seconds()
             if age <= 60 * float(d.get("window_min", 30)):
-                value = float(d["seeing"])
+                value = float(d[kind])
         lim = (d or {}).get("limits", {}).get(self.active_tel, {})
         color = "rgb(235,235,235)"
         if value is None:
             field.setText("--")
         else:
-            field.setText(f'{value:.1f} ["]')
-            if "alert" in lim and value >= lim["alert"]:
+            field.setText(fmt.format(value))
+            if "alert" in lim and worse * value >= worse * lim["alert"]:
                 color = "rgb(255, 140, 0)"
-            elif "warning" in lim and value >= lim["warning"]:
+            elif "warning" in lim and worse * value >= worse * lim["warning"]:
                 color = "rgb(255, 220, 0)"
         field.setStyleSheet(f"color: black; background-color: {color};")
-        tip = "Seeing at zenith, weather_overwatch: median of science frames of all telescopes"
+        tip = hint
         if d:
-            tip += f" from the last {d.get('window_min')} min, {d.get('n')} frames."
+            tip += f" from the last {d.get('window_min')} min, {d.get('n')} {unit}."
             if age is not None:
-                tip += f"\nLast frame {age / 60:.0f} min ago."
+                tip += f"\nLast {unit[:-1]} {age / 60:.0f} min ago."
             if lim:
                 tip += f"\n{self.active_tel} limits: {lim['warning']} / {lim['alert']}"
         else:
@@ -4324,7 +4332,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
             self.obsGui.main_form.update_table()   # ikonki pogody (wiatr, deszcz, wilgotnosc, zimno)
-            self.update_seeing_field()
+            for kind in self.CONDITION_FIELDS:
+                self.update_condition_field(kind)
 
             #self.obsGui.main_form.skyView.updateWind(self)
             if self.skyGui.skyView:
@@ -4621,7 +4630,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.log_record = {t:"" for t in self.local_cfg["toi"]["telescopes"]}
 
         self.fits_ffs_data = {t:[] for t in self.local_cfg["toi"]["telescopes"]}
-        self.seeing = None          # ostatnia wiadomosc toi.seeing_subject
+        self.conditions = {}        # rodzaj -> ostatnia wiadomosc z toi.conditions_subjects
         self.fits_photo_z0_data = {t:[] for t in self.local_cfg["toi"]["telescopes"]}
 
 
