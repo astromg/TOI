@@ -69,10 +69,23 @@ class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidg
               self.ccd_tab.inst_setGain_e.addItems(self.parent.cfg_inst_gain)
           if self.parent.cfg_inst_rm != None:
               self.ccd_tab.inst_setRead_e.addItems(self.parent.cfg_inst_rm)
+          self.default_hints()
 
           del tmp
           self.parent.telescope_switch_status["instGui"] = True
 
+
+      def default_hints(self):
+          # podpowiedz: ktora wartosc gain / read mode jest domyslna (z configu TIC, TOI.cfg_inst_defSetUp);
+          # inna podswietla pole na zolto
+          default = getattr(self.parent, "cfg_inst_defSetUp", None)
+          if not default or self.parent.active_tel == None:
+              return
+          for key, widgets in (("gain", (self.ccd_tab.inst_gain_e, self.ccd_tab.inst_setGain_e)),
+                               ("rm", (self.ccd_tab.inst_read_e, self.ccd_tab.inst_setRead_e))):
+              tip = f"Default: {default[key]}. Yellow: the camera is set otherwise."
+              for widget in widgets:
+                  widget.setToolTip(tip)
 
       def instrument_changed(self):
           # zakladka Calibration w oknie aux idzie za wybranym tu instrumentem
