@@ -16,6 +16,8 @@ Seeing: the observation window shows the site seeing at zenith from weather_over
 all telescopes, last 30 min); yellow / orange above the warning / alert limit of the active telescope.
 Zero point: the same for the photometric zero point (median of zero_monitor of all telescopes, limits -0.1 / -0.2,
 as oca_monitor; the Conditions plot lines moved to these values).
+<br>
+Calibration: age of the last master zero and master dark (flat_overwatch, from the pipeline journal) under the flats.
 <br><br>
 --- 26.10.2026 --- <br>
 TPG: "Make SKYFLATS" adds evening and morning sky flats to the plan.

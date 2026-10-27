@@ -12,6 +12,9 @@ toi:
   flat_overwatch_subject: "tic.status.{tel}.flat_overwatch.{item}"   # after the NATS RFC: "data.overwatch.{tel}.camera.{item}"
   flat_fresh_h: 20        # flat younger than this -> green
   flat_old_days: 10       # flat older than this -> orange; red if the filter was used within this time and had no flats in it
+  master_old_days:        # last master zero / dark older than this -> orange (green below flat_fresh_h)
+    zeros: 3
+    darks: 30
 
   # Aux "Telescope" tab: <url>/telescope_<tel>/ of the OCA manual on the intranet
   oca_manual_url: http://docker.oca.lan:8081

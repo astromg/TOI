@@ -261,15 +261,16 @@ class CalibrationTab(QStackedWidget):
 
 
 class CameraCalibration(QWidget):
-    """Sky flats of a camera: age of the last evening/morning flats and science per filter
-    (flat_overwatch, kept per telescope in ``flat_records``) and the flats log of this session."""
+    """Sky flats of a camera: age of the last evening/morning flats and science per filter, and of the last
+    master zero / master dark (flat_overwatch, kept per telescope in ``flat_records``), and the flats log of
+    this session."""
 
     def __init__(self, parent):
         super(CameraCalibration, self).__init__()
         self.parent = parent
         self.instrument = None
         self.mkUI()
-        self.flat_records = {}      # {tel: {item: {filtr: {"last": ISO|None}}}} z flat_overwatch
+        self.flat_records = {}      # {tel: {item: {filtr|"all": {"last": ISO|None}}}} z flat_overwatch
 
     def set_instrument(self, name):
         self.instrument = name
@@ -278,6 +279,7 @@ class CameraCalibration(QWidget):
         if self.parent.telescope:
             self.draw_flat_log()
             self.draw_flat_table(self.parent.active_tel)
+            self.draw_master_table(self.parent.active_tel)
 
     # kolory komorek EVENING / MORNING
     FLAT_FRESH = QtGui.QColor(182, 242, 182)    # flat swiezy
@@ -289,7 +291,10 @@ class CameraCalibration(QWidget):
         # teleskopu nie mieszac danych, a rysujemy tylko aktywny
         self.flat_records.setdefault(tel, {})[item] = data
         if tel == self.parent.active_tel:
-            self.draw_flat_table(tel)
+            if item in self.MASTERS:
+                self.draw_master_table(tel)
+            else:
+                self.draw_flat_table(tel)
 
     def draw_flat_log(self):
         # log flatow tej sesji jako tabela bez siatki - naglowek zostaje widoczny przy przewijaniu
@@ -318,7 +323,7 @@ class CameraCalibration(QWidget):
             return datetime.datetime.fromisoformat(t).replace(tzinfo=datetime.timezone.utc) if t else None
 
         # filtry bez zadnej daty pomijamy (np. kombinacje nd/diff na wk06); kolejnosc jak w kole filtrow
-        filters = {f for rec in records.values() for f in rec}
+        filters = {f for item, rec in records.items() if item not in self.MASTERS for f in rec}
         filters = [f for f in filters if any(last(item, f) for item in ("flats_evening", "flats_morning", "science"))]
         wheel = self.parent.nats_cfg.get(tel, {}).get("filter_list_names", [])
         filters.sort(key=lambda f: (wheel.index(f) if f in wheel else len(wheel), f))
@@ -352,6 +357,31 @@ class CameraCalibration(QWidget):
         self.flat_table_t.setFixedWidth(width)
         self.flat_table_t.repaint()
 
+    # master zero / dark z journala pipeline ofp (kanaly flat_overwatch zeros / darks, klucz "all");
+    # po ilu dniach komorka jest stara (toi.master_old_days)
+    MASTERS = {"zeros": "ZERO", "darks": "DARK"}
+
+    def draw_master_table(self, tel):
+        records = self.flat_records.get(tel, {})
+        cfg = self.parent.local_cfg["toi"]
+        fresh = datetime.timedelta(hours=cfg.get("flat_fresh_h", 20))
+        old_days = {"zeros": 3, "darks": 30, **(cfg.get("master_old_days") or {})}
+        t0 = datetime.datetime.now(datetime.timezone.utc)
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        for i, (item, name) in enumerate(self.MASTERS.items()):
+            t = records.get(item, {}).get("all", {}).get("last")
+            t = datetime.datetime.fromisoformat(t).replace(tzinfo=datetime.timezone.utc) if t else None
+            self.master_t.setItem(i, 0, self._flat_cell(name, font))
+            cell = self._flat_cell(self._age_txt(t0, t), font)
+            if t and t0 - t <= fresh:
+                cell.setBackground(self.FLAT_FRESH)
+            elif t is None or t0 - t > datetime.timedelta(days=old_days[item]):
+                cell.setBackground(self.FLAT_OLD)
+            self.master_t.setItem(i, 1, cell)
+        self.master_t.resizeColumnsToContents()
+        self.master_t.repaint()
+
     @staticmethod
     def _flat_cell(txt, font):
         cell = QTableWidgetItem(txt)
@@ -378,6 +408,18 @@ class CameraCalibration(QWidget):
         self.flat_table_t.verticalHeader().setDefaultSectionSize(10)
         grid.addWidget(self.flat_table_t, 0, 0)
 
+        self.master_t = QTableWidget(len(self.MASTERS), 2)
+        self.master_t.setHorizontalHeaderLabels(["MASTER", "AGE"])
+        self.master_t.setSelectionMode(QAbstractItemView.NoSelection)
+        self.master_t.verticalHeader().hide()
+        self.master_t.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.master_t.setStyleSheet("selection-background-color: white;")
+        self.master_t.verticalHeader().setDefaultSectionSize(10)
+        self.master_t.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.master_t.setFixedHeight(self.master_t.horizontalHeader().sizeHint().height()
+                                     + len(self.MASTERS) * self.master_t.verticalHeader().defaultSectionSize() + 4)
+        grid.addWidget(self.master_t, 1, 0)
+
         self.log_t = QTableWidget(0, 7)
         self.log_t.setHorizontalHeaderLabels(["DATE", "UT", "FILTER", "N", "EXP", "H_SUN", "ADU"])
         self.log_t.setShowGrid(False)
@@ -387,7 +429,7 @@ class CameraCalibration(QWidget):
         self.log_t.setEditTriggers(QTableWidget.NoEditTriggers)
         self.log_t.horizontalHeader().setStretchLastSection(True)
         self.log_t.setStyleSheet("background-color: rgb(235,235,235);")
-        grid.addWidget(self.log_t, 0, 1)
+        grid.addWidget(self.log_t, 0, 1, 2, 1)
         grid.setColumnStretch(1, 1)     # dodatkowa szerokosc okna idzie do logu, nie do tabeli
         self.setLayout(grid)
 

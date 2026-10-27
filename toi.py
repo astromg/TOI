@@ -950,7 +950,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_toi_focus_status_reader(), group="telescope_task")
         #self.add_background_task(self.nats_toi_focus_record_reader(), group="telescope_task")
 
-        for item in ("flats_evening", "flats_morning", "science"):
+        for item in ("flats_evening", "flats_morning", "science", "zeros", "darks"):
             self.add_background_task(self.reader_nats_flat_overwatch(item), group="telescope_task")
         self.add_background_task(self.dome_follower_reader(), group="telescope_task")
         self.add_background_task(self.dome_follower_heartbeat_reader(), group="telescope_task")
@@ -1138,7 +1138,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     async def reader_nats_flat_overwatch(self, item):
-        # flat_overwatch: osobne kanaly na wieczorne i poranne skyflaty oraz nauke, {filtr: {"last": ISO|None}}
+        # flat_overwatch: osobne kanaly na wieczorne i poranne skyflaty oraz nauke, {filtr: {"last": ISO|None}},
+        # i ostatni master zero / dark, {"all": {"last": ISO|None}}
         try:
             tel = self.active_tel
             template = self.local_cfg["toi"].get("flat_overwatch_subject", "tic.status.{tel}.flat_overwatch.{item}")
