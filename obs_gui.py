@@ -118,6 +118,12 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         # prawa kolumna na cala wysokosc, Mount tylko pod oknem obserwacji
         self.setCorner(Qt.Corner.TopRightCorner, Qt.DockWidgetArea.RightDockWidgetArea)
         self.setCorner(Qt.Corner.BottomRightCorner, Qt.DockWidgetArea.RightDockWidgetArea)
+        # formularz obserwacji tez w obszarze przewijania - na malym ekranie oddaje szerokosc panelom
+        central = QScrollArea()
+        central.setWidgetResizable(True)
+        central.setFrameShape(QFrame.Shape.NoFrame)
+        central.setWidget(self.takeCentralWidget())
+        self.setCentralWidget(central)
         self.docks = {}
         for attr, title in self.PANELS:
             widget = getattr(self.parent, attr)
@@ -189,7 +195,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             col = sum(need(a).height() for a in right if a != "skyGui") + need("skyGui").height()
             return max(left, col, need("planGui").height()) + 60
 
-        steps = []
+        self._compacted = steps = []
         if width() > avail.width():
             self.tabifyDockWidget(d["skyGui"], d["planGui"])
             columns["plan"] = False
@@ -204,11 +210,20 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             mount_below = False
             steps.append("Mount")
         if steps:
-            logger.info(f'TOI layout: small screen {avail.width()}x{avail.height()}, tabbed with Sky: {steps}')
+            logger.info(f'TOI layout: small screen {avail.width()}x{avail.height()}, tabbed with Sky: {steps}; '
+                        f'minimum widths: form {form.width()}, ' +
+                        ", ".join(f'{a} {need(a).width()}' for a, _ in self.PANELS))
 
     def _size_default_layout(self, avail, height, floating):
         d = self.docks
         o = self.ORIGINAL
+        if self._compacted:
+            # maly ekran: grupa zakladek tak szeroka jak jej najszerszy panel, formularz obserwacji dostaje reszte
+            group = [a for a, _ in self.PANELS if a == "skyGui" or d[a] in self.tabifiedDockWidgets(d["skyGui"])]
+            want = max(getattr(self.parent, a).minimumSizeHint().width() for a in group) + 20
+            self.resizeDocks([d["skyGui"]], [min(want, avail.width() - 350)], Qt.Orientation.Horizontal)
+            self._log_layout()
+            return
         self.resizeDocks([d["skyGui"], d["planGui"]], [o["skyGui"][2], o["planGui"][2]], Qt.Orientation.Horizontal)
         # wysokosci w dawnych proporcjach: obs : Mount = 400 : 450, Sky : Instrument = 500 : 500
         self.resizeDocks([d["mntGui"]], [height * o["mntGui"][3] // (o["obs"][3] + o["mntGui"][3])],
