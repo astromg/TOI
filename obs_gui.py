@@ -5,7 +5,7 @@ import os.path
 import qasync as qs
 from PyQtX import QtCore, QtGui
 from PyQtX.QtCore import Qt, QSettings, QTimer
-from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
+from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, QCheckBox, \
     QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox, QMenu, QDockWidget, QApplication, QScrollArea
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
@@ -775,8 +775,14 @@ class MainForm(QWidget):
         self.config_p.setStyleSheet(" color: gray;")
 
 
+        # obserwatorzy tej nocy (tic.status.ocm.observers); klikniecie otwiera okno rejestracji do poprawki
+        self.observers_p = QPushButton("Observers: --")
+        self.observers_p.setToolTip("Observers tonight. Click to change.")
+        self.observers_p.clicked.connect(self.parent.open_observers_window)
+
         grid.addWidget(self.report_p, w, 0)
         grid.addWidget(self.ping_p, w, 1)
+        grid.addWidget(self.observers_p, w, 2, 1, 5)
         grid.addWidget(self.config_p, w, 7)
 
 
@@ -794,6 +800,72 @@ class MainForm(QWidget):
         super().closeEvent(event)
 
 # ############### FOCUS ##########################
+
+class ObserversWindow(QWidget):
+    """Who observes tonight, for the whole observatory: the people from observers.yaml plus "Other".
+    OK publishes the list on tic.status.ocm.observers (TOI.set_observers); every TOI shows it next to PING.
+    "Only this TOI" keeps the choice in this session and publishes nothing (tests from elsewhere).
+    Not modal - a modal dialog in qasync would stop all background tasks while it is open."""
+
+    def __init__(self, parent):
+        super(ObserversWindow, self).__init__()
+        self.parent = parent
+        self.setWindowTitle("Observers tonight")
+        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+        self.mkUI()
+
+    def open_for(self, current, local=False):
+        # zaznacz obecnych obserwatorow; spoza listy ida do pola Other
+        known = [c.text() for c in self.checks]
+        for c in self.checks:
+            c.setChecked(c.text() in current)
+        self.other_e.setText(", ".join(n for n in current if n not in known))
+        self.local_c.setChecked(local)
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
+    def accept(self):
+        names = [c.text() for c in self.checks if c.isChecked()]
+        names += [n.strip() for n in self.other_e.text().split(",") if n.strip()]
+        if not names:
+            self.info_l.setText("Choose at least one observer.")
+            return
+        self.parent.set_observers(names, local=self.local_c.isChecked())
+        self.hide()
+
+    def mkUI(self):
+        grid = QGridLayout()
+        w = 0
+        self.info_l = QLabel("Who observes tonight?")
+        grid.addWidget(self.info_l, w, 0, 1, 2)
+        self.checks = []
+        for name in self.parent.observers_list:
+            w = w + 1
+            check = QCheckBox(name)
+            self.checks.append(check)
+            grid.addWidget(check, w, 0, 1, 2)
+        w = w + 1
+        grid.addWidget(QLabel("Other:"), w, 0)
+        self.other_e = QLineEdit()
+        self.other_e.setPlaceholderText("names, comma separated")
+        grid.addWidget(self.other_e, w, 1)
+        w = w + 1
+        # np. testy z Warszawy: ustawiam siebie tylko w tym TOI, obserwatorzy w OCM dalej widza swoj wpis
+        self.local_c = QCheckBox("Only this TOI (not shared with other stations)")
+        self.local_c.setToolTip("For this session only, e.g. for tests from elsewhere: nothing is published, "
+                                "the other TOIs keep their observers.")
+        grid.addWidget(self.local_c, w, 0, 1, 2)
+        w = w + 1
+        # w przyszlosci tu tez zadania dla obserwatorow (zakladka Tasks)
+        self.ok_p = QPushButton("OK")
+        self.ok_p.clicked.connect(self.accept)
+        self.later_p = QPushButton("Later")
+        self.later_p.clicked.connect(self.parent.observers_later)
+        grid.addWidget(self.later_p, w, 0)
+        grid.addWidget(self.ok_p, w, 1)
+        self.setLayout(grid)
+
 
 class ReportWindow(BaseWindow):
     def __init__(self, parent):

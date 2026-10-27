@@ -1,5 +1,16 @@
 <h4>Whats New?</h4>
 
+--- 27.10.2026 --- <br>
+Windows are now panels of the observation window: drag, tab or float them; the layout is remembered per screen
+setup, ⚙ menu brings any panel up and resets the layout. Panel titles show the active telescope and its colour.
+<br>
+New Aux tabs: Telescope (OCA manual page) and Tasks (for observers, empty for now).
+<br>
+Status lamps: NATS, dome follower, FITS downloader, OFP (overwatches to come). Rotator: mechanical and EQ angle,
+SET moves the mechanical angle (limits ±160°). Gain / read mode defaults from the TIC config. Python 3.14 allowed.
+<br>
+Observers of the night: a window asks once a day who observes (list in observers.yaml), shown next to PING.
+<br><br>
 --- 26.10.2026 --- <br>
 TPG: "Make SKYFLATS" adds evening and morning sky flats to the plan.
 <br>

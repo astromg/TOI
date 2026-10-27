@@ -51,7 +51,7 @@ from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 from instrument_gui import InstrumentGui
 from mnt_gui import MntGui
 from sky_gui import SkyGui
-from obs_gui import ObsGui, CzuwakWindow
+from obs_gui import ObsGui, CzuwakWindow, ObserversWindow
 from optics_model import OpticsModel
 from plan_gui import PlanGui
 from fits_gui import FitsWindow
@@ -120,12 +120,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.planGui = PlanGui(self, loop=self.loop, client_api=self.client_api)
         self.fitsGui = FitsWindow(self)
         self.czuwakGui = CzuwakWindow()
+        self.observersGui = ObserversWindow(self)
         # wszystkie okna sa juz zbudowane - wchodza jako panele do okna obserwacji
         self.obsGui.dock_panels()
 
         self.add_background_task(self.tic_con_loop())
         self.add_background_task(self.nats_con_loop())
         self.add_background_task(self.service_lamps_loop())
+        self.add_background_task(self.nats_observers_reader())
+        self.add_background_task(self.observers_check_loop())
         # heartbeaty serwisow spoza ocabox-tcs (overwatche); subject pusty -> lampka szara
         self.heartbeat_subjects = self.local_cfg["toi"].get("heartbeat_subjects") or {}
         self.heartbeat_seen = {name: None for name in self.heartbeat_subjects}
@@ -588,6 +591,90 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             except Exception as e:
                 logger.warning(f'EXCEPTION 103c: {e}')
             await asyncio.sleep(5)
+
+    # ---- obserwatorzy nocy, wspolni dla obserwatorium: lista w observers.yaml, wybor publikowany na
+    # tic.status.ocm.observers (strumien tic_status trzyma ostatni wpis). Starszy niz 23 h - okno samo wyskakuje
+    OBSERVERS_SUBJECT = 'tic.status.ocm.observers'
+    OBSERVERS_MAX_AGE = 23 * 3600       # s
+    OBSERVERS_LATER = 30 * 60           # s, "Later" odklada pytanie
+
+    async def nats_observers_reader(self):
+        try:
+            r = get_reader(self.OBSERVERS_SUBJECT, deliver_policy='last')
+            async for data, meta in r:
+                try:
+                    self.night_observers = data
+                    if self.observers_local is None:        # lokalny wybor tej sesji ma pierwszenstwo
+                        self.show_observers()
+                        if self.observers_age() < self.OBSERVERS_MAX_AGE:
+                            self.observersGui.hide()    # ktos juz wpisal - okno znika na wszystkich stanowiskach
+                except Exception as e:
+                    logger.warning(f'EXCEPTION 110e: {e}')
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 110f: {e}')
+
+    def current_observers(self):
+        # lokalny wybor tej sesji ("Only this TOI") albo wspolny wpis z NATS
+        return self.observers_local or self.night_observers
+
+    def show_observers(self):
+        data = self.current_observers() or {}
+        names = ", ".join(data.get("observers") or []) or "--"
+        f = self.obsGui.main_form
+        if self.observers_local is not None:
+            f.observers_p.setText(f"Observers (this TOI only): {names}")
+            f.observers_p.setToolTip("Set for this session only, not shared with other stations. Click to change.")
+        else:
+            f.observers_p.setText(f"Observers: {names}")
+            f.observers_p.setToolTip(f'Observers tonight, set {data.get("time", "?")} UT by {data.get("by", "?")}. '
+                                     f'Click to change.')
+
+    def observers_age(self):
+        try:
+            t = datetime.datetime.fromisoformat(self.current_observers()["time"])
+            return (datetime.datetime.now(datetime.timezone.utc) - t).total_seconds()
+        except (TypeError, KeyError, ValueError):
+            return float("inf")
+
+    async def observers_check_loop(self):
+        await asyncio.sleep(15)     # najpierw ostatni wpis z NATS
+        while True:
+            try:
+                if (self.observers_age() > self.OBSERVERS_MAX_AGE and time.time() > self.observers_later_until
+                        and not self.observersGui.isVisible()):
+                    self.open_observers_window()
+            except Exception as e:
+                logger.warning(f'EXCEPTION 103d: {e}')
+            await asyncio.sleep(60)
+
+    def open_observers_window(self):
+        current = (self.current_observers() or {}).get("observers") or []
+        self.observersGui.open_for(current, local=self.observers_local is not None)
+
+    def observers_later(self):
+        self.observers_later_until = time.time() + self.OBSERVERS_LATER
+        self.observersGui.hide()
+
+    def set_observers(self, names, local=False):
+        if local:
+            self.observers_local = {"observers": names, "by": self.myself,
+                                    "time": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
+            self.show_observers()
+        else:
+            self.observers_local = None
+            asyncio.ensure_future(self._publish_observers(names))
+
+    async def _publish_observers(self, names):
+        try:
+            data = {"observers": names, "by": self.myself,
+                    "time": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
+            await get_publisher(self.OBSERVERS_SUBJECT).publish(data=data, timeout=10)
+            await self.send_ocm_message(f'observers tonight: {", ".join(names)}')
+        except Exception as e:
+            logger.warning(f'EXCEPTION publish_observers: {e}')
+            self.WarningWindow(f"Observers not saved: {e}")
 
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def telescope_switched(self):
@@ -4558,6 +4645,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.dome_follower_seen = None
         self.services_since = time.time()
         self.started = time.time()
+        self.night_observers = None         # ostatni wpis z tic.status.ocm.observers
+        self.observers_local = None         # wybor tylko dla tej sesji ("Only this TOI"), nie publikowany
+        self.observers_later_until = 0
+        try:
+            with open('./observers.yaml', 'r') as f:
+                self.observers_list = (yaml.safe_load(f) or {}).get("observers") or []
+        except (OSError, yaml.YAMLError) as e:
+            logger.warning(f'TOI: observers.yaml not read: {e}')
+            self.observers_list = []
         self.inst_tab_switch = None
 
         # guider

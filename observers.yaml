@@ -1,0 +1,5 @@
+# OCM observers: the list in TOI's "Observers tonight" window (obs_gui.ObserversWindow).
+# Add a person here once they observe regularly; a one-off guest can be typed into "Other" in the window.
+observers:
+  - Marek Górski
+  - Michał Radziwonowicz

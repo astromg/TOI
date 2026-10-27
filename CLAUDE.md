@@ -21,7 +21,8 @@ poetry run toi          # or: ./toi.py
 poetry run nw           # runs nats_watch.py (standalone NATS message inspector)
 ```
 
-The app reads `toi_config.yaml` (telescope list, NATS host/port, per-telescope paths) from the current
+The app reads `toi_config.yaml` (telescope list, NATS host/port, per-telescope paths; also `focus_step` /
+`focus_method(s)` per telescope, `toi.oca_manual_url`, `toi.heartbeat_subjects`) from the current
 working directory at startup, and connects to NATS before building any GUI — if the NATS connection fails,
 the app logs an error and exits without opening a window. All local configuration lives in
 `toi_config.yaml`.
@@ -135,6 +136,13 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   `focus_move(tel, pos, source)` (not a bare `aput_move`), because it also publishes the adjust baseline to
   `tic.status.<tel>.toi.focus_reference`. Adjust target = reference position + Δ`focus_model` since the
   reference was set. See README "FOCUS ADJUST".
+
+- Observers of the night (2026-10-27): `observers.yaml` (repo root) lists the people; `obs_gui.ObserversWindow`
+  (non-modal) publishes the chosen ones on `tic.status.ocm.observers` (`{"observers", "time" ISO UTC, "by"}`, kept by
+  the `tic_status` stream), shown on the button between PING and ⚙. The window pops up by itself when the last entry
+  is older than 23 h (`TOI.observers_check_loop`, "Later" snoozes 30 min) and closes on every station once someone
+  saves. One list for the whole observatory. "Only this TOI" keeps the choice in the session only
+  (`TOI.observers_local`, nothing published; NATS entries then do not override it) — for tests from elsewhere.
 
 Shared, non-GUI helpers live in `toi_lib.py` (OB/sequence parsing, coordinate/time conversions, almanac,
 icon helpers) and are imported with `from toi_lib import *` throughout — check there before adding a

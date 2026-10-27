@@ -12,11 +12,42 @@ $ ./toi.py
 ```
 
 - _toi.py_ - Monitor do sygnalow i komunikacji z AutoSlew, odpala tez wszytskie okna GUI
-- _tel_gui.py_ - nic ciekawego, ale tylko tutaj jest **EXIT**
+- _obs_gui.py_ - okno obserwacji = okno glowne: lampki serwisow, warunki, tabela teleskopow, log, menu ⚙
 - _mnt_gui.py_ - Mount Controll - uzywa Monitora
 - _instrument_gui.py_ - instrument Window
 - _plan_gui.py_ - Plan Manager
-- _sky_gui.py_ - Radarek nieba
+- _sky_gui.py_ - Radarek nieba (tu jest **EXIT**)
+- _fits_gui.py_ - podglad FITS
+- _aux_gui.py_ - okno Aux z zakladkami: Telescope, Tasks, Optical path, Calibration, Focus, Guider, Plan Runner, Conditions
+
+## UKLAD OKIEN (od 27.10.2026)
+- Okno obserwacji jest oknem glownym, a Mount, Instrument, Sky, Plan, FITS i Aux to panele w nim (dock). Panel
+  mozna przeciagnac za pasek tytulu w inne miejsce, polozyc na innym jako zakladke albo wypiac na drugi monitor.
+- Pasek tytulu panelu ma kolor i nazwe aktywnego teleskopu (np. "Mount · jk15").
+- Uklad zapisuje sie przy zamknieciu TOI (krzyzyk na oknie obserwacji + Yes albo EXIT) osobno dla kazdego
+  ustawienia ekranow (laptop, laptop + monitor, stanowisko) i wraca przy starcie. Ctrl+C w terminalu go nie zapisuje.
+- Menu ⚙ (prawy dolny rog okna obserwacji): wyciaga dowolny panel / zakladke Aux na wierzch, **Reset layout**
+  wraca do ukladu domyslnego (dawne rozmiary okien; na malym ekranie panele ida jako zakladki przy Sky).
+- Zakladki Aux przelaczaja sie same: zmiana portu M3 -> Optical path, start OB SKYFLAT/DOMEFLAT -> Calibration,
+  start OB FOCUS -> Focus.
+- Lampki u gory okna obserwacji: TIC, NATS, DOME FLW (heartbeat dome followera), FITS DWL i OFP (RPC alive
+  oca-fits-proc), FLAT OW i WEATHER OW (szare, dopoki overwatche nie wysylaja heartbeatu).
+
+## OBSERWATORZY NOCY
+- Lista osob w `observers.yaml` (katalog glowny repo) - tu dopisujemy stalych obserwatorow.
+- Okno "Observers tonight" wyskakuje samo, gdy ostatni wpis jest starszy niz 23 h; mozna zaznaczyc osoby z listy
+  i wpisac gosci w polu Other. "Later" odklada pytanie o 30 min.
+- Wybor idzie na NATS (`tic.status.ocm.observers`), wiec widza go wszystkie stanowiska; okno znika wszedzie, gdy
+  ktos zapisze. Obserwatorzy sa na przycisku miedzy PING a ⚙ - klikniecie otwiera okno do poprawki.
+- "Only this TOI": wybor tylko dla tej sesji, nic nie idzie na NATS (np. testy z Warszawy) - przycisk pokazuje
+  wtedy "Observers (this TOI only)", a pozostale stanowiska maja dalej swoj wpis.
+
+## KONFIGURACJA (toi_config.yaml) - wpisy dodane 26-27.10.2026
+- per teleskop: `focus_step` (domyslny krok autofocusa, zamiast `default_step` z TIC), `focus_method`,
+  `focus_methods` (nazwy z `pyaraucaria.focus`),
+- `toi.oca_manual_url` - manual w intranecie dla zakladki Telescope (`http://docker.oca.lan:8081`),
+- `toi.heartbeat_subjects` - subjecty heartbeatow overwatchy (puste = lampka szara).
+- Konfiguracji TIC (ocabox-config-ocm) TOI tylko czyta; domyslny gain / read mode bierze z `flags: ['default']`.
 
 
 ## MASTER WINDOW (tel_gui.py)
@@ -109,6 +140,7 @@ staje sie nowa referencja, wiec poprawki sie nie kumuluja.
 ## Installation
 #### Install using the [`poetry` tool](https://python-poetry.org/docs/basic-usage/)
 This procedure installs all dependences includin proper python version in isolated virtual environment.
+Python 3.11-3.14 (3.14 also needs tpg allowing it, which it does since 27.10.2026).
 Also, the command line command `toi` will be created for easy running the executable in proper environment.
 1. [Install poetry](https://python-poetry.org/docs/#installation)
 2. Clone the project
