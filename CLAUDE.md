@@ -13,7 +13,7 @@ mix of Polish and English — this is normal and not a localization bug.
 
 ## Running the app
 
-Requires Poetry and Python 3.11–3.14.
+Requires Poetry and Python 3.11–3.14 (`>=3.11,<3.15`; 3.14 needs tpg with the same cap).
 
 ```
 poetry install

@@ -4709,6 +4709,11 @@ def main():
         qs.run(run_qt_app())
     except asyncio.exceptions.CancelledError:
         sys.exit(0)
+    except RuntimeError as e:
+        # Python 3.14: przy zamykaniu qasync zatrzymuje petle, zanim run_qt_app sie skonczy - to zwykle wyjscie
+        if "Event loop stopped before Future completed" in str(e):
+            sys.exit(0)
+        raise
 
 
 if __name__ == "__main__":
