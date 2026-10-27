@@ -519,24 +519,35 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(d["time"])).total_seconds()
             if age <= 60 * float(d.get("window_min", 30)):
                 value = float(d[kind])
-        lim = (d or {}).get("limits", {}).get(self.active_tel, {})
+        # kolor nie zalezy od aktywnego teleskopu: progi wszystkich teleskopow (ostrzezenia i alarmy) rosnaco wg
+        # pogorszenia; pierwszy przekroczony - zolty, ostatni - czerwony, posrednie - pomaranczowy
+        limits = (d or {}).get("limits", {})
+        steps = sorted({float(x[k]) for x in limits.values() for k in ("warning", "alert") if k in x},
+                       key=lambda x: worse * x)
+        passed = [x for x in steps if value is not None and worse * value >= worse * x]
         color = "rgb(235,235,235)"
         if value is None:
             field.setText("--")
         else:
             field.setText(fmt.format(value))
-            if "alert" in lim and worse * value >= worse * lim["alert"]:
-                color = "rgb(255, 140, 0)"
-            elif "warning" in lim and worse * value >= worse * lim["warning"]:
+            if passed and len(passed) == len(steps) and len(steps) > 1:
+                color = "red"
+            elif len(passed) == 1:
                 color = "rgb(255, 220, 0)"
+            elif passed:
+                color = "rgb(255, 140, 0)"
         field.setStyleSheet(f"color: black; background-color: {color};")
         tip = hint
         if d:
             tip += f" from the last {d.get('window_min')} min, {d.get('n')} {unit}."
             if age is not None:
                 tip += f"\nLast {unit[:-1]} {age / 60:.0f} min ago."
-            if lim:
-                tip += f"\n{self.active_tel} limits: {lim['warning']} / {lim['alert']}"
+            if limits:
+                tip += "\nLimits (warning / alert): " + ", ".join(
+                    f"{t} {x.get('warning')} / {x.get('alert')}" for t, x in limits.items())
+            if passed:
+                over = [t for t, x in limits.items() if worse * value >= worse * float(x.get("warning", x.get("alert")))]
+                tip += f"\nExceeded: {', '.join(over)}"
         else:
             tip += ". No data yet."
         field.setToolTip(tip)

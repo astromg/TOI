@@ -13,7 +13,8 @@ Observers of the night: a window asks once a day who observes (list in observers
 shown next to PING; "Only this TOI" sets them for this session without sharing. Panels scroll only on small screens.
 <br>
 Seeing: the observation window shows the site seeing at zenith from weather_overwatch (median of science frames of
-all telescopes, last 30 min); yellow / orange above the warning / alert limit of the active telescope.
+all telescopes, last 30 min), coloured by the limits of all telescopes: the first limit passed yellow, the last red,
+the ones between orange (seeing 1.5 / 2.0 / 2.5).
 Zero point: the same for the photometric zero point (median of zero_monitor of all telescopes, limits -0.1 / -0.2,
 as oca_monitor; the Conditions plot lines moved to these values).
 <br>
