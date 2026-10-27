@@ -120,6 +120,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.planGui = PlanGui(self, loop=self.loop, client_api=self.client_api)
         self.fitsGui = FitsWindow(self)
         self.czuwakGui = CzuwakWindow()
+        # wszystkie okna sa juz zbudowane - wchodza jako panele do okna obserwacji
+        self.obsGui.dock_panels()
 
         self.add_background_task(self.tic_con_loop())
         self.add_background_task(self.nats_con_loop())

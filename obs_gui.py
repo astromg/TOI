@@ -4,9 +4,9 @@ import logging
 import os.path
 import qasync as qs
 from PyQtX import QtCore, QtGui
-from PyQtX.QtCore import Qt
+from PyQtX.QtCore import Qt, QSettings
 from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
-    QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox, QMenu
+    QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox, QMenu, QDockWidget, QApplication
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
@@ -51,6 +51,8 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             menu.addAction(title, lambda _=False, attr=attr: self.bring_up(getattr(self.parent, attr)))
         aux_tabs = menu.addMenu("Aux tabs")
         aux_tabs.aboutToShow.connect(lambda: self.fill_aux_menu(aux_tabs))
+        menu.addSeparator()
+        menu.addAction("Reset layout", lambda _=False: self.reset_layout())
 
     def fill_aux_menu(self, menu):
         menu.clear()
@@ -64,14 +66,100 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.bring_up(self.parent.auxGui)
         self.parent.auxGui.tabs.setCurrentWidget(page)
 
-    @staticmethod
-    def bring_up(window):
+    def bring_up(self, window):
+        # zadokowane okno: podnosimy jego panel (takze zakladke, gdy panele leza na sobie)
+        dock = window.parentWidget()
+        if isinstance(dock, QDockWidget):
+            dock.show()
+            dock.raise_()
+            if not dock.isFloating():
+                window = self
+            else:
+                dock.activateWindow()
+                return
         if window.isMinimized():
             window.showNormal()
         else:
             window.show()
         window.raise_()
         window.activateWindow()
+
+    # ---- panele: okna TOI zadokowane w oknie obserwacji (QDockWidget). Mozna je przestawiac, ukladac jako
+    # zakladki i wypinac na drugi monitor; uklad pamietany per maszyna i ustawienie ekranow (QSettings),
+    # zapisywany przy zamknieciu TOI, "Reset layout" w menu ⚙ wraca do domyslnego
+    PANELS = [("mntGui", "Mount"), ("instGui", "Instrument"), ("skyGui", "Sky"),
+              ("planGui", "Plan"), ("fitsGui", "FITS"), ("auxGui", "Aux")]
+
+    def dock_panels(self):
+        self._geometry = None       # rozmiar okna glownego ustawia uklad, nie obs_window_geometry
+        self.setDockOptions(QMainWindow.DockOption.AnimatedDocks | QMainWindow.DockOption.AllowTabbedDocks
+                            | QMainWindow.DockOption.AllowNestedDocks)
+        # prawa kolumna na cala wysokosc, Mount tylko pod oknem obserwacji
+        self.setCorner(Qt.Corner.TopRightCorner, Qt.DockWidgetArea.RightDockWidgetArea)
+        self.setCorner(Qt.Corner.BottomRightCorner, Qt.DockWidgetArea.RightDockWidgetArea)
+        self.docks = {}
+        for attr, title in self.PANELS:
+            widget = getattr(self.parent, attr)
+            widget._geometry = None     # BaseWindow nie ustawia juz pozycji
+            dock = QDockWidget(title, self)
+            dock.setObjectName(f"dock_{attr}")      # po tej nazwie saveState rozpoznaje panel
+            dock.setWidget(widget)
+            self.docks[attr] = dock
+        self.default_layout()
+        self.restore_layout()
+
+    def default_layout(self):
+        d = self.docks
+        for dock in d.values():
+            self.removeDockWidget(dock)
+            dock.setFloating(False)
+        right = Qt.DockWidgetArea.RightDockWidgetArea
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, d["mntGui"])
+        self.addDockWidget(right, d["skyGui"])
+        self.splitDockWidget(d["skyGui"], d["planGui"], Qt.Orientation.Horizontal)
+        self.splitDockWidget(d["skyGui"], d["instGui"], Qt.Orientation.Vertical)
+        main = QApplication.primaryScreen()
+        others = [sc for sc in QApplication.screens() if sc is not main]
+        if others:
+            # drugi monitor: FITS nad Aux, jak dawniej
+            g = others[0].availableGeometry()
+            for attr, top, height in (("fitsGui", g.top(), g.height() * 3 // 5),
+                                      ("auxGui", g.top() + g.height() * 3 // 5, g.height() * 2 // 5)):
+                self.addDockWidget(right, d[attr])
+                d[attr].setFloating(True)
+                d[attr].setGeometry(g.left(), top, g.width() // 2, height)
+        else:
+            # jeden ekran: FITS i Aux jako zakladki obok radaru
+            self.tabifyDockWidget(d["skyGui"], d["fitsGui"])
+            self.tabifyDockWidget(d["skyGui"], d["auxGui"])
+        for dock in d.values():
+            dock.show()
+        d["skyGui"].raise_()
+        self.resizeDocks([d["skyGui"], d["planGui"]], [500, 490], Qt.Orientation.Horizontal)
+        self.resizeDocks([d["mntGui"]], [450], Qt.Orientation.Vertical)
+        self.setGeometry(main.availableGeometry())
+
+    def layout_key(self):
+        # osobny uklad dla kazdego ustawienia ekranow (laptop sam / z monitorem / stanowisko)
+        return "layout/" + "+".join(f"{sc.size().width()}x{sc.size().height()}" for sc in QApplication.screens())
+
+    def save_layout(self):
+        settings = QSettings("OCA", "TOI")
+        settings.setValue(self.layout_key() + "/geometry", self.saveGeometry())
+        settings.setValue(self.layout_key() + "/state", self.saveState())
+
+    def restore_layout(self):
+        settings = QSettings("OCA", "TOI")
+        geometry = settings.value(self.layout_key() + "/geometry")
+        state = settings.value(self.layout_key() + "/state")
+        if geometry is not None:
+            self.restoreGeometry(geometry)
+        if state is not None:
+            self.restoreState(state)
+
+    def reset_layout(self):
+        self.default_layout()
+        self.save_layout()
 
     def set_initial_geometry(self, x, y, width, height):
         self._geometry = (x, y, width, height)
@@ -103,6 +191,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def quit_toi(self):
         self._quitting = True
+        self.save_layout()
         self.parent.app.closeAllWindows()
 
 

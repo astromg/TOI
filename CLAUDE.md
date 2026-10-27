@@ -88,6 +88,13 @@ async behavior (popups, plot/report windows) — it just defers `setGeometry()` 
 that are created hidden get positioned correctly once shown.
 
 ### GUI window map
+Since 2026-10-27 the observation window (`ObsGui`, a `QMainWindow`) is the main window and Mount, Instrument, Sky,
+Plan, FITS and Aux are `QDockWidget` panels in it (`ObsGui.dock_panels`, called at the end of the window generation in
+`TOI.__init__`): they can be docked, tabbed or floated to another monitor. The layout is saved per machine and screen
+setup in `QSettings("OCA", "TOI")` when TOI quits (`quit_toi`), restored at start; "Reset layout" in the ⚙ menu goes
+back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geometry` is cleared when docking); popups
+(TPG, plots, report) are still free windows. To bring a panel forward use `obsGui.bring_up(widget)` — a widget's own
+`show()`/`raise_()` does nothing for its dock.
 `TOI` (in `toi.py`) is the top-level widget that owns one instance of each major window/controller:
 - `mnt_gui.py` (`MntGui`) — mount control (slew, track, park), uses `BaseAsyncWidget` subscriptions.
 - `obs_gui.py` (`ObsGui`, `CzuwakWindow`) — main observation window. Its operator message box (`msg_e`) is

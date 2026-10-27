@@ -62,8 +62,7 @@ class AuxWindow(BaseWindow):
 
     def show_tab(self, page):
         self.tabs.setCurrentWidget(page)
-        self.show()
-        self.raise_()
+        self.parent.obsGui.bring_up(self)       # panel Aux na wierzch (tez gdy lezy jako zakladka)
 
     # pierwsze slowo OB -> zakladka, ktora sie podnosi, gdy ten OB rusza
     OB_TABS = {"SKYFLAT": "calibration", "DOMEFLAT": "calibration", "FOCUS": "focus"}
