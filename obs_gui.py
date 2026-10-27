@@ -4,7 +4,7 @@ import logging
 import os.path
 import qasync as qs
 from PyQtX import QtCore, QtGui
-from PyQtX.QtCore import Qt, QSettings, QTimer
+from PyQtX.QtCore import Qt, QSettings, QTimer, QSize
 from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, QCheckBox, \
     QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox, QMenu, QDockWidget, QApplication, QScrollArea
 from pyaraucaria.coordinates import *
@@ -124,6 +124,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         central.setFrameShape(QFrame.Shape.NoFrame)
         central.setWidget(self.takeCentralWidget())
         self.setCentralWidget(central)
+        self.areas = {"main_form": central}
         self.docks = {}
         for attr, title in self.PANELS:
             widget = getattr(self.parent, attr)
@@ -136,6 +137,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             area.setFrameShape(QFrame.Shape.NoFrame)
             area.setWidget(widget)
             dock.setWidget(area)
+            self.areas[attr] = area
             self.docks[attr] = dock
         self.default_layout()
         self.restore_layout()
@@ -209,6 +211,10 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.tabifyDockWidget(d["skyGui"], d["mntGui"])
             mount_below = False
             steps.append("Mount")
+        # przewijanie tylko na malym ekranie: gdy uklad sie miesci, panel nie moze byc mniejszy niz jego zawartosc
+        for attr, area in self.areas.items():
+            content = self.main_form if attr == "main_form" else getattr(self.parent, attr)
+            area.setMinimumSize(QSize(0, 0) if steps else content.minimumSizeHint())
         if steps:
             logger.info(f'TOI layout: small screen {avail.width()}x{avail.height()}, tabbed with Sky: {steps}; '
                         f'minimum widths: form {form.width()}, ' +
