@@ -1921,7 +1921,9 @@ class EditWindow(QWidget):
             tmp["meta"] = {"ok":True}
 
             self.parent.plan[self.parent.i] = tmp
-            self.parent.update_table()
+            # jak przy dodawaniu OB: plan do TOI i przeliczenie (update_plan) - inaczej edytowany OB nie mial czasu
+            # startu, a nastepne zostawaly ze starymi czasami
+            self.parent.parent.upload_plan()
             self.close()
 
     # {

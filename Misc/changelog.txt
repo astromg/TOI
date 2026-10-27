@@ -45,6 +45,9 @@ Plan: OB times (and so the altitudes) of a telescope that is not the active one 
 mode of the active telescope's camera - zb08 got jk15's mode 3 (= 0.05 MHz on zb08), slots x10, objects pushed into
 the day. Each telescope now uses its own read mode (READ-MOD of its last frame).
 <br>
+Plan: after editing an OB the plan is recalculated (start times and altitudes); the edited OB used to lose its start
+time and the following ones kept the old times.
+<br>
 Plan: test=True set in the OB edit / add window did not reach the FITS header (the planrunner only reads 1/0);
 Test is now saved as 1 / 0.
 <br><br>
