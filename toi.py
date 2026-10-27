@@ -389,8 +389,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             r = get_reader(f'tic.status.{tel}.fits.pipeline.faststat',  deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in r:
                 self.fits_ffs_data[tel].append(data)
-                #print(data)
-                #self.conditionsGui.update()
+                try:        # tryb odczytu kazdego teleskopu, nie tylko aktywnego - do czasow planu (CTC)
+                    rm = data["raw"]["header"].get("READ-MOD")
+                    if rm is not None:
+                        self.readoutmode_tel[tel] = int(rm)
+                except (KeyError, TypeError, ValueError):
+                    pass
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1878,7 +1882,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         try:
                             self.ctc.reset_time()
                             self.ctc.set_start_time(datetime.datetime.now(datetime.timezone.utc))
-                            self.ctc.set_start_rmode(self.ccd_readoutmode)
+                            self.ctc.set_start_rmode(self.readout_mode(tel))
                             self.ctc.set_telescope_start_az_alt(az=self.mount_az, alt=self.mount_alt)
 
                             self.ob[tel]["meta"]["slot_time"] = self.ctc.calc_time(self.ob[tel]["block"])
@@ -2461,7 +2465,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.planGui.update_table()
                 else:
                     self.check_next_i(tel)
-                    rm_now = self.ccd_readoutmode
+                    rm_now = self.readout_mode(tel)
                     now = ephem.now()
 
                     # Jedna os czasu: ob_time = planowany start kolejnego OB.
@@ -2994,8 +2998,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             except Exception: pass
         self.telescope_switch_status["gain"] = True
 
+    def readout_mode(self, tel):
+        """Tryb odczytu kamery teleskopu `tel`. self.ccd_readoutmode to kamera AKTYWNEGO teleskopu - plan
+        innego teleskopu liczony z nim dostawal cudzy tryb (zb08 z trybem 3 jk15 = 0.05 MHz, sloty x10)."""
+        rm = self.readoutmode_tel.get(tel)
+        return rm if rm is not None else getattr(self, "ccd_readoutmode", None)
+
     async def ccd_rm_update(self, event):
         self.ccd_readoutmode = await self.ccd.aget_readoutmode()
+        if self.ccd_readoutmode is not None:
+            self.readoutmode_tel[self.active_tel] = int(self.ccd_readoutmode)
         # READ MODES
 
         if self.ccd_readoutmode != None:
@@ -4614,6 +4626,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.log_record = {t:"" for t in self.local_cfg["toi"]["telescopes"]}
 
         self.fits_ffs_data = {t:[] for t in self.local_cfg["toi"]["telescopes"]}
+        self.readoutmode_tel = {}       # tel -> tryb odczytu kamery (READ-MOD z faststat, aktywny z kamery)
         self.conditions = {}        # rodzaj -> ostatnia wiadomosc z toi.conditions_subjects
         self.fits_photo_z0_data = {t:[] for t in self.local_cfg["toi"]["telescopes"]}
 

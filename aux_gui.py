@@ -38,7 +38,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 from pyaraucaria.date import datetime_to_julian, get_oca_jd
 from pyaraucaria.focus import Focus
-from scipy.ndimage import gaussian_filter1d
+from scipy.ndimage import gaussian_filter1d, median_filter
 
 from PyQtX import QtGui
 from PyQtX.QtCore import Qt, QUrl
@@ -868,12 +868,14 @@ class ConditionsTab(QWidget):
 
     PLOTS = ["FWHM", "Zero point"]
     SMOOTH_SIGMA = 5            # punktow - filtr Gaussa po kolejnych punktach, jak oca_monitor
+    MEDIAN_SIZE = 5             # punktow - mediana przed Gaussem: pojedynczy zly punkt (np. ZP -2.9) nie ciagnie linii
     MAX_GAP = 0.5 / 24          # d - przerwa dluzsza dzieli krzywa na odcinki
     MIN_SEGMENT = 4             # krotszych odcinkow nie wygladzamy, zostaja same punkty
     FILTER_EDGE = {"B": "blue", "V": "green", "Ic": "red", "u": "purple", "g": "teal", "r": "orangered",
                    "i": "darkred", "z": "black"}      # obwodka punktu zero pointu wg filtra, inne szare
-    FWHM_TOP = 3.0              # arcsec - gora skali FWHM; wyzszy punkt tej nocy podnosi ja
-    ZP_RANGE = (-0.3, 0.08)     # mag - domyslna skala zero pointu; punkty tej nocy spoza niej ja poszerzaja
+    FWHM_TOP = (3.0, 6.0)       # arcsec - gora skali FWHM; wyzszy punkt tej nocy podnosi ja, najwyzej do drugiej
+    ZP_RANGE = (-0.3, 0.08)     # mag - domyslna skala zero pointu; punkty tej nocy spoza niej ja poszerzaja,
+    ZP_RANGE_MAX = (-0.6, 0.2)  # najwyzej do tych granic - dalsze punkty rysujemy na krawedzi jako trojkaty
     ZP_ZONES = (-0.1, -0.2)     # ostrzezenie / alarm, gdy weather_overwatch jeszcze nie przyslal progow
 
     def __init__(self, parent):
@@ -921,7 +923,7 @@ class ConditionsTab(QWidget):
                 out_x.append(numpy.nan)
                 out_y.append(numpy.nan)
             out_x.extend(sx)
-            out_y.extend(gaussian_filter1d(sy, sigma=self.SMOOTH_SIGMA))
+            out_y.extend(gaussian_filter1d(median_filter(sy, size=self.MEDIAN_SIZE, mode="nearest"), sigma=self.SMOOTH_SIGMA))
         return out_x, out_y
 
     def night_axis(self, x0, x1, ylabel):
@@ -946,7 +948,7 @@ class ConditionsTab(QWidget):
             max_airmass = float(self.airmass_e.text()) if self.airmass_e.text().strip() else None
         except ValueError:
             max_airmass = None
-        top = self.FWHM_TOP
+        top = self.FWHM_TOP[0]
         for t, frames in self.parent.fits_ffs_data.items():
             color = self.parent.nats_cfg[t]['color']
             jd, fwhm, focus = [], [], []
@@ -974,7 +976,7 @@ class ConditionsTab(QWidget):
             if (~old).sum():
                 sx, sy = self.smoothed(jd[~old], fwhm[~old])
                 self.ax.plot(sx, sy, color=color, linewidth=2)
-                top = max(top, 1.05 * fwhm[~old].max())
+                top = min(max(top, 1.05 * fwhm[~old].max()), self.FWHM_TOP[1])
             for ft in focus:
                 if ft > x0:
                     self.ax.axvline(x=ft, color=color, alpha=0.8, linewidth=0.8)
@@ -1033,8 +1035,14 @@ class ConditionsTab(QWidget):
                              fontweight="bold", color=zone, va="top")
         self.night_axis(0.4, 0.99, "zero point [mag]")
         bottom, top = self.ZP_RANGE
+        lo, hi = self.ZP_RANGE_MAX
         if all_y:
-            bottom, top = min(bottom, min(all_y) - 0.02), max(top, max(all_y) + 0.02)
+            bottom = max(min(bottom, min(all_y) - 0.02), lo)
+            top = min(max(top, max(all_y) + 0.02), hi)
+            for x, y in zip(all_x, all_y):      # poza skala: trojkat na krawedzi zamiast rozciagania skali
+                if y < bottom or y > top:
+                    self.ax.scatter([x], [bottom if y < bottom else top], marker="v" if y < bottom else "^",
+                                    s=40, color="black", clip_on=False, zorder=5)
         self.ax.set_ylim(bottom, top)
         if all_x:
             self.ax.legend(loc="upper right", fontsize=8)
