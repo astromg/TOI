@@ -1765,17 +1765,19 @@ class PlotWindow(BaseWindow):
             for t, txts in groups:
                 self.axes.text(t, 3, " \u00b7 ".join(txts), rotation=90, fontsize=8)
 
-            # podpisy nad wykresem: na poczatku slotu, a gdy tam ciasno - w pierwszym wolnym miejscu w obrebie slotu
-            # (dlugi OB po krotkim nie traci nazwy); pomijamy tylko OB za krotkie na podpis - te sa pod myszka
+            # podpisy nad wykresem - kazdy OB ma nazwe (brak bylby mylacy): na poczatku slotu, a gdy tam ciasno - w
+            # pierwszym wolnym miejscu w obrebie slotu; gdy i tam nie ma miejsca, na poczatku slotu (nachodza - widac,
+            # ze jest gesto; szczegoly pod myszka)
             gap = self.LABEL_GAP * x_span
             last = None
             self.labels_drawn = []
             for t0, t1, name, color, fs in labels:
                 x = t0 if last is None else max(t0, last + gap)
-                if x <= t1:
-                    self.axes.text(x, 93, name, color=color, rotation=90, fontsize=fs)
-                    self.labels_drawn.append(name)
-                    last = x
+                if x > t1:
+                    x = t0
+                self.axes.text(x, 93, name, color=color, rotation=90, fontsize=fs)
+                self.labels_drawn.append(name)
+                last = x if last is None else max(last, x)
 
             self.axes.set_ylim(0, 90)
             self.axes.set_xlim(self.t0-0.5*ephem.hour,self.t_end+0.5*ephem.hour)
