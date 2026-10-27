@@ -127,7 +127,8 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   declares `calibration = "camera"|"spectrograph"`, and `InstrumentGui.instrument_changed` switches the page.
   `CameraCalibration` shows last evening/morning sky flats and science per filter from the flat_overwatch
   subjects (`toi.flat_overwatch_subject` in `toi_config.yaml`, read by `reader_nats_flat_overwatch(item)`),
-  plus the age of the last master zero / dark (items `zeros` / `darks`, `{"all": {"last"}}`, `draw_master_table`),
+  with a table above it: age of the last master zero / dark (items `zeros` / `darks`, `{"all": {"last"}}`) and of the
+  last object in any filter (`draw_master_table`),
   kept per telescope in `flat_records`; the TPG window's "Make SKYFLATS" switch turns those records into the
   `flat_history` passed to tpg (`TPGWindow._flat_history`). Autofocus fits use `pyaraucaria.focus`
   (`calcFocus/calc_focus.py` is the old local version). In the Focus tab Recalculate only computes; SET

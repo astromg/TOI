@@ -285,16 +285,15 @@ class CameraCalibration(QWidget):
     FLAT_FRESH = QtGui.QColor(182, 242, 182)    # flat swiezy
     FLAT_OLD = QtGui.QColor(255, 204, 128)      # flat stary
     FLAT_STALE = QtGui.QColor(255, 153, 153)    # filtr ostatnio uzywany, a swiezych flatow brak
+    MASTER_OK = QtGui.QColor(220, 220, 220)     # master juz nie swiezy, ale jeszcze w limicie
 
     def update_flat_overwatch(self, tel, item, data):
-        # item: flats_evening / flats_morning / science; trzymamy per teleskop, zeby po zmianie
-        # teleskopu nie mieszac danych, a rysujemy tylko aktywny
+        # item: flats_evening / flats_morning / science / zeros / darks; trzymamy per teleskop, zeby po zmianie
+        # teleskopu nie mieszac danych, a rysujemy tylko aktywny (science jest w obu tabelach)
         self.flat_records.setdefault(tel, {})[item] = data
         if tel == self.parent.active_tel:
-            if item in self.MASTERS:
-                self.draw_master_table(tel)
-            else:
-                self.draw_flat_table(tel)
+            self.draw_master_table(tel)
+            self.draw_flat_table(tel)
 
     def draw_flat_log(self):
         # log flatow tej sesji jako tabela bez siatki - naglowek zostaje widoczny przy przewijaniu
@@ -357,28 +356,44 @@ class CameraCalibration(QWidget):
         self.flat_table_t.setFixedWidth(width)
         self.flat_table_t.repaint()
 
-    # master zero / dark z journala pipeline ofp (kanaly flat_overwatch zeros / darks, klucz "all");
-    # po ilu dniach komorka jest stara (toi.master_old_days)
-    MASTERS = {"zeros": "ZERO", "darks": "DARK"}
+    # tabela nad flatami: ostatni master zero / dark z journala pipeline ofp (kanaly flat_overwatch zeros / darks,
+    # klucz "all"; limit wieku toi.master_max_days) i ostatni obiekt w dowolnym filtrze (najnowszy z kanalu science)
+    MASTERS = {"zeros": "MASTER ZERO", "darks": "MASTER DARK"}
 
     def draw_master_table(self, tel):
         records = self.flat_records.get(tel, {})
         cfg = self.parent.local_cfg["toi"]
-        fresh = datetime.timedelta(hours=cfg.get("flat_fresh_h", 20))
-        old_days = {"zeros": 3, "darks": 30, **(cfg.get("master_old_days") or {})}
+        fresh_days = {"zeros": 0.5, "darks": 30, **(cfg.get("master_fresh_days") or {})}
+        max_days = {"zeros": 1, "darks": 60, **(cfg.get("master_max_days") or {})}
         t0 = datetime.datetime.now(datetime.timezone.utc)
         font = QtGui.QFont()
         font.setPointSize(10)
+
+        def utc(t):
+            return datetime.datetime.fromisoformat(t).replace(tzinfo=datetime.timezone.utc) if t else None
+
+        science = [v.get("last") for v in records.get("science", {}).values() if v.get("last")]
+        t_obj = utc(max(science)) if science else None
         for i, (item, name) in enumerate(self.MASTERS.items()):
-            t = records.get(item, {}).get("all", {}).get("last")
-            t = datetime.datetime.fromisoformat(t).replace(tzinfo=datetime.timezone.utc) if t else None
+            t = utc(records.get(item, {}).get("all", {}).get("last"))
+            fresh = datetime.timedelta(days=fresh_days[item])
+            limit = datetime.timedelta(days=max_days[item])
             self.master_t.setItem(i, 0, self._flat_cell(name, font))
             cell = self._flat_cell(self._age_txt(t0, t), font)
+            # zielony - swiezy; szary - jeszcze dobry (zero z wieczora po polnocy, dark z drugiego miesiaca - robione,
+            # gdy nie ma pogody); starszy niz limit (albo brak):
+            # czerwony, gdy w tym czasie byl obiekt (obserwacje bez aktualnej kalibracji), pomaranczowy, gdy nie
             if t and t0 - t <= fresh:
                 cell.setBackground(self.FLAT_FRESH)
-            elif t is None or t0 - t > datetime.timedelta(days=old_days[item]):
+            elif t and t0 - t <= limit:
+                cell.setBackground(self.MASTER_OK)
+            elif t_obj and t0 - t_obj <= limit:
+                cell.setBackground(self.FLAT_STALE)
+            else:
                 cell.setBackground(self.FLAT_OLD)
             self.master_t.setItem(i, 1, cell)
+        self.master_t.setItem(len(self.MASTERS), 0, self._flat_cell("OBJECT", font))
+        self.master_t.setItem(len(self.MASTERS), 1, self._flat_cell(self._age_txt(t0, t_obj), font))
         self.master_t.resizeColumnsToContents()
         self.master_t.repaint()
 
@@ -406,10 +421,10 @@ class CameraCalibration(QWidget):
         self.flat_table_t.setEditTriggers(QTableWidget.NoEditTriggers)
         self.flat_table_t.setStyleSheet("selection-background-color: white;")
         self.flat_table_t.verticalHeader().setDefaultSectionSize(10)
-        grid.addWidget(self.flat_table_t, 0, 0)
+        grid.addWidget(self.flat_table_t, 1, 0)
 
-        self.master_t = QTableWidget(len(self.MASTERS), 2)
-        self.master_t.setHorizontalHeaderLabels(["MASTER", "AGE"])
+        self.master_t = QTableWidget(len(self.MASTERS) + 1, 2)       # + OBJECT
+        self.master_t.setHorizontalHeaderLabels(["LAST", "AGE"])
         self.master_t.setSelectionMode(QAbstractItemView.NoSelection)
         self.master_t.verticalHeader().hide()
         self.master_t.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -417,8 +432,8 @@ class CameraCalibration(QWidget):
         self.master_t.verticalHeader().setDefaultSectionSize(10)
         self.master_t.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.master_t.setFixedHeight(self.master_t.horizontalHeader().sizeHint().height()
-                                     + len(self.MASTERS) * self.master_t.verticalHeader().defaultSectionSize() + 4)
-        grid.addWidget(self.master_t, 1, 0)
+                                     + self.master_t.rowCount() * self.master_t.verticalHeader().defaultSectionSize() + 4)
+        grid.addWidget(self.master_t, 0, 0)
 
         self.log_t = QTableWidget(0, 7)
         self.log_t.setHorizontalHeaderLabels(["DATE", "UT", "FILTER", "N", "EXP", "H_SUN", "ADU"])
