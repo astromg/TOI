@@ -815,40 +815,70 @@ class ObserversWindow(QWidget):
         self.mkUI()
 
     def open_for(self, current, local=False):
-        # zaznacz obecnych obserwatorow; spoza listy ida do pola Other
-        known = [c.text() for c in self.checks]
-        for c in self.checks:
-            c.setChecked(c.text() in current)
+        # zaznaczeni obecni obserwatorzy - po starcie ci z ostatniego wpisu, czyli z poprzedniej nocy;
+        # spoza listy ida do pola Other
+        known = set(self.parent.observers_list)
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, 0)
+            item.setCheckState(Qt.CheckState.Checked if item.text() in current else Qt.CheckState.Unchecked)
         self.other_e.setText(", ".join(n for n in current if n not in known))
         self.local_c.setChecked(local)
+        self.search_e.clear()
+        self.count_changed()
         self.show()
         self.raise_()
         self.activateWindow()
 
+    def chosen(self):
+        names = [self.table.item(r, 0).text() for r in range(self.table.rowCount())
+                 if self.table.item(r, 0).checkState() == Qt.CheckState.Checked]
+        return names + [n.strip() for n in self.other_e.text().split(",") if n.strip()]
+
     def accept(self):
-        names = [c.text() for c in self.checks if c.isChecked()]
-        names += [n.strip() for n in self.other_e.text().split(",") if n.strip()]
+        names = self.chosen()
         if not names:
             self.info_l.setText("Choose at least one observer.")
             return
         self.parent.set_observers(names, local=self.local_c.isChecked())
         self.hide()
 
+    def filter_rows(self, text):
+        for row in range(self.table.rowCount()):
+            self.table.setRowHidden(row, text.lower() not in self.table.item(row, 0).text().lower())
+
+    def count_changed(self, *_):
+        self.info_l.setText(f"Who observes tonight? Chosen: {len(self.chosen())}")
+
     def mkUI(self):
         grid = QGridLayout()
         w = 0
         self.info_l = QLabel("Who observes tonight?")
         grid.addWidget(self.info_l, w, 0, 1, 2)
-        self.checks = []
-        for name in self.parent.observers_list:
-            w = w + 1
-            check = QCheckBox(name)
-            self.checks.append(check)
-            grid.addWidget(check, w, 0, 1, 2)
+        w = w + 1
+        self.search_e = QLineEdit()
+        self.search_e.setPlaceholderText("search")
+        self.search_e.textChanged.connect(self.filter_rows)
+        grid.addWidget(self.search_e, w, 0, 1, 2)
+        w = w + 1
+        # lista z observers.yaml w tabeli: kliknij pole przy nazwisku
+        self.table = QTableWidget(len(self.parent.observers_list), 1)
+        self.table.setHorizontalHeaderLabels(["Observer"])
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.verticalHeader().hide()
+        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        for row, name in enumerate(self.parent.observers_list):
+            item = QTableWidgetItem(name)
+            item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
+            item.setCheckState(Qt.CheckState.Unchecked)
+            self.table.setItem(row, 0, item)
+        self.table.itemChanged.connect(self.count_changed)
+        grid.addWidget(self.table, w, 0, 1, 2)
         w = w + 1
         grid.addWidget(QLabel("Other:"), w, 0)
         self.other_e = QLineEdit()
         self.other_e.setPlaceholderText("names, comma separated")
+        self.other_e.textChanged.connect(self.count_changed)
         grid.addWidget(self.other_e, w, 1)
         w = w + 1
         # np. testy z Warszawy: ustawiam siebie tylko w tym TOI, obserwatorzy w OCM dalej widza swoj wpis
@@ -864,7 +894,9 @@ class ObserversWindow(QWidget):
         self.later_p.clicked.connect(self.parent.observers_later)
         grid.addWidget(self.later_p, w, 0)
         grid.addWidget(self.ok_p, w, 1)
+        grid.setRowStretch(2, 1)
         self.setLayout(grid)
+        self.resize(380, 520)
 
 
 class ReportWindow(BaseWindow):

@@ -34,7 +34,9 @@ $ ./toi.py
   oca-fits-proc), FLAT OW i WEATHER OW (szare, dopoki overwatche nie wysylaja heartbeatu).
 
 ## OBSERWATORZY NOCY
-- Lista osob w `observers.yaml` (katalog glowny repo) - tu dopisujemy stalych obserwatorow.
+- Lista osob w `observers.yaml` (katalog glowny repo) - tu dopisujemy stalych obserwatorow (samo nazwisko albo
+  wpis `{name: ...}` na pozniejsze dane).
+- W oknie tabela z wyszukiwarka; na starcie zaznaczeni sa obserwatorzy z ostatniego wpisu (poprzedniej nocy).
 - Okno "Observers tonight" wyskakuje samo, gdy ostatni wpis jest starszy niz 23 h; mozna zaznaczyc osoby z listy
   i wpisac gosci w polu Other. "Later" odklada pytanie o 30 min.
 - Wybor idzie na NATS (`tic.status.ocm.observers`), wiec widza go wszystkie stanowiska; okno znika wszedzie, gdy

@@ -138,7 +138,8 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   reference was set. See README "FOCUS ADJUST".
 
 - Observers of the night (2026-10-27): `observers.yaml` (repo root) lists the people; `obs_gui.ObserversWindow`
-  (non-modal) publishes the chosen ones on `tic.status.ocm.observers` (`{"observers", "time" ISO UTC, "by"}`, kept by
+  (non-modal; a checkable table with a search field, pre-checked with the last entry, i.e. the previous night)
+  publishes the chosen ones on `tic.status.ocm.observers` (`{"observers", "time" ISO UTC, "by"}`, kept by
   the `tic_status` stream), shown on the button between PING and ⚙. The window pops up by itself when the last entry
   is older than 23 h (`TOI.observers_check_loop`, "Later" snoozes 30 min) and closes on every station once someone
   saves. One list for the whole observatory. "Only this TOI" keeps the choice in the session only

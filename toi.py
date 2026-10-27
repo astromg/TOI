@@ -4649,9 +4649,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.observers_local = None         # wybor tylko dla tej sesji ("Only this TOI"), nie publikowany
         self.observers_later_until = 0
         try:
-            with open('./observers.yaml', 'r') as f:
-                self.observers_list = (yaml.safe_load(f) or {}).get("observers") or []
-        except (OSError, yaml.YAMLError) as e:
+            with open('./observers.yaml', 'r', encoding='utf-8') as f:
+                entries = (yaml.safe_load(f) or {}).get("observers") or []
+            # wpis to nazwisko albo slownik z polem name (na pozniejsze dane, np. instytucja)
+            self.observers_list = [e["name"] if isinstance(e, dict) else str(e) for e in entries]
+        except (OSError, yaml.YAMLError, KeyError, TypeError) as e:
             logger.warning(f'TOI: observers.yaml not read: {e}')
             self.observers_list = []
         self.inst_tab_switch = None
