@@ -27,6 +27,10 @@ Conditions tab: drawn like oca_monitor - FWHM of science frames only with a smoo
 with green / yellow / red zones, one trend of all telescopes and its last value; any filter works (Sloan filters
 used to stop the zero point plot); refreshed every 30 s while shown.
 <br>
+Plot Plan: each object's altitude over the whole night drawn faintly and its slot thick on it (short OBs were
+invisible), one colour per object (repeats keep it), standards dashed, names above only where they fit, the rest
+and details (start, length, altitude) on mouse hover.
+<br>
 Plan: OB times (and so the altitudes) of a telescope that is not the active one in TOI were computed with the read
 mode of the active telescope's camera - zb08 got jk15's mode 3 (= 0.05 MHz on zb08), slots x10, objects pushed into
 the day. Each telescope now uses its own read mode (READ-MOD of its last frame).

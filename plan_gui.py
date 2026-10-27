@@ -1601,6 +1601,11 @@ class PhaseWindow(BaseWindow):
 # #############################################
 
 class PlotWindow(BaseWindow):
+    # kolor wg obiektu (powtorzony obiekt ma ten sam kolor); bez czerwieni - STOP i WAIT sa czerwone
+    PALETTE = ["tab:blue", "tab:orange", "tab:green", "tab:purple", "tab:brown", "tab:pink", "tab:olive",
+               "tab:cyan", "navy", "darkgoldenrod", "teal", "indigo"]
+    LABEL_GAP = 0.008       # najmniejszy odstep podpisow nad wykresem (czesc szerokosci osi) - gestsze tylko po najechaniu
+
     def __init__(self, parent):
         super(PlotWindow, self).__init__()
         self.parent = parent
@@ -1651,13 +1656,13 @@ class PlotWindow(BaseWindow):
                     t0 = self.parent.parent.time
                     dt = (t0 - self.parent.parent.nats_ob_progress["ob_start_time"])
                     self.t = self.t - ephem.second * dt
-            color = ["c","m"]
-            j=0
+            colors = {}             # nazwa obiektu -> kolor
+            self.segments = []      # (t0, t1, opis) slotow OB - dla podpowiedzi pod myszka
+            labels = []             # (t, nazwa, kolor, fontsize) - podpisy nad wykresem
+            x_span = (self.t_end - self.t0) + ephem.hour
             for i, tmp in enumerate(self.parent.plan):
 
-
                 fontsize = 9
-                if j==len(color): j=0
                 tmp_ok = False
                 if self.parent.current_i > -1 and i >= self.parent.current_i: tmp_ok = True
                 if i >= self.parent.next_i: tmp_ok = True
@@ -1719,40 +1724,37 @@ class PlotWindow(BaseWindow):
 
                             else:
 
-                                if slotTime < 60:
-                                    fontsize = 2
-                                if slotTime < 60 * 5:
-                                    fontsize = 5
-                                if slotTime < 60 * 10:
-                                    fontsize = 7
-                                else:
-                                    fontsize = 9
+                                fontsize = 7 if slotTime < 60 * 10 else 9
 
                                 if "ra" in self.parent.plan[i]["ob"].keys():
                                     ra = self.parent.plan[i]["ob"]["ra"]
                                     dec = self.parent.plan[i]["ob"]["dec"]
-                                    t_tab = []
-                                    alt_tab = []
-
-                                    t = self.t
-                                    while t <= self.t + ephem.second * slotTime:
-                                        az, alt = RaDec2AltAz(self.parent.parent.observatory, t, ra, dec)
-                                        t_tab.append(t)
-                                        alt_tab.append(deg_to_decimal_deg(str(alt)))
-                                        t = t + 10*ephem.second
-                                    #print(alt_tab,t_tab)
+                                    name = self.parent.plan[i]["ob"].get("name", "")
+                                    standard = "standard" in self.parent.plan[i]["block"]
+                                    style = "--" if standard else "-"
+                                    if name not in colors:
+                                        colors[name] = self.PALETTE[len(colors) % len(self.PALETTE)]
+                                        # cala noc blado - widac wschod, zachod i gdzie w nocy jest slot
+                                        t_night, alt_night = self.altitudes(ra, dec, self.t0, self.t_end, 10 * ephem.minute)
+                                        self.axes.plot(t_night, alt_night, style, color=colors[name], alpha=0.25, linewidth=1)
+                                    color = colors[name]
+                                    t_tab, alt_tab = self.altitudes(ra, dec, self.t, self.t + ephem.second * slotTime, 10 * ephem.second)
                                     if i == self.parent.i:
-                                        self.axes.axvspan(min(t_tab), max(t_tab), color="blue", alpha=0.1)
-
-                                    if "standard" in self.parent.plan[i]["block"]:
-                                        self.axes.plot(t_tab, alt_tab, color="blue")
-                                        self.axes.text(self.t, 93, f'{self.parent.plan[i]["ob"]["name"]}', color="blue",rotation=90, fontsize=fontsize)
-                                    else:
-                                        self.axes.plot(t_tab,alt_tab,color=color[j])
-                                        self.axes.text(self.t, 93, f'{self.parent.plan[i]["ob"]["name"]}', color=color[j], rotation=90, fontsize=fontsize)
-                                    j=j+1
+                                        self.axes.axvspan(min(t_tab), max(t_tab), color="grey", alpha=0.15)
+                                    self.axes.plot(t_tab, alt_tab, style, color=color, linewidth=3)
+                                    labels.append((self.t, name, color, fontsize))
+                                    self.segments.append((self.t, self.t + ephem.second * slotTime,
+                                                          f"{name}\nstart {str(ephem.Date(self.t)).split()[1][:5]} UT, "
+                                                          f"{slotTime / 60:.0f} min\nalt {alt_tab[0]:.0f}\u00b0 \u2192 {alt_tab[-1]:.0f}\u00b0"))
 
                             self.t = self.t + ephem.second * slotTime
+
+            # podpisy nad wykresem tylko tam, gdzie sie mieszcza; reszta pod myszka
+            last = None
+            for t, name, color, fs in labels:
+                if last is None or (t - last) / x_span >= self.LABEL_GAP:
+                    self.axes.text(t, 93, name, color=color, rotation=90, fontsize=fs)
+                    last = t
 
             self.axes.set_ylim(0, 90)
             self.axes.set_xlim(self.t0-0.5*ephem.hour,self.t_end+0.5*ephem.hour)
@@ -1789,12 +1791,47 @@ class PlotWindow(BaseWindow):
 
 
 
+    def altitudes(self, ra, dec, t0, t1, step):
+        # wysokosc obiektu od t0 do t1 co step (ephem.Date); ephem wprost - pelna noc dla kazdego obiektu
+        body = ephem.FixedBody()
+        body._ra, body._dec = ephem.hours(ra), ephem.degrees(dec)
+        ts, alts, t = [], [], t0
+        while t <= t1:
+            self.oca.date = t
+            body.compute(self.oca)
+            ts.append(t)
+            alts.append(float(body.alt) * 180 / ephem.pi)
+            t = t + step
+        return ts, alts
+
+    def on_hover(self, event):
+        # podpowiedz z nazwa, startem, dlugoscia i wysokoscia slotu pod myszka
+        text = None
+        if event.inaxes is self.axes and event.xdata is not None:
+            for t0, t1, txt in getattr(self, "segments", []):
+                if t0 <= event.xdata <= t1:
+                    text = txt
+                    break
+        if text:
+            self.hover.xy = (event.xdata, event.ydata)
+            self.hover.set_text(text)
+            self.hover.set_visible(True)
+        elif not self.hover.get_visible():
+            return
+        else:
+            self.hover.set_visible(False)
+        self.canvas.draw_idle()
+
     def mkUI(self):
         grid = QGridLayout()
         self.fig = Figure((1.0, 1.0), linewidth=-1, dpi=100)
         self.canvas = FigureCanvas(self.fig)
         #self.axes = self.fig.add_axes([0, 0, 1, 1])
         self.axes = self.fig.add_subplot(111)
+        self.hover = self.axes.annotate("", xy=(0, 0), xytext=(12, -12), textcoords="offset points", va="top",
+                                        fontsize=9, bbox=dict(boxstyle="round", fc="white", alpha=0.9), zorder=10)
+        self.hover.set_visible(False)
+        self.canvas.mpl_connect("motion_notify_event", self.on_hover)
         grid.addWidget(self.canvas,0,0,1,2)
 
         self.toolbar = NavigationToolbar(self.canvas,self)
