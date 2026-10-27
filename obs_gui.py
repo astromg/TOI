@@ -108,14 +108,21 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.default_layout()
         self.restore_layout()
 
+    # dawny uklad okien (x, y, szer., wys.) wzgledem lewego gornego rogu ekranu: domyslny uklad paneli go odtwarza
+    ORIGINAL = {"obs": (0, 0, 850, 400), "mntGui": (0, 510, 850, 450), "skyGui": (910, 0, 500, 500),
+                "instGui": (910, 610, 500, 500), "planGui": (1415, 0, 490, 1100),
+                "fitsGui": (1910, 0, 1000, 700), "auxGui": (1910, 810, 1000, 500)}
+
     def default_layout(self):
         d = self.docks
-        main = QApplication.primaryScreen()
-        avail = main.availableGeometry()
-        others = [sc for sc in QApplication.screens() if sc is not main]
+        o = self.ORIGINAL
+        avail = QApplication.primaryScreen().availableGeometry()
         logger.info(f'TOI layout: screens {[(sc.name(), sc.geometry().getRect()) for sc in QApplication.screens()]}, '
-                    f'primary {main.name()}')
-        self.setGeometry(avail)         # najpierw okno, potem panele - inaczej nadwyzke bierze srodek
+                    f'available {avail.getRect()}')
+        # okno glowne jak dawniej siegaly Plan i dolne okna - nie caly ekran
+        width = min(o["planGui"][0] + o["planGui"][2], avail.width())
+        height = min(max(o["planGui"][3], o["instGui"][1] + o["instGui"][3]), avail.height())
+        self.setGeometry(avail.left(), avail.top(), width, height)
         for dock in d.values():
             self.removeDockWidget(dock)
             dock.setFloating(False)
@@ -124,30 +131,31 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.addDockWidget(right, d["skyGui"])
         self.splitDockWidget(d["skyGui"], d["planGui"], Qt.Orientation.Horizontal)
         self.splitDockWidget(d["skyGui"], d["instGui"], Qt.Orientation.Vertical)
-        if not others:
-            # jeden ekran: FITS i Aux jako zakladki obok radaru
+        # FITS i Aux obok okna glownego, jesli sie mieszcza (szeroki monitor albo drugi ekran); inaczej zakladki przy Sky
+        room = QApplication.primaryScreen().virtualGeometry().right() - (avail.left() + o["fitsGui"][0])
+        floating = room >= o["fitsGui"][2] // 2
+        if not floating:
             self.tabifyDockWidget(d["skyGui"], d["fitsGui"])
             self.tabifyDockWidget(d["skyGui"], d["auxGui"])
         for dock in d.values():
             dock.show()
         d["skyGui"].raise_()
         # rozmiary dopiero po rozlozeniu okna (resizeDocks wczesniej nie dziala)
-        QTimer.singleShot(0, lambda: self._size_default_layout(avail, others))
+        QTimer.singleShot(0, lambda: self._size_default_layout(avail, height, floating))
 
-    def _size_default_layout(self, avail, others):
+    def _size_default_layout(self, avail, height, floating):
         d = self.docks
-        # formularz obserwacji ~850 px szeroki; reszta szerokosci dla Sky/Instrument i Plan, Mount ~45% wysokosci
-        side = max(avail.width() - 870, 600)
-        self.resizeDocks([d["skyGui"], d["planGui"]], [side // 2, side - side // 2], Qt.Orientation.Horizontal)
-        self.resizeDocks([d["mntGui"]], [avail.height() * 45 // 100], Qt.Orientation.Vertical)
-        self.resizeDocks([d["skyGui"], d["instGui"]], [avail.height() // 2, avail.height() // 2], Qt.Orientation.Vertical)
-        if others:
-            # drugi monitor: FITS nad Aux na jego lewej polowie, jak dawniej
-            g = others[0].availableGeometry()
-            for attr, top, height in (("fitsGui", g.top(), g.height() * 3 // 5),
-                                      ("auxGui", g.top() + g.height() * 3 // 5, g.height() * 2 // 5)):
+        o = self.ORIGINAL
+        self.resizeDocks([d["skyGui"], d["planGui"]], [o["skyGui"][2], o["planGui"][2]], Qt.Orientation.Horizontal)
+        # wysokosci w dawnych proporcjach: obs : Mount = 400 : 450, Sky : Instrument = 500 : 500
+        self.resizeDocks([d["mntGui"]], [height * o["mntGui"][3] // (o["obs"][3] + o["mntGui"][3])],
+                         Qt.Orientation.Vertical)
+        self.resizeDocks([d["skyGui"], d["instGui"]], [height // 2, height // 2], Qt.Orientation.Vertical)
+        if floating:
+            for attr in ("fitsGui", "auxGui"):
+                x, y, w, h = o[attr]
                 d[attr].setFloating(True)
-                d[attr].setGeometry(g.left(), top, g.width() // 2, height)
+                d[attr].setGeometry(avail.left() + x, avail.top() + y, w, min(h, avail.height() - y))
                 d[attr].show()
         logger.info('TOI layout: ' + ", ".join(
             f'{k} {"floating" if v.isFloating() else self.dockWidgetArea(v).name} {v.geometry().getRect()}'
@@ -155,7 +163,8 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     def layout_key(self):
         # osobny uklad dla kazdego ustawienia ekranow (laptop sam / z monitorem / stanowisko)
-        return "layout/" + "+".join(f"{sc.size().width()}x{sc.size().height()}" for sc in QApplication.screens())
+        # "layout2": uklady zapisane przed poprawka rozmiarow (2026-10-27) sa pomijane
+        return "layout2/" + "+".join(f"{sc.size().width()}x{sc.size().height()}" for sc in QApplication.screens())
 
     def save_layout(self):
         settings = QSettings("OCA", "TOI")
