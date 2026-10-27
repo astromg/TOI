@@ -6,7 +6,7 @@ import qasync as qs
 from PyQtX import QtCore, QtGui
 from PyQtX.QtCore import Qt, QSettings, QTimer
 from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
-    QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox, QMenu, QDockWidget, QApplication
+    QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox, QMenu, QDockWidget, QApplication, QScrollArea
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
@@ -67,9 +67,12 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.parent.auxGui.tabs.setCurrentWidget(page)
 
     def bring_up(self, window):
-        # zadokowane okno: podnosimy jego panel (takze zakladke, gdy panele leza na sobie)
+        # zadokowane okno: podnosimy jego panel (takze zakladke, gdy panele leza na sobie);
+        # miedzy oknem a panelem jest obszar przewijania, wiec szukamy panelu wsrod przodkow
         dock = window.parentWidget()
-        if isinstance(dock, QDockWidget):
+        while dock is not None and not isinstance(dock, QDockWidget):
+            dock = dock.parentWidget()
+        if dock is not None:
             dock.show()
             dock.raise_()
             if not dock.isFloating():
@@ -121,7 +124,12 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             widget._geometry = None     # BaseWindow nie ustawia juz pozycji
             dock = QDockWidget(title, self)
             dock.setObjectName(f"dock_{attr}")      # po tej nazwie saveState rozpoznaje panel
-            dock.setWidget(widget)
+            # przewijanie zamiast wypychania okna poza ekran, gdy panel dostanie mniej niz minimum zawartosci
+            area = QScrollArea()
+            area.setWidgetResizable(True)
+            area.setFrameShape(QFrame.Shape.NoFrame)
+            area.setWidget(widget)
+            dock.setWidget(area)
             self.docks[attr] = dock
         self.default_layout()
         self.restore_layout()
@@ -155,11 +163,48 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         if not floating:
             self.tabifyDockWidget(d["skyGui"], d["fitsGui"])
             self.tabifyDockWidget(d["skyGui"], d["auxGui"])
+        self._compact_for_screen(avail)
         for dock in d.values():
             dock.show()
         d["skyGui"].raise_()
         # rozmiary dopiero po rozlozeniu okna (resizeDocks wczesniej nie dziala)
         QTimer.singleShot(0, lambda: self._size_default_layout(avail, height, floating))
+
+    def _compact_for_screen(self, avail):
+        # maly ekran (laptop): kolejne panele ida jako zakladki do grupy Sky, az minimalne rozmiary sie zmieszcza
+        d = self.docks
+        need = lambda attr: getattr(self.parent, attr).minimumSizeHint()
+        form = self.main_form.minimumSizeHint()
+        right = ["skyGui", "instGui"]               # kolumna Sky/Instrument
+        columns = {"plan": True}                    # osobna kolumna Plan
+        mount_below = True
+
+        def width():
+            left = max(form.width(), need("mntGui").width() if mount_below else 0)
+            col = max(need(a).width() for a in right)
+            return left + col + (need("planGui").width() if columns["plan"] else 0) + 30
+
+        def height():
+            left = form.height() + (need("mntGui").height() if mount_below else 0)
+            col = sum(need(a).height() for a in right if a != "skyGui") + need("skyGui").height()
+            return max(left, col, need("planGui").height()) + 60
+
+        steps = []
+        if width() > avail.width():
+            self.tabifyDockWidget(d["skyGui"], d["planGui"])
+            columns["plan"] = False
+            steps.append("Plan")
+        if width() > avail.width() or height() > avail.height():
+            self.tabifyDockWidget(d["skyGui"], d["instGui"])
+            right.remove("instGui")
+            steps.append("Instrument")
+        if height() > avail.height():
+            self.removeDockWidget(d["mntGui"])
+            self.tabifyDockWidget(d["skyGui"], d["mntGui"])
+            mount_below = False
+            steps.append("Mount")
+        if steps:
+            logger.info(f'TOI layout: small screen {avail.width()}x{avail.height()}, tabbed with Sky: {steps}')
 
     def _size_default_layout(self, avail, height, floating):
         d = self.docks
