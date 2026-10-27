@@ -17,6 +17,8 @@ all telescopes, last 30 min), coloured by the limits of all telescopes: the firs
 the ones between orange (seeing 1.5 / 2.0 / 2.5).
 Zero point: the same for the photometric zero point (median of zero_monitor of all telescopes, limits -0.1 / -0.2,
 as oca_monitor; the Conditions plot lines moved to these values).
+Clouds: the Zero point field turns red with a cloud sign when weather_overwatch sees bad or failed zero points
+(clouds), even if the median is still fine.
 <br>
 Calibration: above the flats, age of the last master zero and master dark (flat_overwatch, from the pipeline journal)
 and of the last object in any filter.

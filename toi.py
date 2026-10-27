@@ -528,11 +528,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         name, fmt, worse, unit, hint = self.CONDITION_FIELDS[kind]
         field = getattr(self.obsGui.main_form, name)
         d = self.conditions.get(kind)
-        value, age = None, None
-        if d and d.get(kind) is not None and d.get("time"):
+        value, age, clouds = None, None, False
+        if d and d.get("time"):
             age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(d["time"])).total_seconds()
             if age <= 60 * float(d.get("window_min", 30)):
-                value = float(d[kind])
+                value = float(d[kind]) if d.get(kind) is not None else None
+                clouds = bool(d.get("clouds"))      # zero point: zle punkty / nieudane pomiary - chmury
         # kolor nie zalezy od aktywnego teleskopu: progi wszystkich teleskopow (ostrzezenia i alarmy) rosnaco wg
         # pogorszenia; pierwszy przekroczony - zolty, ostatni - czerwony, posrednie - pomaranczowy
         limits = (d or {}).get("limits", {})
@@ -540,7 +541,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                        key=lambda x: worse * x)
         passed = [x for x in steps if value is not None and worse * value >= worse * x]
         color = "rgb(235,235,235)"
-        if value is None:
+        if clouds:      # alarm z chmur, nawet gdy mediana jest dobra (chmury daja malo punktow, mediana je odrzuca)
+            field.setText((fmt.format(value) + " " if value is not None else "") + "\u2601")
+            color = "red"
+        elif value is None:
             field.setText("--")
         else:
             field.setText(fmt.format(value))
@@ -562,6 +566,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if passed:
                 over = [t for t, x in limits.items() if worse * value >= worse * float(x.get("warning", x.get("alert")))]
                 tip += f"\nExceeded: {', '.join(over)}"
+            if "bad" in d:
+                tip += f"\nBad points (below the alert limit or failed) in the last minutes: {d['bad']}" + \
+                       (" - CLOUDS" if clouds else "")
         else:
             tip += ". No data yet."
         field.setToolTip(tip)
