@@ -889,6 +889,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.focus = self.telescope.get_focuser()
         self.m3 = self.telescope.get_tertiary()
         self.ccd = self.telescope.get_camera()
+        self.ccd_tel = self.active_tel      # do ktorego teleskopu nalezy self.ccd (readoutmode_tel)
         self.guider = self.telescope.get_camera(id='guider')
         self.fw = self.telescope.get_filterwheel()
         if bool(self.cfg_showRotator):
@@ -1887,17 +1888,23 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.ob_start_time = self.time
 
                         try:
-                            self.ctc.reset_time()
-                            self.ctc.set_start_time(datetime.datetime.now(datetime.timezone.utc))
-                            self.ctc.set_start_rmode(self.readout_mode(tel))
-                            self.ctc.set_telescope_start_az_alt(az=self.mount_az, alt=self.mount_alt)
-
-                            self.ob[tel]["meta"]["slot_time"] = self.ctc.calc_time(self.ob[tel]["block"])
+                            if tel == self.active_tel and self.ctc is not None:
+                                # kalkulator i montaz aktywnego teleskopu - tylko dla niego (slew od biezacej pozycji)
+                                self.ctc.reset_time()
+                                self.ctc.set_start_time(datetime.datetime.now(datetime.timezone.utc))
+                                self.ctc.set_start_rmode(self.readout_mode(tel))
+                                self.ctc.set_telescope_start_az_alt(az=self.mount_az, alt=self.mount_alt)
+                                slot_time = self.ctc.calc_time(self.ob[tel]["block"])
+                            else:
+                                # inny teleskop: jego wlasny CTC i tryb odczytu, jak przy liczeniu planu
+                                slot_time, _ = self._calc_ctc(tel=tel, rm_now=self.readout_mode(tel), first_ctc=True,
+                                                              prog_block=self.ob[tel]["block"])
+                            self.ob[tel]["meta"]["slot_time"] = slot_time if slot_time is not None else 0.1
                             if self.ob[tel]["meta"]["slot_time"] == 0:
                                 print("** CTC time estimation = 0!")
                                 print("** OB: ",self.ob[tel]["block"])
                                 self.ob[tel]["meta"]["slot_time"] = 0.1
-                        except ValueError:
+                        except ValueError as e:
                             self.ob[tel]["meta"]["slot_time"] = 0.1
                             logger.warning(f'TOI: EXCEPTION 44: {e}')
                         except Exception as e:
@@ -3014,7 +3021,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def ccd_rm_update(self, event):
         self.ccd_readoutmode = await self.ccd.aget_readoutmode()
         if self.ccd_readoutmode is not None:
-            self.readoutmode_tel[self.active_tel] = int(self.ccd_readoutmode)
+            # ccd_tel, nie active_tel: przy przelaczaniu active_tel zmienia sie, zanim subskrypcja starej kamery stanie
+            self.readoutmode_tel[self.ccd_tel] = int(self.ccd_readoutmode)
         # READ MODES
 
         if self.ccd_readoutmode != None:
