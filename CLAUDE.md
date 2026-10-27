@@ -114,7 +114,8 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   OCA manual page fetched over HTTP from the intranet, `toi.oca_manual_url`), Tasks (shown first; empty table, later
   GitHub issues for observers filtered by labels), Optical path (`SchematicView`, hidden when the
   telescope has no optical graph), Calibration, Focus, Guider (layout template only, guider does not work),
-  Plan Runner, Conditions (combo: FWHM / zero point of all telescopes; drawn only while the tab is shown).
+  Plan Runner, Conditions (combo: FWHM / zero point of all telescopes, drawn like oca_monitor - points plus a smoothed trend;
+  drawn only while the tab is shown, refreshed every 30 s when new points came, `TOI.conditions_plot_loop`).
   `TOI` keeps the old names for the tabs: `focusGui` (`FocusTab`), `flatGui` (`CameraCalibration`), `guiderGui`
   (`GuiderTab`), `planrunnerGui` (`PlanrunnerTab`), `conditionsGui` (`ConditionsTab`). The observation window
   has no buttons for these any more; a closed Aux or FITS window is reopened from the ⚙ menu in `ObsGui`. Tabs are pages of a

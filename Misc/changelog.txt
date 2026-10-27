@@ -21,6 +21,10 @@ as oca_monitor; the Conditions plot lines moved to these values).
 Calibration: above the flats, age of the last master zero and master dark (flat_overwatch, from the pipeline journal)
 and of the last object in any filter.
 <br>
+Conditions tab: drawn like oca_monitor - FWHM of science frames only with a smoothed line per telescope, zero point
+with green / yellow / red zones, one trend of all telescopes and its last value; any filter works (Sloan filters
+used to stop the zero point plot); refreshed every 30 s while shown.
+<br>
 Plan: test=True set in the OB edit / add window did not reach the FITS header (the planrunner only reads 1/0);
 Test is now saved as 1 / 0.
 <br><br>

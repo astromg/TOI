@@ -144,6 +144,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.TOItimer())
 
         self.add_background_task(self.nats_weather_loop())
+        self.add_background_task(self.conditions_plot_loop())
         for kind, subject in (self.local_cfg["toi"].get("conditions_subjects") or {}).items():
             if subject and kind in self.CONDITION_FIELDS:
                 self.add_background_task(self.nats_condition_reader(kind, subject))
@@ -494,6 +495,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         "zero_point": ("zeropoint_e", "{:+.2f} [mag]", -1, "points",
                        "Photometric zero point, weather_overwatch: median of zero_monitor of all telescopes"),
     }
+
+    async def conditions_plot_loop(self):
+        # wykresy w zakladce Conditions (Aux): co 30 s, tylko gdy widoczne i przyszly nowe punkty (~40 ms)
+        while True:
+            try:
+                self.conditionsGui.refresh_if_new()
+            except Exception as e:
+                logger.warning(f'EXCEPTION 102d: {e}')
+            await asyncio.sleep(30)
 
     async def nats_condition_reader(self, kind, subject):
         try:
@@ -1367,44 +1377,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             except Exception as e:
                 logger.warning(f'TOI: EXCEPTION 4: {e}')
-            await asyncio.sleep(1)
-
-
-    async def nikomu_niepotrzeba_petla_ustawiajaca_pierdoly(self):
-        while True:
-            try:
-                if self.conditionsGui.isVisible():
-                    self.conditionsGui.redraw()
-                if self.ob[self.active_tel]["meta"]["run"] and "name" in self.ob[self.active_tel]["ob"].keys():
-                    txt = self.ob["ob"]["name"]
-
-                    if "command_name" in self.ob[self.active_tel].keys():
-                        if self.ob[self.active_tel]["ob"]["command_name"] == "OBJECT":
-                            self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
-                        elif self.ob[self.active_tel]["ob"]["command_name"] == "ZERO":
-                            self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(1)
-                        elif self.ob[self.active_tel]["ob"]["command_name"] == "DARK":
-                            self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(2)
-                        elif self.ob[self.active_tel]["ob"]["command_name"] == "SKYFLAT":
-                            self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(3)
-                        elif self.ob[self.active_tel]["ob"]["command_name"] == "DOMEFLAT":
-                            self.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(4)
-
-                    if "seq" in self.ob[self.active_tel]["ob"].keys():
-                        self.instGui.ccd_tab.Select2_r.setChecked(True)
-                        self.instGui.ccd_tab.inst_Seq_e.setText(self.ob[self.active_tel]["ob"]["seq"])
-                    if "ra" in self.ob[self.active_tel]["ob"].keys() and "dec" in self.ob[self.active_tel]["ob"].keys():
-                        self.mntGui.setEq_r.setChecked(True)
-                        self.mntGui.nextRa_e.setText(self.ob[self.active_tel]["ob"]["ra"])
-                        self.mntGui.nextDec_e.setText(self.ob[self.active_tel]["ob"]["dec"])
-                        self.mntGui.updateNextRaDec()
-                        if "name" in self.ob[self.active_tel]["ob"].keys():
-                            self.mntGui.target_e.setText(self.ob[self.active_tel]["ob"]["name"])
-                            self.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
-                    if "name" in self.ob[self.active_tel]["ob"].keys():
-                        self.instGui.ccd_tab.inst_object_e.setText(self.ob[self.active_tel]["ob"]["name"])
-            except Exception as e:
-                logger.warning(f'TOI: EXCEPTION 5w : {e}')
             await asyncio.sleep(1)
 
 

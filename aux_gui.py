@@ -25,8 +25,8 @@ Calibration, a FOCUS OB starting → Focus (:meth:`AuxWindow.ob_started`).
 """
 
 import asyncio
-import copy
 import datetime
+import logging
 import re
 import urllib.request
 
@@ -49,6 +49,8 @@ from PyQtX.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFrame, QG
 
 from base_window import BaseWindow
 from optics_view import SchematicView
+
+logger = logging.getLogger(__name__)
 
 
 class AuxWindow(BaseWindow):
@@ -861,188 +863,174 @@ class PlanrunnerTab(QWidget):
 # ############### CONDITIONS ##########################
 
 class ConditionsTab(QWidget):
-    """Night plots of all telescopes; the combo chooses what is drawn. Filter/airmass cuts apply to FWHM."""
+    """Night plots of all telescopes; the combo chooses what is drawn. Filter/airmass cuts apply to FWHM.
+    Drawn like oca_monitor: per-telescope points and a smoothed trend; refreshed by ``refresh_if_new``."""
 
     PLOTS = ["FWHM", "Zero point"]
+    SMOOTH_SIGMA = 5            # punktow - filtr Gaussa po kolejnych punktach, jak oca_monitor
+    MAX_GAP = 0.5 / 24          # d - przerwa dluzsza dzieli krzywa na odcinki
+    MIN_SEGMENT = 4             # krotszych odcinkow nie wygladzamy, zostaja same punkty
+    FILTER_EDGE = {"B": "blue", "V": "green", "Ic": "red", "u": "purple", "g": "teal", "r": "orangered",
+                   "i": "darkred", "z": "black"}      # obwodka punktu zero pointu wg filtra, inne szare
+    ZP_ZONES = (-0.1, -0.2)     # ostrzezenie / alarm, gdy weather_overwatch jeszcze nie przyslal progow
 
     def __init__(self, parent):
         super(ConditionsTab, self).__init__()
         self.parent = parent
         self.mkUI()
+        self.drawn_count = None     # ile punktow bylo przy ostatnim rysowaniu
 
-        self.fwhm = {t:[] for t in self.parent.fits_ffs_data.keys()}
-        self.time = {t: [] for t in self.parent.fits_ffs_data.keys()}
-        self.airmass = {t: [] for t in self.parent.fits_ffs_data.keys()}
+    def data_count(self):
+        return sum(len(v) for v in self.parent.fits_ffs_data.values()) + \
+               sum(len(v) for v in self.parent.fits_photo_z0_data.values())
 
-        self.focus_time = {t: [] for t in self.parent.fits_ffs_data.keys()}
+    def refresh_if_new(self):
+        # wolane co 30 s z TOI: rysujemy tylko, gdy ktos patrzy i przyszly nowe punkty (~50 ms na rysowanie)
+        if self.isVisible() and self.data_count() != self.drawn_count:
+            self.redraw()
 
     def redraw(self):
         plot = self.plot_s.currentText()
         self.filter_e.setEnabled(plot == "FWHM")
         self.airmass_e.setEnabled(plot == "FWHM")
+        self.drawn_count = self.data_count()
         self.ax.clear()
         if self.parent.jd:
-            if plot == "FWHM":
-                self.plot_fwhm()
-            elif plot == "Zero point":
-                self.plot_zero_point()
-        self.fig.subplots_adjust(bottom=0.15, top=0.95, left=0.08, right=0.988)
+            try:
+                if plot == "FWHM":
+                    self.plot_fwhm()
+                elif plot == "Zero point":
+                    self.plot_zero_point()
+            except Exception as e:      # zly punkt nie moze zostawic pustego wykresu bez sladu
+                logger.warning(f'EXCEPTION conditions plot {plot}: {e!r}')
+        self.fig.subplots_adjust(bottom=0.2, top=0.95, left=0.08, right=0.988)
         self.canvas.draw()
 
-    def plot_fwhm(self):
-        self.fwhm = {t:[] for t in self.parent.fits_ffs_data.keys()}
-        self.time = {t: [] for t in self.parent.fits_ffs_data.keys()}
-        self.airmass = {t: [] for t in self.parent.fits_ffs_data.keys()}
+    def smoothed(self, x, y):
+        """Odcinki (przerwa > MAX_GAP) wygladzone Gaussem; NaN miedzy odcinkami przerywa linie."""
+        idx = numpy.argsort(x)
+        x, y = numpy.asarray(x, dtype=float)[idx], numpy.asarray(y, dtype=float)[idx]
+        cuts = numpy.where(numpy.diff(x) > self.MAX_GAP)[0] + 1
+        out_x, out_y = [], []
+        for sx, sy in zip(numpy.split(x, cuts), numpy.split(y, cuts)):
+            if sx.size < self.MIN_SEGMENT:
+                continue
+            if out_x:
+                out_x.append(numpy.nan)
+                out_y.append(numpy.nan)
+            out_x.extend(sx)
+            out_y.extend(gaussian_filter1d(sy, sigma=self.SMOOTH_SIGMA))
+        return out_x, out_y
 
-        self.focus_time = {t: [] for t in self.parent.fits_ffs_data.keys()}
-
-        for t in self.parent.fits_ffs_data.keys():
-            for x in self.parent.fits_ffs_data[t]:
-                try:
-                    if x["raw"]["header"]["OBSTYPE"] != "focus":
-                        if str(self.filter_e.text()) in x["raw"]["header"]["FILTER"]:
-                            if "fwhm" in x["raw"].keys():
-                                airmass = float(x["raw"]["header"]["AIRMASS"])
-                                cond = True
-                                try:
-                                    if len(str(self.airmass_e.text())) > 0:
-                                        cond = float(self.airmass_e.text()) > airmass
-                                except ValueError:
-                                    pass
-                                if cond:
-                                    self.airmass[t].append(airmass)
-                                    fwhm = (float(x["raw"]["fwhm"]["fwhm_x"])+float(x["raw"]["fwhm"]["fwhm_y"]))/2.
-                                    fwhm = fwhm *  self.parent.nats_cfg[t]["pixel_scale"]
-                                    self.fwhm[t].append(fwhm)
-                                    time = float(x["raw"]["header"]["JD"])
-                                    self.time[t].append(time)
-
-                    if "OBSTYPE" in x["raw"]["header"].keys() and "NLOOPS" in x["raw"]["header"].keys() and "LOOP" in x["raw"]["header"].keys():
-                        if x["raw"]["header"]["OBSTYPE"] == "focus" and float(x["raw"]["header"]["NLOOPS"]) == float(x["raw"]["header"]["LOOP"]):
-                            self.focus_time[t].append(float(x["raw"]["header"]["JD"]))
-                except (ValueError, TypeError):   # TyoeError - na wypadek waretosci nan
-                    pass
-
-        x0 = float(str(self.parent.jd).split(".")[0])+0.4
-        x1 = x0 + 0.6
-
-        for t in self.parent.fits_ffs_data.keys():
-            x = self.time[t]
-            y = self.fwhm[t]
-            x = numpy.array(x)
-            y = numpy.array(y)
-            mk = x < x0
-            x = x[mk]
-            y = y[mk]
-            x = x + 1
-            self.ax.scatter(x, y, marker=".", color=self.parent.nats_cfg[t]['color'], alpha=0.05)
-
-            x = self.time[t]
-            y = self.fwhm[t]
-            self.ax.scatter(x, y, marker=".", color=self.parent.nats_cfg[t]['color'], alpha=1, s=100, label=t)
-
-            ft = numpy.array(self.focus_time[t])
-            mk = ft > x0
-            ft = ft[mk]
-
-            for focus_time in ft:
-                self.ax.axvline(x=focus_time, color=self.parent.nats_cfg[t]['color'],alpha=0.8)
-
+    def night_axis(self, x0, x1, ylabel):
         xtics = []
-        t =  ephem.Date(x0)
+        t = ephem.Date(x0)
         while t < ephem.Date(x1):
             t = ephem.Date(t) + ephem.hour
             h = str(ephem.Date(t)).split()
-            xtics.append( ephem.Date(h[0]+" "+h[1].split(":")[0]+":00:00"))
-        xtics_labels = [str(x).split()[1].split(":")[0]+":"+str(x).split()[1].split(":")[1] for x in xtics]
+            xtics.append(ephem.Date(h[0] + " " + h[1].split(":")[0] + ":00:00"))
         self.ax.set_xticks(xtics)
-        self.ax.set_xticklabels(xtics_labels,rotation=45,minor=False)
-
-        self.ax.set_xlim(x0,x1)
-        self.ax.set_ylim(0,5)
-        self.ax.legend()
+        self.ax.set_xticklabels([str(x).split()[1][:5] for x in xtics], rotation=45, minor=False)
+        self.ax.set_xlim(x0, x1)
         self.ax.set_xlabel("UT")
-        self.ax.set_ylabel("fwhm [arcsec]")
+        self.ax.set_ylabel(ylabel)
+
+    def plot_fwhm(self):
+        # tylko klatki science (bez kalibracji, testow, focusa), skala z naglowka - uwzglednia binning
+        x0 = float(str(self.parent.jd).split(".")[0]) + 0.4
+        x1 = x0 + 0.6
+        filt = str(self.filter_e.text())
+        try:
+            max_airmass = float(self.airmass_e.text()) if self.airmass_e.text().strip() else None
+        except ValueError:
+            max_airmass = None
+        for t, frames in self.parent.fits_ffs_data.items():
+            color = self.parent.nats_cfg[t]['color']
+            jd, fwhm, focus = [], [], []
+            for x in frames:
+                try:
+                    h = x["raw"]["header"]
+                    if h.get("OBSTYPE") == "focus" and h.get("LOOP") is not None and \
+                            float(h["LOOP"]) == float(h.get("NLOOPS", -1)):
+                        focus.append(float(h["JD"]))
+                    if h.get("OBSTYPE") != "science" or filt not in str(h.get("FILTER", "")) or "fwhm" not in x["raw"]:
+                        continue
+                    if max_airmass is not None and float(h["AIRMASS"]) >= max_airmass:
+                        continue
+                    f = (float(x["raw"]["fwhm"]["fwhm_x"]) + float(x["raw"]["fwhm"]["fwhm_y"])) / 2.
+                    f = f * float(h.get("SCALE") or self.parent.nats_cfg[t]["pixel_scale"])
+                    if 0 < f < 10:
+                        jd.append(float(h["JD"]))
+                        fwhm.append(f)
+                except (ValueError, TypeError, KeyError):
+                    pass
+            jd, fwhm = numpy.array(jd), numpy.array(fwhm)
+            old = jd < x0       # poprzednia noc blado, przesunieta o dobe
+            self.ax.scatter(jd[old] + 1, fwhm[old], marker=".", color=color, alpha=0.06)
+            self.ax.scatter(jd[~old], fwhm[~old], marker="o", s=14, color=color, alpha=0.4, linewidths=0, label=t)
+            if (~old).sum():
+                sx, sy = self.smoothed(jd[~old], fwhm[~old])
+                self.ax.plot(sx, sy, color=color, linewidth=2)
+            for ft in focus:
+                if ft > x0:
+                    self.ax.axvline(x=ft, color=color, alpha=0.8, linewidth=0.8)
+        self.night_axis(x0, x1, "FWHM [arcsec]")
+        self.ax.set_ylim(0, 5)
+        self.ax.legend(loc="upper right", fontsize=8)
 
     def plot_zero_point(self):
-        # fits_photo_z0_data: {tel: [{'filter', 'zero_value', 'oca_jd', 'mode'}, ...]}
-        fits_photo_z0_data_copy = copy.deepcopy(self.parent.fits_photo_z0_data)
+        # fits_photo_z0_data: {tel: [{'filter', 'zero_value', 'oca_jd', 'mode'}, ...]}; jak oca_monitor: strefy w tle,
+        # punkty teleskopow (obwodka - filtr), jedna wygladzona krzywa ze wszystkich teleskopow i jej ostatnia wartosc
         tim_ranges = self.parent.time_ranges()
-        today_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['today']))
-        yesterday_oca_jd = get_oca_jd(datetime_to_julian(tim_ranges['yesterday']))
-        color = {'V': 'green', 'B': 'blue', 'Ic': 'red'}
+        today = get_oca_jd(datetime_to_julian(tim_ranges['today']))
+        yesterday = get_oca_jd(datetime_to_julian(tim_ranges['yesterday']))
+        warning, alert = self.ZP_ZONES
+        limits = (getattr(self.parent, "conditions", {}).get("zero_point") or {}).get("limits") or {}
+        if limits:
+            x = next(iter(limits.values()))
+            warning, alert = float(x.get("warning", warning)), float(x.get("alert", alert))
+        self.ax.axhspan(warning, 1, color="green", alpha=0.08, linewidth=0)
+        self.ax.axhspan(alert, warning, color="gold", alpha=0.15, linewidth=0)
+        self.ax.axhspan(-10, alert, color="red", alpha=0.12, linewidth=0)
+        self.ax.axhline(y=0, color="black", linewidth=0.5)
 
-        all_val_td = []
-        all_dat_td = []
-        try:
-            for t in fits_photo_z0_data_copy.keys():
-                val_td = []
-                filter_td = []
-                dat_td = []
-                val_yd = []
-                filter_yd = []
-                dat_yd = []
-                for x in fits_photo_z0_data_copy[t]:
-                    if x["oca_jd"] >= today_oca_jd:
-                        val_td.append(x["zero_value"])
-                        all_val_td.append(x["zero_value"])
-                        filter_td.append(color[x["filter"]])
-                        dat_td.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
-                        all_dat_td.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
-                    if today_oca_jd > x["oca_jd"] >= yesterday_oca_jd:
-                        val_yd.append(x["zero_value"])
-                        filter_yd.append(color[x["filter"]])
-                        dat_yd.append(x["oca_jd"] - numpy.floor(x["oca_jd"]))
-                self.ax.scatter(
-                    dat_td, val_td, edgecolor=filter_td, alpha=0.8,
-                    facecolors="none", linewidths=1, s=30
-                )
-                self.ax.scatter(
-                    dat_td, val_td, c=self.parent.nats_cfg[t]['color'], alpha=0.7, label=t, s=13
-                )
-                self.ax.scatter(
-                    dat_yd, val_yd, edgecolor=filter_yd, alpha=0.1,
-                    facecolors="none", linewidths=1, s=30
-                )
-                self.ax.scatter(
-                    dat_yd, val_yd, c=self.parent.nats_cfg[t]['color'], alpha=0.1, s=13
-                )
+        all_x, all_y = [], []
+        for t, points in self.parent.fits_photo_z0_data.items():
+            color = self.parent.nats_cfg[t]['color']
+            seen, td, yd = set(), [], []
+            for p in points:
+                try:
+                    key = (p["oca_jd"], p["filter"])        # zero_monitor potrafi wyslac punkt kilka razy
+                    v = float(p["zero_value"])
+                    if key in seen or not numpy.isfinite(v):
+                        continue
+                    seen.add(key)
+                    row = (p["oca_jd"] - numpy.floor(p["oca_jd"]), v, self.FILTER_EDGE.get(p["filter"], "gray"))
+                    if p["oca_jd"] >= today:
+                        td.append(row)
+                    elif p["oca_jd"] >= yesterday:
+                        yd.append(row)
+                except (ValueError, TypeError, KeyError):
+                    pass
+            for rows, alpha, label in ((yd, 0.1, None), (td, 0.6, t)):
+                if rows:
+                    x, y, edge = zip(*rows)
+                    self.ax.scatter(x, y, c=color, edgecolors=edge, linewidths=1, s=22, alpha=alpha, label=label)
+            all_x += [r[0] for r in td]
+            all_y += [r[1] for r in td]
 
-            self.ax.axhline(y=0, color="black", linewidth=0.5)
-            self.ax.axhline(y=-0.1, color="orange", linestyle="--", linewidth=1)     # strefy jak oca_monitor
-            self.ax.axhline(y=-0.2, color="red", linestyle="--", linewidth=1)
-
-            x = numpy.asarray(all_dat_td)
-            y = numpy.asarray(all_val_td)
-
-            rem_nan_y = ~numpy.isnan(y)
-            x = x[rem_nan_y]
-            y = y[rem_nan_y]
-
-            idx = numpy.argsort(x)
-
-            x_sorted = x[idx]
-            y_sorted = y[idx]
-
-            self.ax.plot(x_sorted, gaussian_filter1d(y_sorted, sigma=6), color='#2E8B57', linewidth=1)
-
-            x0 = 0.4
-            x1 = 0.99
-            xtics = []
-            t = ephem.Date(x0)
-            while t < ephem.Date(x1):
-                t = ephem.Date(t) + ephem.hour
-                h = str(ephem.Date(t)).split()
-                xtics.append(ephem.Date(h[0] + " " + h[1].split(":")[0] + ":00:00"))
-            xtics_labels = [str(x).split()[1].split(":")[0] + ":" + str(x).split()[1].split(":")[1] for x in xtics]
-            self.ax.set_xticks(xtics)
-            self.ax.set_xticklabels(xtics_labels, rotation=45, minor=False)
-            self.ax.set_xlim(x0, x1)
-            self.ax.legend()
-            self.ax.set_xlabel("UT")
-            self.ax.set_ylabel("zero point [mag]")
-        except Exception as e:
-            print(f'EXCEPTION plot_zero_point: {e}')
+        if all_x:
+            sx, sy = self.smoothed(all_x, all_y)
+            self.ax.plot(sx, sy, color="#333333", linewidth=2)
+            last = next((v for v in reversed(sy) if numpy.isfinite(v)), None)
+            if last is not None:
+                zone = "green" if last >= warning else "darkorange" if last >= alert else "red"
+                self.ax.text(0.01, 0.95, f"{last:+.3f} mag", transform=self.ax.transAxes, fontsize=16,
+                             fontweight="bold", color=zone, va="top")
+        self.night_axis(0.4, 0.99, "zero point [mag]")
+        self.ax.set_ylim(-0.3, 0.08)
+        if all_x:
+            self.ax.legend(loc="upper right", fontsize=8)
 
     def mkUI(self):
 
