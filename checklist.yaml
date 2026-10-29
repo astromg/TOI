@@ -23,25 +23,29 @@ checklist:
     hint: check the weather first (clouds, wind, humidity, rain) - if bad, close and wait; dome ventilators and mirror fans ON
   - id: blinds_evening
     text: Close the blinds in the control room
-  - id: covers
+  - id: covers_focus
     scope: telescope
-    text: Open mirror covers (just before the plan starts)
-    hint: the evening sky flats need them open
+    text: Open mirror covers, set focus from the model
+  - id: calibrations
+    scope: telescope
+    text: Start the plan (evening calibrations)
+    hint: a TPG plan starts with the evening sky flats and zeros, then waits for Sun -18 deg and goes on with science by itself
   - id: ventilators_off
     scope: telescope
     text: Ventilators OFF (after evening calibrations)
     hint: dome ventilators and mirror fans OFF once the evening calibrations are done - flats and zeros
-  - id: focus_model
-    scope: telescope
-    text: Set focus from the model
   - id: observations
     scope: telescope
-    text: Start and monitor observations (Sun −18°)
+    text: Monitor observations (from Sun −18°)
     hint: science from Sun -18 deg in the evening to -18 deg in the morning; watch OCAM, CCTV and the weather
   - id: autofocus
     scope: telescope
     text: Autofocus 1 h after the start of observations
     hint: compare the result with the focus model
+  - id: close
+    scope: telescope
+    text: Close the telescope (motors and CCD cooling stay ON)
+    hint: mirror covers, dome, park (jk15 - close the mirror, then the dome, then park); check it is parked
   - id: morning
     text: Blinds in the morning, night report
     hint: open the blackout shade, lower the semi-transparent one (sun on the window frame bends and unseals it); night report in Cerro Armazones Calendar, tab 'comments'
