@@ -59,7 +59,7 @@ code here (see below).
 Almost every stateful window subclasses **both** a Qt widget and `BaseAsyncWidget`
 (`base_async_widget.py`), using `metaclass=MetaAsyncWidgetQtWidget` to resolve the diamond metaclass
 conflict between Qt and Python's `ABC`. This pattern repeats in `toi.py` (`TOI`), `mnt_gui.py` (`MntGui`),
-`obs_gui.py` (`ObsGui`), `instrument_gui.py` (`InstrumentGui`, `CCDGui`) and `plan_gui.py` (`PlanGui`).
+`obs_gui.py` (`ObsGui`), `instrument_gui.py` (`InstrumentGui`, `InstrumentTab`) and `plan_gui.py` (`PlanGui`).
 `BaseAsyncWidget` provides:
 - `add_background_task(coro, group=...)` — register a coroutine to run as an `asyncio.Task` once
   `run_background_tasks()` is called (typically from `on_start_app()`). Long-lived polling/monitoring loops
@@ -102,7 +102,20 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   filled only from the `tic.status.<tel>.toi.log` subscription, so operator-visible messages go through
   `TOI.update_log(...)` (the old `TOI.msg()` was a no-op and has been removed). `CzuwakWindow` ("watcher") is
   still constructed as `TOI.czuwakGui`, but all code that used it is commented out.
-- `instrument_gui.py` (`InstrumentGui`, `CCDGui`) — camera/instrument control, including CCD tab.
+- `instrument_gui.py` (`InstrumentGui`) — instrument control, one tab per science instrument of the telescope
+  (2026-10-29): `science_instruments(components)` reads the published `observatory.components` (those flagged
+  `scientific`, else every camera/spectrograph except guiders), `instrument_class(name, spec)` picks the tab class from
+  `INSTRUMENT_CLASSES`, most specific first: `AndorCamera` (`camera_model` "Andor…", no binning/subraster — the widgets
+  exist but are hidden, TOI reads them), `CmosCamera` (`camera_kind: cmos`), `BesoSpectrograph`, then the fallbacks
+  `GenericCamera` / `GenericSpectrograph`; all derive from `InstrumentTab` (`detector` = component name, `spec`, `name`
+  = tab title). A new instrument without its own class shows up as generic. The rest of TOI still knows one camera:
+  `instGui.ccd_tab` = first camera (a generic `camera` is added if the config has none), `instGui.beso_tab` = first
+  spectrograph or None. Camera settings live in the tab, read from its own `spec` by `GenericCamera.load_settings`:
+  `gain_names`/`gain_ids`, `rm_names`/`rm_ids` (from `gain_modes`/`readout_modes`, default = `flags: ['default']`),
+  `temp_set` (`operation_temperature`), `temp_limits` (`temperature_range`), `defaults` (gain/rm/bin and `temp` =
+  operation temperature + upper tolerance: warmer is red); `obstypes`/`modes`/`bins`/`subraster` are class attributes
+  (their order is used by index in `plan_gui` and `TOI.ccd_setBin`). The old per-telescope `cfg_inst_*` are gone; toi.py
+  reads `self.instGui.ccd_tab.<setting>`.
 - `plan_gui.py` (`PlanGui`, huge file, ~2000+ lines) — observation plan/queue manager: load/edit/reorder
   observing blocks (OBs), talks to `tpg` (`TelescopePlanGenerator`) and `ctc` (`CycleTimeCalc`, cycle-time
   estimation) external libraries, and to `pyaraucaria.obs_plan.obs_plan_parser`/`ob_validator` for parsing

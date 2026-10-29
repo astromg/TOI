@@ -849,11 +849,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.set_panel_telescope(self.active_tel)
 
         self.filter_list = self.nats_cfg[self.active_tel]["filter_list_names"]  # tu sa nazwy
-        self.cfg_inst_gain = self.nats_cfg[self.active_tel]["gain_list_names"]
-        self.cfg_inst_gain_i = self.nats_cfg[self.active_tel]["gain_list"]
-        self.cfg_inst_rm = self.nats_cfg[self.active_tel]["rm_list_names"]
-        self.cfg_inst_rm_i = self.nats_cfg[self.active_tel]["rm_list"]
-        self.cfg_inst_temp = self.nats_cfg[self.active_tel]["ccd_temp"]
+        # ustawienia kamery (gain, read mode, temperatura, binning) ma zakladka instrumentu: instGui.ccd_tab
 
         self.cfg_tel_directory = self.local_cfg[self.active_tel]["tel_directory"]
         self.cfg_tel_ob_list = self.local_cfg[self.active_tel]["tel_ob_list"]
@@ -870,40 +866,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.cfg_alt_limits[key] = float(val)
 
         self.catalog_file = self.local_cfg[self.active_tel]["object_catalog"]
-
-        if self.active_tel == "wk06":
-            self.cfg_inst_obstype = ["Science", "Zero", "Dark", "Sky Flat", "Dome Flat"]
-            self.cfg_inst_mode = ["Normal", "Sky", "JitterBox", "JitterRandom"]
-            self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
-            self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
-            self.cfg_inst_defSetUp = {"gain": "x4", "rm": "1MHz","bin":"1x1", "temp":-58}
-
-        elif self.active_tel == "zb08":
-            self.cfg_inst_obstype =  ["Science","Zero","Dark","Sky Flat","Dome Flat"]
-            self.cfg_inst_mode =  ["Normal", "Sky", "JitterBox", "JitterRandom"]
-            self.cfg_inst_bins = ["1x1","2x2","1x2","2x1"]
-            self.cfg_inst_subraster = ["No","Subraster1","Subraster2","Subraster3"]
-            self.cfg_inst_defSetUp = {"gain": "x4", "rm": "1MHz","bin":"1x1", "temp":-58}
-
-        elif self.active_tel == "jk15":
-            self.cfg_inst_obstype = ["Science", "Zero", "Dark", "Sky Flat", "Dome Flat"]
-            self.cfg_inst_mode = ["Normal", "Sky", "JitterBox", "JitterRandom"]
-            self.cfg_inst_bins = ["1x1", "2x2", "1x2", "2x1"]
-            self.cfg_inst_subraster = ["No", "Subraster1", "Subraster2", "Subraster3"]
-            self.cfg_inst_defSetUp = {"gain": "Gain 2", "rm": "1MHz 18-bit","bin":"1x1", "temp":-58}
-
-        # domyslny gain / read mode z configu TIC (flags: ['default']) jako pelna nazwa z listy; wpisane wyzej
-        # fragmenty nazw tylko, gdy configu brak (porownanie calych nazw: "1MHz 18-bit" jest tez w "0,1MHz 18-bit")
-        if hasattr(self, "cfg_inst_defSetUp"):
-            for key, names in (("gain", self.cfg_inst_gain), ("rm", self.cfg_inst_rm)):
-                configured = self.nats_cfg[self.active_tel].get(f"{key}_default")
-                if configured:
-                    self.cfg_inst_defSetUp[key] = configured
-                else:
-                    full = [n for n in (names or []) if self.cfg_inst_defSetUp[key] in n]
-                    if full:
-                        self.cfg_inst_defSetUp[key] = full[0]
-
 
         # obsluga subskrypcji
 
@@ -2956,7 +2918,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.update_log(f'set GAIN', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
             i = self.instGui.ccd_tab.inst_setGain_e.currentIndex()
-            gain = self.cfg_inst_gain_i[i]
+            gain = self.instGui.ccd_tab.gain_ids[i]
             if int(self.ccd_gain) != int(gain):
                 self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
             await self.ccd.aput_gain(int(gain))
@@ -2970,7 +2932,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.update_log(f'set READ MODE', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
            i = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
-           rm = self.cfg_inst_rm_i[i]
+           rm = self.instGui.ccd_tab.rm_ids[i]
            await self.ccd.aput_readoutmode(rm)
            await self.update_log(f'setting read mode {rm}', "TOI RESPONDER", self.active_tel)
            if int(self.ccd_readoutmode) != int(rm):
@@ -2985,11 +2947,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.update_log(f'set CCD temperature', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
             temp=float(self.instGui.ccd_tab.inst_setTemp_e.text())
-            if temp>-81 and temp<20:
+            t_min, t_max = self.instGui.ccd_tab.temp_limits     # temperature_range kamery z konfiguracji
+            if t_min <= temp <= t_max:
                 await self.ccd.aput_setccdtemperature(temp)
                 await self.update_log(f'setting CCD temperature {temp}', "TOI RESPONDER", self.active_tel)
             else:
-                await self.update_log(f'Value of CCD temp. not allowed', "WARNING", self.active_tel)
+                await self.update_log(f'Value of CCD temp. not allowed ({t_min} .. {t_max})', "WARNING", self.active_tel)
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
@@ -3033,7 +2996,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             else: txt = txt + " -- "
             self.instGui.ccd_tab.inst_ccdTemp_e.setText(txt)
             if self.ccd_temp:
-                if float(ccd_temp) > self.cfg_inst_defSetUp["temp"]:
+                if float(ccd_temp) > self.instGui.ccd_tab.defaults["temp"]:
                     self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(204,0,0)")
                 else: self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(0,150,0)")
 
@@ -3044,10 +3007,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.ccd_gain != None:
             try:
                 i = int(self.ccd_gain)
-                i = self.cfg_inst_gain_i.index(str(i))
-                txt = self.cfg_inst_gain[i]
-                self.instGui.ccd_tab.inst_gain_e.setText(txt)
-                if txt == self.cfg_inst_defSetUp["gain"]:
+                cam = self.instGui.ccd_tab
+                txt = cam.gain_names[cam.gain_ids.index(str(i))]
+                cam.inst_gain_e.setText(txt)
+                if cam.defaults["gain"] in (None, txt):
                     self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
                 else: self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
             except Exception: pass
@@ -3066,11 +3029,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # READ MODES
 
         if self.ccd_readoutmode != None:
-            i = int(self.ccd_readoutmode)
-            i = self.cfg_inst_rm_i.index(str(i))
-            txt = self.cfg_inst_rm[i]
-            self.instGui.ccd_tab.inst_read_e.setText(txt)
-            if txt == self.cfg_inst_defSetUp["rm"]:
+            cam = self.instGui.ccd_tab
+            txt = cam.rm_names[cam.rm_ids.index(str(int(self.ccd_readoutmode)))]
+            cam.inst_read_e.setText(txt)
+            if cam.defaults["rm"] in (None, txt):
                 self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             else: self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
         self.telescope_switch_status["rm"] = True
@@ -3088,7 +3050,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.ccd_binx and self.ccd_biny:
             txt=f"{self.ccd_binx}x{self.ccd_biny}"
             self.instGui.ccd_tab.inst_Bin_e.setText(txt)
-            if txt == self.cfg_inst_defSetUp["bin"]:
+            if txt == self.instGui.ccd_tab.defaults["bin"]:
                 self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
             else: self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
 
@@ -4127,7 +4089,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if self.m3_name != None:
                 if self.inst_tab_switch:
-                    if "beso" in self.m3_name:
+                    if "beso" in self.m3_name and self.instGui.beso_tab is not None:
                         self.instGui.tab.setCurrentWidget(self.instGui.beso_tab)
                     else:
                         self.instGui.tab.setCurrentWidget(self.instGui.ccd_tab)
@@ -4519,12 +4481,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
             try:
-                tmp = nats_cfg[k]["observatory"]["components"]["camera"]["operation_temperature"]
-            except KeyError:
-                tmp = None
-            self.nats_cfg[k]["ccd_temp"] = tmp
-
-            try:
                 tmp = nats_cfg[k]["observatory"]["components"]["camera"]["pixel_scale"]
             except KeyError:
                 tmp = None
@@ -4538,29 +4494,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 tmp_n = None
             self.nats_cfg[k]["filter_list_names"] = tmp_n
             self.nats_cfg[k]["filter_list"] = tmp_i
-
-            try:
-                tmp = nats_cfg[k]["observatory"]["components"]["camera"]["gain_modes"]
-                tmp_n = [f'{tmp[i].get("gain","--")} ({tmp[i]["name"]})' for i in sorted(tmp.keys())]
-                tmp_i = [i for i in sorted(tmp.keys())]
-                # tryb domyslny: flags: ['default'] w configu TIC
-                tmp_d = next((n for i, n in zip(tmp_i, tmp_n) if 'default' in (tmp[i].get('flags') or [])), None)
-            except KeyError:
-                tmp_n, tmp_d = None, None
-            self.nats_cfg[k]["gain_list_names"] = tmp_n
-            self.nats_cfg[k]["gain_list"] = tmp_i
-            self.nats_cfg[k]["gain_default"] = tmp_d
-
-            try:
-                tmp = nats_cfg[k]["observatory"]["components"]["camera"]["readout_modes"]
-                tmp_n = [tmp[i]["name"] for i in sorted(tmp.keys())]
-                tmp_i = [i for i in sorted(tmp.keys())]
-                tmp_d = next((n for i, n in zip(tmp_i, tmp_n) if 'default' in (tmp[i].get('flags') or [])), None)
-            except KeyError:
-                tmp_n, tmp_d = None, None
-            self.nats_cfg[k]["rm_list_names"] = tmp_n    # sa rozdzielone nazwy i numer, bo wartosc do put moze byc z dupy
-            self.nats_cfg[k]["rm_list"] = tmp_i
-            self.nats_cfg[k]["rm_default"] = tmp_d
 
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["focuser"]["default_position"]
@@ -4622,11 +4555,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.tel_alpaca_con = False
 
         self.catalog_file = None
-
-        self.cfg_inst_obstype = []
-        self.cfg_inst_mode = []
-        self.cfg_inst_bins = []
-        self.cfg_inst_subraster = []
 
         self.observatory = ["-24:35:24","-70:11:47","2800"]
         self.oca_site = ephem.Observer()
@@ -4744,9 +4672,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.binxy_changed = False
         self.ccd_binx = None
         self.ccd_biny = None
-        self.cfg_inst_temp = None
-        self.cfg_inst_gain = None
-        self.cfg_inst_rm = None
         self.ccd_temp_set = None
         self.ccd_temp = None
 

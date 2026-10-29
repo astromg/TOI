@@ -1009,9 +1009,9 @@ class ReportWindow(BaseWindow):
                    "binxy_changed",
                    "ccd_binx",
                    "ccd_biny",
-                   "cfg_inst_temp",
-                   "cfg_inst_gain",
-                   "cfg_inst_rm",
+                   "instGui.ccd_tab.temp_set",
+                   "instGui.ccd_tab.gain_names",
+                   "instGui.ccd_tab.rm_names",
                    "ccd_temp_set",
                    "ccd_temp",
                    # filter wheel
