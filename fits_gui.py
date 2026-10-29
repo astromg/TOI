@@ -49,9 +49,20 @@ class FitsWindow(BaseWindow):
             vmax = numpy.mean(self.image) + 1 * numpy.std(self.image)
 
             self.axes.imshow(self.image, vmin=vmin, vmax=vmax, interpolation='none', resample=False)
+            # granice osi = obraz; nakladki (obiekty, pointing, gwiazdy) nie moga ich rozszerzyc - punkt z WCS
+            # w milionach pikseli (snap bez rozwiazania) zmniejszal obraz do niewidocznej kropki
+            self.axes.set_autoscale_on(False)
 
             self.canvas.draw()
             self.show()
+
+    def in_image(self, x, y):
+        """Czy punkt (piksele) lezy na wyswietlanym obrazie."""
+        try:
+            h, w = numpy.shape(self.image)[:2]
+            return 0 <= float(x) < w and 0 <= float(y) < h
+        except (TypeError, ValueError):
+            return False
 
     def updateImage(self, image):
         self.image = image
@@ -184,12 +195,14 @@ class FitsWindow(BaseWindow):
                     for k in self.parent.fits_ofp_data["raw"]["objects"].keys():
                         if "x_pix" not in self.parent.fits_ofp_data["raw"]["objects"][k].keys():
                             pass
-                        else:
+                        elif self.in_image(self.parent.fits_ofp_data["raw"]["objects"][k]["x_pix"],
+                                           self.parent.fits_ofp_data["raw"]["objects"][k]["y_pix"]):
+                            # obiekty spoza kadru (in_frame: 0, czesto bzdurne x/y bez WCS) nie sa rysowane
                             self.ob_x.append(self.parent.fits_ofp_data["raw"]["objects"][k]["x_pix"])
                             self.ob_y.append(self.parent.fits_ofp_data["raw"]["objects"][k]["y_pix"])
                         if "saturation_max" in self.parent.fits_ofp_data['raw']['objects'][k].keys():
                             txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
-                if self.pointing_x:
+                if self.pointing_x and self.in_image(self.pointing_x, self.pointing_y):
                     self.axes.plot(self.pointing_x,self.pointing_y,"k+",markersize=20)
                 if len(self.ob_x)>0:
                     self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")

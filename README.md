@@ -35,7 +35,9 @@ $ ./toi.py
 
 ## OBSERWATORZY NOCY
 - Lista osob w `observers.yaml` (katalog glowny repo) - tu dopisujemy stalych obserwatorow (samo nazwisko albo
-  wpis `{name: ...}` na pozniejsze dane).
+  wpis `{name: ...}` na pozniejsze dane). Tylko ASCII, bez polskich znakow (Gorski, nie Górski): nazwiska maja trafic
+  do naglowka FITS (OBSERVER), a ten przyjmuje tylko ASCII. TOI ostrzega w logu przy starcie, okno nie przyjmie
+  polskich znakow w polu Other i podpowie wersje ASCII.
 - W oknie tabela z wyszukiwarka; na starcie zaznaczeni sa obserwatorzy z ostatniego wpisu (poprzedniej nocy),
   zaznaczeni sa na gorze tabeli.
 - Wpis wazny do codziennego resetu o `toi.observers_reset_ut` (godzina UT, domyslnie 15 = poludnie latem w Chile);

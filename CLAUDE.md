@@ -163,7 +163,8 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
 
 - Observers of the night (2026-10-27): `observers.yaml` (repo root) lists the people; `obs_gui.ObserversWindow`
   (non-modal; a checkable table with a search field, pre-checked with the last entry, i.e. the previous night,
-  checked names sorted to the top)
+  checked names sorted to the top; names are ASCII only — they are meant for the FITS `OBSERVER` keyword:
+  `toi_lib.is_fits_ascii`/`fits_ascii`, a warning at start for observers.yaml, "Other" refused with the ASCII suggestion)
   publishes the chosen ones on `tic.status.ocm.observers` (`{"observers", "time" ISO UTC, "by"}`, kept by
   the `tic_status` stream), shown on the button between PING and ⚙. The window pops up by itself when the last entry
   is older than the daily reset at `toi.observers_reset_ut` UT (default 15; `TOI.observers_valid`, `TOI.observers_check_loop`, "Later" snoozes 30 min) and closes on every station once someone

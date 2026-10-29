@@ -1,30 +1,32 @@
 # OCM observers: the list in TOI's "Observers tonight" window (obs_gui.ObserversWindow).
 # Add a person here once they observe regularly; a one-off guest can be typed into "Other" in the window.
 # Sorted by surname; checked names go to the top of the window anyway.
+# ASCII only, no Polish letters (Gorski, not Górski): the names are meant for the OBSERVER keyword of FITS headers,
+# which take printable ASCII only. TOI warns at start about a name that is not ASCII.
 observers:
-  - Karolina Bąkowska
+  - Karolina Bakowska
   - Felipe Espinoza Arancibia
-  - Cezary Gałan
-  - Marek Górski
+  - Cezary Galan
+  - Marek Gorski
   - Gergely Hajdu
   - Barbara Joachimczyk
-  - Mikołaj Kałuszyński
+  - Mikolaj Kaluszynski
   - Paulina Karczmarek
-  - Mirosław Kicia
+  - Miroslaw Kicia
   - Stefan Kimeswenger
   - Wilma Kiviaho
   - Krzysztof Kotysz
   - Ernest Lasek
-  - Bartłomiej Matuszkiewicz
-  - Dawid Moździerski
+  - Bartlomiej Matuszkiewicz
+  - Dawid Mozdzierski
   - Weronika Narloch
   - Henryka Netzel
-  - Waldemar Ogłoza
+  - Waldemar Ogloza
   - Wojciech Pych
-  - Michał Radziwonowicz
-  - Przemysław Romaniuk
+  - Michal Radziwonowicz
+  - Przemyslaw Romaniuk
   - Ricardo Salinas
   - Radek Smolec
-  - Piotr Wielgórski
-  - Bartłomiej Zgirski
-  - Piotr Żuk
+  - Piotr Wielgorski
+  - Bartlomiej Zgirski
+  - Piotr Zuk

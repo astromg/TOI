@@ -4758,6 +4758,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 entries = (yaml.safe_load(f) or {}).get("observers") or []
             # wpis to nazwisko albo slownik z polem name (na pozniejsze dane, np. instytucja)
             self.observers_list = [e["name"] if isinstance(e, dict) else str(e) for e in entries]
+            # nazwiska ida kiedys do naglowka FITS (OBSERVER) - tylko ASCII
+            bad = [n for n in self.observers_list if not is_fits_ascii(n)]
+            if bad:
+                logger.warning(f'TOI: observers.yaml - not ASCII (FITS headers), write e.g. {fits_ascii(bad[0])!r}: {bad}')
         except (OSError, yaml.YAMLError, KeyError, TypeError) as e:
             logger.warning(f'TOI: observers.yaml not read: {e}')
             self.observers_list = []

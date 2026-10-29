@@ -51,6 +51,19 @@ def parse_plan_ut_str(s):
     return s
 
 
+def is_fits_ascii(txt):
+    """Czy tekst moze isc do naglowka FITS: tylko drukowalne ASCII (znaki 32-126)."""
+    return all(32 <= ord(c) <= 126 for c in str(txt))
+
+
+def fits_ascii(txt):
+    """Tekst bez polskich (i innych) znakow do naglowka FITS: Mirosław -> Miroslaw, Gałan -> Galan."""
+    import unicodedata as _unicodedata
+    txt = str(txt).replace("ł", "l").replace("Ł", "L")
+    txt = _unicodedata.normalize("NFKD", txt).encode("ascii", "ignore").decode("ascii")
+    return "".join(c for c in txt if 32 <= ord(c) <= 126)
+
+
 def wait_ut_sec(ut, t):
     """Ile sekund od chwili t (ephem.Date) do WAIT ut=HH:MM[:SS]; 0 jak ut juz minelo.
 

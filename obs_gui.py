@@ -845,6 +845,8 @@ class ObserversWindow(QWidget):
         # zaznaczeni obecni obserwatorzy - po starcie ci z ostatniego wpisu, czyli z poprzedniej nocy - na gorze
         # tabeli, reszta w kolejnosci z observers.yaml; spoza listy ida do pola Other
         known = set(self.parent.observers_list)
+        # starsze wpisy z NATS maja polskie znaki ("Górski") - dopasowane do listy ASCII ("Gorski")
+        current = [fits_ascii(n) if fits_ascii(n) in known else n for n in current]
         names = ([n for n in self.parent.observers_list if n in current]
                  + [n for n in self.parent.observers_list if n not in current])
         self.table.blockSignals(True)
@@ -871,6 +873,11 @@ class ObserversWindow(QWidget):
         names = self.chosen()
         if not names:
             self.info_l.setText("Choose at least one observer.")
+            return
+        # nazwiska ida kiedys do naglowka FITS (OBSERVER) - tylko ASCII
+        bad = [n for n in names if not is_fits_ascii(n)]
+        if bad:
+            self.info_l.setText(f"ASCII only (FITS headers): {', '.join(fits_ascii(n) for n in bad)}")
             return
         self.parent.set_observers(names, local=self.local_c.isChecked())
         self.hide()
