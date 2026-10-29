@@ -231,7 +231,8 @@ class TelescopeTab(QWidget):
 class TasksTab(QWidget):
     """Left: the observers' daily checklist from ``checklist.yaml``, in the order of the day; items with
     ``scope: telescope`` are ticked separately per telescope and shown for the active one, the others once for the
-    observatory; only who has control ticks (``TOI.checklist_allowed``); a tick goes to every TOI
+    observatory; a tick without control is refused with the
+    usual warning, like the control buttons (``TOI.checklist_allowed``); a tick goes to every TOI
     (``TOI.set_checklist_item``, ``tic.status.ocm.checklist``) and lasts until the daily reset. Right: tasks for
     observers of the active telescope - for now an empty table; later GitHub issues of a chosen repository, filtered
     by labels (a task label and the telescope's label)."""
@@ -257,15 +258,10 @@ class TasksTab(QWidget):
             key = f'{entry["id"]}@{tel}' if per_tel else entry["id"]
             text = f'{row + 1}. {entry.get("text", entry["id"])}'
             item = QTableWidgetItem(f'{text}  [{tel}]' if per_tel else text)
-            # odhacza tylko ten, kto ma kontrole (TOI.checklist_allowed); reszta widzi stan
-            allowed = self.parent.checklist_allowed(per_tel)
-            item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable if allowed
+            item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable if (tel or not per_tel)
                           else Qt.ItemFlag.ItemIsEnabled)
-            item.setData(Qt.ItemDataRole.UserRole, key if allowed else None)
-            hint = entry.get("hint", "")
-            if not allowed:
-                hint = f'{hint}\nTake control of {"the telescope" if per_tel else "a telescope"} to tick it.'.strip()
-            item.setToolTip(hint)
+            item.setData(Qt.ItemDataRole.UserRole, key if (tel or not per_tel) else None)
+            item.setToolTip(entry.get("hint", ""))
             ticked = done.get(key)
             item.setCheckState(Qt.CheckState.Checked if ticked else Qt.CheckState.Unchecked)
             when = QTableWidgetItem("")
