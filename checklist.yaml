@@ -1,0 +1,43 @@
+# Daily checklist of the observers: the left side of the Tasks tab in TOI's Aux window (aux_gui.TasksTab).
+# Items in the order of the day; `hint` is the tooltip; `scope: telescope` = ticked separately for every telescope
+# (a column per telescope), otherwise one tick for the whole observatory. Ticks are shared by all TOIs
+# (tic.status.ocm.checklist) and reset every day at toi.observers_reset_ut. Things TOI or tpg do by themselves do
+# not belong here. Avoid ": " inside a text or hint (YAML), or put the text in quotes.
+checklist:
+  - id: messages
+    text: Check new messages
+    hint: OCA-phone charged, WhatsApp and Slack (hourly), OCA gmail - follow new observing instructions
+  - id: monitoring
+    text: Check disk space, OCAM and CCTV
+    hint: disk space on http://dashboard.oca.lan:3000 (above 85% report to oca-operations and mail mkicia@camk.edu.pl, mkalusz@camk.edu.pl); big OCAM on zora, small OCAM on aux (poetry run ocam --env aux), CCTV website
+  - id: pull_plans
+    text: Pull master plans
+    hint: git pull in ~/src/tpg on nadir, zenith and aux
+  - id: plans
+    scope: telescope
+    text: Generate plan with TPG (or load CNTAC)
+    hint: CNTAC night - the plan from gmail, otherwise TPG. Standards, expected eclipses, periodic objects; SKYFLAT added
+  - id: open
+    scope: telescope
+    text: Open dome and mirror covers, ventilators ON (Sun +5°)
+    hint: check the weather first (clouds, wind, humidity, rain) - if bad, close and wait; dome ventilators and mirror fans ON
+  - id: blinds_evening
+    text: Close the blinds in the control room
+  - id: ventilators_off
+    scope: telescope
+    text: Ventilators OFF (after evening flats)
+    hint: dome ventilators and mirror fans OFF
+  - id: focus_model
+    scope: telescope
+    text: Set focus from the model
+  - id: observations
+    scope: telescope
+    text: Start and monitor observations (Sun −18°)
+    hint: science from Sun -18 deg in the evening to -18 deg in the morning; watch OCAM, CCTV and the weather
+  - id: autofocus
+    scope: telescope
+    text: Autofocus 1 h after the start of observations
+    hint: compare the result with the focus model
+  - id: morning
+    text: Blinds in the morning, night report
+    hint: open the blackout shade, lower the semi-transparent one (sun on the window frame bends and unseals it); night report in Cerro Armazones Calendar, tab 'comments'

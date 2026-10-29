@@ -4,8 +4,8 @@
 Tabs, in this order:
 - ``Telescope`` — :class:`TelescopeTab`, the active telescope's page of the OCA manual (intranet, over HTTP),
   description on the left, changelog on the right;
-- ``Tasks`` — :class:`TasksTab`, tasks for observers of the active telescope; shown first; empty table for now
-  (later: GitHub issues filtered by labels);
+- ``Tasks`` — :class:`TasksTab`, shown first: the daily checklist (``checklist.yaml``, ticks shared over NATS) on the
+  left, tasks for observers on the right (empty table for now; later: GitHub issues filtered by labels);
 - ``Optical path`` — :class:`optics_view.SchematicView` of the active telescope; hidden when the telescope
   publishes no optical graph;
 - ``Calibration`` — :class:`CalibrationTab`, one page per kind of instrument; follows the tab chosen in the
@@ -228,8 +228,11 @@ class TelescopeTab(QWidget):
 # ############### TASKS ##########################
 
 class TasksTab(QWidget):
-    """Tasks for observers of the active telescope. For now an empty table; later GitHub issues of a chosen
-    repository, filtered by labels (a task label and the telescope's label)."""
+    """Left: the observers' daily checklist from ``checklist.yaml``, in the order of the day; items with
+    ``scope: telescope`` have a checkbox per telescope, the others one for the observatory; a tick goes to every TOI
+    (``TOI.set_checklist_item``, ``tic.status.ocm.checklist``) and lasts until the daily reset. Right: tasks for
+    observers of the active telescope - for now an empty table; later GitHub issues of a chosen repository, filtered
+    by labels (a task label and the telescope's label)."""
 
     COLUMNS = ["#", "TASK", "LABELS", "UPDATED"]
 
@@ -237,9 +240,84 @@ class TasksTab(QWidget):
         super(TasksTab, self).__init__()
         self.parent = parent
         self.mkUI()
+        self.show_checklist(self.parent.checklist, {})
+
+    def show_checklist(self, items, done):
+        """``items`` from checklist.yaml, ``done`` = {key: {"time", "by"}} ticked today; the key is the item id, and
+        ``id@tel`` for an item with ``scope: telescope`` (a checkbox per telescope column)."""
+        telescopes = list(self.parent.local_cfg["toi"]["telescopes"])
+        self.check_t.blockSignals(True)
+        self.check_t.clearSpans()
+        self.check_t.setColumnCount(1 + len(telescopes))
+        self.check_t.setHorizontalHeaderLabels(["DAILY CHECKLIST"] + telescopes)
+        for col in range(1, 1 + len(telescopes)):
+            self.check_t.horizontalHeader().setSectionResizeMode(col, QHeaderView.ResizeToContents)
+        self.check_t.setRowCount(len(items))
+        boxes, ticked_n = 0, 0
+        for row, entry in enumerate(items):
+            per_tel = entry.get("scope") == "telescope"
+            item = QTableWidgetItem(f'{row + 1}. {entry.get("text", entry["id"])}')
+            item.setToolTip(entry.get("hint", ""))
+            item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            self.check_t.setItem(row, 0, item)
+            if per_tel:
+                cells = [(1 + i, f'{entry["id"]}@{tel}') for i, tel in enumerate(telescopes)]
+            else:
+                # jeden checkbox dla obserwatorium: w polu z tekstem, kolumny teleskopow puste
+                cells = [(0, entry["id"])]
+                if telescopes:
+                    self.check_t.setSpan(row, 1, 1, len(telescopes))
+                    blank = QTableWidgetItem("")
+                    blank.setFlags(Qt.ItemFlag.NoItemFlags)
+                    self.check_t.setItem(row, 1, blank)
+            for col, key in cells:
+                cell = item if col == 0 else QTableWidgetItem("")
+                cell.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
+                cell.setData(Qt.ItemDataRole.UserRole, key)
+                ticked = done.get(key)
+                cell.setCheckState(Qt.CheckState.Checked if ticked else Qt.CheckState.Unchecked)
+                if ticked:
+                    t = f'{ticked.get("time", "?")} UT by {ticked.get("by", "?")}'
+                    if col == 0:
+                        cell.setForeground(QtGui.QColor("gray"))
+                        cell.setToolTip(f'{entry.get("hint", "")}\nDone {t}'.strip())
+                    else:
+                        cell.setText(str(ticked.get("time", ""))[11:16])
+                        cell.setToolTip(f'Done {t}')
+                    ticked_n += 1
+                if col != 0:
+                    self.check_t.setItem(row, col, cell)
+                boxes += 1
+        self.check_t.blockSignals(False)
+        self.check_l.setText(f"Done today: {ticked_n}/{boxes}" if items else "No checklist.yaml")
+
+    def check_changed(self, item):
+        key = item.data(Qt.ItemDataRole.UserRole)
+        if key:
+            self.parent.set_checklist_item(key, item.checkState() == Qt.CheckState.Checked)
 
     def mkUI(self):
-        grid = QGridLayout()
+        # lewa: checklista dnia
+        left = QWidget()
+        lgrid = QGridLayout()
+        lgrid.setContentsMargins(0, 0, 0, 0)
+        self.check_t = QTableWidget(0, 1)
+        self.check_t.verticalHeader().hide()
+        self.check_t.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        self.check_t.setWordWrap(True)
+        header = self.check_t.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        self.check_t.itemChanged.connect(self.check_changed)
+        lgrid.addWidget(self.check_t, 0, 0)
+        self.check_l = QLabel("")
+        self.check_l.setStyleSheet("color: gray;")
+        lgrid.addWidget(self.check_l, 1, 0)
+        left.setLayout(lgrid)
+
+        # prawa: zadania z GitHuba
+        right = QWidget()
+        rgrid = QGridLayout()
+        rgrid.setContentsMargins(0, 0, 0, 0)
         self.tasks_t = QTableWidget(0, len(self.COLUMNS))
         self.tasks_t.setHorizontalHeaderLabels(self.COLUMNS)
         self.tasks_t.verticalHeader().hide()
@@ -249,10 +327,19 @@ class TasksTab(QWidget):
         header.setSectionResizeMode(1, QHeaderView.Stretch)     # tytul zadania bierze reszte szerokosci
         for col in (0, 2, 3):
             header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
-        grid.addWidget(self.tasks_t, 0, 0)
+        rgrid.addWidget(self.tasks_t, 0, 0)
         self.info_l = QLabel("Tasks for observers: not available yet.")
         self.info_l.setStyleSheet("color: gray;")
-        grid.addWidget(self.info_l, 1, 0)
+        rgrid.addWidget(self.info_l, 1, 0)
+        right.setLayout(rgrid)
+
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.addWidget(left)
+        splitter.addWidget(right)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 1)
+        grid = QGridLayout()
+        grid.addWidget(splitter, 0, 0)
         self.setLayout(grid)
 
 

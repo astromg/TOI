@@ -129,6 +129,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.service_lamps_loop())
         self.add_background_task(self.nats_observers_reader())
         self.add_background_task(self.observers_check_loop())
+        self.add_background_task(self.nats_checklist_reader())
         # alive RPC serwisow spoza ocabox-tcs (overwatche); subject pusty -> lampka szara
         self.alive_subjects = self.local_cfg["toi"].get("alive_subjects") or {}
         self.add_background_task(self.almanac_loop())
@@ -761,6 +762,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await asyncio.sleep(15)     # najpierw ostatni wpis z NATS
         while True:
             try:
+                self.show_checklist()       # o resecie dnia odhaczenia znikaja
                 if (not self.observers_valid() and time.time() > self.observers_later_until
                         and not self.observersGui.isVisible()):
                     self.open_observers_window()
@@ -794,6 +796,58 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION publish_observers: {e}')
             self.WarningWindow(f"Observers not saved: {e}")
+
+    # ---- codzienna checklista obserwatorow (checklist.yaml), wspolna dla obserwatorium jak obserwatorzy: caly stan
+    # na tic.status.ocm.checklist {"done": {id: {"time", "by"}}, "time", "by"}; odhaczenie wazne do resetu dnia
+    CHECKLIST_SUBJECT = 'tic.status.ocm.checklist'
+
+    async def nats_checklist_reader(self):
+        try:
+            r = get_reader(self.CHECKLIST_SUBJECT, deliver_policy='last')
+            async for data, meta in r:
+                try:
+                    self.checklist_state = data
+                    self.show_checklist()
+                except Exception as e:
+                    logger.warning(f'EXCEPTION 110g: {e}')
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 110h: {e}')
+
+    def checklist_done(self):
+        # odhaczenia z dzisiaj (po ostatnim resecie), {id: {"time", "by"}}
+        reset = self.observers_reset_time()
+        done = {}
+        for item_id, entry in ((self.checklist_state or {}).get("done") or {}).items():
+            try:
+                if datetime.datetime.fromisoformat(entry["time"]) >= reset:
+                    done[item_id] = entry
+            except (TypeError, KeyError, ValueError):
+                pass
+        return done
+
+    def show_checklist(self):
+        self.auxGui.tasks.show_checklist(self.checklist, self.checklist_done())
+
+    def set_checklist_item(self, item_id, checked):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+        done = self.checklist_done()
+        if checked:
+            done[item_id] = {"time": now, "by": self.myself}
+        else:
+            done.pop(item_id, None)
+        # od razu u siebie, potem dla wszystkich (wpis z NATS wroci tym samym stanem)
+        self.checklist_state = {"done": done, "time": now, "by": self.myself}
+        self.show_checklist()
+        asyncio.ensure_future(self._publish_checklist(self.checklist_state))
+
+    async def _publish_checklist(self, data):
+        try:
+            await get_publisher(self.CHECKLIST_SUBJECT).publish(data=data, timeout=10)
+        except Exception as e:
+            logger.warning(f'EXCEPTION publish_checklist: {e}')
+            self.WarningWindow(f"Checklist not saved: {e}")
 
     #  ############# ZMIANA TELESKOPU ### TELESCOPE SELECT #################
     async def telescope_switched(self):
@@ -4696,6 +4750,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except (OSError, yaml.YAMLError, KeyError, TypeError) as e:
             logger.warning(f'TOI: observers.yaml not read: {e}')
             self.observers_list = []
+        self.checklist_state = None         # ostatni wpis z tic.status.ocm.checklist
+        try:
+            with open('./checklist.yaml', 'r', encoding='utf-8') as f:
+                self.checklist = [e for e in (yaml.safe_load(f) or {}).get("checklist") or [] if e.get("id")]
+        except (OSError, yaml.YAMLError, AttributeError) as e:
+            logger.warning(f'TOI: checklist.yaml not read: {e}')
+            self.checklist = []
         self.inst_tab_switch = None
 
         # guider

@@ -46,6 +46,13 @@ $ ./toi.py
 - "Only this TOI": wybor tylko dla tej sesji, nic nie idzie na NATS (np. testy z Warszawy) - przycisk pokazuje
   wtedy "Observers (this TOI only)", a pozostale stanowiska maja dalej swoj wpis.
 
+## CHECKLISTA DNIA (zakladka Tasks w Aux, lewa strona)
+- Punkty w `checklist.yaml` (katalog glowny repo), w kolejnosci dnia; `hint` to podpowiedz po najechaniu myszka;
+  `scope: telescope` - osobny checkbox dla kazdego teleskopu (kolumny), bez tego jeden dla calego obserwatorium.
+  Tylko to, czego TOI i tpg nie robia same.
+- Odhaczenie widza wszystkie stanowiska (`tic.status.ocm.checklist`), z godzina i kto; reset razem z obserwatorami
+  o `toi.observers_reset_ut`.
+
 ## KONFIGURACJA (toi_config.yaml) - wpisy dodane 26-27.10.2026
 - per teleskop: `focus_step` (domyslny krok autofocusa, zamiast `default_step` z TIC), `focus_method`,
   `focus_methods` (nazwy z `pyaraucaria.focus`),
