@@ -1450,7 +1450,6 @@ class TPGWindow(BaseWindow):
         grid.addWidget(self.ut_e, 0, 0, 1, 2)
         grid.addWidget(self.sunset_c, 1, 0)
         grid.addWidget(self.evening_flats_c, 1, 1)
-        grid.addWidget(self.repeat_c, 2, 0)
         grid.addWidget(self.morning_flats_c, 2, 1)
 
         grid.addWidget(self.wind_c, 3, 0)
@@ -1465,11 +1464,12 @@ class TPGWindow(BaseWindow):
         grid.addWidget(self.night_monitor_c, 5, 0)
         grid.addWidget(self.night_monitor_gap_e, 5, 1)
 
+        grid.addWidget(self.repeat_c, 6, 0, 1, 2)
 
-        grid.addWidget(self.info_e, 6, 0, 1, 2)
+        grid.addWidget(self.info_e, 7, 0, 1, 2)
 
-        grid.addWidget(self.add_p, 7, 1)
-        grid.addWidget(self.close_p, 7, 0)
+        grid.addWidget(self.add_p, 8, 1)
+        grid.addWidget(self.close_p, 8, 0)
 
         self.setLayout(grid)
         self.show()
