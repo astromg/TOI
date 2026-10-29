@@ -19,14 +19,18 @@ checklist:
     hint: CNTAC night - the plan from gmail, otherwise TPG. Standards, expected eclipses, periodic objects; SKYFLAT added
   - id: open
     scope: telescope
-    text: Open dome and mirror covers, ventilators ON (Sun +5°)
+    text: Open dome, ventilators ON (Sun +5°)
     hint: check the weather first (clouds, wind, humidity, rain) - if bad, close and wait; dome ventilators and mirror fans ON
   - id: blinds_evening
     text: Close the blinds in the control room
+  - id: covers
+    scope: telescope
+    text: Open mirror covers (just before the plan starts)
+    hint: the evening sky flats need them open
   - id: ventilators_off
     scope: telescope
-    text: Ventilators OFF (after evening flats)
-    hint: dome ventilators and mirror fans OFF
+    text: Ventilators OFF (after evening calibrations)
+    hint: dome ventilators and mirror fans OFF once the evening calibrations are done - flats and zeros
   - id: focus_model
     scope: telescope
     text: Set focus from the model
