@@ -1711,7 +1711,9 @@ class PlotWindow(BaseWindow):
                     dt = (t0 - self.parent.parent.nats_ob_progress["ob_start_time"])
                     self.t = self.t - ephem.second * dt
             colors = {}             # nazwa obiektu -> kolor
-            self.segments = []      # (t0, t1, opis) slotow OB - dla podpowiedzi pod myszka
+            self.night = {}         # nazwa obiektu -> (ra, dec, styl, kolor) - do bladej krzywej calej nocy
+            self.night_lines = {}   # nazwa obiektu -> linia calej nocy (rysowana dopiero, gdy potrzebna)
+            self.segments = []      # (t0, t1, opis, nazwa obiektu|None) slotow OB - dla podpowiedzi pod myszka
             labels = []             # (t0, t1, nazwa, kolor, fontsize) - podpisy nad wykresem
             events = []             # (t, tekst) - STOP, BELL, WAIT, ZERO... - podpisy przy dolnej krawedzi
             x_span = (self.t_end - self.t0) + ephem.hour
@@ -1784,7 +1786,7 @@ class PlotWindow(BaseWindow):
                                     self.axes.fill_betweenx([0, 2], self.t, self.t + ephem.second * slotTime, color="grey", alpha=0.5)
                                     events.append((self.t, command))
                                     self.segments.append((self.t, self.t + ephem.second * slotTime,
-                                                          f"{command}\nstart {str(ephem.Date(self.t)).split()[1][:5]} UT, {slotTime / 60:.0f} min"))
+                                                          f"{command}\nstart {str(ephem.Date(self.t)).split()[1][:5]} UT, {slotTime / 60:.0f} min", None))
 
                                 if "ra" in self.parent.plan[i]["ob"].keys():
                                     ra = self.parent.plan[i]["ob"]["ra"]
@@ -1794,10 +1796,12 @@ class PlotWindow(BaseWindow):
                                     style = "--" if standard else "-"
                                     if name not in colors:
                                         colors[name] = self.PALETTE[len(colors) % len(self.PALETTE)]
-                                        # cala noc blado - widac wschod, zachod i gdzie w nocy jest slot
-                                        t_night, alt_night = self.altitudes(ra, dec, self.t0, self.t_end, 10 * ephem.minute)
-                                        self.axes.plot(t_night, alt_night, style, color=colors[name], alpha=0.25, linewidth=1)
+                                        self.night[name] = (ra, dec, style, colors[name])
                                     color = colors[name]
+                                    # cala noc blado tylko dla zaznaczonego OB (reszta pod myszka albo "All night
+                                    # curves") - przy wielu obiektach (zb08) krzywe calej nocy zaslanialy plan
+                                    if i == self.parent.i:
+                                        self.night_line(name).set_visible(True)
                                     t_tab, alt_tab = self.altitudes(ra, dec, self.t, self.t + ephem.second * slotTime, 10 * ephem.second)
                                     if i == self.parent.i:
                                         self.axes.axvspan(min(t_tab), max(t_tab), color="grey", alpha=0.15)
@@ -1805,7 +1809,7 @@ class PlotWindow(BaseWindow):
                                     labels.append((self.t, self.t + ephem.second * slotTime, name, color, fontsize))
                                     self.segments.append((self.t, self.t + ephem.second * slotTime,
                                                           f"{name}\nstart {str(ephem.Date(self.t)).split()[1][:5]} UT, "
-                                                          f"{slotTime / 60:.0f} min\nalt {alt_tab[0]:.0f}\u00b0 \u2192 {alt_tab[-1]:.0f}\u00b0"))
+                                                          f"{slotTime / 60:.0f} min\nalt {alt_tab[0]:.0f}\u00b0 \u2192 {alt_tab[-1]:.0f}\u00b0", name))
 
                             self.t = self.t + ephem.second * slotTime
 
@@ -1881,22 +1885,49 @@ class PlotWindow(BaseWindow):
             t = t + step
         return ts, alts
 
+    def night_line(self, name):
+        # blada krzywa wysokosci obiektu przez cala noc - widac wschod, zachod i gdzie w nocy jest slot;
+        # liczona przy pierwszej potrzebie, potem tylko pokazywana / chowana
+        if name not in self.night_lines:
+            ra, dec, style, color = self.night[name]
+            t_night, alt_night = self.altitudes(ra, dec, self.t0, self.t_end, 10 * ephem.minute)
+            self.night_lines[name], = self.axes.plot(t_night, alt_night, style, color=color, alpha=0.25, linewidth=1,
+                                                     visible=False)
+        return self.night_lines[name]
+
+    def show_night(self, hovered=None):
+        # widoczne: wszystkie ("All night curves"), albo zaznaczony OB i obiekt pod myszka
+        selected = None
+        if 0 <= self.parent.i < len(self.parent.plan):
+            selected = self.parent.plan[self.parent.i]["ob"].get("name")
+        for name in self.night:
+            show = self.all_night_c.isChecked() or name in (selected, hovered)
+            if show or name in self.night_lines:
+                self.night_line(name).set_visible(show)
+
     def on_hover(self, event):
-        # podpowiedz z nazwa, startem, dlugoscia i wysokoscia slotu pod myszka
-        text = None
+        # podpowiedz z nazwa, startem, dlugoscia i wysokoscia slotu pod myszka, i krzywa calej nocy tego obiektu
+        text, name = None, None
         if event.inaxes is self.axes and event.xdata is not None:
-            for t0, t1, txt in getattr(self, "segments", []):
+            for t0, t1, txt, obj in getattr(self, "segments", []):
                 if t0 <= event.xdata <= t1:
-                    text = txt
+                    text, name = txt, obj
                     break
+        if name != getattr(self, "hovered", None):
+            self.hovered = name
+            self.show_night(name)
+        elif not text and not self.hover.get_visible():
+            return
         if text:
             self.hover.xy = (event.xdata, event.ydata)
             self.hover.set_text(text)
             self.hover.set_visible(True)
-        elif not self.hover.get_visible():
-            return
         else:
             self.hover.set_visible(False)
+        self.canvas.draw_idle()
+
+    def all_night_changed(self):
+        self.show_night(getattr(self, "hovered", None))
         self.canvas.draw_idle()
 
     def mkUI(self):
@@ -1913,6 +1944,12 @@ class PlotWindow(BaseWindow):
 
         self.toolbar = NavigationToolbar(self.canvas,self)
         grid.addWidget(self.toolbar, 1, 0, 1, 2)
+
+        # krzywe calej nocy wszystkich obiektow - domyslnie tylko zaznaczony OB i obiekt pod myszka
+        self.all_night_c = QCheckBox("All night curves")
+        self.all_night_c.setChecked(False)
+        self.all_night_c.toggled.connect(self.all_night_changed)
+        grid.addWidget(self.all_night_c, 2, 0)
 
         self.close_p = QPushButton('Close')
         grid.addWidget(self.close_p, 2, 1)
