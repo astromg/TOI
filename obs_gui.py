@@ -842,12 +842,18 @@ class ObserversWindow(QWidget):
         self.mkUI()
 
     def open_for(self, current, local=False):
-        # zaznaczeni obecni obserwatorzy - po starcie ci z ostatniego wpisu, czyli z poprzedniej nocy;
-        # spoza listy ida do pola Other
+        # zaznaczeni obecni obserwatorzy - po starcie ci z ostatniego wpisu, czyli z poprzedniej nocy - na gorze
+        # tabeli, reszta w kolejnosci z observers.yaml; spoza listy ida do pola Other
         known = set(self.parent.observers_list)
-        for row in range(self.table.rowCount()):
+        names = ([n for n in self.parent.observers_list if n in current]
+                 + [n for n in self.parent.observers_list if n not in current])
+        self.table.blockSignals(True)
+        for row, name in enumerate(names):
             item = self.table.item(row, 0)
-            item.setCheckState(Qt.CheckState.Checked if item.text() in current else Qt.CheckState.Unchecked)
+            item.setText(name)
+            item.setCheckState(Qt.CheckState.Checked if name in current else Qt.CheckState.Unchecked)
+        self.table.blockSignals(False)
+        self.table.scrollToTop()
         self.other_e.setText(", ".join(n for n in current if n not in known))
         self.local_c.setChecked(local)
         self.search_e.clear()

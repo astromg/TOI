@@ -19,6 +19,10 @@ toi:
     zeros: 1
     darks: 60             # darks are taken when there is no weather; a second month is still fine
 
+  # observers of the night: the entry is valid until the next reset, every day at this hour UT (15 UT = noon in
+  # Chilean summer, 11 in winter); after it the observers window pops up again
+  observers_reset_ut: 15
+
   # Aux "Telescope" tab: <url>/telescope_<tel>/ of the OCA manual on the intranet
   oca_manual_url: http://docker.oca.lan:8081
 

@@ -22,7 +22,7 @@ poetry run nw           # runs nats_watch.py (standalone NATS message inspector)
 ```
 
 The app reads `toi_config.yaml` (telescope list, NATS host/port, per-telescope paths; also `focus_step` /
-`focus_method(s)` per telescope, `toi.oca_manual_url`, `toi.alive_subjects`, `toi.conditions_subjects`) from the current
+`focus_method(s)` per telescope, `toi.oca_manual_url`, `toi.observers_reset_ut`, `toi.alive_subjects`, `toi.conditions_subjects`) from the current
 working directory at startup, and connects to NATS before building any GUI — if the NATS connection fails,
 the app logs an error and exits without opening a window. All local configuration lives in
 `toi_config.yaml`.
@@ -111,7 +111,8 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
 - `fits_gui.py` (`FitsWindow`, `FFS_Worker`) — FITS viewer; runs `ffs_lib` star-detection stats in a
   separate `QThread` (`FFS_Worker`) so image analysis doesn't block the Qt main thread.
 - `aux_gui.py` (`AuxWindow`) — one window with tabs, in order: Telescope (the active telescope's
-  OCA manual page fetched over HTTP from the intranet, `toi.oca_manual_url`), Tasks (shown first; empty table, later
+  OCA manual pages fetched over HTTP from the intranet, `toi.oca_manual_url`: description `telescope_<tel>` on the
+  left, changelog `telescope_<tel>_changelog` on the right, in a splitter), Tasks (shown first; empty table, later
   GitHub issues for observers filtered by labels), Optical path (`SchematicView`, hidden when the
   telescope has no optical graph), Calibration, Focus, Guider (layout template only, guider does not work),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes, drawn like oca_monitor - points plus a smoothed trend;
@@ -132,7 +133,9 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   subjects (`toi.flat_overwatch_subject` in `toi_config.yaml`, read by `reader_nats_flat_overwatch(item)`),
   with a table above it: age of the last master zero / dark (items `zeros` / `darks`, `{"all": {"last"}}`) and of the
   last object in any filter (`draw_master_table`),
-  kept per telescope in `flat_records`; the TPG window's "Make SKYFLATS" switch turns those records into the
+  kept per telescope in `flat_records`; the TPG window's "Evening SKYFLATS" / "Morning SKYFLATS" switches (passed to tpg as
+  `skyflats=[sessions]`; evening defaults off once the Sun is below the lower `skyflat.hsun` of the tpg config,
+  `TPGWindow._smart_skyflats_checkboxes`) turn those records into the
   `flat_history` passed to tpg (`TPGWindow._flat_history`). Autofocus fits use `pyaraucaria.focus`
   (`calcFocus/calc_focus.py` is the old local version). In the Focus tab Recalculate only computes; SET
   (`focus_set_result`) moves the focuser. Autofocus uses a camera (`FocusTab.set_camera`, from the instrument
@@ -143,10 +146,11 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   reference was set. See README "FOCUS ADJUST".
 
 - Observers of the night (2026-10-27): `observers.yaml` (repo root) lists the people; `obs_gui.ObserversWindow`
-  (non-modal; a checkable table with a search field, pre-checked with the last entry, i.e. the previous night)
+  (non-modal; a checkable table with a search field, pre-checked with the last entry, i.e. the previous night,
+  checked names sorted to the top)
   publishes the chosen ones on `tic.status.ocm.observers` (`{"observers", "time" ISO UTC, "by"}`, kept by
   the `tic_status` stream), shown on the button between PING and ⚙. The window pops up by itself when the last entry
-  is older than 23 h (`TOI.observers_check_loop`, "Later" snoozes 30 min) and closes on every station once someone
+  is older than the daily reset at `toi.observers_reset_ut` UT (default 15; `TOI.observers_valid`, `TOI.observers_check_loop`, "Later" snoozes 30 min) and closes on every station once someone
   saves. One list for the whole observatory. "Only this TOI" keeps the choice in the session only
   (`TOI.observers_local`, nothing published; NATS entries then do not override it) — for tests from elsewhere.
 

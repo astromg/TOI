@@ -705,9 +705,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await asyncio.sleep(5)
 
     # ---- obserwatorzy nocy, wspolni dla obserwatorium: lista w observers.yaml, wybor publikowany na
-    # tic.status.ocm.observers (strumien tic_status trzyma ostatni wpis). Starszy niz 23 h - okno samo wyskakuje
+    # tic.status.ocm.observers (strumien tic_status trzyma ostatni wpis). Wpis wazny do kolejnego resetu - codziennie
+    # o toi.observers_reset_ut (godzina UT, okolo poludnia lokalnie); starszy - okno samo wyskakuje
     OBSERVERS_SUBJECT = 'tic.status.ocm.observers'
-    OBSERVERS_MAX_AGE = 23 * 3600       # s
     OBSERVERS_LATER = 30 * 60           # s, "Later" odklada pytanie
 
     async def nats_observers_reader(self):
@@ -718,7 +718,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.night_observers = data
                     if self.observers_local is None:        # lokalny wybor tej sesji ma pierwszenstwo
                         self.show_observers()
-                        if self.observers_age() < self.OBSERVERS_MAX_AGE:
+                        if self.observers_valid():
                             self.observersGui.hide()    # ktos juz wpisal - okno znika na wszystkich stanowiskach
                 except Exception as e:
                     logger.warning(f'EXCEPTION 110e: {e}')
@@ -743,18 +743,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             f.observers_p.setToolTip(f'Observers tonight, set {data.get("time", "?")} UT by {data.get("by", "?")}. '
                                      f'Click to change.')
 
-    def observers_age(self):
+    def observers_reset_time(self):
+        # ostatni reset listy obserwatorow: dzis o toi.observers_reset_ut UT, a przed ta godzina - wczoraj
+        hour = float(self.local_cfg["toi"].get("observers_reset_ut", 15))
+        now = datetime.datetime.now(datetime.timezone.utc)
+        reset = now.replace(hour=0, minute=0, second=0, microsecond=0) + datetime.timedelta(hours=hour)
+        return reset if reset <= now else reset - datetime.timedelta(days=1)
+
+    def observers_valid(self):
         try:
             t = datetime.datetime.fromisoformat(self.current_observers()["time"])
-            return (datetime.datetime.now(datetime.timezone.utc) - t).total_seconds()
+            return t >= self.observers_reset_time()
         except (TypeError, KeyError, ValueError):
-            return float("inf")
+            return False
 
     async def observers_check_loop(self):
         await asyncio.sleep(15)     # najpierw ostatni wpis z NATS
         while True:
             try:
-                if (self.observers_age() > self.OBSERVERS_MAX_AGE and time.time() > self.observers_later_until
+                if (not self.observers_valid() and time.time() > self.observers_later_until
                         and not self.observersGui.isVisible()):
                     self.open_observers_window()
             except Exception as e:

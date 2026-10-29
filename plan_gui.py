@@ -15,7 +15,7 @@ from qasync import QEventLoop
 from PyQtX import QtCore, QtGui
 from PyQtX.QtWidgets import (QAbstractItemView, QWidget, QLabel, QCheckBox, QTextEdit,
                              QLineEdit, QPushButton, QGridLayout, QTableWidget, QTableWidgetItem, QCompleter, QFileDialog, QFrame,
-                             QComboBox, QProgressBar, QHeaderView)
+                             QComboBox, QProgressBar, QHeaderView, QSpinBox)
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -29,6 +29,7 @@ from base_window import BaseWindow
 
 from toi_lib import *
 from tpg.telescope_plan_generator import TelescopePlanGenerator as tpg
+from tpg.config import load_config as tpg_load_config
 
 from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
 from pyaraucaria.ob_validator import ObsValidator
@@ -1085,7 +1086,7 @@ class TPG_Worker(QtCore.QObject):
     error_signal = QtCore.pyqtSignal(str)
 
     def __init__(self, tel, dt, wind=None, uobi_done=None,fwhm=None, tag=None, night_monitor=False,
-                 skyflats=False, flat_history=None, now=None):
+                 night_monitor_gap=None, skyflats=(), flat_history=None, now=None):
 
         super().__init__()
         self.tel = tel
@@ -1095,6 +1096,7 @@ class TPG_Worker(QtCore.QObject):
         self.fwhm = fwhm
         self.tag = tag
         self.night_monitor = night_monitor
+        self.night_monitor_gap = night_monitor_gap
         self.skyflats = skyflats
         self.flat_history = flat_history
         self.now = now
@@ -1102,6 +1104,7 @@ class TPG_Worker(QtCore.QObject):
     def run(self):
         try:
             p = tpg(self.tel,self.dt,wind=self.wind,fwhm=self.fwhm,tag=self.tag,done_uobi=self.uobi_done,night_monitor=self.night_monitor,
+                    night_monitor_gap=self.night_monitor_gap,
                     skyflats=self.skyflats,flat_history=self.flat_history,now=self.now)
             p.Initiate()
             if self.night_monitor:
@@ -1170,6 +1173,8 @@ class TPGWindow(BaseWindow):
         self.setMinimumSize(200, 450)
         self.mkUI()
         self._smart_sunset_checkbox()
+        self._smart_skyflats_checkboxes()
+        self._night_monitor_gap_default()
         self.sunset_changed()
 
     def add(self):
@@ -1193,13 +1198,15 @@ class TPGWindow(BaseWindow):
             uobi_done = []
 
         night_monitor = self.night_monitor_c.isChecked()
+        night_monitor_gap = self.night_monitor_gap_e.value() if night_monitor else None
 
-        skyflats = self.skyflats_c.isChecked()
+        # tpg dostaje liste sesji: osobno wieczorne i poranne
+        skyflats = [s for s, c in (("evening", self.evening_flats_c), ("morning", self.morning_flats_c)) if c.isChecked()]
         flat_history = self._flat_history(tel) if skyflats else None
 
         self.thread = QtCore.QThread()
         self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm,tag=tag,night_monitor=night_monitor,
-                                 skyflats=skyflats,flat_history=flat_history,now=self.parent.parent.ut)
+                                 night_monitor_gap=night_monitor_gap,skyflats=skyflats,flat_history=flat_history,now=self.parent.parent.ut)
 
         self.worker.moveToThread(self.thread)
 
@@ -1320,6 +1327,42 @@ class TPGWindow(BaseWindow):
             self.sunset_c.setChecked(False)
 
 
+    def _tpg_cfg(self):
+        try:
+            return tpg_load_config()
+        except Exception as e:
+            print(f'TPG: tpg config not read: {e}')
+            return {}
+
+    def _night_monitor_gap_default(self):
+        # przerwa night monitora z configu tpg dla teleskopu (jak w tpg), domyslnie 15 min
+        try:
+            self.night_monitor_gap_e.setValue(int(self._tpg_cfg()[self.parent.parent.active_tel].get("night_monitor_gap", 15)))
+        except Exception:
+            self.night_monitor_gap_e.setValue(15)
+
+    def _smart_skyflats_checkboxes(self):
+        """Wieczorne skyflaty wlaczone, dopoki Slonce jest nad dolna granica sesji flatow (skyflat.hsun z configu tpg)
+        i zachodzi - pozniej tpg i tak by je pominal (sesja minela). Poranne zawsze, sa przed nami."""
+        hsun_low = -15.
+        try:
+            cfg = self._tpg_cfg()
+            hsun = cfg[self.parent.parent.active_tel].get("skyflat", {}).get("hsun") or cfg.get("skyflat", {}).get("hsun")
+            hsun_low = min(float(h) for h in hsun)
+        except Exception as e:
+            print(f'TPG: skyflat hsun not read from tpg config, using {hsun_low}: {e}')
+
+        obs = ephem.Observer()
+        obs.lat = self.parent.parent.observatory[0]
+        obs.lon = self.parent.parent.observatory[1]
+        obs.elevation = float(self.parent.parent.observatory[2])
+        obs.date = datetime.datetime.strptime(self.parent.parent.ut, "%Y/%m/%d %H:%M:%S")
+        obs.horizon = str(hsun_low)
+        sun = ephem.Sun()
+        evening = obs.next_setting(sun, use_center=True) < obs.next_rising(sun, use_center=True)
+        self.evening_flats_c.setChecked(evening)
+        self.morning_flats_c.setChecked(True)
+
     def mkUI(self):
         grid = QGridLayout()
 
@@ -1370,12 +1413,14 @@ class TPGWindow(BaseWindow):
             "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
         )
 
-        self.skyflats_c = QCheckBox("Make SKYFLATS")
-        self.skyflats_c.setChecked(True)
-        self.skyflats_c.setStyleSheet(
-            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
-            "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
-        )
+        self.evening_flats_c = QCheckBox("Evening SKYFLATS")
+        self.morning_flats_c = QCheckBox("Morning SKYFLATS")
+        for c in (self.evening_flats_c, self.morning_flats_c):
+            c.setChecked(True)
+            c.setStyleSheet(
+                "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
+                "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
+            )
 
         self.night_monitor_c = QCheckBox("Night monitor")
         self.night_monitor_c.setChecked(False)
@@ -1383,6 +1428,14 @@ class TPGWindow(BaseWindow):
             "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
             "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
         )
+        # przerwa miedzy obserwacjami night monitora (tpg night_monitor_gap)
+        self.night_monitor_gap_e = QSpinBox()
+        self.night_monitor_gap_e.setRange(0, 600)
+        self.night_monitor_gap_e.setSuffix(" min")
+        self.night_monitor_gap_e.setPrefix("interval ")
+        self.night_monitor_gap_e.setToolTip("Break between observations in night monitor mode")
+        self.night_monitor_gap_e.setEnabled(False)
+        self.night_monitor_c.toggled.connect(self.night_monitor_gap_e.setEnabled)
 
         self.add_p = QPushButton('Generate Plan')
         self.add_p.clicked.connect(self.add)
@@ -1396,20 +1449,21 @@ class TPGWindow(BaseWindow):
 
         grid.addWidget(self.ut_e, 0, 0, 1, 2)
         grid.addWidget(self.sunset_c, 1, 0)
-        grid.addWidget(self.skyflats_c, 1, 1)
+        grid.addWidget(self.evening_flats_c, 1, 1)
+        grid.addWidget(self.repeat_c, 2, 0)
+        grid.addWidget(self.morning_flats_c, 2, 1)
 
-        grid.addWidget(self.wind_c, 2, 0)
-        grid.addWidget(self.wind_e, 2, 1)
+        grid.addWidget(self.wind_c, 3, 0)
+        grid.addWidget(self.wind_e, 3, 1)
 
-        grid.addWidget(self.fwhm_c, 3, 0)
-        grid.addWidget(self.fwhm_e, 3, 1)
-
-        grid.addWidget(self.night_monitor_c, 4, 0, 1, 2)
+        grid.addWidget(self.fwhm_c, 4, 0)
+        grid.addWidget(self.fwhm_e, 4, 1)
 
         #grid.addWidget(self.tag_c, 4, 0)
         #grid.addWidget(self.tag_e, 4, 1)
 
-        grid.addWidget(self.repeat_c, 5, 0, 1, 2)
+        grid.addWidget(self.night_monitor_c, 5, 0)
+        grid.addWidget(self.night_monitor_gap_e, 5, 1)
 
 
         grid.addWidget(self.info_e, 6, 0, 1, 2)

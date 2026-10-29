@@ -36,8 +36,10 @@ $ ./toi.py
 ## OBSERWATORZY NOCY
 - Lista osob w `observers.yaml` (katalog glowny repo) - tu dopisujemy stalych obserwatorow (samo nazwisko albo
   wpis `{name: ...}` na pozniejsze dane).
-- W oknie tabela z wyszukiwarka; na starcie zaznaczeni sa obserwatorzy z ostatniego wpisu (poprzedniej nocy).
-- Okno "Observers tonight" wyskakuje samo, gdy ostatni wpis jest starszy niz 23 h; mozna zaznaczyc osoby z listy
+- W oknie tabela z wyszukiwarka; na starcie zaznaczeni sa obserwatorzy z ostatniego wpisu (poprzedniej nocy),
+  zaznaczeni sa na gorze tabeli.
+- Wpis wazny do codziennego resetu o `toi.observers_reset_ut` (godzina UT, domyslnie 15 = poludnie latem w Chile);
+  potem okno "Observers tonight" wyskakuje samo; mozna zaznaczyc osoby z listy
   i wpisac gosci w polu Other. "Later" odklada pytanie o 30 min.
 - Wybor idzie na NATS (`tic.status.ocm.observers`), wiec widza go wszystkie stanowiska; okno znika wszedzie, gdy
   ktos zapisze. Obserwatorzy sa na przycisku miedzy PING a ⚙ - klikniecie otwiera okno do poprawki.
@@ -47,7 +49,9 @@ $ ./toi.py
 ## KONFIGURACJA (toi_config.yaml) - wpisy dodane 26-27.10.2026
 - per teleskop: `focus_step` (domyslny krok autofocusa, zamiast `default_step` z TIC), `focus_method`,
   `focus_methods` (nazwy z `pyaraucaria.focus`),
-- `toi.oca_manual_url` - manual w intranecie dla zakladki Telescope (`http://docker.oca.lan:8081`),
+- `toi.oca_manual_url` - manual w intranecie dla zakladki Telescope (`http://docker.oca.lan:8081`): po lewej strona
+  `telescope_<tel>`, po prawej changelog `telescope_<tel>_changelog`,
+- `toi.observers_reset_ut` - godzina UT codziennego resetu obserwatorow nocy (domyslnie 15),
 - `toi.alive_subjects` - subjecty RPC alive overwatchy (puste = lampka szara).
 - `toi.conditions_subjects` - `seeing` i `zero_point` obserwatorium z weather_overwatch, pola "Seeing" i "Zero point"
   w oknie obserwacji (brak = "--").

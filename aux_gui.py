@@ -2,7 +2,8 @@
 """The Aux window: the operator's secondary panels as tabs of one window (second monitor, below FITS).
 
 Tabs, in this order:
-- ``Telescope`` — :class:`TelescopeTab`, the active telescope's page of the OCA manual (intranet, over HTTP);
+- ``Telescope`` — :class:`TelescopeTab`, the active telescope's page of the OCA manual (intranet, over HTTP),
+  description on the left, changelog on the right;
 - ``Tasks`` — :class:`TasksTab`, tasks for observers of the active telescope; shown first; empty table for now
   (later: GitHub issues filtered by labels);
 - ``Optical path`` — :class:`optics_view.SchematicView` of the active telescope; hidden when the telescope
@@ -44,7 +45,7 @@ from PyQtX import QtGui
 from PyQtX.QtCore import Qt, QUrl
 from PyQtX.QtGui import QTextCursor
 from PyQtX.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFrame, QGridLayout, QHeaderView, QLabel,
-                             QLineEdit, QPushButton, QSlider, QStackedWidget, QTableWidget, QTableWidgetItem,
+                             QLineEdit, QPushButton, QSlider, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
                              QTabWidget, QTextBrowser, QTextEdit, QVBoxLayout, QWidget)
 
 from base_window import BaseWindow
@@ -143,9 +144,10 @@ class AuxWindow(BaseWindow):
 # ############### TELESCOPE ##########################
 
 class TelescopeTab(QWidget):
-    """The active telescope's page of the OCA manual, fetched over HTTP from the intranet copy (``toi.oca_manual_url``
-    in ``toi_config.yaml``; the server pulls the manual from GitHub every hour): the description first, the log of
-    events after it. Fetched on every telescope switch and with Reload."""
+    """The active telescope's pages of the OCA manual, fetched over HTTP from the intranet copy (``toi.oca_manual_url``
+    in ``toi_config.yaml``; the server pulls the manual from GitHub every hour): the description on the left, the
+    changelog (a separate page of the manual, ``telescope_<tel>_changelog``) on the right. Fetched on every
+    telescope switch and with Reload."""
 
     TIMEOUT = 5     # s
 
@@ -158,13 +160,19 @@ class TelescopeTab(QWidget):
         if self.parent.active_tel != None:
             asyncio.ensure_future(self.load(self.parent.active_tel))
 
-    def page_url(self, tel):
+    def page_url(self, tel, page=""):
         base = self.parent.local_cfg["toi"].get("oca_manual_url", "http://docker.oca.lan:8081").rstrip("/")
-        return f"{base}/telescope_{tel}/"
+        return f"{base}/telescope_{tel}{page}/"
 
     async def load(self, tel):
         url = self.page_url(tel)
         self.source_l.setText(f"{url}   loading...")
+        await asyncio.gather(self.load_page(tel, self.text_b, url),
+                             self.load_page(tel, self.changelog_b, self.page_url(tel, "_changelog")))
+        if tel == self.parent.active_tel:
+            self.source_l.setText(f"{url}   (fetched {datetime.datetime.now().strftime('%H:%M')})")
+
+    async def load_page(self, tel, browser, url):
         try:
             # urllib blokuje, wiec w osobnym watku - petla Qt/asyncio nie moze stanac na czas pobierania
             html = await asyncio.to_thread(self._fetch, url)
@@ -174,9 +182,8 @@ class TelescopeTab(QWidget):
                     f"<p>Check <code>toi.oca_manual_url</code> in <code>toi_config.yaml</code>.</p>")
         if tel != self.parent.active_tel:      # w miedzyczasie zmieniono teleskop
             return
-        self.text_b.document().setBaseUrl(QUrl(url))    # wzgledne linki manuala
-        self.text_b.setHtml(body)
-        self.source_l.setText(f"{url}   (fetched {datetime.datetime.now().strftime('%H:%M')})")
+        browser.document().setBaseUrl(QUrl(url))    # wzgledne linki manuala
+        browser.setHtml(body)
 
     def _fetch(self, url):
         with urllib.request.urlopen(url, timeout=self.TIMEOUT) as r:
@@ -185,7 +192,7 @@ class TelescopeTab(QWidget):
     @staticmethod
     def for_qt(html):
         """The page of mkdocs Material → what QTextBrowser draws: only the article, without the ¶ anchors,
-        admonitions as quotes, tables with lines, the log of events last."""
+        admonitions as quotes, tables with lines."""
         start = html.find('<article')
         end = html.find('</article>')
         if start < 0 or end < 0:
@@ -194,20 +201,20 @@ class TelescopeTab(QWidget):
         body = re.sub(r'<a class="headerlink"[^>]*>.*?</a>', '', body)
         body = re.sub(r'<div class="admonition[^"]*">\s*<p class="admonition-title">(.*?)</p>(.*?)</div>',
                       r'<blockquote><b>\1:</b>\2</blockquote>', body, flags=re.S)
-        body = body.replace('<table>', '<table border="1" cellspacing="0" cellpadding="3">')
-
-        # sekcje <h2>: opis teleskopu jest wazniejszy niz log zdarzen, wiec log idzie na koniec
-        parts = re.split(r'(?=<h2[ >])', body)
-        head, sections = parts[0], parts[1:]
-        log = [p for p in sections if 'id="log-of-events' in p[:80]]
-        rest = [p for p in sections if p not in log]
-        return head + "".join(rest + log)
+        return body.replace('<table>', '<table border="1" cellspacing="0" cellpadding="3">')
 
     def mkUI(self):
         grid = QGridLayout()
         self.text_b = QTextBrowser()
         self.text_b.setOpenExternalLinks(True)
-        grid.addWidget(self.text_b, 0, 0, 1, 2)
+        self.changelog_b = QTextBrowser()
+        self.changelog_b.setOpenExternalLinks(True)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.addWidget(self.text_b)
+        splitter.addWidget(self.changelog_b)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        grid.addWidget(splitter, 0, 0, 1, 2)
         self.source_l = QLabel("")
         self.source_l.setStyleSheet("color: gray;")
         grid.addWidget(self.source_l, 1, 0)

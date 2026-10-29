@@ -1,5 +1,30 @@
 # OCM observers: the list in TOI's "Observers tonight" window (obs_gui.ObserversWindow).
 # Add a person here once they observe regularly; a one-off guest can be typed into "Other" in the window.
+# Sorted by surname; checked names go to the top of the window anyway.
 observers:
+  - Karolina Bąkowska
+  - Felipe Espinoza Arancibia
+  - Cezary Gałan
   - Marek Górski
+  - Gergely Hajdu
+  - Barbara Joachimczyk
+  - Mikołaj Kałuszyński
+  - Paulina Karczmarek
+  - Mirosław Kicia
+  - Stefan Kimeswenger
+  - Wilma Kiviaho
+  - Krzysztof Kotysz
+  - Ernest Lasek
+  - Bartłomiej Matuszkiewicz
+  - Dawid Moździerski
+  - Weronika Narloch
+  - Henryka Netzel
+  - Waldemar Ogłoza
+  - Wojciech Pych
   - Michał Radziwonowicz
+  - Przemysław Romaniuk
+  - Ricardo Salinas
+  - Radek Smolec
+  - Piotr Wielgórski
+  - Bartłomiej Zgirski
+  - Piotr Żuk
