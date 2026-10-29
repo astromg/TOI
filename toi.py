@@ -2811,7 +2811,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if ok_name and ok_seq:
                 uobi = str(uuid.uuid4())[:8]
-                self.ob[self.active_tel]["block"] = f"SNAP {name} seq={seq} dome_follow=off uobi={uobi}"
+                self.ob[self.active_tel]["block"] = f"SNAP {name} seq={seq}{await self.manual_dome_follow()} uobi={uobi}"
                 self.ob[self.active_tel]["meta"]["origin"] = "snap"
                 self.planrunner_start(self.active_tel)
                 await self.update_log(f'starting planrunner', "TOI RESPONDER", self.active_tel)
@@ -2890,7 +2890,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if ok_name and ok_seq:
 
                 if self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==0:
-                    txt = f"OBJECT {name} seq={seq} dome_follow=off "
+                    txt = f"OBJECT {name} seq={seq}{await self.manual_dome_follow()} "
 
                 elif self.instGui.ccd_tab.inst_Obtype_s.currentIndex()==2:
                     txt = f"DARK {name} seq={seq} "
@@ -3629,6 +3629,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
             self.mntGui.domeAuto_c.setChecked(bool(self.dome_follow))
+
+    async def manual_dome_follow(self):
+        """dome_follow=off dla recznego OBJECT/SNAP z okna instrumentu tylko przy zamknietej kopule (albo nieznanym
+        stanie): testy w dzien - kopula stoi (ludzie w kopule, kopula ustawiona recznie; nieudany obrot przerwalby
+        program). Przy otwartej kopule jak w planie: planrunner ustawia kopule przed kazda ekspozycja, z dome followerem
+        nie koliduje (ten sam azymut, w tolerancji pomija obrot), a gdy follower wylaczony (np. po PARK) - tylko on."""
+        if self.dome_shutterstatus == 0:
+            return ""
+        return " dome_follow=off"
 
     async def dome_follower_reader(self):
         self.dome_follow = None
