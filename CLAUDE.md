@@ -127,7 +127,8 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   OCA manual pages fetched over HTTP from the intranet, `toi.oca_manual_url`: description `telescope_<tel>` on the
   left, changelog `telescope_<tel>_changelog` on the right, in a splitter), Tasks (shown first; left: the daily checklist from `checklist.yaml`, items in the order of the
   day, `scope: telescope` items ticked per telescope (key `id@tel`) and shown for the active telescope (refreshed in
-  `AuxWindow.updateUI`), the others once for the observatory; ticks shared over NATS `tic.status.ocm.checklist` and reset with the observers at `toi.observers_reset_ut`
+  `AuxWindow.updateUI`), the others once for the observatory; only who has control ticks (`TOI.checklist_allowed`: telescope items
+  need control of the active telescope, observatory items of any; re-drawn when `tel_acces` changes); ticks shared over NATS `tic.status.ocm.checklist` and reset with the observers at `toi.observers_reset_ut`
   — `TOI.set_checklist_item` / `checklist_done`; right: empty table, later GitHub issues for observers filtered by labels), Optical path (`SchematicView`, hidden when the
   telescope has no optical graph), Calibration, Focus, Guider (layout template only, guider does not work),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes, drawn like oca_monitor - points plus a smoothed trend;

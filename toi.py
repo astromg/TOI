@@ -830,7 +830,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     def show_checklist(self):
         self.auxGui.tasks.show_checklist(self.checklist, self.checklist_done())
 
+    def checklist_allowed(self, per_tel):
+        # odhacza ten, kto ma kontrole: punkt teleskopowy - nad aktywnym teleskopem, wspolny - nad ktorymkolwiek
+        if per_tel:
+            return bool(self.active_tel and self.tel_acces.get(self.active_tel))
+        return any(self.tel_acces.values())
+
     def set_checklist_item(self, item_id, checked):
+        if not self.checklist_allowed("@" in item_id):
+            self.show_checklist()       # odhaczenie wraca do stanu z NATS
+            return
         now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
         done = self.checklist_done()
         if checked:
@@ -1520,7 +1529,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         logger.warning(f'TOI: EXCEPTION 7a: access read failed for {tel}: {e}')
                     else:
                         if acces is not None:
+                            changed = self.tel_acces[tel] != acces
                             self.tel_acces[tel] = acces
+                            if changed:
+                                self.show_checklist()   # odhaczac moze tylko ten, kto ma kontrole
                     try:
                         name = await self.acces_grantors[tel].aget_current_user()
                     except Exception as e:
