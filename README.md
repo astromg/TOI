@@ -48,7 +48,8 @@ $ ./toi.py
 
 ## CHECKLISTA DNIA (zakladka Tasks w Aux, lewa strona)
 - Punkty w `checklist.yaml` (katalog glowny repo), w kolejnosci dnia; `hint` to podpowiedz po najechaniu myszka;
-  `scope: telescope` - osobny checkbox dla kazdego teleskopu (kolumny), bez tego jeden dla calego obserwatorium.
+  `scope: telescope` - odhaczane osobno dla kazdego teleskopu, widac je dla aktywnego teleskopu; bez tego jeden
+  checkbox dla calego obserwatorium.
   Tylko to, czego TOI i tpg nie robia same.
 - Odhaczenie widza wszystkie stanowiska (`tic.status.ocm.checklist`), z godzina i kto; reset razem z obserwatorami
   o `toi.observers_reset_ut`.

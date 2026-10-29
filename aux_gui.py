@@ -111,6 +111,7 @@ class AuxWindow(BaseWindow):
     def updateUI(self):
         # po zmianie teleskopu; jego nazwa i kolor sa w pasku tytulu panelu (ObsGui.set_panel_telescope)
         self.telescope.updateUI()
+        self.parent.show_checklist()        # punkty teleskopowe dla nowego teleskopu
         self.calibration.updateUI()
         self.focus.updateUI()
         self.planrunner.updateUI()
@@ -229,7 +230,8 @@ class TelescopeTab(QWidget):
 
 class TasksTab(QWidget):
     """Left: the observers' daily checklist from ``checklist.yaml``, in the order of the day; items with
-    ``scope: telescope`` have a checkbox per telescope, the others one for the observatory; a tick goes to every TOI
+    ``scope: telescope`` are ticked separately per telescope and shown for the active one, the others once for the
+    observatory; a tick goes to every TOI
     (``TOI.set_checklist_item``, ``tic.status.ocm.checklist``) and lasts until the daily reset. Right: tasks for
     observers of the active telescope - for now an empty table; later GitHub issues of a chosen repository, filtered
     by labels (a task label and the telescope's label)."""
@@ -244,52 +246,34 @@ class TasksTab(QWidget):
 
     def show_checklist(self, items, done):
         """``items`` from checklist.yaml, ``done`` = {key: {"time", "by"}} ticked today; the key is the item id, and
-        ``id@tel`` for an item with ``scope: telescope`` (a checkbox per telescope column)."""
-        telescopes = list(self.parent.local_cfg["toi"]["telescopes"])
+        ``id@tel`` for an item with ``scope: telescope`` - shown for the active telescope."""
+        tel = self.parent.active_tel
         self.check_t.blockSignals(True)
-        self.check_t.clearSpans()
-        self.check_t.setColumnCount(1 + len(telescopes))
-        self.check_t.setHorizontalHeaderLabels(["DAILY CHECKLIST"] + telescopes)
-        for col in range(1, 1 + len(telescopes)):
-            self.check_t.horizontalHeader().setSectionResizeMode(col, QHeaderView.ResizeToContents)
+        self.check_t.setHorizontalHeaderLabels([f"DAILY CHECKLIST · {tel}" if tel else "DAILY CHECKLIST", "DONE"])
         self.check_t.setRowCount(len(items))
-        boxes, ticked_n = 0, 0
+        ticked_n = 0
         for row, entry in enumerate(items):
             per_tel = entry.get("scope") == "telescope"
-            item = QTableWidgetItem(f'{row + 1}. {entry.get("text", entry["id"])}')
+            key = f'{entry["id"]}@{tel}' if per_tel else entry["id"]
+            text = f'{row + 1}. {entry.get("text", entry["id"])}'
+            item = QTableWidgetItem(f'{text}  [{tel}]' if per_tel else text)
+            item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable if (tel or not per_tel)
+                          else Qt.ItemFlag.ItemIsEnabled)
+            item.setData(Qt.ItemDataRole.UserRole, key if (tel or not per_tel) else None)
             item.setToolTip(entry.get("hint", ""))
-            item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            ticked = done.get(key)
+            item.setCheckState(Qt.CheckState.Checked if ticked else Qt.CheckState.Unchecked)
+            when = QTableWidgetItem("")
+            if ticked:
+                when.setText(f'{str(ticked.get("time", ""))[11:16]} UT')
+                when.setToolTip(f'{ticked.get("time", "?")} UT by {ticked.get("by", "?")}')
+                item.setForeground(QtGui.QColor("gray"))
+                ticked_n += 1
+            when.setFlags(Qt.ItemFlag.ItemIsEnabled)
             self.check_t.setItem(row, 0, item)
-            if per_tel:
-                cells = [(1 + i, f'{entry["id"]}@{tel}') for i, tel in enumerate(telescopes)]
-            else:
-                # jeden checkbox dla obserwatorium: w polu z tekstem, kolumny teleskopow puste
-                cells = [(0, entry["id"])]
-                if telescopes:
-                    self.check_t.setSpan(row, 1, 1, len(telescopes))
-                    blank = QTableWidgetItem("")
-                    blank.setFlags(Qt.ItemFlag.NoItemFlags)
-                    self.check_t.setItem(row, 1, blank)
-            for col, key in cells:
-                cell = item if col == 0 else QTableWidgetItem("")
-                cell.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
-                cell.setData(Qt.ItemDataRole.UserRole, key)
-                ticked = done.get(key)
-                cell.setCheckState(Qt.CheckState.Checked if ticked else Qt.CheckState.Unchecked)
-                if ticked:
-                    t = f'{ticked.get("time", "?")} UT by {ticked.get("by", "?")}'
-                    if col == 0:
-                        cell.setForeground(QtGui.QColor("gray"))
-                        cell.setToolTip(f'{entry.get("hint", "")}\nDone {t}'.strip())
-                    else:
-                        cell.setText(str(ticked.get("time", ""))[11:16])
-                        cell.setToolTip(f'Done {t}')
-                    ticked_n += 1
-                if col != 0:
-                    self.check_t.setItem(row, col, cell)
-                boxes += 1
+            self.check_t.setItem(row, 1, when)
         self.check_t.blockSignals(False)
-        self.check_l.setText(f"Done today: {ticked_n}/{boxes}" if items else "No checklist.yaml")
+        self.check_l.setText(f"Done today: {ticked_n}/{len(items)}" if items else "No checklist.yaml")
 
     def check_changed(self, item):
         key = item.data(Qt.ItemDataRole.UserRole)
@@ -301,12 +285,13 @@ class TasksTab(QWidget):
         left = QWidget()
         lgrid = QGridLayout()
         lgrid.setContentsMargins(0, 0, 0, 0)
-        self.check_t = QTableWidget(0, 1)
+        self.check_t = QTableWidget(0, 2)
         self.check_t.verticalHeader().hide()
         self.check_t.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         self.check_t.setWordWrap(True)
         header = self.check_t.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.check_t.itemChanged.connect(self.check_changed)
         lgrid.addWidget(self.check_t, 0, 0)
         self.check_l = QLabel("")
