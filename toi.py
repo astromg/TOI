@@ -29,7 +29,7 @@ import qasync as qs
 from ctc import CycleTimeCalc
 from pyaraucaria.ffs import FFS
 
-from PyQtX import QtWidgets, QtCore
+from PyQtX import QtWidgets, QtCore, QtGui
 from astropy.io import fits
 
 
@@ -475,6 +475,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     c = QtCore.Qt.darkRed
                 if label == "WEATHER WARNING":
                     c = QtCore.Qt.darkYellow
+                # allsky_overwatch, kolory jak pole Clouds: thin / veil, cloudy, overcast
+                if label == "CLOUDS INFO":
+                    c = QtCore.Qt.darkYellow
+                if label == "CLOUDS WARNING":
+                    c = QtGui.QColor(220, 110, 0)
+                if label == "CLOUDS ALERT":
+                    c = QtCore.Qt.darkRed
                 if label in ("FWHM WARNING", "ZERO POINT WARNING"):
                     c = QtCore.Qt.darkYellow
                     try:        # alarm seeingu / zero pointu - zakladka Conditions z tym wykresem na wierzch
@@ -531,7 +538,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                    "Seeing at zenith, weather_overwatch: median of science frames of all telescopes"),
         "zero_point": ("zeropoint_e", "{:+.2f} [mag]", -1, "points",
                        "Photometric zero point, weather_overwatch: median of zero_monitor of all telescopes"),
+        "clouds": ("clouds_e", None, 0, "frames", "Clouds from the allsky camera, allsky_overwatch"),   # update_clouds_field
     }
+
+    # stan nieba z allsky_overwatch (toi.conditions_subjects.clouds), jedna klatka co ~2.4 min w nocy: samo slowo, bez
+    # liczb; kolor jak Wind / Direction - thin i veil zolty, cloudy pomaranczowy, overcast czerwony
+    CLOUD_COLORS = {"clear": "rgb(235,235,235)", "veil": "rgb(255, 220, 0)", "thin": "rgb(255, 220, 0)",
+                    "cloudy": "rgb(255, 140, 0)", "overcast": "red"}
+    CLOUDS_MAX_AGE = 600        # s; starsza wiadomosc (dzien, serwis stoi) - pole "--"
+    CLOUDS_HINT = ("Clouds from the allsky camera (allsky_overwatch), every ~2.4 min at night:\n"
+                   "clear - clear sky\n"
+                   "veil - the whole sky dimmed evenly, the stars still seen everywhere\n"
+                   "thin - thin or partial cloud, or cloud moving across the sky\n"
+                   "cloudy - about half of the starlight lost, or strong changes between frames\n"
+                   "overcast - most of the light lost, or too few stars to measure\n"
+                   "(twilight) - Sun above -16 deg, less certain\n"
+                   "-- - day, or no frame for 10 min")
 
     async def conditions_plot_loop(self):
         # wykresy w zakladce Conditions (Aux): co 30 s, tylko gdy widoczne i przyszly nowe punkty (~40 ms)
@@ -558,6 +580,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     def update_condition_field(self, kind):
         # wolane tez z updateWeather - wartosc sie starzeje, gdy nikt nie obserwuje (overwatch publikuje przy punkcie)
+        if kind == "clouds":
+            return self.update_clouds_field()
         name, fmt, worse, unit, hint = self.CONDITION_FIELDS[kind]
         field = getattr(self.obsGui.main_form, name)
         d = self.conditions.get(kind)
@@ -604,6 +628,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                        (" - CLOUDS" if clouds else "")
         else:
             tip += ". No data yet."
+        field.setToolTip(tip)
+
+
+    def update_clouds_field(self):
+        field = self.obsGui.main_form.clouds_e
+        d = self.conditions.get("clouds")
+        state, age = None, None
+        if d and d.get("time"):
+            age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(d["time"])).total_seconds()
+            if age <= self.CLOUDS_MAX_AGE:
+                state = "veil" if d.get("veil") and d.get("state") == "thin" else d.get("state")
+        if state is None:
+            field.setText("--")
+        else:
+            field.setText(state + (" (twilight)" if d.get("twilight") else ""))
+        field.setStyleSheet(f"color: black; background-color: {self.CLOUD_COLORS.get(state, 'rgb(235,235,235)')};")
+        tip = self.CLOUDS_HINT
+        if age is not None:
+            tip += f"\nLast frame {d.get('frame')}, {age / 60:.0f} min ago."
         field.setToolTip(tip)
 
 
@@ -688,7 +731,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     f = self.obsGui.main_form
                     color = self.heartbeat_color(self.dome_follower_seen, self.services_since)
                     f.followerStatus_l.setStyleSheet(f"color: {color};")
-                    overwatches = (("flat_overwatch", f.flatOwStatus_l), ("weather_overwatch", f.weatherOwStatus_l))
+                    overwatches = (("flat_overwatch", f.flatOwStatus_l), ("weather_overwatch", f.weatherOwStatus_l),
+                                   ("allsky_overwatch", f.allskyOwStatus_l))
                     download, pipeline, *alive = await asyncio.gather(
                         self.ofp_alive(tel, "download"), self.ofp_alive(tel, "pipeline"),
                         *(self.rpc_alive(self.alive_subjects[name]) for name, _ in overwatches

@@ -34,11 +34,14 @@ toi:
   alive_subjects:
     flat_overwatch: rpc.overwatch.oca.flat_overwatch.alive
     weather_overwatch: rpc.overwatch.oca.weather_overwatch.alive
+    allsky_overwatch: rpc.overwatch.oca.allsky_overwatch.alive
 
-  # site seeing / photometric zero point from weather_overwatch (obs window fields); missing: the field stays "--"
+  # site seeing / photometric zero point from weather_overwatch, sky state from allsky_overwatch (obs window fields);
+  # missing: the field stays "--"
   conditions_subjects:
     seeing: tic.status.ocm.weather_overwatch.seeing
     zero_point: tic.status.ocm.weather_overwatch.zero_point
+    clouds: tic.status.ocm.allsky_overwatch.clouds
 
 
 wk06:

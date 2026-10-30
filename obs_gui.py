@@ -607,13 +607,14 @@ class MainForm(QWidget):
             "ofpStatus": "OFP pipeline of the active telescope, asked every 5 s (alive RPC).",
             "flatOwStatus": "flat_overwatch, asked every 5 s (alive RPC). Grey: no subject in toi_config.yaml.",
             "weatherOwStatus": "weather_overwatch, asked every 5 s (alive RPC). Grey: no subject in toi_config.yaml.",
+            "allskyOwStatus": "allsky_overwatch (clouds from the allsky camera), asked every 5 s (alive RPC). Grey: no subject in toi_config.yaml.",
             "temp": "Davis weather station. Red below -1 °C.",
             "hummidity": f"Davis weather station. Red above {self.parent.cfg_humidity_limit} % or rain.",
             "wind": "Davis weather station.",
             "windDir": "Davis weather station.",
             "fwhm": "Seeing at zenith from weather_overwatch.",
             "zeropoint": "Photometric zero point from weather_overwatch.",
-            "clouds": "Not available yet.",
+            "clouds": "Clouds from the allsky camera (allsky_overwatch).",
             "date": "UT date.",
             "ut": "Yellow: Sun above 1°. Blue: Sun 1° to -18°.",
             "ojd": "Julian Date.",
@@ -640,12 +641,13 @@ class MainForm(QWidget):
         self.ofpStatus_l = QLabel("\u2665 OFP")
         self.flatOwStatus_l = QLabel("\u2665 FLAT OW")
         self.weatherOwStatus_l = QLabel("\u2665 WEATHER OW")
+        self.allskyOwStatus_l = QLabel("\u2665 ALLSKY OW")
         self.ticStatus2_l.setText("\u2665 TIC")
         self.natsStatus_l.setText("\u2665 NATS")
         status_box = QHBoxLayout()
         status_box.setSpacing(12)
         lamps = (self.ticStatus2_l, self.natsStatus_l, self.followerStatus_l, self.downloaderStatus_l,
-                 self.ofpStatus_l, self.flatOwStatus_l, self.weatherOwStatus_l)
+                 self.ofpStatus_l, self.flatOwStatus_l, self.weatherOwStatus_l, self.allskyOwStatus_l)
         for lamp in lamps:
             status_box.addWidget(lamp)
         for lamp in lamps[2:]:
