@@ -241,7 +241,7 @@ class TasksTab(QWidget):
     (``toi.requests_json``; rebuilt by a GitHub Action, on NFS within minutes). TOI only reads it: status is changed
     by people on the GitHub board; a double click opens the issue, which holds the instructions."""
 
-    COLUMNS = ["#", "REQUEST", "INSTR", "STATUS", "FIRST NIGHT"]
+    COLUMNS = ["#", "REQUEST", "FIRST NIGHT"]
     REFRESH = 120       # s, plans_sync przenosi plik co 2 min
 
     def __init__(self, parent):
@@ -310,13 +310,14 @@ class TasksTab(QWidget):
             [f"REQUEST · {tel}" if (tel and c == "REQUEST") else c for c in self.COLUMNS])
         self.tasks_t.setRowCount(len(rows))
         for row, r in enumerate(rows):
-            tip = "\n".join(f"{k}: {r.get(k)}" for k in ("allocation", "priority", "sciprog", "pi", "author", "updated")
-                            if r.get(k)) + "".join(f"\nplan: {f}" for f in r.get("files", []))
             status = r.get("status") or ""
             if r.get("state") != "open":
                 status = f'closed ({r.get("state_reason") or "completed"})'
-            cells = [str(r.get("number", "")), r.get("title", ""), r.get("instrument") or "",
-                     status, str(r.get("first_night") or "")]
+            # instrument i status tylko w tooltipie - w tabeli sam tytul i pierwsza noc
+            tip = "\n".join(f"{k}: {v}" for k, v in [("instrument", r.get("instrument") or "any"), ("status", status)]
+                            + [(k, r.get(k)) for k in ("allocation", "priority", "sciprog", "pi", "author", "updated")]
+                            if v) + "".join(f"\nplan: {f}" for f in r.get("files", []))
+            cells = [str(r.get("number", "")), r.get("title", ""), str(r.get("first_night") or "")]
             for col, text in enumerate(cells):
                 item = QTableWidgetItem(text)
                 item.setToolTip(tip + "\n\nDouble click: open the issue")
@@ -413,8 +414,9 @@ class TasksTab(QWidget):
         self.tasks_t.setWordWrap(True)
         header = self.tasks_t.horizontalHeader()
         header.setSectionResizeMode(1, QHeaderView.Stretch)     # tytul zgloszenia bierze reszte szerokosci
-        for col in (0, 2, 3, 4):
-            header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(0, QHeaderView.Fixed)       # numer issue: 1-3 cyfry
+        self.tasks_t.setColumnWidth(0, 36)
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         self.tasks_t.cellDoubleClicked.connect(self.open_issue)
         rgrid.addWidget(self.tasks_t, 0, 0, 1, 4)
         self.info_l = QLabel("Observation requests: loading...")
@@ -438,10 +440,10 @@ class TasksTab(QWidget):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(left)
         splitter.addWidget(right)
-        # checklista ma dlugie zdania - dostaje wiecej miejsca niz lista zgloszen (3:2)
-        splitter.setStretchFactor(0, 3)
-        splitter.setStretchFactor(1, 2)
-        splitter.setSizes([600, 400])
+        # checklista ma dlugie zdania - dostaje wiecej miejsca niz lista zgloszen (5:3)
+        splitter.setStretchFactor(0, 5)
+        splitter.setStretchFactor(1, 3)
+        splitter.setSizes([625, 375])
         grid = QGridLayout()
         grid.addWidget(splitter, 0, 0)
         self.setLayout(grid)
