@@ -47,8 +47,8 @@ from PyQtX import QtGui
 from PyQtX.QtCore import Qt, QTimer, QUrl
 from PyQtX.QtGui import QTextCursor
 from PyQtX.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFrame, QGridLayout, QHeaderView, QLabel,
-                             QLineEdit, QPushButton, QSlider, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
-                             QTabWidget, QTextBrowser, QTextEdit, QVBoxLayout, QWidget)
+                             QLineEdit, QPushButton, QSizePolicy, QSlider, QSplitter, QStackedWidget, QTableWidget,
+                             QTableWidgetItem, QTabWidget, QTextBrowser, QTextEdit, QVBoxLayout, QWidget)
 
 from base_window import BaseWindow
 from optics_view import SchematicView
@@ -277,6 +277,7 @@ class TasksTab(QWidget):
             self.requests_mtime = None
             self.show_requests()
             self.info_l.setText(f"No observation requests: {path} ({e})")
+            self.info_l.setToolTip(self.info_l.text())
             return
         if data is not None:        # None = plik sie nie zmienil
             self.requests = data.get("requests", [])
@@ -327,6 +328,7 @@ class TasksTab(QWidget):
         if self.requests_mtime is not None:
             self.info_l.setText(f"Open requests: {open_n}   (requests.json updated "
                                 f"{str(self.requests_updated)[:16].replace('T', ' ')} UT)")
+            self.info_l.setToolTip(f"{self.requests_path()}\n{self.info_l.text()}")
 
     def selected_request(self):
         row = self.tasks_t.currentRow()
@@ -417,6 +419,8 @@ class TasksTab(QWidget):
         rgrid.addWidget(self.tasks_t, 0, 0, 1, 4)
         self.info_l = QLabel("Observation requests: loading...")
         self.info_l.setStyleSheet("color: gray;")
+        # dlugi tekst (np. blad z sciezka) nie moze rozpychac prawej strony - ucinany, calosc w tooltipie
+        self.info_l.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         rgrid.addWidget(self.info_l, 1, 0)
         self.closed_c = QCheckBox("closed (30 d)")
         self.closed_c.toggled.connect(lambda checked: self.show_requests())
@@ -434,8 +438,10 @@ class TasksTab(QWidget):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(left)
         splitter.addWidget(right)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 1)
+        # checklista ma dlugie zdania - dostaje wiecej miejsca niz lista zgloszen (3:2)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        splitter.setSizes([600, 400])
         grid = QGridLayout()
         grid.addWidget(splitter, 0, 0)
         self.setLayout(grid)
