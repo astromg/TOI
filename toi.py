@@ -631,6 +631,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         field.setToolTip(tip)
 
 
+    def clouds_at(self, tel):
+        """"red" / "yellow", gdy teleskop obserwuje w polu tak zaznaczonym przez allsky_overwatch na ostatniej klatce
+        (wiadomosc nie starsza niz CLOUDS_MAX_AGE), inaczej None - ikonka chmury w tabeli teleskopow"""
+        d = self.conditions.get("clouds")
+        if not d or not d.get("time"):
+            return None
+        age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(d["time"])).total_seconds()
+        return (d.get("telescopes") or {}).get(tel) if age <= self.CLOUDS_MAX_AGE else None
+
     def update_clouds_field(self):
         field = self.obsGui.main_form.clouds_e
         d = self.conditions.get("clouds")
@@ -644,6 +653,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         else:
             field.setText(state + (" (twilight)" if d.get("twilight") else ""))
         field.setStyleSheet(f"color: black; background-color: {self.CLOUD_COLORS.get(state, 'rgb(235,235,235)')};")
+        if d and d.get("telescopes") != self.clouds_telescopes:     # ikonki chmur w tabeli teleskopow
+            self.clouds_telescopes = d.get("telescopes")
+            self.obsGui.main_form.update_table()
         tip = self.CLOUDS_HINT
         if age is not None:
             tip += f"\nLast frame {d.get('frame')}, {age / 60:.0f} min ago."
@@ -4741,6 +4753,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mirror_fans = {}           # tel -> (wentylatory lustra z TIC, time.time() wiadomosci)
         self.mirror_fanStatus = False
         self.conditions = {}        # rodzaj -> ostatnia wiadomosc z toi.conditions_subjects
+        self.clouds_telescopes = None   # ostatnie "telescopes" z allsky_overwatch (odswiezenie tabeli przy zmianie)
         self.fits_photo_z0_data = {t:[] for t in self.local_cfg["toi"]["telescopes"]}
 
 

@@ -457,6 +457,14 @@ class MainForm(QWidget):
                     icon_label8.setPixmap(ToiIcon("icon_cold", "red", size=14).pixmap(14, 14))
                     lay.addWidget(icon_label8)
 
+                # allsky_overwatch: teleskop obserwuje w polu zaznaczonym na zolto (pomaranczowa chmura) / czerwono
+                clouds = self.parent.clouds_at(t)
+                if clouds:
+                    icon_label10 = QLabel()
+                    icon_label10.setPixmap(ToiIcon("icon_cloud", "red" if clouds == "red" else "orange", size=14).pixmap(14, 14))
+                    icon_label10.setToolTip("pointing into thick clouds" if clouds == "red" else "pointing into clouds")
+                    lay.addWidget(icon_label10)
+
 
             self.obs_t.setCellWidget(i,0,icons)
 
