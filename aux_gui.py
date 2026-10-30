@@ -5,7 +5,7 @@ Tabs, in this order:
 - ``Telescope`` — :class:`TelescopeTab`, the active telescope's page of the OCA manual (intranet, over HTTP),
   description on the left, changelog on the right;
 - ``Tasks`` — :class:`TasksTab`, shown first: the daily checklist (``checklist.yaml``, ticks shared over NATS) on the
-  left, tasks for observers on the right (empty table for now; later: GitHub issues filtered by labels);
+  left, observation requests of the active telescope on the right (``requests.json`` of ocm-plans);
 - ``Optical path`` — :class:`optics_view.SchematicView` of the active telescope; hidden when the telescope
   publishes no optical graph;
 - ``Calibration`` — :class:`CalibrationTab`, one page per kind of instrument; follows the tab chosen in the
@@ -27,7 +27,9 @@ Calibration, a FOCUS OB starting → Focus (:meth:`AuxWindow.ob_started`).
 
 import asyncio
 import datetime
+import json
 import logging
+import os
 import re
 import urllib.request
 
@@ -42,7 +44,7 @@ from pyaraucaria.focus import Focus
 from scipy.ndimage import gaussian_filter1d, median_filter
 
 from PyQtX import QtGui
-from PyQtX.QtCore import Qt, QUrl
+from PyQtX.QtCore import Qt, QTimer, QUrl
 from PyQtX.QtGui import QTextCursor
 from PyQtX.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFrame, QGridLayout, QHeaderView, QLabel,
                              QLineEdit, QPushButton, QSlider, QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem,
@@ -112,6 +114,7 @@ class AuxWindow(BaseWindow):
         # po zmianie teleskopu; jego nazwa i kolor sa w pasku tytulu panelu (ObsGui.set_panel_telescope)
         self.telescope.updateUI()
         self.parent.show_checklist()        # punkty teleskopowe dla nowego teleskopu
+        self.tasks.show_requests()          # zgloszenia nowego teleskopu
         self.calibration.updateUI()
         self.focus.updateUI()
         self.planrunner.updateUI()
@@ -233,17 +236,112 @@ class TasksTab(QWidget):
     ``scope: telescope`` are ticked separately per telescope and shown for the active one, the others once for the
     observatory; a tick without control is refused with the
     usual warning, like the control buttons (``TOI.checklist_allowed``); a tick goes to every TOI
-    (``TOI.set_checklist_item``, ``tic.status.ocm.checklist``) and lasts until the daily reset. Right: tasks for
-    observers of the active telescope - for now an empty table; later GitHub issues of a chosen repository, filtered
-    by labels (a task label and the telescope's label)."""
+    (``TOI.set_checklist_item``, ``tic.status.ocm.checklist``) and lasts until the daily reset. Right: observation
+    requests of the active telescope (all telescopes before one is chosen) from ``requests.json`` of ocm-plans
+    (``toi.requests_json``; rebuilt by a GitHub Action, on NFS within minutes). TOI only reads it: status is changed
+    by people on the GitHub board; a double click opens the issue, which holds the instructions."""
 
-    COLUMNS = ["#", "TASK", "LABELS", "UPDATED"]
+    COLUMNS = ["#", "REQUEST", "INSTR", "STATUS", "FIRST NIGHT"]
+    REFRESH = 120       # s, plans_sync przenosi plik co 2 min
 
     def __init__(self, parent):
         super(TasksTab, self).__init__()
         self.parent = parent
+        self.requests = []
+        self.requests_mtime = None
+        self.requests_updated = ""
         self.mkUI()
         self.show_checklist(self.parent.checklist, {})
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.refresh_requests)
+        self.timer.start(self.REFRESH * 1000)
+        QTimer.singleShot(0, self.refresh_requests)
+
+    # ---- zgloszenia obserwacyjne (ocm-plans requests.json) ----
+
+    def requests_path(self):
+        return self.parent.local_cfg["toi"].get("requests_json", "/data/misc/ocm-plans/requests.json")
+
+    def refresh_requests(self, force=False):
+        if force:
+            self.requests_mtime = None
+        asyncio.ensure_future(self.load_requests())
+
+    async def load_requests(self):
+        path = self.requests_path()
+        try:
+            # NFS moze zawisnac - czytamy w osobnym watku
+            mtime, data = await asyncio.to_thread(self._read_requests, path, self.requests_mtime)
+        except Exception as e:
+            self.requests = []
+            self.requests_mtime = None
+            self.show_requests()
+            self.info_l.setText(f"No observation requests: {path} ({e})")
+            return
+        if data is not None:        # None = plik sie nie zmienil
+            self.requests = data.get("requests", [])
+            self.requests_updated = data.get("updated", "")
+            self.requests_mtime = mtime
+        self.show_requests()
+
+    @staticmethod
+    def _read_requests(path, known_mtime):
+        mtime = os.stat(path).st_mtime
+        if mtime == known_mtime:
+            return mtime, None
+        with open(path) as f:
+            return mtime, json.load(f)
+
+    @staticmethod
+    def for_telescope(instrument, tel):
+        """Instrument ids are ocm-plans directory names (wk06, jk15, jk15-beso, iris, any)."""
+        if tel is None or instrument in (None, "", "any"):
+            return True
+        return instrument == tel or instrument.startswith(f"{tel}-")
+
+    def show_requests(self):
+        tel = self.parent.active_tel
+        closed = self.closed_c.isChecked()
+        rows = [r for r in self.requests if self.for_telescope(r.get("instrument"), tel)
+                and (closed or r.get("state") == "open")]
+        rows.sort(key=lambda r: (r.get("state") != "open", str(r.get("first_night") or ""), r.get("number", 0)))
+        self.tasks_t.setHorizontalHeaderLabels(
+            [f"REQUEST · {tel}" if (tel and c == "REQUEST") else c for c in self.COLUMNS])
+        self.tasks_t.setRowCount(len(rows))
+        for row, r in enumerate(rows):
+            tip = "\n".join(f"{k}: {r.get(k)}" for k in ("allocation", "priority", "sciprog", "pi", "author", "updated")
+                            if r.get(k)) + "".join(f"\nplan: {f}" for f in r.get("files", []))
+            status = r.get("status") or ""
+            if r.get("state") != "open":
+                status = f'closed ({r.get("state_reason") or "completed"})'
+            cells = [str(r.get("number", "")), r.get("title", ""), r.get("instrument") or "",
+                     status, str(r.get("first_night") or "")]
+            for col, text in enumerate(cells):
+                item = QTableWidgetItem(text)
+                item.setToolTip(tip + "\n\nDouble click: open the issue")
+                item.setData(Qt.ItemDataRole.UserRole, r)
+                if r.get("state") != "open":
+                    item.setForeground(QtGui.QColor("gray"))
+                self.tasks_t.setItem(row, col, item)
+        open_n = sum(1 for r in rows if r.get("state") == "open")
+        if self.requests_mtime is not None:
+            self.info_l.setText(f"Open requests: {open_n}   (requests.json updated "
+                                f"{str(self.requests_updated)[:16].replace('T', ' ')} UT)")
+
+    def selected_request(self):
+        row = self.tasks_t.currentRow()
+        item = self.tasks_t.item(row, 0) if row >= 0 else None
+        return item.data(Qt.ItemDataRole.UserRole) if item else None
+
+    def open_issue(self, *args):
+        r = self.selected_request()
+        if r and r.get("url"):
+            QtGui.QDesktopServices.openUrl(QUrl(r["url"]))
+
+    def open_data(self):
+        r = self.selected_request()
+        if r and r.get("ocadb_url"):
+            QtGui.QDesktopServices.openUrl(QUrl(r["ocadb_url"]))
 
     def show_checklist(self, items, done):
         """``items`` from checklist.yaml, ``done`` = {key: {"time", "by"}} ticked today; the key is the item id, and
@@ -300,7 +398,7 @@ class TasksTab(QWidget):
         lgrid.addWidget(self.check_l, 1, 0)
         left.setLayout(lgrid)
 
-        # prawa: zadania z GitHuba
+        # prawa: zgloszenia obserwacyjne z ocm-plans
         right = QWidget()
         rgrid = QGridLayout()
         rgrid.setContentsMargins(0, 0, 0, 0)
@@ -309,14 +407,28 @@ class TasksTab(QWidget):
         self.tasks_t.verticalHeader().hide()
         self.tasks_t.setEditTriggers(QTableWidget.NoEditTriggers)
         self.tasks_t.setSelectionBehavior(QTableWidget.SelectRows)
+        self.tasks_t.setSelectionMode(QTableWidget.SingleSelection)
+        self.tasks_t.setWordWrap(True)
         header = self.tasks_t.horizontalHeader()
-        header.setSectionResizeMode(1, QHeaderView.Stretch)     # tytul zadania bierze reszte szerokosci
-        for col in (0, 2, 3):
+        header.setSectionResizeMode(1, QHeaderView.Stretch)     # tytul zgloszenia bierze reszte szerokosci
+        for col in (0, 2, 3, 4):
             header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
-        rgrid.addWidget(self.tasks_t, 0, 0)
-        self.info_l = QLabel("Tasks for observers: not available yet.")
+        self.tasks_t.cellDoubleClicked.connect(self.open_issue)
+        rgrid.addWidget(self.tasks_t, 0, 0, 1, 4)
+        self.info_l = QLabel("Observation requests: loading...")
         self.info_l.setStyleSheet("color: gray;")
         rgrid.addWidget(self.info_l, 1, 0)
+        self.closed_c = QCheckBox("closed (30 d)")
+        self.closed_c.toggled.connect(lambda checked: self.show_requests())
+        rgrid.addWidget(self.closed_c, 1, 1)
+        self.data_p = QPushButton("Data (OCADB)")
+        self.data_p.setToolTip("Data of the selected request in OCADB")
+        self.data_p.clicked.connect(self.open_data)
+        rgrid.addWidget(self.data_p, 1, 2)
+        self.reload_p = QPushButton("Reload")
+        self.reload_p.clicked.connect(lambda: self.refresh_requests(force=True))
+        rgrid.addWidget(self.reload_p, 1, 3)
+        rgrid.setColumnStretch(0, 1)
         right.setLayout(rgrid)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)

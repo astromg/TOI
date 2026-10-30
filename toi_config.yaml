@@ -26,6 +26,9 @@ toi:
   # Aux "Telescope" tab: <url>/telescope_<tel>/ of the OCA manual on the intranet
   oca_manual_url: http://docker.oca.lan:8081
 
+  # Aux "Tasks" tab, right: observation requests of ocm-plans (GitHub issues, index rebuilt by an Action, on NFS)
+  requests_json: /data/misc/ocm-plans/requests.json
+
   # alive RPC subjects of services outside ocabox-tcs (top row of the obs window), reply {"status": "ok"};
   # empty: the lamp stays grey
   alive_subjects:

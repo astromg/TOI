@@ -22,7 +22,7 @@ poetry run nw           # runs nats_watch.py (standalone NATS message inspector)
 ```
 
 The app reads `toi_config.yaml` (telescope list, NATS host/port, per-telescope paths; also `focus_step` /
-`focus_method(s)` per telescope, `toi.oca_manual_url`, `toi.observers_reset_ut`, `toi.alive_subjects`, `toi.conditions_subjects`) from the current
+`focus_method(s)` per telescope, `toi.oca_manual_url`, `toi.requests_json`, `toi.observers_reset_ut`, `toi.alive_subjects`, `toi.conditions_subjects`) from the current
 working directory at startup, and connects to NATS before building any GUI — if the NATS connection fails,
 the app logs an error and exits without opening a window. All local configuration lives in
 `toi_config.yaml`.
@@ -129,7 +129,9 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   day, `scope: telescope` items ticked per telescope (key `id@tel`) and shown for the active telescope (refreshed in
   `AuxWindow.updateUI`), the others once for the observatory; only who has control ticks (`TOI.checklist_allowed`: telescope items
   need control of the active telescope, observatory items of any; otherwise the usual "U don't have control" warning); ticks shared over NATS `tic.status.ocm.checklist` and reset with the observers at `toi.observers_reset_ut`
-  — `TOI.set_checklist_item` / `checklist_done`; right: empty table, later GitHub issues for observers filtered by labels), Optical path (`SchematicView`, hidden when the
+  — `TOI.set_checklist_item` / `checklist_done`; right: observation requests of the active telescope from ocm-plans `requests.json` (`toi.requests_json`, NFS,
+  read in a thread every 2 min if its mtime changed; open ones, "closed (30 d)" adds the rest; double click → the GitHub
+  issue, "Data (OCADB)" → `ocadb_url`; TOI writes nothing back — status is changed on the GitHub board)), Optical path (`SchematicView`, hidden when the
   telescope has no optical graph), Calibration, Focus, Guider (layout template only, guider does not work),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes, drawn like oca_monitor - points plus a smoothed trend;
   drawn only while the tab is shown, refreshed every 30 s when new points came, `TOI.conditions_plot_loop`).
