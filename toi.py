@@ -544,7 +544,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # stan nieba z allsky_overwatch (toi.conditions_subjects.clouds), jedna klatka co ~2.4 min w nocy: samo slowo, bez
     # liczb; kolor jak Wind / Direction - thin i veil zolty, cloudy pomaranczowy, overcast czerwony
     CLOUD_COLORS = {"clear": "rgb(235,235,235)", "veil": "rgb(255, 220, 0)", "thin": "rgb(255, 220, 0)",
-                    "cloudy": "rgb(255, 140, 0)", "overcast": "red"}
+                    "cloudy": "rgb(255, 140, 0)", "overcast": "red", "twilight": "rgb(190, 220, 255)"}   # twilight jak UT
     CLOUDS_MAX_AGE = 600        # s; starsza wiadomosc (dzien, serwis stoi) - pole "--"
     CLOUDS_HINT = ("Clouds from the allsky camera (allsky_overwatch), every ~2.4 min at night:\n"
                    "clear - clear sky\n"
@@ -552,7 +552,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                    "thin - thin or partial cloud, or cloud moving across the sky\n"
                    "cloudy - about half of the starlight lost, or strong changes between frames\n"
                    "overcast - most of the light lost, or too few stars to measure\n"
-                   "(twilight) - Sun above -16 deg, less certain\n"
+                   "twilight - Sun above -16 deg, clouds are not measured\n"
                    "-- - day, or no frame for 10 min")
 
     async def conditions_plot_loop(self):
@@ -648,10 +648,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(d["time"])).total_seconds()
             if age <= self.CLOUDS_MAX_AGE:
                 state = "veil" if d.get("veil") and d.get("state") == "thin" else d.get("state")
-        if state is None:
-            field.setText("--")
-        else:
-            field.setText(state + (" (twilight)" if d.get("twilight") else ""))
+                if d.get("twilight"):       # o zmierzchu chmur nie mierzymy
+                    state = "twilight"
+        field.setText("--" if state is None else state)
         field.setStyleSheet(f"color: black; background-color: {self.CLOUD_COLORS.get(state, 'rgb(235,235,235)')};")
         if d and d.get("telescopes") != self.clouds_telescopes:     # ikonki chmur w tabeli teleskopow
             self.clouds_telescopes = d.get("telescopes")
