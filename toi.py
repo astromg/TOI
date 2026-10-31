@@ -552,7 +552,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                    "thin - thin or partial cloud, or cloud moving across the sky\n"
                    "cloudy - about half of the starlight lost, or strong changes between frames\n"
                    "overcast - most of the light lost, or too few stars to measure\n"
-                   "twilight - Sun above -16 deg, clouds are not measured\n"
+                   "twilight - Sun above -18 deg, clouds are not measured\n"
                    "-- - day, or no frame for 10 min")
 
     async def conditions_plot_loop(self):
