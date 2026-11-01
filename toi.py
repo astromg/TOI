@@ -1977,7 +1977,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             #self.observer = self.auxGui.welcome_tab.observer_e.text()
             if self.tel_acces[tel]:
-                if self.active_tel not in self.planrunners.keys():
+                if tel not in self.planrunners.keys():
                     self.planrunners[tel] = self.tic_telescopes[tel].get_observation_plan()
                     tmp = self.planrunners[tel]
                     self.planrunners[tel].add_info_callback('exec_json', lambda info: self.PlanRunFeedback(tmp, info))
@@ -1991,6 +1991,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 await self.planrunners[tel].arun_nightplan(program_name, step_id="00")
         except Exception as e:
             logger.warning(f'TOI: EXCEPTION 11: {e}')
+            await self.update_log(f'planrunner start FAILED: {e!r}', "ERROR", tel)
 
     # ############ PLAN RUNNER CALLBACK ##########################
 
