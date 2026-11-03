@@ -501,6 +501,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 # if label == "PLANRUNNER":
                 #     c = QtCore.Qt.darkGray
 
+                if data.get("test"):        # test dzwieku z okna PING - szary, nie kolor prawdziwego alarmu
+                    c = QtCore.Qt.gray
                 txt = f'{data["ut"]} [{data["user"]}] {data["info"]}'
                 self.obsGui.main_form.msg_e.setTextColor(c)
                 self.obsGui.main_form.msg_e.append(txt)
