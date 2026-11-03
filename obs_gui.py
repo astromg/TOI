@@ -894,7 +894,6 @@ class SoundTestWindow(QWidget):
         ("WEATHER ALERT", "alert", "close everything: wind on all telescopes, humidity, temperature, rain, overcast"),
         ("WEATHER LEVEL DOWN", "level down", "a weather restriction dropped (after the hold time)"),
         ("SYSTEM ALERT", "facility alarm", "equipment at risk: battery SOC, server / battery / electric room temperature"),
-        ("SUN WARNING", "sun", "Sun altitude (not sent by anything now)"),
     )
 
     def __init__(self, parent):
