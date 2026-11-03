@@ -42,6 +42,9 @@ toi:
     seeing: tic.status.ocm.weather_overwatch.seeing
     zero_point: tic.status.ocm.weather_overwatch.zero_point
     clouds: tic.status.ocm.allsky_overwatch.clouds
+    # weather restrictions (official levels with the hold time): a dot with minutes next to Wind / Direction /
+    # Humidity / Temp / Clouds while a restriction is still held although the current value is better
+    weather_level: status.overwatch.oca.self.weather_level
 
 
 wk06:

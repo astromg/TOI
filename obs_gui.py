@@ -18,6 +18,40 @@ from toi_lib import *
 logger = logging.getLogger(__name__)
 
 
+class HoldMarker(QLabel):
+    """Kropka karencji ograniczenia pogodowego (weather_overwatch) przy prawej krawedzi pola: kolor poziomu
+    oficjalnego i minuty do jego spadku. Nakladka na pole - uklad siatki sie nie zmienia, tekst pola odsuwa sie w lewo"""
+
+    def __init__(self, field):
+        super().__init__(field)
+        self.field = field
+        self.setStyleSheet("background: transparent; color: black;")
+        field.installEventFilter(self)
+        self.hide()
+
+    def eventFilter(self, obj, event):
+        if obj is self.field and event.type() == QtCore.QEvent.Type.Resize:
+            self.place()
+        return False
+
+    def place(self):
+        self.adjustSize()
+        self.move(self.field.width() - self.width() - 4, (self.field.height() - self.height()) // 2)
+
+    def show_hold(self, color, minutes, tip):
+        self.setText(f'<span style="color: {color}; font-size: 13pt;">&#9679;</span>{minutes}\'')
+        self.setToolTip(tip)
+        self.place()
+        self.field.setTextMargins(0, 0, self.width() + 4, 0)
+        self.show()
+        self.raise_()
+
+    def clear(self):
+        if self.isVisible():
+            self.hide()
+            self.field.setTextMargins(0, 0, 0, 0)
+
+
 class FitScrollArea(QScrollArea):
     """Obszar przewijania panelu. `fit` (duzy ekran): minimum = minimum zawartosci, sledzone na biezaco - okna
     przebudowuja sie przy zmianie teleskopu (np. Instrument dostaje zakladki BESO/ANDOR), wiec stale minimum ustawione
@@ -748,6 +782,10 @@ class MainForm(QWidget):
             grid.addWidget(label, w, 2 * col)
             grid.addWidget(field, w, 2 * col + 1)
 
+        # kropki karencji ograniczen pogodowych (TOI.update_hold_markers)
+        self.hold_markers = {name: HoldMarker(getattr(self, name))
+                             for name in ("wind_e", "windDir_e", "hummidity_e", "temp_e", "clouds_e")}
+
         # w = w + 1
         # self.pressure_l = QLabel("Pressure:")
         # self.pressure_e = QLineEdit()
@@ -777,7 +815,7 @@ class MainForm(QWidget):
         self.report_p = QPushButton('REPORT')
         self.report_p.clicked.connect(self.report)
         self.ping_p = QPushButton('PING')
-        self.ping_p.clicked.connect(self.parent.ping)
+        self.ping_p.clicked.connect(self.parent.open_sound_test_window)     # PING i test pozostalych dzwiekow
 
 
         w = 7
@@ -837,6 +875,58 @@ class MainForm(QWidget):
         super().closeEvent(event)
 
 # ############### FOCUS ##########################
+
+class SoundTestWindow(QWidget):
+    """PING and a test of every alarm sound of oca_monitor (pages/message.py LABEL_SOUNDS), opened by the PING
+    button. PING is the original one (every TOI and overwatch answers). The others go out on tic.status.ocm.messages
+    with "test": true and a TEST text: they sound on every oca_monitor and show in every TOI, change no overwatch
+    state (the overwatches react only to PING), and readers that count alarms (Halina, reports) should skip them.
+    Not modal, like ObserversWindow."""
+
+    # (label, sound, meaning) - the same labels and sounds as oca_monitor pages/message.py
+    SOUNDS = (
+        ("PROGRAM BELL", "bell", "BELL in a program (TOI)"),
+        ("PROGRAM STOP", "stop", "STOP reached in a program (TOI)"),
+        ("PROGRAM ERROR", "error", "error in a program (TOI)"),
+        ("FWHM WARNING", "notification", "check that everything is ok: seeing, zero point, thin clouds / veil, "
+                                         "a telescope pointing into clouds"),
+        ("WEATHER WARNING", "warning", "weather restrictions rise: pointing restricted, a telescope to close, cloudy"),
+        ("WEATHER ALERT", "alert", "close everything: wind on all telescopes, humidity, temperature, rain, overcast"),
+        ("WEATHER LEVEL DOWN", "level down", "a weather restriction dropped (after the hold time)"),
+        ("SYSTEM ALERT", "facility alarm", "equipment at risk: battery SOC, server / battery / electric room temperature"),
+        ("SUN WARNING", "sun", "Sun altitude (not sent by anything now)"),
+    )
+
+    def __init__(self, parent):
+        super(SoundTestWindow, self).__init__()
+        self.parent = parent
+        self.setWindowTitle("PING and sound test")
+        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+        grid = QGridLayout(self)
+        ping = QPushButton("PING")
+        ping.clicked.connect(self.parent.ping)
+        grid.addWidget(ping, 0, 0)
+        grid.addWidget(QLabel("the original PING: every TOI and overwatch answers \"reporting in\""), 0, 1)
+        note = QLabel("Test messages: \"test\": true and a TEST text. They sound on every oca_monitor and show in "
+                      "every TOI, but change no overwatch state and should not be counted in reports.")
+        note.setWordWrap(True)
+        note.setStyleSheet("color: rgb(120, 120, 120);")
+        grid.addWidget(note, 1, 0, 1, 2)
+        for row, (label, sound, meaning) in enumerate(self.SOUNDS, start=2):
+            button = QPushButton(f"{label}")
+            button.setToolTip(f"sound: {sound}")
+            button.clicked.connect(lambda _=False, l=label, m=meaning: self.parent.send_sound_test(l, m))
+            grid.addWidget(button, row, 0)
+            text = QLabel(f"{sound}: {meaning}")
+            text.setWordWrap(True)
+            grid.addWidget(text, row, 1)
+        close = QPushButton("Close")
+        close.clicked.connect(self.hide)
+        grid.addWidget(close, len(self.SOUNDS) + 2, 1, alignment=Qt.AlignmentFlag.AlignRight)
+        grid.setColumnStretch(1, 1)
+        grid.setVerticalSpacing(8)
+        self.setMinimumWidth(640)
+
 
 class ObserversWindow(QWidget):
     """Who observes tonight, for the whole observatory: the people from observers.yaml plus "Other".

@@ -17,6 +17,7 @@ import socket
 import sys
 import uuid
 import copy
+import math
 import time
 
 import ephem
@@ -51,7 +52,7 @@ from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 from instrument_gui import InstrumentGui
 from mnt_gui import MntGui
 from sky_gui import SkyGui
-from obs_gui import ObsGui, CzuwakWindow, ObserversWindow
+from obs_gui import ObsGui, CzuwakWindow, ObserversWindow, SoundTestWindow
 from optics_model import OpticsModel
 from plan_gui import PlanGui
 from fits_gui import FitsWindow
@@ -121,6 +122,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.fitsGui = FitsWindow(self)
         self.czuwakGui = CzuwakWindow()
         self.observersGui = ObserversWindow(self)
+        self.soundTestGui = SoundTestWindow(self)
         # wszystkie okna sa juz zbudowane - wchodza jako panele do okna obserwacji
         self.obsGui.dock_panels()
 
@@ -147,7 +149,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.nats_weather_loop())
         self.add_background_task(self.conditions_plot_loop())
         for kind, subject in (self.local_cfg["toi"].get("conditions_subjects") or {}).items():
-            if subject and kind in self.CONDITION_FIELDS:
+            if subject and (kind in self.CONDITION_FIELDS or kind == "weather_level"):
                 self.add_background_task(self.nats_condition_reader(kind, subject))
         self.add_background_task(self.reader_ocm_messages())
 
@@ -475,6 +477,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     c = QtCore.Qt.darkRed
                 if label == "WEATHER WARNING":
                     c = QtCore.Qt.darkYellow
+                if label == "WEATHER LEVEL DOWN":      # weather_overwatch: ograniczenia pogodowe spadaja
+                    c = QtCore.Qt.darkGreen
+                if label == "SYSTEM ALERT":            # weather_overwatch: bateria, serwerownia, pomieszczenia techniczne
+                    c = QtCore.Qt.red
                 # allsky_overwatch, kolory jak pole Clouds: thin / veil, cloudy, overcast
                 if label == "CLOUDS INFO":
                     c = QtCore.Qt.darkYellow
@@ -485,7 +491,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if label in ("FWHM WARNING", "ZERO POINT WARNING"):
                     c = QtCore.Qt.darkYellow
                     try:        # alarm seeingu / zero pointu - zakladka Conditions z tym wykresem na wierzch
-                        self.auxGui.alert_received(label)
+                        if not data.get("test"):        # test dzwieku z okna PING - bez przelaczania zakladki
+                            self.auxGui.alert_received(label)
                     except Exception as e:
                         logger.warning(f'TOI: EXCEPTION alert tab: {e}')
 
@@ -542,9 +549,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     }
 
     # stan nieba z allsky_overwatch (toi.conditions_subjects.clouds), jedna klatka co ~2.4 min w nocy: samo slowo, bez
-    # liczb; kolor jak Wind / Direction - thin i veil zolty, cloudy pomaranczowy, overcast czerwony
+    # liczb; kolor jak Wind / Direction - thin i veil zolty, cloudy pomaranczowy, overcast czerwony. Zmierzch (Slonce
+    # powyzej -18, chmur nie mierzymy) jak dzien: "--" na szaro (Marek 2026-11-02, wczesniej "twilight" na niebiesko)
     CLOUD_COLORS = {"clear": "rgb(235,235,235)", "veil": "rgb(255, 220, 0)", "thin": "rgb(255, 220, 0)",
-                    "cloudy": "rgb(255, 140, 0)", "overcast": "red", "twilight": "rgb(190, 220, 255)"}   # twilight jak UT
+                    "cloudy": "rgb(255, 140, 0)", "overcast": "red"}
     CLOUDS_MAX_AGE = 600        # s; starsza wiadomosc (dzien, serwis stoi) - pole "--"
     CLOUDS_HINT = ("Clouds from the allsky camera (allsky_overwatch), every ~2.4 min at night:\n"
                    "clear - clear sky\n"
@@ -552,8 +560,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                    "thin - thin or partial cloud, or cloud moving across the sky\n"
                    "cloudy - about half of the starlight lost, or strong changes between frames\n"
                    "overcast - most of the light lost, or too few stars to measure\n"
-                   "twilight - Sun above -18 deg, clouds are not measured\n"
-                   "-- - day, or no frame for 10 min")
+                   "-- - day or twilight (Sun above -18 deg, clouds not measured), or no frame for 10 min")
 
     async def conditions_plot_loop(self):
         # wykresy w zakladce Conditions (Aux): co 30 s, tylko gdy widoczne i przyszly nowe punkty (~40 ms)
@@ -582,6 +589,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # wolane tez z updateWeather - wartosc sie starzeje, gdy nikt nie obserwuje (overwatch publikuje przy punkcie)
         if kind == "clouds":
             return self.update_clouds_field()
+        if kind == "weather_level":
+            return self.update_hold_markers()
         name, fmt, worse, unit, hint = self.CONDITION_FIELDS[kind]
         field = getattr(self.obsGui.main_form, name)
         d = self.conditions.get(kind)
@@ -631,6 +640,63 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         field.setToolTip(tip)
 
 
+    # karencja ograniczen pogodowych (weather_overwatch, toi.conditions_subjects.weather_level; stan publikowany przy
+    # zmianie): poziom oficjalny spada dopiero po weather_hold minutach lepszych warunkow. Tlo pol zostaje wg biezacych
+    # wartosci, a kropka przy polu ma kolor poziomu oficjalnego i minuty do najblizszego spadku - tylko gdy oficjalny
+    # jest wyzszy niz biezacy. Wind: teleskopy zamkniete (2), Direction: z zakazem celowania (>= 1), skala kolorow
+    # jak tlo (jeden zolty, kilka pomaranczowy, wszystkie czerwony); Humidity (z deszczem), Temp, Clouds jak ich tlo
+    HOLD_TEXT = {("wind", 2): "closed", ("wind", 1): "pointing restricted", "humidity": "humidity", "rain": "rain",
+                 "temperature": "temperature", ("clouds", 1): "cloudy", ("clouds", 2): "overcast"}
+
+    def update_hold_markers(self):
+        markers = self.obsGui.main_form.hold_markers
+        d = self.conditions.get("weather_level") or {}
+        levels, raw = d.get("levels") or {}, d.get("raw") or {}
+        now = datetime.datetime.now(datetime.timezone.utc)
+        until = {}
+        for k, v in (d.get("hold_until") or {}).items():
+            try:
+                t = datetime.datetime.fromisoformat(v)
+            except (TypeError, ValueError):
+                continue
+            if t > now:         # minela - stan nieaktualny (overwatch stoi), kropki nie ma
+                until[k] = t
+        tels = [k for k in levels if k.startswith("wind:")]
+
+        def scale(n, total):
+            return "red" if n == total else "rgb(255, 220, 0)" if n == 1 else "rgb(255, 140, 0)"
+
+        def held(keys, level):
+            """klucze, ktore oficjalnie sa >= level, a biezaco nizej (w karencji)"""
+            return [k for k in keys if levels.get(k, 0) >= level and raw.get(k, 0) < level and k in until]
+
+        def show(name, keys, color, describe):
+            first = min(until[k] for k in keys)
+            tip = "Weather restriction still in force (weather_overwatch hold time):\n" + "\n".join(
+                f"{describe(k)} until {until[k]:%H:%M} UT" for k in sorted(keys, key=lambda k: until[k]))
+            markers[name].show_hold(color, max(1, math.ceil((first - now).total_seconds() / 60)), tip)
+
+        for name, level in (("wind_e", 2), ("windDir_e", 1)):
+            keys = held(tels, level)
+            if keys:
+                n = len([k for k in tels if levels.get(k, 0) >= level])
+                show(name, keys, scale(n, len(tels)),
+                     lambda k: f"{k[5:]} {self.HOLD_TEXT[('wind', min(levels[k], 2))]}")
+            else:
+                markers[name].clear()
+        for name, kinds in (("hummidity_e", ("humidity", "rain")), ("temp_e", ("temperature",))):
+            keys = held(kinds, 2)
+            if keys and not any(raw.get(k, 0) >= 2 for k in kinds):
+                show(name, keys, "red", lambda k: self.HOLD_TEXT[k])
+            else:
+                markers[name].clear()
+        keys = [k for k in ("clouds",) if raw.get(k, 0) < levels.get(k, 0) and k in until]     # tez overcast -> cloudy
+        if keys:
+            c = levels["clouds"]
+            show("clouds_e", keys, "red" if c >= 2 else "rgb(255, 140, 0)", lambda k: self.HOLD_TEXT[("clouds", min(c, 2))])
+        else:
+            markers["clouds_e"].clear()
+
     def clouds_at(self, tel):
         """"red" / "yellow", gdy teleskop obserwuje w polu tak zaznaczonym przez allsky_overwatch na ostatniej klatce
         (wiadomosc nie starsza niz CLOUDS_MAX_AGE), inaczej None - ikonka chmury w tabeli teleskopow"""
@@ -648,8 +714,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(d["time"])).total_seconds()
             if age <= self.CLOUDS_MAX_AGE:
                 state = "veil" if d.get("veil") and d.get("state") == "thin" else d.get("state")
-                if d.get("twilight"):       # o zmierzchu chmur nie mierzymy
-                    state = "twilight"
+                if d.get("twilight"):       # o zmierzchu chmur nie mierzymy - jak w dzien
+                    state = None
         field.setText("--" if state is None else state)
         field.setStyleSheet(f"color: black; background-color: {self.CLOUD_COLORS.get(state, 'rgb(235,235,235)')};")
         if d and d.get("telescopes") != self.clouds_telescopes:     # ikonki chmur w tabeli teleskopow
@@ -4344,14 +4410,29 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         label = "PING"
         await self.send_ocm_message(info,label=label)
 
+    def open_sound_test_window(self):
+        self.soundTestGui.show()
+        self.soundTestGui.raise_()
+        self.soundTestGui.activateWindow()
+
+    # test dzwieku z okna PING (SoundTestWindow): komunikat z ta sama etykieta co prawdziwy alarm, ale "test": true i
+    # tekst TEST - oca_monitor gra ten sam dzwiek, overwatche reaguja tylko na PING, a czytelnicy liczacy alarmy
+    # (Halina, raporty) powinni test pomijac
     @qs.asyncSlot()
-    async def send_ocm_message(self,info,label="INFO"):
+    async def send_sound_test(self, label, meaning):
+        await self.update_log(f'sound test {label}', "OPERATOR", self.active_tel)
+        await self.send_ocm_message(f"TEST of the {label} sound ({meaning}) - not a real alarm", label=label, test=True)
+
+    @qs.asyncSlot()
+    async def send_ocm_message(self,info,label="INFO",test=False):
         try:
             data = {}
             data["ut"] = f"{time.strftime('%H:%M:%S', time.gmtime())}"
             data["user"] = f'TOI by {self.myself}'
             data["info"] = info
             data["label"] = label
+            if test:
+                data["test"] = True
             self.publisher_ocm_message = get_publisher(f'tic.status.ocm.messages')
             await self.publisher_ocm_message.publish(data=data, timeout=10)
         except Exception as e:
@@ -4487,6 +4568,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.obsGui.main_form.update_table()   # ikonki pogody (wiatr, deszcz, wilgotnosc, zimno)
             for kind in self.CONDITION_FIELDS:
                 self.update_condition_field(kind)
+            self.update_hold_markers()      # minuty karencji
 
             #self.obsGui.main_form.skyView.updateWind(self)
             if self.skyGui.skyView:
