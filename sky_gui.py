@@ -6,7 +6,7 @@
 # ----------------
 
 from PyQtX.QtCore import Qt
-from PyQtX import QtGui
+from PyQtX import QtGui, QtCore
 from PyQtX.QtGui import QFont
 from PyQtX.QtWidgets import QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, \
     QVBoxLayout
@@ -99,9 +99,20 @@ class SkyGui(BaseWindow):
         del tmp
 
 class SkyView(QWidget):
+    REDRAW_MS = 500
+
     def __init__(self, parent):
         QWidget.__init__(self)
         self.parent = parent
+        # przerysowanie wykresu (matplotlib, ~50 ms) najwyzej co REDRAW_MS: zdarzenia montazu i kopuly (ra/dec/alt/az,
+        # status, kopula) przychodza po kilka na sekunde, a kazde wolalo pelne canvas.draw() - glowny watek TOI byl
+        # zajety w ~60% samym rysowaniem nieba (py-spy, 2026-11-05). Gdy panel niewidoczny (zakladka doku z tylu) -
+        # nie rysujemy, dorysuje sie w showEvent
+        self._redraw_dirty = False
+        self._redraw_timer = QtCore.QTimer(self)
+        self._redraw_timer.setSingleShot(True)
+        self._redraw_timer.setInterval(self.REDRAW_MS)
+        self._redraw_timer.timeout.connect(self._redraw_now)
         self.mkUI()
         self.canvas.mpl_connect('button_press_event', self.zaznaczenie)
 
@@ -134,7 +145,7 @@ class SkyView(QWidget):
         self.axes.bar(0, self.rmax - 90, width=2 * math.pi, bottom=90, color='k',
                       alpha=0.05)  # tutaj zmienia sie pasek ponizej horyzoontu
 
-        self.canvas.draw()
+        self.redraw()
         self.show()
 
     def updateAlmanac(self):
@@ -197,7 +208,7 @@ class SkyView(QWidget):
         except:
             pass
 
-        self.canvas.draw()
+        self.redraw()
         self.show()
 
     def updateRadar(self):
@@ -265,7 +276,7 @@ class SkyView(QWidget):
             except Exception:
                 pass
             self.updateTrack()
-            self.canvas.draw()
+            self.redraw()
             self.show()
 
     def updateTrack(self):
@@ -336,7 +347,7 @@ class SkyView(QWidget):
             self.mount = self.axes.plot(az, alt, color=color, marker="o", markersize="10", markerfacecolor=facecolor,
                                         alpha=0.7)
 
-            self.canvas.draw()
+            self.redraw()
             self.show()
 
     def updateDome(self):
@@ -364,7 +375,7 @@ class SkyView(QWidget):
             dome_az = float(self.parent.dome_az) * (2 * math.pi) / 360.
             self.dome = self.axes.bar(dome_az, self.rmax - 90, width=30 * (2 * math.pi) / 360., bottom=90, color=color,
                                       alpha=0.5)
-        self.canvas.draw()
+        self.redraw()
         self.show()
 
     def updateWind(self, parent):
@@ -389,13 +400,29 @@ class SkyView(QWidget):
             self.wind = self.axes.arrow(theta, 120, 0, -20, color=color, head_width=0.1, overhang=50,
                                         length_includes_head=True, head_starts_at_zero=True)
 
-            self.canvas.draw()
+            self.redraw()
             self.show()
         except Exception as e:
             print("toi, updateWind: ", e)
 
     # ======= Budowa okna ====================
 
+
+    def redraw(self):
+        if not self._redraw_timer.isActive():
+            self._redraw_timer.start()
+
+    def _redraw_now(self):
+        if not self.isVisible():
+            self._redraw_dirty = True
+            return
+        self._redraw_dirty = False
+        self.canvas.draw_idle()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self._redraw_dirty:
+            self.redraw()
 
     def mkUI(self):
         # self.setWindowTitle('FC')
@@ -415,7 +442,7 @@ class SkyView(QWidget):
 
         self.axes.clear()
         self.resize(400, 500)
-        self.canvas.draw()
+        self.canvas.draw_idle()
         # self.axes.grid(True)
         # self.axes.set_xticks([0,2*3.14*90/360,2*3.14*180/360,2*3.14*270/360])
         # self.axes.set_yticks([20,40,60,80])

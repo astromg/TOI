@@ -36,7 +36,7 @@ class FitsWindow(BaseWindow):
     def clear(self):
         self.axes.clear()
         self.axes.axis("off")
-        self.canvas.draw()
+        self.canvas.draw_idle()
         self.stat_e.setText("")
 
 
@@ -45,15 +45,18 @@ class FitsWindow(BaseWindow):
         self.axes.axis("off")
         if self.image is not None and len(self.image)>0:
 
-            vmin = numpy.mean(self.image) - 1 * numpy.std(self.image)
-            vmax = numpy.mean(self.image) + 1 * numpy.std(self.image)
+            # skala z co 4. piksela, mean i std raz (wczesniej po 2x z calego obrazu - kazde przelaczenie teleskopu
+            # wczytuje ostatni obraz, py-spy 2026-11-05)
+            sample = numpy.asarray(self.image)[::4, ::4] if numpy.ndim(self.image) == 2 else self.image
+            mean, std = numpy.mean(sample), numpy.std(sample)
+            vmin, vmax = mean - std, mean + std
 
             self.axes.imshow(self.image, vmin=vmin, vmax=vmax, interpolation='none', resample=False)
             # granice osi = obraz; nakladki (obiekty, pointing, gwiazdy) nie moga ich rozszerzyc - punkt z WCS
             # w milionach pikseli (snap bez rozwiazania) zmniejszal obraz do niewidocznej kropki
             self.axes.set_autoscale_on(False)
 
-            self.canvas.draw()
+            self.canvas.draw_idle()
             self.show()
 
     def in_image(self, x, y):
@@ -308,7 +311,7 @@ class FitsWindow(BaseWindow):
                     print(f"TOI FITS EXCEPTION 5: {e}")
 
                 self.stat_e.setHtml(txt)
-            self.canvas.draw()
+            self.canvas.draw_idle()
             self.raise_()
 
     def updateUI(self):
@@ -317,7 +320,7 @@ class FitsWindow(BaseWindow):
 
         self.axes.clear()
         self.axes.axis("off")
-        self.canvas.draw()
+        self.canvas.draw_idle()
         self.stat_e.setText("")
 
         # nazwa i kolor teleskopu sa w pasku tytulu panelu (ObsGui.set_panel_telescope)
@@ -357,7 +360,7 @@ class FitsWindow(BaseWindow):
 
         self.axes.clear()
         self.resize(400, 500)
-        self.canvas.draw()
+        self.canvas.draw_idle()
         self.show()
 
 
