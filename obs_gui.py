@@ -458,16 +458,20 @@ class MainForm(QWidget):
         t.setFixedHeight(t.horizontalHeader().sizeHint().height()
                          + t.verticalHeader().defaultSectionSize() * (t.rowCount() + 2) + 2 * t.frameWidth())
 
-    LAMP_BEAT = 300     # ms - tyle trwa uderzenie serduszka
-
-    @staticmethod
-    def lamp_text(lamp, big):
-        return f'<span style="font-size: {16 if big else 11}pt;">\u2665</span> {lamp.lamp_name}'
+    LAMP_BEAT = 300     # ms - tyle trwa mrugniecie lampki
 
     def beat(self, lamp):
-        """jedno uderzenie serduszka lampki: na chwile wieksze - serwis wlasnie odpowiedzial"""
-        lamp.setText(self.lamp_text(lamp, True))
-        QTimer.singleShot(self.LAMP_BEAT, lambda: lamp.setText(self.lamp_text(lamp, False)))
+        """jedno mrugniecie lampki: na chwile jasniejsza zielen - serwis wlasnie odpowiedzial"""
+        flash = f"color: {theme.c('ok_beat_fg')};"
+        base = lamp.styleSheet()
+        if base == flash:
+            return
+        lamp.setStyleSheet(flash)
+
+        def back():
+            if lamp.styleSheet() == flash:      # petla lampki w tym czasie mogla ustawic nowy stan - zostawiamy go
+                lamp.setStyleSheet(base)
+        QTimer.singleShot(self.LAMP_BEAT, back)
 
     def set_cell(self, i, col, content):
         if self._cells.get((i, col)) == content:
@@ -729,12 +733,7 @@ class MainForm(QWidget):
             status_box.addWidget(lamp)
         for lamp in lamps[2:]:
             lamp.setStyleSheet(f"color: {theme.c('muted_fg')};")
-        # serduszko "bije" (beat) przy kazdej odpowiedzi serwisu; miejsce na duze serduszko zarezerwowane z gory,
-        # zeby wiersz nie przeskakiwal
-        self.lamps = lamps
-        for lamp in lamps:
-            lamp.lamp_name = lamp.text().replace("\u2665", "").strip()
-            lamp.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+
         status_box.addStretch(1)
         grid.addLayout(status_box, w, 0, 1, 8)
 
@@ -920,12 +919,6 @@ class MainForm(QWidget):
         grid.setSpacing(5)
 
         self.setLayout(grid)
-        # rozmiar lampek z duzym serduszkiem - dopiero po setLayout lampki maja czcionke okna (stylesheet)
-        for lamp in self.lamps:
-            lamp.ensurePolished()
-            lamp.setText(self.lamp_text(lamp, True))
-            lamp.setMinimumSize(lamp.sizeHint())
-            lamp.setText(self.lamp_text(lamp, False))
 
     async def on_start_app(self):
         await self.run_background_tasks()

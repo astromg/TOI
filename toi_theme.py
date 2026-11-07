@@ -9,6 +9,7 @@ Kolory maja znaczenie i jest ono wspolne dla wszystkich motywow - zmienia sie ty
 Kazdy kolor jest w dwoch wersjach: *_bg - tlo pola, *_fg - tekst lub ikonka na zwyklym tle.
 WYJATEK (rozbieznosc swiadomie zostawiona na razie, 2026-11-06): tabela teleskopow w oknie obserwacji ma dawne kolory
 (klucze tab_*): ruch (MOVING, SLEWING, OPENING...) pomaranczowy zamiast niebieskiego, ikonki darkgreen/red/darkorange.
+ok_beat_fg - mrugniecie zielonej lampki serwisu (jasniejsza zielen).
 Pozostale klucze to neutralne elementy okna (tla pol, tekst, wylaczone lampki).
 
 Uzycie: `from toi_theme import theme` i `theme.c("bad_bg")`; `theme.set(name)` przelacza motyw i wola funkcje
@@ -29,7 +30,7 @@ THEMES = {
         "field_fg": "black",
         "muted_fg": "rgb(190,190,190)",
         "selection_bg": "rgb(138,176,219)",
-        "ok_bg": "rgb(150, 220, 150)", "ok_fg": "rgb(0, 150, 0)",
+        "ok_bg": "rgb(150, 220, 150)", "ok_fg": "rgb(0, 150, 0)", "ok_beat_fg": "rgb(90, 230, 90)",
         "bad_bg": "red", "bad_fg": "rgb(190, 0, 0)",
         "warn_bg": "rgb(255, 220, 0)", "warn_fg": "rgb(170, 140, 0)",
         "warn2_bg": "rgb(255, 140, 0)", "warn2_fg": "rgb(255, 140, 0)",
@@ -47,7 +48,7 @@ THEMES = {
         "field_fg": "rgb(170, 170, 160)",
         "muted_fg": "rgb(80, 80, 80)",
         "selection_bg": "rgb(60, 70, 95)",
-        "ok_bg": "rgb(30, 90, 30)", "ok_fg": "rgb(70, 150, 70)",
+        "ok_bg": "rgb(30, 90, 30)", "ok_fg": "rgb(70, 150, 70)", "ok_beat_fg": "rgb(140, 220, 140)",
         "bad_bg": "rgb(120, 25, 25)", "bad_fg": "rgb(190, 60, 60)",
         "warn_bg": "rgb(110, 95, 20)", "warn_fg": "rgb(190, 165, 50)",
         "warn2_bg": "rgb(120, 65, 15)", "warn2_fg": "rgb(200, 120, 40)",
@@ -64,7 +65,7 @@ THEMES = {
         "field_fg": "rgb(255, 240, 255)",
         "muted_fg": "rgb(120, 90, 150)",
         "selection_bg": "rgb(200, 60, 160)",
-        "ok_bg": "rgb(0, 200, 120)", "ok_fg": "rgb(60, 255, 160)",
+        "ok_bg": "rgb(0, 200, 120)", "ok_fg": "rgb(60, 255, 160)", "ok_beat_fg": "rgb(190, 255, 220)",
         "bad_bg": "rgb(255, 40, 90)", "bad_fg": "rgb(255, 80, 120)",
         "warn_bg": "rgb(255, 230, 0)", "warn_fg": "rgb(255, 235, 60)",
         "warn2_bg": "rgb(255, 130, 0)", "warn2_fg": "rgb(255, 160, 40)",
