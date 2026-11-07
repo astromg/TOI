@@ -162,6 +162,25 @@ class Theme:
             if keys is not None:
                 self.paint(w, *keys[:3])
 
+    def hex(self, key):
+        """kolor motywu jako #rrggbb (matplotlib, HTML)"""
+        return self.qcolor(key).name()
+
+    def style_figure(self, fig, axes=()):
+        """wykres matplotlib w kolorach motywu: tlo, osie, opisy, ramka. Dzien - dawne biale tlo"""
+        bg = self.hex("window") if self.c("window") else "white"
+        text = self.hex("text")
+        fig.set_facecolor(bg)
+        fig.set_edgecolor(bg)
+        for ax in axes:
+            ax.set_facecolor(bg)
+            ax.tick_params(colors=text, which="both")
+            ax.xaxis.label.set_color(text)
+            ax.yaxis.label.set_color(text)
+            ax.title.set_color(text)
+            for spine in ax.spines.values():
+                spine.set_edgecolor(self.hex("muted_fg") if self.name != "day" else "black")
+
     def on_change(self, f):
         self._listeners.append(f)
 

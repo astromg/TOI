@@ -52,6 +52,7 @@ from PyQtX.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFrame, QG
 
 from base_window import BaseWindow
 from optics_view import SchematicView
+from toi_theme import theme
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +148,10 @@ class AuxWindow(BaseWindow):
 
 # ############### TELESCOPE ##########################
 
+SWITCH_CSS = ("QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}"
+              "::indicator:unchecked {image: url(ICONS/SwitchOff.png)}")
+
+
 class TelescopeTab(QWidget):
     """The active telescope's pages of the OCA manual, fetched over HTTP from the intranet copy (``toi.oca_manual_url``
     in ``toi_config.yaml``; the server pulls the manual from GitHub every hour): the description on the left, the
@@ -158,7 +163,27 @@ class TelescopeTab(QWidget):
     def __init__(self, parent):
         super(TelescopeTab, self).__init__()
         self.parent = parent
+        self.pages = {}         # przegladarka -> (url, body): po zmianie motywu strona od nowa w nowych kolorach
         self.mkUI()
+        theme.on_change(self.apply_theme)
+
+    def page_style(self):
+        """kolory strony manuala wg motywu (dzien - jak dotad, kolory przegladarki)"""
+        if theme.name == "day":
+            return ""
+        return (f"body {{ color: {theme.hex('text')}; }} a {{ color: {theme.hex('change_fg')}; }} "
+                f"blockquote {{ color: {theme.hex('text')}; }} code {{ color: {theme.hex('warn_fg')}; }}")
+
+    def show_page(self, browser, url, body):
+        self.pages[browser] = (url, body)
+        browser.document().setDefaultStyleSheet(self.page_style())     # przed setHtml
+        browser.document().setBaseUrl(QUrl(url))    # wzgledne linki manuala
+        browser.setHtml(body)
+
+    def apply_theme(self):
+        theme.paint(self.source_l, fg="dim_fg")
+        for browser, (url, body) in self.pages.items():
+            self.show_page(browser, url, body)
 
     def updateUI(self):
         if self.parent.active_tel != None:
@@ -186,8 +211,7 @@ class TelescopeTab(QWidget):
                     f"<p>Check <code>toi.oca_manual_url</code> in <code>toi_config.yaml</code>.</p>")
         if tel != self.parent.active_tel:      # w miedzyczasie zmieniono teleskop
             return
-        browser.document().setBaseUrl(QUrl(url))    # wzgledne linki manuala
-        browser.setHtml(body)
+        self.show_page(browser, url, body)
 
     def _fetch(self, url):
         with urllib.request.urlopen(url, timeout=self.TIMEOUT) as r:
@@ -220,7 +244,7 @@ class TelescopeTab(QWidget):
         splitter.setStretchFactor(1, 2)
         grid.addWidget(splitter, 0, 0, 1, 2)
         self.source_l = QLabel("")
-        self.source_l.setStyleSheet("color: gray;")
+        theme.paint(self.source_l, fg="dim_fg")
         grid.addWidget(self.source_l, 1, 0)
         self.reload_p = QPushButton("Reload")
         self.reload_p.clicked.connect(self.updateUI)
@@ -323,7 +347,7 @@ class TasksTab(QWidget):
                 item.setToolTip(tip + "\n\nDouble click: open the issue")
                 item.setData(Qt.ItemDataRole.UserRole, r)
                 if r.get("state") != "open":
-                    item.setForeground(QtGui.QColor("gray"))
+                    item.setForeground(theme.qcolor("dim_fg"))
                 self.tasks_t.setItem(row, col, item)
         open_n = sum(1 for r in rows if r.get("state") == "open")
         if self.requests_mtime is not None:
@@ -369,7 +393,7 @@ class TasksTab(QWidget):
             if ticked:
                 when.setText(f'{str(ticked.get("time", ""))[11:16]} UT')
                 when.setToolTip(f'{ticked.get("time", "?")} UT by {ticked.get("by", "?")}')
-                item.setForeground(QtGui.QColor("gray"))
+                item.setForeground(theme.qcolor("dim_fg"))
                 ticked_n += 1
             when.setFlags(Qt.ItemFlag.ItemIsEnabled)
             self.check_t.setItem(row, 0, item)
@@ -397,7 +421,7 @@ class TasksTab(QWidget):
         self.check_t.itemChanged.connect(self.check_changed)
         lgrid.addWidget(self.check_t, 0, 0)
         self.check_l = QLabel("")
-        self.check_l.setStyleSheet("color: gray;")
+        theme.paint(self.check_l, fg="dim_fg")
         lgrid.addWidget(self.check_l, 1, 0)
         left.setLayout(lgrid)
 
@@ -420,7 +444,7 @@ class TasksTab(QWidget):
         self.tasks_t.cellDoubleClicked.connect(self.open_issue)
         rgrid.addWidget(self.tasks_t, 0, 0, 1, 4)
         self.info_l = QLabel("Observation requests: loading...")
-        self.info_l.setStyleSheet("color: gray;")
+        theme.paint(self.info_l, fg="dim_fg")
         # dlugi tekst (np. blad z sciezka) nie moze rozpychac prawej strony - ucinany, calosc w tooltipie
         self.info_l.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         rgrid.addWidget(self.info_l, 1, 0)
@@ -483,6 +507,16 @@ class CameraCalibration(QWidget):
         self.instrument = None
         self.mkUI()
         self.flat_records = {}      # {tel: {item: {filtr|"all": {"last": ISO|None}}}} z flat_overwatch
+        # rekordy flat po zmianie teleskopu przychodza seriami (25 h historii) - rysujemy raz po serii
+        self._update_timer = QTimer(self)
+        self._update_timer.setSingleShot(True)
+        self._update_timer.setInterval(300)
+        self._update_timer.timeout.connect(self.updateUI)
+        theme.on_change(self.updateUI)
+
+    def schedule_update(self):
+        if not self._update_timer.isActive():
+            self._update_timer.start()
 
     def set_instrument(self, name):
         self.instrument = name
@@ -493,11 +527,19 @@ class CameraCalibration(QWidget):
             self.draw_flat_table(self.parent.active_tel)
             self.draw_master_table(self.parent.active_tel)
 
-    # kolory komorek EVENING / MORNING
-    FLAT_FRESH = QtGui.QColor(182, 242, 182)    # flat swiezy
-    FLAT_OLD = QtGui.QColor(255, 204, 128)      # flat stary
-    FLAT_STALE = QtGui.QColor(255, 153, 153)    # filtr ostatnio uzywany, a swiezych flatow brak
-    MASTER_OK = QtGui.QColor(220, 220, 220)     # master juz nie swiezy, ale jeszcze w limicie
+    # kolory komorek EVENING / MORNING: (dzien, klucz toi_theme w innych motywach)
+    CELL_COLORS = {"fresh": ((182, 242, 182), "ok_bg"),      # flat swiezy
+                   "old": ((255, 204, 128), "warn2_bg"),     # flat stary
+                   "stale": ((255, 153, 153), "bad_bg")}     # filtr ostatnio uzywany, a swiezych flatow brak
+
+    @classmethod
+    def cell_color(cls, kind):
+        day, key = cls.CELL_COLORS[kind]
+        return QtGui.QColor(*day) if theme.name == "day" else theme.qcolor(key)
+
+    FLAT_FRESH = property(lambda self: self.cell_color("fresh"))
+    FLAT_OLD = property(lambda self: self.cell_color("old"))
+    FLAT_STALE = property(lambda self: self.cell_color("stale"))
 
     def update_flat_overwatch(self, tel, item, data):
         # item: flats_evening / flats_morning / science / zeros / darks; trzymamy per teleskop, zeby po zmianie
@@ -520,7 +562,6 @@ class CameraCalibration(QWidget):
                 self.log_t.setItem(i, col, self._flat_cell(str(txt), font))
         self.log_t.resizeColumnsToContents()
         self.log_t.scrollToBottom()
-        self.log_t.repaint()
 
     def draw_flat_table(self, tel):
         records = self.flat_records.get(tel, {})
@@ -592,13 +633,13 @@ class CameraCalibration(QWidget):
             limit = datetime.timedelta(days=max_days[item])
             self.master_t.setItem(i, 0, self._flat_cell(name, font))
             cell = self._flat_cell(self._age_txt(t0, t), font)
-            # zielony - swiezy; szary - jeszcze dobry (zero z wieczora po polnocy, dark z drugiego miesiaca - robione,
-            # gdy nie ma pogody); starszy niz limit (albo brak):
+            # jak flaty: zielony - swiezy; bez koloru - jeszcze dobry (zero z wieczora po polnocy, dark z drugiego
+            # miesiaca - robione, gdy nie ma pogody); starszy niz limit (albo brak):
             # czerwony, gdy w tym czasie byl obiekt (obserwacje bez aktualnej kalibracji), pomaranczowy, gdy nie
             if t and t0 - t <= fresh:
                 cell.setBackground(self.FLAT_FRESH)
             elif t and t0 - t <= limit:
-                cell.setBackground(self.MASTER_OK)
+                pass
             elif t_obj and t0 - t_obj <= limit:
                 cell.setBackground(self.FLAT_STALE)
             else:
@@ -631,7 +672,7 @@ class CameraCalibration(QWidget):
         self.flat_table_t.setSelectionMode(QAbstractItemView.NoSelection)
         self.flat_table_t.verticalHeader().hide()
         self.flat_table_t.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.flat_table_t.setStyleSheet("selection-background-color: white;")
+        theme.paint(self.flat_table_t, extra="selection-background-color: transparent;")
         self.flat_table_t.verticalHeader().setDefaultSectionSize(10)
         grid.addWidget(self.flat_table_t, 1, 0)
 
@@ -640,7 +681,7 @@ class CameraCalibration(QWidget):
         self.master_t.setSelectionMode(QAbstractItemView.NoSelection)
         self.master_t.verticalHeader().hide()
         self.master_t.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.master_t.setStyleSheet("selection-background-color: white;")
+        theme.paint(self.master_t, extra="selection-background-color: transparent;")
         self.master_t.verticalHeader().setDefaultSectionSize(10)
         self.master_t.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.master_t.setFixedHeight(self.master_t.horizontalHeader().sizeHint().height()
@@ -655,7 +696,7 @@ class CameraCalibration(QWidget):
         self.log_t.setSelectionMode(QAbstractItemView.NoSelection)
         self.log_t.setEditTriggers(QTableWidget.NoEditTriggers)
         self.log_t.horizontalHeader().setStretchLastSection(True)
-        self.log_t.setStyleSheet("background-color: rgb(235,235,235);")
+        theme.paint(self.log_t, bg="field_bg")
         grid.addWidget(self.log_t, 0, 1, 2, 1)
         grid.setColumnStretch(1, 1)     # dodatkowa szerokosc okna idzie do logu, nie do tabeli
         self.setLayout(grid)
@@ -699,8 +740,22 @@ class FocusTab(QWidget):
         self.camera = None
         self.status = {}            # ostatni wynik aktywnego teleskopu (tic.status.<tel>.toi.focus)
         self.focus_records = {}     # {tel: [rekord, ...]} z tic.status.<tel>.toi.focus_record
+        self._dirty = False
         self.mkUI()
         self.show_status({})
+        theme.on_change(self.apply_theme)
+
+    def apply_theme(self):
+        for w in (self.result_e, self.camera_e):
+            theme.paint(w, bg="field_bg")
+        theme.paint(self.log_t, bg="field_bg")
+        self.draw_log()
+        self.redraw()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self._dirty:
+            self.redraw()
 
     def updateUI(self):
         # po zmianie teleskopu
@@ -750,12 +805,18 @@ class FocusTab(QWidget):
         self.redraw()
 
     def redraw(self):
+        # pelne rysowanie (~25 ms) tylko, gdy zakladka jest widoczna; inaczej przy jej pokazaniu (showEvent)
+        if not self.isVisible():
+            self._dirty = True
+            return
+        self._dirty = False
         data = self.status
         x, y = data.get("focus_values") or [], data.get("sharpness_values") or []
         fit_x, fit_y = data.get("fit_x") or [], data.get("fit_y") or []
         result = data.get("max_sharpness_focus")
 
         self.axes.clear()
+        theme.style_figure(self.fig, [self.axes])
         if len(x) > 0 and len(x) == len(y):
             self.axes.plot(x, y, "r.", markersize=8)
         if len(fit_x) > 1 and len(fit_x) == len(fit_y):
@@ -763,9 +824,9 @@ class FocusTab(QWidget):
         if result is not None:
             # maksimum dopasowania zawsze widac; czerwone tylko, gdy wynik jest dobry
             if data.get("status") == "ok":
-                self.axes.axvline(x=result, color="red")
+                self.axes.axvline(x=result, color=theme.hex("bad_fg"))
             else:
-                self.axes.axvline(x=result, color="gray", linestyle="--")
+                self.axes.axvline(x=result, color=theme.hex("muted_fg"), linestyle="--")
         title = [str(data[k]) for k in ("method", "filter") if data.get(k)]
         if data.get("time"):
             title.append(f'{data["time"]} UT')
@@ -795,7 +856,7 @@ class FocusTab(QWidget):
         if tel == self.parent.active_tel:
             self.draw_log()
 
-    FOCUS_FAILED = QtGui.QColor(255, 153, 153)
+    FOCUS_FAILED = property(lambda self: QtGui.QColor(255, 153, 153) if theme.name == "day" else theme.qcolor("bad_bg"))
 
     def draw_log(self):
         records = self.focus_records.get(self.parent.active_tel, [])
@@ -849,7 +910,7 @@ class FocusTab(QWidget):
         self.result_l = QLabel("RESULT:")
         self.result_e = QLineEdit()
         self.result_e.setReadOnly(True)
-        self.result_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        theme.paint(self.result_e, bg="field_bg")
         self.set_p = QPushButton("SET")
         self.set_p.clicked.connect(self.parent.focus_set_result)
         grid.addWidget(self.result_l, w, 0)
@@ -866,7 +927,7 @@ class FocusTab(QWidget):
         self.camera_l = QLabel("Camera:")
         self.camera_e = QLineEdit()
         self.camera_e.setReadOnly(True)
-        self.camera_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+        theme.paint(self.camera_e, bg="field_bg")
         self.filter_l = QLabel("Filter:")
         self.filter_s = QComboBox()
         self.filter_s.addItems(["current"])
@@ -908,7 +969,7 @@ class FocusTab(QWidget):
         self.log_t.setSelectionMode(QAbstractItemView.NoSelection)
         self.log_t.setEditTriggers(QTableWidget.NoEditTriggers)
         self.log_t.horizontalHeader().setStretchLastSection(True)
-        self.log_t.setStyleSheet("background-color: rgb(235,235,235);")
+        theme.paint(self.log_t, bg="field_bg")
         grid.addWidget(self.log_t, 0, 4, w + 1, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnStretch(3, 1)
@@ -926,7 +987,13 @@ class GuiderTab(QWidget):
         super(GuiderTab, self).__init__()
         self.parent = parent
         self.mkUI()
-        self.canvas2.draw()
+        self.apply_theme()
+
+    def apply_theme(self):
+        theme.style_figure(self.fig)
+        theme.style_figure(self.fig2)
+        self.canvas.draw_idle()
+        self.canvas2.draw_idle()
 
     def updateCoo(self,x,y,color):
         if len(x)>0:
@@ -968,6 +1035,7 @@ class GuiderTab(QWidget):
         self.axes.axis("off")
 
         self.fig2 = Figure((0.5, 0.5), linewidth=-1, dpi=100)
+        theme.on_change(self.apply_theme)
         self.canvas2 = FigureCanvas(self.fig2)
         self.axes2 = self.fig2.add_axes([0, 0, 1, 1])
         self.axes2.axis("off")
@@ -984,7 +1052,7 @@ class GuiderTab(QWidget):
         self.guiderCameraOn_c = QCheckBox()
         self.guiderCameraOn_c.setChecked(False)
         self.guiderCameraOn_c.setLayoutDirection(Qt.RightToLeft)
-        self.guiderCameraOn_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        theme.paint(self.guiderCameraOn_c, extra=SWITCH_CSS)
         self.guiderCameraOn_c.clicked.connect(self.parent.GuiderPassiveOnOff)
         grid.addWidget(self.guiderCameraOn_l, w, 2)
         grid.addWidget(self.guiderLoop_e, w, 3)
@@ -1017,7 +1085,7 @@ class GuiderTab(QWidget):
         w = w + 3
         self.result_e = QTextEdit()
         self.result_e.setReadOnly(True)
-        self.result_e.setStyleSheet("background-color: rgb(245,245,245);")
+        theme.paint(self.result_e, bg="field_bg")
         grid.addWidget(self.result_e, w, 2,3,3)
         w = w + 3
         self.method_l = QLabel("Method:")
@@ -1030,7 +1098,7 @@ class GuiderTab(QWidget):
         self.autoGuide_c = QCheckBox()
         self.autoGuide_c.setChecked(False)
         self.autoGuide_c.setLayoutDirection(Qt.RightToLeft)
-        self.autoGuide_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        theme.paint(self.autoGuide_c, extra=SWITCH_CSS)
         grid.addWidget(self.autoGuide_l, w, 2)
         grid.addWidget(self.autoGuide_c, w, 3)
 
@@ -1065,7 +1133,7 @@ class PlanrunnerTab(QWidget):
         grid = QGridLayout()
         self.prog_call_e = QTextEdit()
         self.prog_call_e.setReadOnly(True)
-        self.prog_call_e.setStyleSheet("background-color: rgb(235,235,235);")
+        theme.paint(self.prog_call_e, bg="field_bg")
         grid.addWidget(self.prog_call_e, 0, 0)
         self.setLayout(grid)
 
@@ -1098,6 +1166,12 @@ class ConditionsTab(QWidget):
         return sum(len(v) for v in self.parent.fits_ffs_data.values()) + \
                sum(len(v) for v in self.parent.fits_photo_z0_data.values())
 
+    def apply_theme(self):
+        if self.isVisible():
+            self.redraw()
+        else:
+            self.drawn_count = None     # przerysuje sie przy pokazaniu zakladki
+
     def refresh_if_new(self):
         # wolane co 30 s z TOI: rysujemy tylko, gdy ktos patrzy i przyszly nowe punkty (~50 ms na rysowanie)
         if self.isVisible() and self.data_count() != self.drawn_count:
@@ -1105,10 +1179,9 @@ class ConditionsTab(QWidget):
 
     def redraw(self):
         plot = self.plot_s.currentText()
-        self.filter_e.setEnabled(plot == "FWHM")
-        self.airmass_e.setEnabled(plot == "FWHM")
         self.drawn_count = self.data_count()
         self.ax.clear()
+        theme.style_figure(self.fig, [self.ax])
         if self.parent.jd:
             try:
                 if plot == "FWHM":
@@ -1141,7 +1214,7 @@ class ConditionsTab(QWidget):
         self.ax.text(0.01, 0.95, f"last: {value}", transform=self.ax.transAxes, fontsize=15, fontweight="bold",
                      color=color, va="top")
         self.ax.text(0.01, 0.84, f"{tel} {filt} {str(when).split()[1][:5]} UT", transform=self.ax.transAxes,
-                     fontsize=10, color="dimgray", va="top")
+                     fontsize=10, color=theme.hex("dim_fg"), va="top")
 
     def night_axis(self, x0, x1, ylabel):
         xtics = []
@@ -1160,11 +1233,6 @@ class ConditionsTab(QWidget):
         # tylko klatki science (bez kalibracji, testow, focusa), skala z naglowka - uwzglednia binning
         x0 = float(str(self.parent.jd).split(".")[0]) + 0.4
         x1 = x0 + 0.6
-        filt = str(self.filter_e.text())
-        try:
-            max_airmass = float(self.airmass_e.text()) if self.airmass_e.text().strip() else None
-        except ValueError:
-            max_airmass = None
         top = self.FWHM_TOP[0]
         latest = None       # (jd, tel, filtr, fwhm) ostatniej klatki tej nocy
         for t, frames in self.parent.fits_ffs_data.items():
@@ -1176,9 +1244,8 @@ class ConditionsTab(QWidget):
                     if h.get("OBSTYPE") == "focus" and h.get("LOOP") is not None and \
                             float(h["LOOP"]) == float(h.get("NLOOPS", -1)):
                         focus.append(float(h["JD"]))
-                    if h.get("OBSTYPE") != "science" or filt not in str(h.get("FILTER", "")) or "fwhm" not in x["raw"]:
-                        continue
-                    if max_airmass is not None and float(h["AIRMASS"]) >= max_airmass:
+                    # wszystkie filtry i masy powietrza (pola "Filter filter" / "Filter airmass" usuniete 2026-11-07)
+                    if h.get("OBSTYPE") != "science" or "fwhm" not in x["raw"]:
                         continue
                     f = (float(x["raw"]["fwhm"]["fwhm_x"]) + float(x["raw"]["fwhm"]["fwhm_y"])) / 2.
                     f = f * float(h.get("SCALE") or self.parent.nats_cfg[t]["pixel_scale"])
@@ -1204,7 +1271,8 @@ class ConditionsTab(QWidget):
         self.ax.set_ylim(0, top)
         if latest:
             self.last_text(f'{latest[3]:.2f}"', "black", latest[1], latest[2], ephem.Date(latest[0] - 2415020))
-        self.ax.legend(loc="upper right", fontsize=8)
+        self.ax.legend(loc="upper right", fontsize=8, facecolor=theme.hex("window") if theme.c("window") else "white",
+                           labelcolor=theme.hex("text"))
 
     def plot_zero_point(self):
         # fits_photo_z0_data: {tel: [{'filter', 'zero_value', 'oca_jd', 'mode'}, ...]}; jak oca_monitor: strefy w tle,
@@ -1220,7 +1288,7 @@ class ConditionsTab(QWidget):
         self.ax.axhspan(warning, 1, color="green", alpha=0.08, linewidth=0)
         self.ax.axhspan(alert, warning, color="gold", alpha=0.15, linewidth=0)
         self.ax.axhspan(-10, alert, color="red", alpha=0.12, linewidth=0)
-        self.ax.axhline(y=0, color="black", linewidth=0.5)
+        self.ax.axhline(y=0, color=theme.hex("text"), linewidth=0.5)
 
         all_x, all_y = [], []
         latest = None       # (oca_jd, tel, filtr, wartosc) ostatniego punktu tej nocy
@@ -1252,7 +1320,7 @@ class ConditionsTab(QWidget):
 
         if all_x:
             sx, sy = self.smoothed(all_x, all_y)
-            self.ax.plot(sx, sy, color="#333333", linewidth=2)
+            self.ax.plot(sx, sy, color=theme.hex("text"), linewidth=2)
         if latest:
             v = latest[3]
             zone = "green" if v >= warning else "darkorange" if v >= alert else "red"
@@ -1266,10 +1334,11 @@ class ConditionsTab(QWidget):
             for x, y in zip(all_x, all_y):      # poza skala: trojkat na krawedzi zamiast rozciagania skali
                 if y < bottom or y > top:
                     self.ax.scatter([x], [bottom if y < bottom else top], marker="v" if y < bottom else "^",
-                                    s=40, color="black", clip_on=False, zorder=5)
+                                    s=40, color=theme.hex("text"), clip_on=False, zorder=5)
         self.ax.set_ylim(bottom, top)
         if all_x:
-            self.ax.legend(loc="upper right", fontsize=8)
+            self.ax.legend(loc="upper right", fontsize=8, facecolor=theme.hex("window") if theme.c("window") else "white",
+                           labelcolor=theme.hex("text"))
 
     def mkUI(self):
 
@@ -1280,20 +1349,9 @@ class ConditionsTab(QWidget):
         self.plot_s.addItems(self.PLOTS)
         self.plot_s.currentIndexChanged.connect(self.redraw)
 
-        self.filter_l = QLabel("Filter filter: ")
-        self.filter_e = QLineEdit("")
-        self.filter_e.textChanged.connect(self.redraw)
-
-        self.airmass_l = QLabel("Filter airmass: ")
-        self.airmass_e = QLineEdit("")
-        self.airmass_e.textChanged.connect(self.redraw)
-
         grid.addWidget(self.plot_l, w, 0)
         grid.addWidget(self.plot_s, w, 1)
-        grid.addWidget(self.filter_l, w, 2)
-        grid.addWidget(self.filter_e, w, 3)
-        grid.addWidget(self.airmass_l, w, 4)
-        grid.addWidget(self.airmass_e, w, 5)
+        grid.setColumnStretch(5, 1)       # wybor wykresu z lewej, reszta wiersza pusta
 
         w = w + 1
 
@@ -1304,6 +1362,7 @@ class ConditionsTab(QWidget):
         grid.addWidget(self.canvas, w, 0, 1, 6)
 
         w = w + 1
+        theme.on_change(self.apply_theme)
         self.toolbar = NavigationToolbar(self.canvas,self)
         grid.addWidget(self.toolbar, w, 0, 1, 6)
 

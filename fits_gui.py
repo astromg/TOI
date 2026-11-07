@@ -8,10 +8,14 @@ from PyQtX.QtWidgets import QTextEdit, QGridLayout
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
+import logging
 import numpy
 from pyaraucaria.ffs import FFS
 from toi_lib import *
 from base_window import BaseWindow
+from toi_theme import theme
+
+logger = logging.getLogger(__name__)
 
 
   # ######### Fits GUI #############
@@ -29,13 +33,25 @@ class FitsWindow(BaseWindow):
         self.fwhm_x = None
         self.fwhm_y = None
         self.ffs = None
+        # FFS liczy w watku; nie czekamy na niego (wait() stawial GUI przy nowym obrazie i przy zmianie
+        # teleskopu). Kazde zlecenie ma numer, wynik starszego niz biezacy jest wyrzucany
+        self._ffs_token = 0
+        self._ffs_jobs = []         # (QThread, worker) - referencje, dopoki watek nie skonczy
+        theme.on_change(self.apply_theme)
 
+    def apply_theme(self):
+        theme.style_figure(self.fig, [self.axes])
+        theme.paint(self.stat_e, bg="field_bg")
+        self.canvas.draw_idle()
 
-        #self.ffs_worker = None
+    def cancel_ffs(self):
+        """wynik liczonego FFS (np. obraz poprzedniego teleskopu) nie zostanie pokazany"""
+        self._ffs_token += 1
 
     def clear(self):
         self.axes.clear()
         self.axes.axis("off")
+        theme.style_figure(self.fig, [self.axes])     # tlo wokol obrazu wg motywu (clear() je zeruje)
         self.canvas.draw_idle()
         self.stat_e.setText("")
 
@@ -43,6 +59,7 @@ class FitsWindow(BaseWindow):
     def plot_image(self):
         self.axes.clear()
         self.axes.axis("off")
+        theme.style_figure(self.fig, [self.axes])     # tlo wokol obrazu wg motywu (clear() je zeruje)
         if self.image is not None and len(self.image)>0:
 
             # skala z co 4. piksela, mean i std raz (wczesniej po 2x z calego obrazu - kazde przelaczenie teleskopu
@@ -84,45 +101,58 @@ class FitsWindow(BaseWindow):
 
     def calc_ffs(self):
         self.ffs = None
-
-        try:
-            self.thread.quit()
-            self.thread.wait()
-            self.ffs_worker.deleteLater()
-        except AttributeError:
-            pass
-        except RuntimeError:
-            pass
+        self._ffs_token += 1        # poprzednie zlecenie (jesli jeszcze liczy) - wynik do kosza
 
         self.saturation = 45000
         if self.parent.active_tel == "jk15":
             self.saturation = 180000
 
-        self.thread = QtCore.QThread()
-        self.ffs_worker = FFS_Worker(self.image,saturation = self.saturation)
-        self.ffs_worker.moveToThread(self.thread)
-        self.thread.started.connect(self.ffs_worker.run)
+        thread = QtCore.QThread()
+        worker = FFS_Worker(self.image, saturation=self.saturation, token=self._ffs_token)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
 
         # obsluga zatrzymania
-        self.ffs_worker.close_signal.connect(self.thread.quit)
-        self.ffs_worker.close_signal.connect(self.ffs_worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
+        worker.close_signal.connect(thread.quit)
+        worker.close_signal.connect(worker.deleteLater)
+        thread.finished.connect(self._ffs_finished)
 
         # robota
-        self.ffs_worker.done_signal.connect(self.ffs_done)
-        self.thread.start()
+        worker.done_signal.connect(self.ffs_done)
+        self._ffs_jobs.append((thread, worker))
+        self.thread, self.ffs_worker = thread, worker
+        thread.start()
 
-    def ffs_done(self,val):
-        self.ffs = val
-        if len(self.ffs.coo) > 1:
-            self.coo = self.ffs.coo
-            self.adu = self.ffs.adu
-            maska1 = numpy.array(self.adu) > self.saturation
-            self.sat_coo = self.coo[maska1]
-        self.update_fits_data()
+    def _ffs_finished(self):
+        # zwalniamy referencje skonczonych watkow (zniszczenie dzialajacego QThread zamyka proces)
+        self._ffs_jobs = [(t, w) for t, w in self._ffs_jobs if not t.isFinished()]
+
+    def ffs_done(self, val, token):
+        # zwykly slot Qt (z watku FFS) - wyjatek stad zamknalby cale TOI
+        if token != self._ffs_token:
+            return      # wynik dla starszego obrazu albo poprzedniego teleskopu
+        try:
+            if val is None:
+                return
+            self.ffs = val
+            if len(self.ffs.coo) > 1:
+                self.coo = self.ffs.coo
+                self.adu = self.ffs.adu
+                maska1 = numpy.array(self.adu) > self.saturation
+                self.sat_coo = self.coo[maska1]
+            self.update_fits_data()
+        except Exception as e:
+            logger.exception(f'TOI FITS: ffs result: {e}')
 
 
     def update_fits_data(self):
+        # wolane tez z ffs_done (zwykly slot) - wyjatek nie moze wyjsc
+        try:
+            self._update_fits_data()
+        except Exception as e:
+            logger.exception(f'TOI FITS: update_fits_data: {e}')
+
+    def _update_fits_data(self):
         if self.parent.active_tel:
             ok = False
             fname = None
@@ -134,6 +164,8 @@ class FitsWindow(BaseWindow):
 
             txt = ""
             txt2 = ""
+            tel = self.parent.active_tel      # gdy brak danych downloadera
+            red = theme.hex("bad_fg")
             try:
                 tel =  self.parent.fits_downloader_data["telescope_id"]
                 date = type = self.parent.fits_downloader_data["param"]["date_obs"]
@@ -145,7 +177,7 @@ class FitsWindow(BaseWindow):
                 n = self.parent.fits_downloader_data["param"]["loop"]
                 ndit = self.parent.fits_downloader_data["param"]["nloops"]
             except Exception as e:
-                print(f"TOI FITS EXCEPTION 1: {e}")
+                logger.warning(f"TOI FITS EXCEPTION 1: {e}")
 
 
             try:
@@ -171,7 +203,7 @@ class FitsWindow(BaseWindow):
                             focus = get_dic(self.parent.fits_ofp_data,"raw","header","FOCUS",default = None)
 
             except Exception as e:
-                print(f"TOI FITS EXCEPTION 2: {e}")
+                logger.warning(f"TOI FITS EXCEPTION 2: {e}")
 
             try:
                 txt = txt + f" {date.split('T')[0]} <br>"
@@ -184,7 +216,7 @@ class FitsWindow(BaseWindow):
                 txt = txt + f" EXP: <b>{exptime}</b> s. <br>"
                 txt = txt + f" <hr> <br>"
             except Exception as e:
-                print(f"TOI FITS EXCEPTION 3: {e}")
+                logger.warning(f"TOI FITS EXCEPTION 3: {e}")
 
             try:
 
@@ -211,7 +243,7 @@ class FitsWindow(BaseWindow):
                     self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")
 
             except Exception as e:
-                print(f"TOI FITS EXCEPTION 3a: {e}")
+                logger.warning(f"TOI FITS EXCEPTION 3a: {e}")
 
 
             if True:
@@ -221,7 +253,7 @@ class FitsWindow(BaseWindow):
 
                     fwhm = self.ffs.stats["frame"]["fwhm"]
 
-                    if self.parent.nats_cfg[tel]["pixel_scale"]:
+                    if (self.parent.nats_cfg.get(tel) or {}).get("pixel_scale"):
                         px = self.parent.nats_cfg[tel]["pixel_scale"]
                         fwhm_arcsec = fwhm * px
 
@@ -240,16 +272,17 @@ class FitsWindow(BaseWindow):
                     bkg_ampl = self.ffs.stats["frame"]["bkg_max_amplitude"]
                     frame_ampl = self.ffs.stats["frame"]["bkg_frame_gradient"]
 
-                    if abs(bkg_ampl/frame_median) > 0.1:
-                        txt = txt + f'<span style="color:red;">WARNING</span>: bkg amplitude: <span style="color:red;"><b>{bkg_ampl:.0f}</b></span> <br>'
-                    if abs(frame_ampl/frame_median) > 0.1:
-                        txt = txt + f'<span style="color:red;">WARNING</span>: frame gradient: <span style="color:red;"><b>{frame_ampl:.0f}</b></span><br>'
+                    # mediana 0 (pusta / dziwna klatka) - bez dzielenia
+                    if frame_median and abs(bkg_ampl/frame_median) > 0.1:
+                        txt = txt + f'<span style="color:{red};">WARNING</span>: bkg amplitude: <span style="color:{red};"><b>{bkg_ampl:.0f}</b></span> <br>'
+                    if frame_median and abs(frame_ampl/frame_median) > 0.1:
+                        txt = txt + f'<span style="color:{red};">WARNING</span>: frame gradient: <span style="color:{red};"><b>{frame_ampl:.0f}</b></span><br>'
 
                     if fwhm_arcsec:
                         if fwhm_arcsec > 2.3:
-                            txt = txt + f'FWHM:  <span style="color:red;"><b>{fwhm:.1f}</b></span> px'
+                            txt = txt + f'FWHM:  <span style="color:{red};"><b>{fwhm:.1f}</b></span> px'
                             if fwhm_arcsec:
-                                txt = txt + f'&nbsp; &nbsp; (<span style="color:red;"><b>{fwhm_arcsec:.1f}</b></span> arcsec) '
+                                txt = txt + f'&nbsp; &nbsp; (<span style="color:{red};"><b>{fwhm_arcsec:.1f}</b></span> arcsec) '
                         else:
                             txt = txt + f'FWHM:  <b>{fwhm:.1f}</b> px'
                             if fwhm_arcsec:
@@ -261,17 +294,15 @@ class FitsWindow(BaseWindow):
 
                     txt = txt + "<br>"
 
-                    if ell:
-                        if ell > 0.1:
-                            txt = txt + f'ellipse:  <span style="color:red;"><b>{ell:.2f}</b></span> <br>'
-                        else:
-                            txt = txt + f'ellipse:  <b>{ell:.2f}</b> <br>'
+                    num = lambda v: "--" if v is None else f"{v:.2f}"     # FFS daje None przy malej liczbie gwiazd
+                    if ell is not None and ell > 0.1:
+                        txt = txt + f'ellipse:  <span style="color:{red};"><b>{ell:.2f}</b></span> <br>'
                     else:
-                        txt = txt + f'ellipse:  <b>{ell:.2f}</b> <br>'
+                        txt = txt + f'ellipse:  <b>{num(ell)}</b> <br>'
 
-                    txt = txt + f'shape:  <b>{shape:.2f}</b> <br>'
-                    txt = txt + f'cpe:  <b>{cpe:.2f}</b> <br>'
-                    txt = txt + f'ci:  <b>{ci:.2f}</b> <br>'
+                    txt = txt + f'shape:  <b>{num(shape)}</b> <br>'
+                    txt = txt + f'cpe:  <b>{num(cpe)}</b> <br>'
+                    txt = txt + f'ci:  <b>{num(ci)}</b> <br>'
                     txt = txt + "<br>"
 
                     if len(self.coo)>0:
@@ -308,7 +339,7 @@ class FitsWindow(BaseWindow):
                         txt = txt + " <b>OFP TARGETS</b>  <br>"
                         txt = txt + txt2
                 except Exception as e:
-                    print(f"TOI FITS EXCEPTION 5: {e}")
+                    logger.warning(f"TOI FITS EXCEPTION 5: {e}")
 
                 self.stat_e.setHtml(txt)
             self.canvas.draw_idle()
@@ -320,6 +351,7 @@ class FitsWindow(BaseWindow):
 
         self.axes.clear()
         self.axes.axis("off")
+        theme.style_figure(self.fig, [self.axes])     # tlo wokol obrazu wg motywu (clear() je zeruje)
         self.canvas.draw_idle()
         self.stat_e.setText("")
 
@@ -346,7 +378,7 @@ class FitsWindow(BaseWindow):
 
         self.stat_e=QTextEdit()
         self.stat_e.setReadOnly(True)
-        self.stat_e.setStyleSheet("background-color: rgb(235,235,235);")
+        theme.paint(self.stat_e, bg="field_bg")
         font=QtGui.QFont("Courier New",9)
         self.stat_e.setFont(font)
         self.stat_e.setMaximumWidth(300)
@@ -359,6 +391,7 @@ class FitsWindow(BaseWindow):
         self.setLayout(grid)
 
         self.axes.clear()
+        theme.style_figure(self.fig, [self.axes])
         self.resize(400, 500)
         self.canvas.draw_idle()
         self.show()
@@ -366,18 +399,23 @@ class FitsWindow(BaseWindow):
 
 class FFS_Worker(QtCore.QObject):
     close_signal = QtCore.pyqtSignal()
-    done_signal = QtCore.pyqtSignal(FFS)
+    done_signal = QtCore.pyqtSignal(object, int)      # wynik FFS (None przy bledzie), numer zlecenia
 
-    def __init__(self, image, saturation = 45000):
+    def __init__(self, image, saturation = 45000, token=0):
         super(FFS_Worker, self).__init__()
         self.image = np.transpose(image)
         self.saturation = saturation
+        self.token = token
 
     def run(self):
-        self.ffs = FFS(self.image)
-        self.ffs.saturation = self.saturation
-        self.ffs.calc_frame_fwhm(threshold=10, fwhm=5, box=15, N_stars=50, clip=4)
-        self.ffs.sky_gradient(n_segments=7)
-
-        self.done_signal.emit(self.ffs)
+        # w watku QThread: wyjatek stad zamknalby cale TOI
+        try:
+            self.ffs = FFS(self.image)
+            self.ffs.saturation = self.saturation
+            self.ffs.calc_frame_fwhm(threshold=10, fwhm=5, box=15, N_stars=50, clip=4)
+            self.ffs.sky_gradient(n_segments=7)
+        except Exception as e:
+            logger.warning(f'TOI FITS: FFS failed: {e!r}')
+            self.ffs = None
+        self.done_signal.emit(self.ffs, self.token)
         self.close_signal.emit()

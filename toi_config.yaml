@@ -15,7 +15,7 @@ toi:
   master_fresh_days:      # last master zero / dark younger than this -> green
     zeros: 0.5
     darks: 30
-  master_max_days:        # up to this -> grey; older -> red if an object was observed within this time, else orange
+  master_max_days:        # up to this -> no colour (like flats); older -> red if an object was observed within this time, else orange
     zeros: 1
     darks: 60             # darks are taken when there is no weather; a second month is still fine
 

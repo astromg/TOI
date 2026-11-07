@@ -1025,15 +1025,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.telescope_switch_status["gain"] = False
 
 
-        try:
-            #await self.fitsGui.thread.stop()
-            self.fitsGui.thread.quit()
-            self.fitsGui.thread.wait()
-            self.fitsGui.ffs_worker.stop()
-            self.fitsGui.ffs_worker.quit()
-            self.fitsGui.ffs_worker.wait()
-        except (AttributeError, RuntimeError):
-            pass
+        # FFS obrazu poprzedniego teleskopu: bez czekania (wait() stawial GUI do konca liczenia), wynik do kosza
+        self.fitsGui.cancel_ffs()
 
 
         # to sa zmienne dla guidera
@@ -1312,7 +1305,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.flat', deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in reader:
                 self.flat_log.append(data)
-                self.flatGui.updateUI()
+                self.flatGui.schedule_update()      # seria rekordow po zmianie teleskopu - jedno rysowanie
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
