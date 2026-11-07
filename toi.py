@@ -773,10 +773,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.dome_follow_all.update(changed)
             self.obsGui.main_form.update_table()
 
-    # lampki na gorze okna obserwacji odpytywane po kolei, od lewej, jedna na sekunde: TIC, NATS, DOME FLW, FITS DWL,
-    # OFP, FLAT OW, WEATHER OW, ALLSKY OW - kazdy serwis co 8 s, mrugniecie (MainForm.beat) przesuwa sie fala.
+    # lampki na gorze okna obserwacji odpytywane po kolei, od lewej, co pol sekundy: TIC, NATS, DOME FLW, FITS DWL,
+    # OFP, FLAT OW, WEATHER OW, ALLSKY OW - kazdy serwis co 4 s, mrugniecie (MainForm.beat) przesuwa sie fala.
     # Pytanie idzie jako osobne zadanie, wiec serwis, ktory nie odpowiada (timeout 3 s), nie zatrzymuje fali
-    LAMP_STEP = 1.0     # s miedzy kolejnymi lampkami
+    LAMP_STEP = 0.5     # s miedzy kolejnymi lampkami (8 lampek - kazda co 4 s)
 
     async def lamps_loop(self):
         f = self.obsGui.main_form
@@ -805,7 +805,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                                     self.obsGui.main_form.ofpStatus_l):
                 return      # w trakcie pytania zmienil sie teleskop - odpowiedz dotyczy poprzedniego
             color = {True: "ok_fg", False: "bad_fg", "wait": "muted_fg", "reconnect": "warn2_fg"}[ok]
-            lamp.setStyleSheet(f"color: {theme.c(color)};")
+            self.obsGui.main_form.set_lamp(lamp, color)
             if ok is True:
                 self.obsGui.main_form.beat(lamp)
         except asyncio.CancelledError:
@@ -1211,8 +1211,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.fitsGui.updateUI()
 
             if not bool(self.cfg_showRotator):
-                self.set_led(self.mntGui.comRotator1_l, self.LED_NA)
-                self.mntGui.telRotator1_l.setStyleSheet(f"color: {self.LED_NA};")
+                self.set_led(self.mntGui.comRotator1_l, "muted_fg")
+                theme.paint(self.mntGui.telRotator1_l, fg="muted_fg")
 
             self.updateWeather()
 
@@ -1455,12 +1455,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     if bool(self.cfg_showRotator):
                         leds.append((self.rotator_con, m.comRotator1_l, m.telRotator1_l))
                     else:
-                        self.set_led(m.comRotator1_l, self.LED_NA)
-                        m.telRotator1_l.setStyleSheet(f"color: {self.LED_NA};")
+                        self.set_led(m.comRotator1_l, "muted_fg")
+                        theme.paint(m.telRotator1_l, fg="muted_fg")
                     for con, led, name in leds:
-                        color = self.LED_ON if con and self.tel_alpaca_con else self.LED_OFF
+                        # paint nie przelicza stylu, gdy stan sie nie zmienil
+                        color = "ok_fg" if con and self.tel_alpaca_con else "bad_fg"
                         self.set_led(led, color)
-                        name.setStyleSheet(f"color: {color};")
+                        theme.paint(name, fg=color)
 
                     # kamera: kolor tytulu jej zakladki w oknie instrumentu
                     color = self.LED_ON if self.inst_con and self.tel_alpaca_con else self.LED_OFF
@@ -3307,15 +3308,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         if status == None:
             self.mntGui.SafetySwitch_l.setText("SAFETY CUTOFF ERROR")
-            self.mntGui.SafetySwitch_l.setStyleSheet(" color: rgb(150, 5, 5); font-weight: bold;")
+            theme.paint(self.mntGui.SafetySwitch_l, fg="bad_fg", extra="font-weight: bold;")
         elif status == False:
             self.mntGui.SafetySwitch_l.setText("SAFETY CUTOFF OFF")
             self.mntGui.SafetySwitch_c.setChecked(False)
-            self.mntGui.SafetySwitch_l.setStyleSheet(" color: rgb(0, 0, 0); font-weight: normal;")
+            theme.paint(self.mntGui.SafetySwitch_l, fg="text", extra="font-weight: normal;")
         elif status == True:
             self.mntGui.SafetySwitch_l.setText("SAFETY CUTOFF ON")
             self.mntGui.SafetySwitch_c.setChecked(True)
-            self.mntGui.SafetySwitch_l.setStyleSheet(" color: rgb(200, 120, 0); font-weight: bold;")
+            theme.paint(self.mntGui.SafetySwitch_l, fg="warn2_fg", extra="font-weight: bold;")
 
 
 
@@ -3383,17 +3384,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            if self.cover_status==3:
                self.mntGui.telCovers_c.setChecked(True)
                txt="OPEN"
-               self.mntGui.telCovers_e.setStyleSheet("color: rgb(0,150,0); background-color: rgb(233, 233, 233);")
+               theme.paint(self.mntGui.telCovers_e, fg="ok_fg", bg="field_bg")
            elif self.cover_status==1:
                self.mntGui.telCovers_c.setChecked(False)
                txt="CLOSED"
-               self.mntGui.telCovers_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+               theme.paint(self.mntGui.telCovers_e, bg="field_bg")
            elif self.cover_status==2:
                txt="MOVING"
-               self.mntGui.telCovers_e.setStyleSheet("color: rgb(255, 165, 0); background-color: rgb(233, 233, 233);")
+               theme.paint(self.mntGui.telCovers_e, fg="moving_fg", bg="field_bg")
            else:
                txt="UNKNOWN"
-               self.mntGui.telCovers_e.setStyleSheet("color: rgb(233, 0, 0); background-color: rgb(233, 233, 233);")
+               theme.paint(self.mntGui.telCovers_e, fg="bad_fg", bg="field_bg")
 
            self.mntGui.telCovers_e.setText(txt)
            if self.skyGui.skyView:
@@ -3406,7 +3407,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.tel_acces[self.active_tel]:
             if self.mount.motorstatus == "true":
                 #self.mntGui.mntStat_e.setText(txt)
-                self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,0,0); background-color: rgb(233, 233, 233);")
+                theme.paint(self.mntGui.mntStat_e, fg="bad_fg", bg="field_bg", extra=self.mntGui.STAT_STYLE)
                 await self.dome.aput_dome_follower_off()
                 await self.mount.aput_park()
                 await self.dome.aput_slewtoazimuth(180.)
@@ -3522,22 +3523,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def mount_update(self):
         if not self.mount_motortatus:
-            txt = "SLEWING, TRACKING"
-            self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+            txt = "MOTORS OFF"
+            theme.paint(self.mntGui.mntStat_e, bg="field_bg", extra=self.mntGui.STAT_STYLE)
         elif self.mount_slewing and self.mount_tracking:
             txt="SLEWING, TRACKING"
-            self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+            theme.paint(self.mntGui.mntStat_e, fg="moving_fg", bg="field_bg", extra=self.mntGui.STAT_STYLE)
             self.mntGui.tracking_c.setChecked(True)
         elif self.mount_slewing:
             txt="SLEWING"
-            self.mntGui.mntStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+            theme.paint(self.mntGui.mntStat_e, fg="moving_fg", bg="field_bg", extra=self.mntGui.STAT_STYLE)
         elif self.mount_tracking:
             txt="TRACKING"
-            self.mntGui.mntStat_e.setStyleSheet("color: rgb(0,150,0); background-color: rgb(233, 233, 233);")
+            theme.paint(self.mntGui.mntStat_e, fg="ok_fg", bg="field_bg", extra=self.mntGui.STAT_STYLE)
             self.mntGui.tracking_c.setChecked(True)
         else:
             txt="IDLE"
-            self.mntGui.mntStat_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+            theme.paint(self.mntGui.mntStat_e, bg="field_bg", extra=self.mntGui.STAT_STYLE)
             self.mntGui.tracking_c.setChecked(False)
         self.mntGui.mntStat_e.setText(txt)
         #self.obsGui.main_form.skyView.updateMount()
@@ -3545,17 +3546,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.skyGui.skyView.updateMount()
 
         if self.mount_slewing:
-            self.mntGui.mntAz_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
-            self.mntGui.mntAlt_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
-            self.mntGui.mntRa_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
-            self.mntGui.mntDec_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+            theme.paint(self.mntGui.mntAz_e, bg="moving_bg")
+            theme.paint(self.mntGui.mntAlt_e, bg="moving_bg")
+            theme.paint(self.mntGui.mntRa_e, bg="moving_bg")
+            theme.paint(self.mntGui.mntDec_e, bg="moving_bg")
             self.guider_passive_dx=[]
             self.guider_passive_dy=[]
         else:
-            self.mntGui.mntAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-            self.mntGui.mntAlt_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-            self.mntGui.mntRa_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-            self.mntGui.mntDec_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            theme.paint(self.mntGui.mntAz_e, bg="field_bg")
+            theme.paint(self.mntGui.mntAlt_e, bg="field_bg")
+            theme.paint(self.mntGui.mntRa_e, bg="field_bg")
+            theme.paint(self.mntGui.mntDec_e, bg="field_bg")
 
     async def ra_update(self, event):
         self.mount_ra = await self.mount.aget_ra()
@@ -3591,16 +3592,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                self.mntGui.mntAirmass_e.setText("")
 
     def target_changed(self):
-        self.mntGui.target_e.setStyleSheet("background-color: rgb(234, 245, 249); color: black;")
+        theme.paint(self.mntGui.target_e, bg="input_edit_bg")
+    _ob_validator = None    # walidator OB dla pola SEARCH (schematy wczytane raz)
+
     def target_provided(self):
+        # zwykly slot Qt (editingFinished): wyjatek stad zamknalby cale TOI
         target = self.mntGui.target_e.text()
-
-        BASE_SCHEMA = ObsValidator.load_schema("base_schema")
-        COMMAND_RULES = ObsValidator.load_schema("base_rules.yaml")
-
-        validator = ObsValidator(BASE_SCHEMA, COMMAND_RULES)
-        result = validator.validate_txt(target, allowed_filters=self.nats_cfg[self.active_tel]["filter_list_names"])
         try:
+            if TOI._ob_validator is None:
+                TOI._ob_validator = ObsValidator(ObsValidator.load_schema("base_schema"),
+                                                 ObsValidator.load_schema("base_rules.yaml"))
+            result = TOI._ob_validator.validate_txt(
+                target, allowed_filters=self.nats_cfg[self.active_tel]["filter_list_names"])
             if result["result"]:
                 ob = result["data"]
                 if "ra" in ob.keys():
@@ -3613,8 +3616,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     self.instGui.ccd_tab.inst_Seq_e.setText(ob["seq"])
                 self.mntGui.setEq_r.setChecked(True)
                 self.mntGui.updateNextRaDec()
-        except IndexError: pass
-        self.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
+        except Exception as e:
+            logger.warning(f'TOI: SEARCH "{target}": {e!r}')
+            theme.paint(self.mntGui.target_e, bg="warn2_bg")
+            return
+        theme.paint(self.mntGui.target_e, bg="input_bg")
 
     @qs.asyncSlot()
     async def pulse_up(self):
@@ -3807,30 +3813,30 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            self.dome_shutterstatus=await self.dome.aget_shutterstatus()
            if self.dome_shutterstatus==0:
               txt="OPEN"
-              self.mntGui.domeShutter_e.setStyleSheet("color: rgb(0,150,0); background-color: rgb(233, 233, 233);")
+              theme.paint(self.mntGui.domeShutter_e, fg="ok_fg", bg="field_bg")
               self.mntGui.domeShutter_c.setChecked(True)
               #self.obsGui.main_form.skyView.updateDome()
 
            elif self.dome_shutterstatus==1:
                 txt="CLOSED"
-                self.mntGui.domeShutter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+                theme.paint(self.mntGui.domeShutter_e, bg="field_bg")
                 self.mntGui.domeShutter_c.setChecked(False)
                 #self.obsGui.main_form.skyView.updateDome()
 
            elif self.dome_shutterstatus==2:
                 txt="OPENING"
-                self.mntGui.domeShutter_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+                theme.paint(self.mntGui.domeShutter_e, fg="moving_fg", bg="field_bg")
                 #self.obsGui.main_form.skyView.updateDome()
 
 
            elif self.dome_shutterstatus==3:
                 txt="CLOSING"
-                self.mntGui.domeShutter_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+                theme.paint(self.mntGui.domeShutter_e, fg="moving_fg", bg="field_bg")
                 #self.obsGui.main_form.skyView.updateDome()
 
            else:
                 txt="UNKNOWN"
-                self.mntGui.domeShutter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+                theme.paint(self.mntGui.domeShutter_e, bg="field_bg")
                 #self.obsGui.main_form.skyView.updateDome()
            if self.skyGui.skyView:
                self.skyGui.skyView.updateDome()
@@ -3840,12 +3846,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.dome_status=await self.dome.aget_slewing()
         if self.dome_status==False:
             txt="STOPPED"
-            self.mntGui.domeStat_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-            self.mntGui.domeAz_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+            theme.paint(self.mntGui.domeStat_e, bg="field_bg")
+            theme.paint(self.mntGui.domeAz_e, bg="field_bg")
         elif self.dome_status==True:
             txt="MOVING"
-            self.mntGui.domeStat_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
-            self.mntGui.domeAz_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+            theme.paint(self.mntGui.domeStat_e, fg="moving_fg", bg="field_bg")
+            theme.paint(self.mntGui.domeAz_e, bg="moving_bg")
 
         else: txt="UNKNOWN"
         self.mntGui.domeStat_e.setText(txt)
@@ -3870,8 +3876,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if dome_next_az == None or dome_next_az == "":
             self.dome_next_az_ok = None
         if self.dome_next_az_ok or self.dome_next_az_ok == None:
-            self.mntGui.domeNextAz_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
-        else: self.mntGui.domeNextAz_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+            theme.paint(self.mntGui.domeNextAz_e, bg="input_bg")
+        else: theme.paint(self.mntGui.domeNextAz_e, bg="warn2_bg")
 
 
     @qs.asyncSlot()
@@ -3917,7 +3923,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if r is None:
             # no fresh data (Staleness Contract): render unknown, publish NOTHING
             self.mntGui.ventilators_e.setText("--")
-            self.mntGui.ventilators_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+            theme.paint(self.mntGui.ventilators_e, bg="field_bg")
             return
         self.dome_fanStatus = bool(r)
         self.mntGui.ventilators_c.setChecked(self.dome_fanStatus)
@@ -3926,7 +3932,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.tel_acces[tel]:
             await self.publish_op_state(tel, "dome_ventilators", self.dome_fanStatus)
         self.mntGui.ventilators_e.setText(txt)
-        self.mntGui.ventilators_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+        theme.paint(self.mntGui.ventilators_e, bg="field_bg")
 
     async def publish_op_state(self, tel, key, state):
         """Stan urzadzenia w tic.status.<tel>.toi.status. Publikujemy, gdy obserwowany stan rozni sie od tego NA NATS
@@ -3965,7 +3971,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            r = await self.focus.aget_fansstatus()
            if r is None:
                self.mntGui.mirrorFans_e.setText("--")
-               self.mntGui.mirrorFans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+               theme.paint(self.mntGui.mirrorFans_e, bg="field_bg")
                return
            self.mirror_fanStatus = (r == "True")
            self.mntGui.mirrorFans_c.setChecked(self.mirror_fanStatus)
@@ -3974,7 +3980,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            if self.tel_acces[tel]:
                await self.publish_op_state(tel, "mirror_fans", self.mirror_fanStatus)
            self.mntGui.mirrorFans_e.setText(txt)
-           self.mntGui.mirrorFans_e.setStyleSheet("color: black; background-color: rgb(233, 233, 233);")
+           theme.paint(self.mntGui.mirrorFans_e, bg="field_bg")
 
 
     @qs.asyncSlot()
@@ -3986,7 +3992,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                await self.mount.aput_domelamp_on()
                await self.update_log(f'turning flat lamps ON', "TOI RESPONDER", self.active_tel)
                self.mntGui.flatLights_e.setText("no feedback")
-               self.mntGui.flatLights_e.setStyleSheet("color: rgb(204,82,0); background-color: rgb(233, 233, 233);")
+               theme.paint(self.mntGui.flatLights_e, fg="moving_fg", bg="field_bg")
                if self.tel_acces[self.active_tel]:
                    self.toi_op_status[self.active_tel]["flat_lamps"]["state"] = True
                    await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
@@ -3994,7 +4000,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                await self.mount.aput_domelamp_off()
                await self.update_log(f'turning flat lamps OFF', "TOI RESPONDER", self.active_tel)
                self.mntGui.flatLights_e.setText("")
-               self.mntGui.flatLights_e.setStyleSheet("color: rgb(0,0,0); background-color: rgb(233, 233, 233);")
+               theme.paint(self.mntGui.flatLights_e, bg="field_bg")
                if self.tel_acces[self.active_tel]:
                    self.toi_op_status[self.active_tel]["flat_lamps"]["state"] = False
                    await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
@@ -4047,7 +4053,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.update_log(f'SET focus', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
            self.focus_editing=False
-           self.mntGui.setFocus_s.setStyleSheet("background-color: rgb(255, 255, 255);")
+           theme.paint(self.mntGui.setFocus_s, bg="input_bg")
            val=self.mntGui.setFocus_s.value()
            await self.focus_move(self.active_tel, val, "manual")
            await self.update_log(f'setting focus to {val}', "TOI RESPONDER", self.active_tel)
@@ -4234,14 +4240,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.mntGui.telFocus_e.setText(str(self.focus_value))
             if self.focus_moving != None:
                 if self.focus_moving:
-                    self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;") # blue
+                    theme.paint(self.mntGui.telFocus_e, bg="moving_bg") # blue
                 elif target is not None and abs(target - self.focus_value) > 10:
-                    self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")  # yellow
+                    theme.paint(self.mntGui.telFocus_e, bg="warn2_bg")  # yellow
                 else:
-                    self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;") # white
+                    theme.paint(self.mntGui.telFocus_e, bg="field_bg") # white
         else:
             self.mntGui.telFocus_e.setText(f"ERROR")
-            self.mntGui.telFocus_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
+            theme.paint(self.mntGui.telFocus_e, fg="bad_fg", bg="field_bg")
 
 
     # ############### M3 #####################
@@ -4294,13 +4300,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             # print(status)
             # print("=======================")
             if moving:
-                self.mntGui.telM3_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")  # blue
+                theme.paint(self.mntGui.telM3_e, bg="moving_bg")  # blue
             else:
-                self.mntGui.telM3_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")  # white
+                theme.paint(self.mntGui.telM3_e, bg="field_bg")  # white
 
             if error:
                 self.mntGui.telM3_e.setText(f"ERROR")
-                self.mntGui.telM3_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);")
+                theme.paint(self.mntGui.telM3_e, fg="bad_fg", bg="field_bg")
 
             if self.m3_name != None:
                 if self.inst_tab_switch:
@@ -4335,7 +4341,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             pos = await self.fw.aget_position()
             if pos is None:
                 self.mntGui.telFilter_e.setText("--")
-                self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+                theme.paint(self.mntGui.telFilter_e, bg="moving_bg")
                 return
             pos = int(pos)
             self.curent_filter=self.filter_list[pos]
@@ -4345,8 +4351,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.filter = filtr
 
             if pos == -1:
-                self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
-            else: self.mntGui.telFilter_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+                theme.paint(self.mntGui.telFilter_e, bg="moving_bg")
+            else: theme.paint(self.mntGui.telFilter_e, bg="field_bg")
             self.telescope_switch_status["filters"] = True
 
 
@@ -4381,7 +4387,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             field.setStyleSheet(style)
         # kat mechaniczny w 10 deg od miekkiego limitu ASA (+-160) - zolte tlo, takze w ruchu
         if self.rotator_mechpos is not None and abs((self.rotator_mechpos + 180) % 360 - 180) > 150:
-            self.mntGui.telRotator1_e.setStyleSheet("background-color: rgb(255, 220, 0); color: black;")
+            theme.paint(self.mntGui.telRotator1_e, bg="warn_bg")
         self.rotator_pos_prev = self.rotator_pos
 
     @qs.asyncSlot()
@@ -4642,11 +4648,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.update_table()
 
     # dioda stanu: znak ● w kolorze stanu
+    # kolory zakladki kamery w oknie instrumentu (QColor) - okno Mount uzywa juz kluczy toi_theme
     LED_ON, LED_OFF, LED_NA = "#009600", "#960000", "#bebebe"   # hex: dziala i w stylesheet, i w QColor
 
-    def set_led(self, widget, color):
-        widget.setText("\u25CF")
-        widget.setStyleSheet(f"color: {color}; font-size: 14pt;")
+    def set_led(self, widget, color_key):
+        # dioda: znak ● w kolorze klucza toi_theme
+        if widget.text() != "\u25CF":
+            widget.setText("\u25CF")
+        theme.paint(widget, fg=color_key, extra="font-size: 14pt;")
 
 
     def reset_ob(self,tel):

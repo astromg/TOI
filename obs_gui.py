@@ -460,6 +460,11 @@ class MainForm(QWidget):
 
     LAMP_BEAT = 300     # ms - tyle trwa mrugniecie lampki
 
+    def set_lamp(self, lamp, color_key):
+        """kolor lampki wg klucza toi_theme; klucz zapamietany, zeby apply_theme przemalowal ja od razu"""
+        lamp.lamp_color = color_key
+        lamp.setStyleSheet(f"color: {theme.c(color_key)};")
+
     def beat(self, lamp):
         """jedno mrugniecie lampki: na chwile jasniejsza zielen - serwis wlasnie odpowiedzial"""
         flash = f"color: {theme.c('ok_beat_fg')};"
@@ -635,6 +640,8 @@ class MainForm(QWidget):
 
     def apply_theme(self):
         # pola przemalowuja ich petle (almanac co 1 s, pogoda, lampki), tu tylko to, co inaczej zostaloby stare
+        for lamp in self.lamps:
+            self.set_lamp(lamp, lamp.lamp_color)
         for field in self.plain_fields + (self.temp_e, self.hummidity_e, self.wind_e, self.windDir_e,
                                           self.fwhm_e, self.zeropoint_e, self.clouds_e):
             field.setStyleSheet(theme.field_style())
@@ -680,14 +687,14 @@ class MainForm(QWidget):
     def set_hints(self):
         # okienka z wyjasnieniem po najechaniu na pole; Wind/Direction dopisuja limity w TOI.wind_field_style
         hints = {
-            "ticStatus2": "TIC server, checked every 8 s.",
-            "natsStatus": "TOI connection to NATS, checked every 8 s. Orange: reconnecting.",
-            "followerStatus": "Dome follower of the active telescope: heartbeat every 10 s, checked every 8 s. Red: none for 30 s.",
-            "downloaderStatus": "OFP downloader of the active telescope, asked every 8 s (alive RPC).",
-            "ofpStatus": "OFP pipeline of the active telescope, asked every 8 s (alive RPC).",
-            "flatOwStatus": "flat_overwatch, asked every 8 s (alive RPC). Grey: no subject in toi_config.yaml.",
-            "weatherOwStatus": "weather_overwatch, asked every 8 s (alive RPC). Grey: no subject in toi_config.yaml.",
-            "allskyOwStatus": "allsky_overwatch (clouds from the allsky camera), asked every 8 s (alive RPC). Grey: no subject in toi_config.yaml.",
+            "ticStatus2": "TIC server, checked every 4 s.",
+            "natsStatus": "TOI connection to NATS, checked every 4 s. Orange: reconnecting.",
+            "followerStatus": "Dome follower of the active telescope: heartbeat every 10 s, checked every 4 s. Red: none for 30 s.",
+            "downloaderStatus": "OFP downloader of the active telescope, asked every 4 s (alive RPC).",
+            "ofpStatus": "OFP pipeline of the active telescope, asked every 4 s (alive RPC).",
+            "flatOwStatus": "flat_overwatch, asked every 4 s (alive RPC). Grey: no subject in toi_config.yaml.",
+            "weatherOwStatus": "weather_overwatch, asked every 4 s (alive RPC). Grey: no subject in toi_config.yaml.",
+            "allskyOwStatus": "allsky_overwatch (clouds from the allsky camera), asked every 4 s (alive RPC). Grey: no subject in toi_config.yaml.",
             "temp": "Davis weather station. Red below -1 °C.",
             "hummidity": f"Davis weather station. Red above {self.parent.cfg_humidity_limit} % or rain.",
             "wind": "Davis weather station.",
@@ -714,7 +721,6 @@ class MainForm(QWidget):
         # lampki polaczen obok siebie, od lewej
         self.ticStatus2_l = QLabel("\u2665  TIC")
         self.natsStatus_l = QLabel("\u2665  NATS")
-        self.natsStatus_l.setStyleSheet(f"color: {theme.c('bad_fg')};")
         # serwisy aktywnego teleskopu; szare, dopoki nic o nich nie wiemy
         # krotkie nazwy, zeby caly wiersz sie miescil - pelne w podpowiedziach
         self.followerStatus_l = QLabel("\u2665 DOME FLW")
@@ -729,10 +735,13 @@ class MainForm(QWidget):
         status_box.setSpacing(12)
         lamps = (self.ticStatus2_l, self.natsStatus_l, self.followerStatus_l, self.downloaderStatus_l,
                  self.ofpStatus_l, self.flatOwStatus_l, self.weatherOwStatus_l, self.allskyOwStatus_l)
+        self.lamps = lamps
         for lamp in lamps:
             status_box.addWidget(lamp)
+        self.set_lamp(self.ticStatus2_l, "idle_fg")
+        self.set_lamp(self.natsStatus_l, "bad_fg")
         for lamp in lamps[2:]:
-            lamp.setStyleSheet(f"color: {theme.c('muted_fg')};")
+            self.set_lamp(lamp, "muted_fg")
 
         status_box.addStretch(1)
         grid.addLayout(status_box, w, 0, 1, 8)

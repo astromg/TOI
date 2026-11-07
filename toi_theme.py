@@ -38,6 +38,9 @@ THEMES = {
         "idle_fg": "black",
         # tabela teleskopow: dawne kolory (inny kod niz reszta - ruch pomaranczowy, nie niebieski), patrz tab_* nizej
         "tab_ok": "rgb(0, 150, 0)", "tab_moving": "rgb(255, 160, 0)", "tab_error": "rgb(150, 0, 0)",
+        # okno Mount: pola do wpisywania, tlo w ruchu, napis w ruchu (SLEWING - dawny pomaranczowy, zostaje)
+        "input_bg": "white", "input_edit_bg": "rgb(234, 245, 249)", "moving_bg": "rgb(136, 142, 228)",
+        "moving_fg": "rgb(204, 82, 0)", "warn_soft_bg": "rgb(240, 232, 151)",
         "tab_icon_ok": "darkgreen", "tab_icon_bad": "red", "tab_icon_warn": "darkorange", "tab_icon_warn2": "orange",
     },
     # ciemny i przygaszony, zeby nie oslepiac w nocy; znaczenie kolorow bez zmian (czerwony = zle)
@@ -55,6 +58,8 @@ THEMES = {
         "change_bg": "rgb(35, 60, 105)", "change_fg": "rgb(100, 140, 210)",
         "idle_fg": "rgb(170, 170, 160)",
         "tab_ok": "rgb(70, 150, 70)", "tab_moving": "rgb(200, 130, 40)", "tab_error": "rgb(190, 60, 60)",
+        "input_bg": "rgb(62, 62, 66)", "input_edit_bg": "rgb(50, 62, 72)", "moving_bg": "rgb(50, 55, 110)",
+        "moving_fg": "rgb(200, 120, 50)", "warn_soft_bg": "rgb(95, 88, 35)",
         "tab_icon_ok": "rgb(70, 150, 70)", "tab_icon_bad": "rgb(190, 60, 60)", "tab_icon_warn": "rgb(190, 110, 30)",
         "tab_icon_warn2": "rgb(200, 140, 50)",
     },
@@ -72,6 +77,8 @@ THEMES = {
         "change_bg": "rgb(0, 190, 255)", "change_fg": "rgb(80, 210, 255)",
         "idle_fg": "rgb(240, 230, 255)",
         "tab_ok": "rgb(60, 255, 160)", "tab_moving": "rgb(255, 170, 40)", "tab_error": "rgb(255, 80, 120)",
+        "input_bg": "rgb(95, 55, 135)", "input_edit_bg": "rgb(110, 70, 160)", "moving_bg": "rgb(60, 120, 255)",
+        "moving_fg": "rgb(255, 150, 40)", "warn_soft_bg": "rgb(230, 215, 90)",
         "tab_icon_ok": "rgb(60, 255, 160)", "tab_icon_bad": "rgb(255, 80, 120)", "tab_icon_warn": "rgb(255, 140, 0)",
         "tab_icon_warn2": "rgb(255, 180, 60)",
     },
@@ -113,6 +120,34 @@ class Theme:
         fg = self.c("field_fg") if bg_key == "field_bg" else self.bg_text()
         return f"color: {fg}; background-color: {self.c(bg_key)};"
 
+    def css(self, fg=None, bg=None, extra=""):
+        parts = []
+        if fg is not None:
+            parts.append(f"color: {self.c(fg)};")
+        if bg is not None:
+            if fg is None:      # tekst czytelny na tle
+                parts.append(f"color: {self.c('field_fg')};")
+            parts.append(f"background-color: {self.c(bg)};")
+        if extra:
+            parts.append(extra)
+        return " ".join(parts)
+
+    def paint(self, widget, fg=None, bg=None, extra=""):
+        """kolory widzetu wg kluczy motywu (fg - tekst, bg - tlo, extra - reszta stylesheetu). Klucze sa zapamietane
+        na widzecie: zmiana motywu przemalowuje go sama, a powtorne malowanie tymi samymi kluczami nic nie kosztuje
+        (petle odswiezajace co kilka sekund nie przeliczaja stylu)"""
+        keys = (fg, bg, extra, self.name)
+        if getattr(widget, "_theme_paint", None) == keys:
+            return
+        widget._theme_paint = keys
+        widget.setStyleSheet(self.css(fg, bg, extra))
+
+    def repaint_all(self):
+        for w in QApplication.allWidgets():
+            keys = getattr(w, "_theme_paint", None)
+            if keys is not None:
+                self.paint(w, *keys[:3])
+
     def on_change(self, f):
         self._listeners.append(f)
 
@@ -122,6 +157,7 @@ class Theme:
         self.name = name
         QSettings("OCA", "TOI").setValue("theme", name)
         self.apply_palette()
+        self.repaint_all()
         for f in self._listeners:
             f()
 
@@ -147,6 +183,13 @@ class Theme:
                                 (QtGui.QPalette.ColorRole.ButtonText, text), (QtGui.QPalette.ColorRole.ToolTipBase, window),
                                 (QtGui.QPalette.ColorRole.ToolTipText, text),
                                 (QtGui.QPalette.ColorRole.Highlight, self._css_to_qcolor(t["selection_bg"]))):
+                p.setColor(role, color)
+            # linie i ramki (QFrame HLine itd.) z tych rol - bez nich swieca na bialo
+            for role, color in ((QtGui.QPalette.ColorRole.Light, window.lighter(170)),
+                                (QtGui.QPalette.ColorRole.Midlight, window.lighter(140)),
+                                (QtGui.QPalette.ColorRole.Mid, window.darker(120)),
+                                (QtGui.QPalette.ColorRole.Dark, window.darker(150)),
+                                (QtGui.QPalette.ColorRole.Shadow, window.darker(200))):
                 p.setColor(role, color)
         # najpierw paleta, potem styl: zmiana stylu przemalowuje wszystkie okna (takze te z wlasnym stylesheetem,
         # ktore samej zmiany palety nie widza) - odwrotnie okna zostawaly o jeden motyw w tyle
