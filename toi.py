@@ -53,6 +53,7 @@ from instrument_gui import InstrumentGui
 from mnt_gui import MntGui
 from sky_gui import SkyGui
 from obs_gui import ObsGui, CzuwakWindow, ObserversWindow, SoundTestWindow
+from fits_gui import read_fits_image, fits_display_mode
 from toi_theme import theme
 from optics_model import OpticsModel
 from plan_gui import PlanGui
@@ -2891,17 +2892,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def new_fits(self):
-        if Path(self.cfg_tel_directory + "last_shoot.fits").is_file():
-            hdul = fits.open(self.cfg_tel_directory + "last_shoot.fits")
-            self.image = hdul[0].data
+        # plik czytany w watku: z NFS trwa (jk15 67 MB - sekundy), GUI na to nie czeka. Gdy w tym czasie przyjdzie
+        # nowsze zdjecie albo zmieni sie teleskop, ten wynik jest wyrzucany (fitsGui.load_token)
+        self.fitsGui.load_token += 1
+        token, tel = self.fitsGui.load_token, self.active_tel
+        path = self.cfg_tel_directory + "last_shoot.fits"
+        if Path(path).is_file():
+            path = os.path.realpath(path)       # last_shoot.fits to link - przestawia sie na kolejne zdjecie
+            try:
+                image, display, factor = await asyncio.to_thread(read_fits_image, path, fits_display_mode())
+            except Exception as e:
+                logger.warning(f'TOI: cannot read {path}: {e!r}')
+                return
         else:
             logger.warning(f'Attepmt to download image directly, no {self.cfg_tel_directory}')
-            self.image = numpy.zeros((100,100))
-            # self.image = await self.ccd.aget_imagearray()
-            # logger.warning(f'Image download finished, image= {self.image}')
-        image = self.image
-        image = numpy.asarray(image)
-        self.fitsGui.updateImage(image)
+            image, display, factor = numpy.zeros((100, 100)), None, 1
+        if token != self.fitsGui.load_token or tel != self.active_tel:
+            return
+        self.image = image
+        self.fitsGui.updateImage(image, display, factor)
 
     @qs.asyncSlot()
     async def ccd_Snap(self):

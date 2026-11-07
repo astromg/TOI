@@ -10,12 +10,49 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 import logging
 import numpy
+from astropy.io import fits
 from pyaraucaria.ffs import FFS
 from toi_lib import *
 from base_window import BaseWindow
 from toi_theme import theme
 
 logger = logging.getLogger(__name__)
+
+# wyswietlanie obrazu (menu ⚙ "FITS display", QSettings): "full" - pelna rozdzielczosc (jak dawniej), "binned" - do
+# rysowania usrednione bloki do ~DISPLAY_TARGET pikseli (jk15 4096 -> 2048: 170 -> ~50 ms); FFS i nakladki zawsze na
+# pelnym obrazie, wspolrzedne bez zmian
+FITS_DISPLAY_MODES = {"full": "Full resolution", "binned": "Binned for display (faster)"}
+FITS_DISPLAY_DEFAULT = "full"
+DISPLAY_TARGET = 2048
+
+
+def fits_display_mode():
+    mode = str(QtCore.QSettings("OCA", "TOI").value("fits_display", FITS_DISPLAY_DEFAULT))
+    return mode if mode in FITS_DISPLAY_MODES else FITS_DISPLAY_DEFAULT
+
+
+def display_binning(shape, mode):
+    if mode != "binned" or len(shape) != 2:
+        return 1
+    return max(1, max(shape) // DISPLAY_TARGET)     # jk15 4108 -> 2 (2054 px), 2048 -> 1 (bez zmian)
+
+
+def bin_image(image, factor):
+    """srednia z blokow factor x factor (ostatnie niepelne wiersze / kolumny odpadaja); gwiazdy nie znikaja jak przy
+    braniu co n-tego piksela"""
+    if factor <= 1:
+        return image
+    h, w = (image.shape[0] // factor) * factor, (image.shape[1] // factor) * factor
+    return image[:h, :w].reshape(h // factor, factor, w // factor, factor).mean(axis=(1, 3), dtype=numpy.float32)
+
+
+def read_fits_image(path, mode):
+    """w watku (asyncio.to_thread): czytanie z NFS trwa (jk15 67 MB - ok. 3 s po wifi) - GUI nie moze na nie czekac.
+    Zwraca (obraz, obraz do wyswietlenia, binning); plik zamkniety"""
+    with fits.open(path, memmap=False) as hdul:
+        image = numpy.array(hdul[0].data)
+    factor = display_binning(image.shape, mode)
+    return image, bin_image(image, factor), factor
 
 
   # ######### Fits GUI #############
@@ -37,22 +74,49 @@ class FitsWindow(BaseWindow):
         # teleskopu). Kazde zlecenie ma numer, wynik starszego niz biezacy jest wyrzucany
         self._ffs_token = 0
         self._ffs_jobs = []         # (QThread, worker) - referencje, dopoki watek nie skonczy
+        self.load_token = 0         # odczyt pliku w watku (TOI.new_fits): nowszy obraz / zmiana teleskopu - wynik do kosza
+        self.display = None         # obraz do rysowania (pelny albo zbinowany) i jego binning
+        self.display_factor = 1
+        self._overlays = []         # nakladki na obrazie (pointing, obiekty OFP, gwiazdy nasycone) - usuwane przed nowymi
+        self._dirty = False         # schowany panel - rysujemy przy pokazaniu
         theme.on_change(self.apply_theme)
+
+    def redraw(self):
+        if not self.isVisible():
+            self._dirty = True
+            return
+        self._dirty = False
+        self.canvas.draw_idle()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if getattr(self, "_dirty", False):     # mkUI pokazuje okno, zanim __init__ ustawi _dirty
+            self.redraw()
+
+    def set_display_mode(self, mode):
+        QtCore.QSettings("OCA", "TOI").setValue("fits_display", mode)
+        if self.image is not None and numpy.ndim(self.image) == 2:
+            self.display_factor = display_binning(numpy.shape(self.image), mode)
+            self.display = bin_image(numpy.asarray(self.image), self.display_factor)
+            self.plot_image()
+            self.update_fits_data()
 
     def apply_theme(self):
         theme.style_figure(self.fig, [self.axes])
         theme.paint(self.stat_e, bg="field_bg")
-        self.canvas.draw_idle()
+        self.redraw()
 
     def cancel_ffs(self):
-        """wynik liczonego FFS (np. obraz poprzedniego teleskopu) nie zostanie pokazany"""
+        """wynik liczonego FFS i wczytywany plik (np. poprzedniego teleskopu) nie zostana pokazane"""
         self._ffs_token += 1
+        self.load_token += 1
 
     def clear(self):
         self.axes.clear()
         self.axes.axis("off")
         theme.style_figure(self.fig, [self.axes])     # tlo wokol obrazu wg motywu (clear() je zeruje)
-        self.canvas.draw_idle()
+        self._overlays = []
+        self.redraw()
         self.stat_e.setText("")
 
 
@@ -68,13 +132,18 @@ class FitsWindow(BaseWindow):
             mean, std = numpy.mean(sample), numpy.std(sample)
             vmin, vmax = mean - std, mean + std
 
-            self.axes.imshow(self.image, vmin=vmin, vmax=vmax, interpolation='none', resample=False)
+            display, f = self.display, self.display_factor
+            if display is None or f <= 1:
+                display, f = self.image, 1
+            h, w = numpy.shape(display)[0] * f, numpy.shape(display)[1] * f
+            # extent w pikselach pelnego obrazu - nakladki (OFP, FFS) trafiaja w to samo miejsce przy binningu
+            self.axes.imshow(display, vmin=vmin, vmax=vmax, interpolation='none', resample=False,
+                             extent=(-0.5, w - 0.5, h - 0.5, -0.5))
             # granice osi = obraz; nakladki (obiekty, pointing, gwiazdy) nie moga ich rozszerzyc - punkt z WCS
             # w milionach pikseli (snap bez rozwiazania) zmniejszal obraz do niewidocznej kropki
             self.axes.set_autoscale_on(False)
 
-            self.canvas.draw_idle()
-            self.show()
+            self.redraw()
 
     def in_image(self, x, y):
         """Czy punkt (piksele) lezy na wyswietlanym obrazie."""
@@ -84,8 +153,10 @@ class FitsWindow(BaseWindow):
         except (TypeError, ValueError):
             return False
 
-    def updateImage(self, image):
+    def updateImage(self, image, display=None, factor=1):
         self.image = image
+        self.display, self.display_factor = display, factor
+        self._overlays = []         # plot_image czysci osie
 
         self.ffs = None
         self.coo = []
@@ -164,6 +235,13 @@ class FitsWindow(BaseWindow):
 
             txt = ""
             txt2 = ""
+            # nakladki z poprzedniego wywolania (kazda wiadomosc OFP i wynik FFS rysowaly je od nowa - dublowaly sie)
+            for artist in self._overlays:
+                try:
+                    artist.remove()
+                except (ValueError, AttributeError):
+                    pass
+            self._overlays = []
             tel = self.parent.active_tel      # gdy brak danych downloadera
             red = theme.hex("bad_fg")
             try:
@@ -238,9 +316,10 @@ class FitsWindow(BaseWindow):
                         if "saturation_max" in self.parent.fits_ofp_data['raw']['objects'][k].keys():
                             txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
                 if self.pointing_x and self.in_image(self.pointing_x, self.pointing_y):
-                    self.axes.plot(self.pointing_x,self.pointing_y,"k+",markersize=20)
+                    self._overlays += self.axes.plot(self.pointing_x,self.pointing_y,"k+",markersize=20)
                 if len(self.ob_x)>0:
                     self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")
+                    self._overlays += self.objects
 
             except Exception as e:
                 logger.warning(f"TOI FITS EXCEPTION 3a: {e}")
@@ -309,7 +388,7 @@ class FitsWindow(BaseWindow):
                         if True:
                             if len(self.sat_coo)>0 and self.parent.local_cfg["toi"]["show_sat_stars"]:
                                 x,y = zip(*self.sat_coo)
-                                self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
+                                self._overlays += self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
                         txt = txt + f"detected/saturated stars:  <i>{len(self.coo)}</i>/<i>{len(self.sat_coo)}</i> <br>"
 
                     txt = txt + f'min/max ADU:  <i>{frame_min:.0f}</i>/<i>{frame_max:.0f}</i><br>'
@@ -342,8 +421,7 @@ class FitsWindow(BaseWindow):
                     logger.warning(f"TOI FITS EXCEPTION 5: {e}")
 
                 self.stat_e.setHtml(txt)
-            self.canvas.draw_idle()
-            self.raise_()
+            self.redraw()
 
     def updateUI(self):
 
@@ -352,7 +430,8 @@ class FitsWindow(BaseWindow):
         self.axes.clear()
         self.axes.axis("off")
         theme.style_figure(self.fig, [self.axes])     # tlo wokol obrazu wg motywu (clear() je zeruje)
-        self.canvas.draw_idle()
+        self._overlays = []
+        self.redraw()
         self.stat_e.setText("")
 
         # nazwa i kolor teleskopu sa w pasku tytulu panelu (ObsGui.set_panel_telescope)
