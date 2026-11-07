@@ -1,4 +1,4 @@
-"""Motywy wygladu TOI: dzienny (dotychczasowy), nocny i funky.
+"""Motywy wygladu TOI: jasne (Day - dotychczasowy, Paper, Clear sky) i ciemne (Night, Cosmic, Nord, Dim, 80's Synthwave).
 
 Kolory maja znaczenie i jest ono wspolne dla wszystkich motywow - zmienia sie tylko odcien:
     ok      - zielony:   obserwacje OK
@@ -14,7 +14,7 @@ Pozostale klucze to neutralne elementy okna (tla pol, tekst, wylaczone lampki).
 
 Uzycie: `from toi_theme import theme` i `theme.c("bad_bg")`; `theme.set(name)` przelacza motyw i wola funkcje
 zarejestrowane przez `theme.on_change(f)` (okna przemalowuja to, czego nie odswieza nic innego). Wybor jest
-zapamietany w QSettings("OCA", "TOI") / "theme". Okna sa przerabiane po kolei - na razie okno obserwacji.
+zapamietany w QSettings("OCA", "TOI") / "theme" (nieznana nazwa, np. dawne "funky" - Day).
 """
 
 from PyQtX import QtGui
@@ -65,26 +65,6 @@ THEMES = {
         "row_sel_bg": "rgb(55, 75, 105)", "row_prev_bg": "rgb(42, 46, 54)", "dim_fg": "rgb(110, 110, 105)",
         "tab_icon_ok": "rgb(70, 150, 70)", "tab_icon_bad": "rgb(190, 60, 60)", "tab_icon_warn": "rgb(190, 110, 30)",
         "tab_icon_warn2": "rgb(200, 140, 50)",
-    },
-    "funky": {
-        "window": "rgb(40, 20, 60)",
-        "text": "rgb(240, 230, 255)",
-        "field_bg": "rgb(70, 40, 100)",
-        "field_fg": "rgb(255, 240, 255)",
-        "muted_fg": "rgb(120, 90, 150)",
-        "selection_bg": "rgb(200, 60, 160)",
-        "ok_bg": "rgb(0, 200, 120)", "ok_fg": "rgb(60, 255, 160)", "ok_beat_fg": "rgb(190, 255, 220)",
-        "bad_bg": "rgb(255, 40, 90)", "bad_fg": "rgb(255, 80, 120)",
-        "warn_bg": "rgb(255, 230, 0)", "warn_fg": "rgb(255, 235, 60)",
-        "warn2_bg": "rgb(255, 130, 0)", "warn2_fg": "rgb(255, 160, 40)",
-        "change_bg": "rgb(0, 190, 255)", "change_fg": "rgb(80, 210, 255)",
-        "idle_fg": "rgb(240, 230, 255)",
-        "tab_ok": "rgb(60, 255, 160)", "tab_moving": "rgb(255, 170, 40)", "tab_error": "rgb(255, 80, 120)",
-        "input_bg": "rgb(95, 55, 135)", "input_edit_bg": "rgb(110, 70, 160)", "moving_bg": "rgb(60, 120, 255)",
-        "moving_fg": "rgb(255, 150, 40)", "warn_soft_bg": "rgb(230, 215, 90)",
-        "row_sel_bg": "rgb(200, 60, 160)", "row_prev_bg": "rgb(90, 55, 125)", "dim_fg": "rgb(170, 150, 200)",
-        "tab_icon_ok": "rgb(60, 255, 160)", "tab_icon_bad": "rgb(255, 80, 120)", "tab_icon_warn": "rgb(255, 140, 0)",
-        "tab_icon_warn2": "rgb(255, 180, 60)",
     },
     # cosmic: granat i fiolet mglawicy, tekst jak swiatlo gwiazd; zorza / czerwony olbrzym / Slonce / goraca gwiazda
     "cosmic": {
@@ -214,18 +194,18 @@ THEMES = {
     },
 }
 TITLES = {"day": "Day", "paper": "Paper", "clearsky": "Clear sky", "night": "Night", "cosmic": "Cosmic", "nord": "Nord",
-          "dim": "Dim", "synthwave": "80's Synthwave", "funky": "Funky"}
+          "dim": "Dim", "synthwave": "80's Synthwave"}
 
 # katalog obrazkow przelacznikow (w stylesheetach pisane jako ICONS/SwitchOn.png); nocne - Icons/make_night_icons.py
-ICON_DIRS = {"day": "./Icons/", "night": "./Icons/night/", "funky": "./Icons/", "cosmic": "./Icons/night/",
+ICON_DIRS = {"day": "./Icons/", "night": "./Icons/night/", "cosmic": "./Icons/night/",
              "nord": "./Icons/night/", "dim": "./Icons/night/", "paper": "./Icons/", "clearsky": "./Icons/",
              "synthwave": "./Icons/"}
 
 # tekst na tle *_bg: czarny na jasnych tlach dziennych, jasny na ciemnych nocnych
-BG_TEXT = {"day": "black", "night": "rgb(210, 210, 200)", "funky": "black", "cosmic": "rgb(225, 230, 255)",
+BG_TEXT = {"day": "black", "night": "rgb(210, 210, 200)", "cosmic": "rgb(225, 230, 255)",
            "nord": "rgb(236, 239, 244)", "dim": "rgb(150, 145, 135)", "paper": "black", "clearsky": "black",
            "synthwave": "rgb(250, 240, 255)"}
-# ciemne motywy w stylu nocy (paski paneli, panel optyki): wszystkie poza day i funky
+# ciemne motywy w stylu nocy (paski paneli, panel optyki); reszta - jasne, w stylu dnia
 DARK = {"night", "cosmic", "nord", "dim", "synthwave"}
 
 
@@ -301,8 +281,8 @@ class Theme:
 
     @property
     def light(self):
-        """jasne motywy w stylu dnia (day, paper, clear sky) - bez funky"""
-        return self.name not in DARK and self.name != "funky"
+        """jasne motywy w stylu dnia (day, paper, clear sky)"""
+        return self.name not in DARK
 
     def hex(self, key):
         """kolor motywu jako #rrggbb (matplotlib, HTML)"""

@@ -130,7 +130,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             group_fits.addAction(action)
         themes = menu.addMenu("Theme")
         group = QtGui.QActionGroup(themes)
-        for name in TITLES:         # kolejnosc w menu: jasne, ciemne, funky
+        for name in TITLES:         # kolejnosc w menu: jasne, potem ciemne
             action = themes.addAction(TITLES[name], lambda _=False, name=name: theme.set(name))
             action.setCheckable(True)
             action.setChecked(name == theme.name)
@@ -185,20 +185,15 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     """
     # linie podzialu paneli w motywach: (zwykla, pod kursorem)
     PANEL_SEPARATORS = {"day": ("rgb(150, 150, 150)", "rgb(100, 100, 100)"),
-                        "night": ("rgb(70, 70, 75)", "rgb(110, 110, 115)"),
-                        "funky": ("rgb(120, 90, 150)", "rgb(200, 60, 160)")}
+                        "night": ("rgb(70, 70, 75)", "rgb(110, 110, 115)")}
 
     def panel_style(self, tel):
         """paski tytulowe paneli w kolorze teleskopu (z configu TIC). Dzien: pol na pol z biela (ciemne kolory jak
-        zb08 #0082E8 nie zaglusza czarnego tekstu), noc: pol na pol z tlem okna - intensywny, ale ciemny, funky: pelny
-        kolor. Inne ciemne motywy jak noc, jasne (paper, clear sky) jak dzien. Tekst czarny albo jasny wg jasnosci paska"""
+        zb08 #0082E8 nie zaglusza czarnego tekstu), noc: pol na pol z tlem okna - intensywny, ale ciemny. Inne
+        ciemne motywy jak noc, jasne (paper, clear sky) jak dzien. Tekst czarny albo jasny wg jasnosci paska"""
         color = QtGui.QColor((self.parent.nats_cfg.get(tel, {}) if tel else {}).get("color") or "#cdd2dc")
-        if theme.light:
-            base, mix = QtGui.QColor(255, 255, 255), 0.5
-        elif theme.dark:
-            base, mix = theme.qcolor("window"), 0.5
-        else:
-            base, mix = color, 0.0
+        base = QtGui.QColor(255, 255, 255) if theme.light else theme.qcolor("window")
+        mix = 0.5
         tint = QtGui.QColor(*(int(c * (1 - mix) + b * mix) for c, b in
                               ((color.red(), base.red()), (color.green(), base.green()), (color.blue(), base.blue()))))
         sep, sep_hover = self.PANEL_SEPARATORS.get(theme.name) or (

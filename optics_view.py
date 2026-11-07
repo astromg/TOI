@@ -27,17 +27,14 @@ from PyQtX.QtWidgets import QApplication, QSizePolicy, QToolTip, QWidget
 
 from optics_model import OpticsModel
 
-from toi_theme import theme as toi_theme, THEMES, DARK
+from toi_theme import theme as toi_theme, THEMES, DARK as TOI_DARK      # DARK tutaj to klasa swiatla z datamodels
 
 
 def look_for(toi_theme_name: str) -> Theme:
-    """Optics look for TOI's theme (toi_theme): day - obcom ``toi``; funky - obcom ``holo`` (the blueprint of owies);
-    dark themes (night, cosmic, nord, dim) - ``toi`` on the theme's own ground and text, the meaning of the colours
-    unchanged."""
+    """Optics look for TOI's theme (toi_theme): light themes - obcom ``toi``; dark themes (toi_theme.DARK) - ``toi``
+    on the theme's own ground and text, the meaning of the colours unchanged."""
     base = theme("toi")
-    if toi_theme_name == "funky":
-        return theme("holo")
-    if toi_theme_name not in DARK:
+    if toi_theme_name not in TOI_DARK:
         return base
     c = lambda key: QColor(*(int(v) for v in THEMES[toi_theme_name][key][4:-1].split(","))).name()
     tokens = dict(base.tokens)
