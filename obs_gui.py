@@ -531,7 +531,7 @@ class MainForm(QWidget):
         rain = _f(p.telemetry_rain)
         wind_limit, wind_limit_pointing = p.wind_limits(t)
         if wind is not None and wind > wind_limit:
-            parts.append(("icon", "icon_wind", "tab_icon_bad", f"Wind above the stop limit ({wind_limit:g} m/s)"))
+            parts.append(("icon", "icon_wind", "tab_icon_bad", f"Wind above the closing limit ({wind_limit:g} m/s)"))
         elif wind is not None and wind > wind_limit_pointing:
             parts.append(("icon", "icon_wind", "tab_icon_warn2", f"Wind above the pointing limit ({wind_limit_pointing:g} m/s)"))
         if rain is not None and rain > 0:
@@ -563,6 +563,8 @@ class MainForm(QWidget):
             elif shutter == 2: state, color = "OPENING", "tab_moving"
             elif shutter == 3: state, color = "CLOSING", "tab_moving"
             else: state, color = "SHUTTER ERROR", "tab_error"
+        if self.parent.dome_follow_all.get(t):      # dome follower wlaczony (TOI.dome_follow_table_loop)
+            state = "FOLLOW" if state == "--" else f"{state} FOLLOW"
         return ("text", state, color)
 
     def mirror_cell(self, t):

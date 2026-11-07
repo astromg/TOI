@@ -130,6 +130,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.tic_con_loop())
         self.add_background_task(self.nats_con_loop())
         self.add_background_task(self.service_lamps_loop())
+        self.add_background_task(self.dome_follow_table_loop())
         self.add_background_task(self.nats_observers_reader())
         self.add_background_task(self.observers_check_loop())
         self.add_background_task(self.nats_checklist_reader())
@@ -787,6 +788,34 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             return data.get("status") == "ok"
         except Exception:       # brak odpowiedzi, timeout, brak responderow
             return False
+
+    # FOLLOW w kolumnie Dome tabeli teleskopow: stan dome followera jest tylko w RPC (tic.rpc.<tel>.dome.follower.state,
+    # serwis trzyma go w pamieci) - pytamy o wszystkie teleskopy; aktywny odswieza tez dome_follower_status_update
+    async def dome_follow_table_loop(self):
+        while True:
+            try:
+                tels = list(self.local_cfg["toi"]["telescopes"])
+                answers = await asyncio.gather(*(self.dome_follow_state(t) for t in tels))
+                self.set_dome_follow_table(dict(zip(tels, answers)))
+            except (asyncio.CancelledError, asyncio.TimeoutError):
+                raise
+            except Exception as e:
+                logger.warning(f'EXCEPTION 103d: {e}')
+            await asyncio.sleep(5)
+
+    async def dome_follow_state(self, tel):
+        """True / False wg dome followera, None - brak odpowiedzi"""
+        try:
+            data, meta = await request(f'tic.rpc.{tel}.dome.follower.state', timeout=3)
+            return bool(data["follow_on"]) if data.get("status") == "ok" else None
+        except Exception:
+            return None
+
+    def set_dome_follow_table(self, states):
+        changed = {t: v for t, v in states.items() if self.dome_follow_all.get(t) != v}
+        if changed:
+            self.dome_follow_all.update(changed)
+            self.obsGui.main_form.update_table()
 
     async def service_lamps_loop(self):
         while True:
@@ -3771,6 +3800,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.dome_follow = None
         self.mntGui.domeAuto_c.setChecked(bool(self.dome_follow))
         self.mntGui.domeAuto_c.setEnabled(self.dome_follow is not None)
+        self.set_dome_follow_table({self.active_tel: self.dome_follow})     # FOLLOW w tabeli od razu
 
     async def domeShutterStatus_update(self, event):
            self.dome_shutterstatus=await self.dome.aget_shutterstatus()
@@ -4739,6 +4769,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         tmp = {"dome_ventilators":{"state":False,"defoult":False}, "mirror_fans":{"state":False,"defoult":False},"flat_lamps":{"state":False,"defoult":False},"dome_lights":{"state":False,"defoult":False}}
         self.toi_op_status = {t:copy.deepcopy(tmp) for t in self.local_cfg["toi"]["telescopes"]}
+        self.dome_follow_all = {}   # teleskop -> dome follower wlaczony (True/False/None), FOLLOW w tabeli teleskopow
         self.safety_cutoff = {t:None for t in self.local_cfg["toi"]["telescopes"]}   # z tic.status.<tel>.access_grantor.safety_cutoff_state
 
         tmp = {"focus_adjust":None}
