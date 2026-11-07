@@ -564,7 +564,7 @@ class MainForm(QWidget):
             elif shutter == 3: state, color = "CLOSING", "tab_moving"
             else: state, color = "SHUTTER ERROR", "tab_error"
         if self.parent.dome_follow_all.get(t):      # dome follower wlaczony (TOI.dome_follow_table_loop)
-            state = "FOLLOW" if state == "--" else f"{state} FOLLOW"
+            state = "FOLLOW" if state == "--" else f"{state} & FLW"
         return ("text", state, color)
 
     def mirror_cell(self, t):
