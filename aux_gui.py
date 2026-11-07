@@ -52,7 +52,7 @@ from PyQtX.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFrame, QG
 
 from base_window import BaseWindow
 from optics_view import SchematicView
-from toi_theme import theme
+from toi_theme import theme, TITLES
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +132,7 @@ class AuxWindow(BaseWindow):
         self.guider = GuiderTab(self.parent)
         self.planrunner = PlanrunnerTab(self.parent)
         self.conditions = ConditionsTab(self.parent)
+        self.pictures = PicturesTab(self.parent)
         self.tabs.addTab(self.telescope, "Telescope")
         self.tabs.addTab(self.tasks, "Tasks")
         self.tabs.addTab(self.optics, "Optical path")
@@ -140,6 +141,7 @@ class AuxWindow(BaseWindow):
         self.tabs.addTab(self.guider, "Guider")
         self.tabs.addTab(self.planrunner, "Plan Runner")
         self.tabs.addTab(self.conditions, "Conditions")
+        self.tabs.addTab(self.pictures, "Pictures")
         self.tabs.currentChanged.connect(self.tab_changed)
         self.tabs.setCurrentWidget(self.tasks)      # na start zadania dla obserwatora
         layout.addWidget(self.tabs)
@@ -1139,6 +1141,104 @@ class PlanrunnerTab(QWidget):
 
 
 # ############### CONDITIONS ##########################
+
+# ############### PICTURES ##########################
+
+class PicturesTab(QWidget):
+    """Pictures - the entertainment tab: any picture with a title (:meth:`show_file`). Today the picture of the current
+    theme from ``toi.theme_pictures_dir`` (default /data/misc/style/toi_themes): a file per theme, matched by name
+    without case, spaces, ``_`` and ``'`` ("Clear_sky.png" = Clear sky, "80s Synthwave.png" = 80's Synthwave). Read in
+    a thread (NFS, ~2.5 MB each); a theme change brings this tab up."""
+
+    DEFAULT_DIR = "/data/misc/style/toi_themes"
+    EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
+
+    def __init__(self, parent):
+        super(PicturesTab, self).__init__()
+        self.parent = parent
+        self.pixmap = None
+        self.shown = None           # co jest (albo bedzie za chwile) pokazane - nowsze zlecenie wygrywa
+        self.mkUI()
+        theme.on_change(self.theme_changed)
+        QTimer.singleShot(0, self.show_theme)       # motyw zapamietany - obraz bez podnoszenia zakladki
+
+    def art_dir(self):
+        return self.parent.local_cfg["toi"].get("theme_pictures_dir", self.DEFAULT_DIR)
+
+    @staticmethod
+    def key(text):
+        return "".join(ch for ch in str(text).lower() if ch.isalnum())
+
+    def find_file(self, name):
+        wanted = {self.key(name), self.key(TITLES.get(name, name))}
+        try:
+            files = sorted(os.listdir(self.art_dir()))
+        except OSError:
+            return None
+        for f in files:
+            stem, ext = os.path.splitext(f)
+            if ext.lower() in self.EXTENSIONS and self.key(stem) in wanted:
+                return os.path.join(self.art_dir(), f)
+        return None
+
+    def show_theme(self):
+        title = TITLES.get(theme.name, theme.name)
+        asyncio.ensure_future(self.show_file(lambda: self.find_file(theme.name), title,
+                                             f"No picture for {title} in {self.art_dir()}"))
+
+    def theme_changed(self):
+        self.show_theme()
+        try:
+            self.parent.auxGui.show_tab(self)       # zmiana motywu - zakladka na wierzch
+        except AttributeError:
+            pass
+
+    async def show_file(self, path, title, missing="No picture"):
+        """pokazuje obraz z pliku ``path`` (albo funkcji, ktora go znajduje - wolana w watku) z tytulem ``title``"""
+        token = object()
+        self.shown = token
+        self.title_l.setText(title)
+        if callable(path):
+            path = await asyncio.to_thread(path)
+        image = None
+        if path:
+            try:
+                image = await asyncio.to_thread(QtGui.QImage, path)     # QImage mozna czytac poza watkiem GUI
+            except Exception as e:
+                logger.warning(f'TOI picture {path}: {e!r}')
+        if token is not self.shown:         # w miedzyczasie inny obraz
+            return
+        if image is None or image.isNull():
+            self.pixmap = None
+            self.picture_l.setPixmap(QtGui.QPixmap())
+            self.picture_l.setText(missing)
+            return
+        self.pixmap = QtGui.QPixmap.fromImage(image)
+        self.picture_l.setText("")
+        self.rescale()
+
+    def rescale(self):
+        if self.pixmap is not None:
+            self.picture_l.setPixmap(self.pixmap.scaled(self.picture_l.size(), Qt.AspectRatioMode.KeepAspectRatio,
+                                                        Qt.TransformationMode.SmoothTransformation))
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.rescale()
+
+    def mkUI(self):
+        layout = QVBoxLayout()
+        self.title_l = QLabel("")
+        self.title_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title_l.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        self.picture_l = QLabel("")
+        self.picture_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.picture_l.setMinimumSize(1, 1)     # obraz skalowany do zakladki, nie rozpycha okna
+        self.picture_l.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+        layout.addWidget(self.title_l)
+        layout.addWidget(self.picture_l, 1)
+        self.setLayout(layout)
+
 
 class ConditionsTab(QWidget):
     """Night plots of all telescopes; the combo chooses what is drawn. Filter/airmass cuts apply to FWHM.

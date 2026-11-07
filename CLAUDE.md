@@ -136,6 +136,9 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   telescope has no optical graph), Calibration, Focus, Guider (layout template only, guider does not work),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes, drawn like oca_monitor - points plus a smoothed trend;
   drawn only while the tab is shown, refreshed every 30 s when new points came, `TOI.conditions_plot_loop`).
+  Pictures (`PicturesTab`, entertainment: `show_file(path, title)` shows any picture; today the picture of the current
+  theme from `toi.theme_pictures_dir`, default `/data/misc/style/toi_themes`, matched by name without case/spaces/`_`/`'`;
+  read in a thread; a theme change brings it up).
   `TOI` keeps the old names for the tabs: `focusGui` (`FocusTab`), `flatGui` (`CameraCalibration`), `guiderGui`
   (`GuiderTab`), `planrunnerGui` (`PlanrunnerTab`), `conditionsGui` (`ConditionsTab`). The observation window
   has no buttons for these any more; a closed Aux or FITS window is reopened from the ⚙ menu in `ObsGui`. Tabs are pages of a
