@@ -106,7 +106,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   (2026-10-29): `science_instruments(components)` reads the published `observatory.components` (those flagged
   `scientific`, else every camera/spectrograph except guiders), `instrument_class(name, spec)` picks the tab class from
   `INSTRUMENT_CLASSES`, most specific first: `AndorCamera` (`camera_model` "Andor…", no binning/subraster — the widgets
-  exist but are hidden, TOI reads them), `CmosCamera` (`camera_kind: cmos`), `BesoSpectrograph`, then the fallbacks
+  exist but are hidden; TOI reads only the binning, Mode / Subraster / PAUSE are disabled "Not used yet"), `CmosCamera` (`camera_kind: cmos`), `BesoSpectrograph`, then the fallbacks
   `GenericCamera` / `GenericSpectrograph`; all derive from `InstrumentTab` (`detector` = component name, `spec`, `name`
   = tab title). A new instrument without its own class shows up as generic. The rest of TOI still knows one camera:
   `instGui.ccd_tab` = first camera (a generic `camera` is added if the config has none), `instGui.beso_tab` = first

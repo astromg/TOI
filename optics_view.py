@@ -19,15 +19,50 @@ from dataclasses import dataclass, replace
 
 from datamodels.optics import DARK, UNDEFINED, Archetype
 from obcom.optics import OpticalGraph, StopRole, component_label, emerging, place_labels, published_values, schematic
-from obcom.optics.look import glyph_of, glyph_svg, glyph_title, theme
+from obcom.optics.look import Theme, glyph_of, glyph_svg, glyph_title, theme
 from PyQtX.QtCore import QBuffer, QByteArray, QEvent, QIODevice, QPointF, QRectF, QSize, QSizeF, Qt, QTimer
 from PyQtX.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PyQtX.QtSvg import QSvgRenderer
-from PyQtX.QtWidgets import QSizePolicy, QToolTip, QWidget
+from PyQtX.QtWidgets import QApplication, QSizePolicy, QToolTip, QWidget
 
 from optics_model import OpticsModel
 
-THEME = theme("toi")
+from toi_theme import theme as toi_theme
+
+
+def look_for(toi_theme_name: str) -> Theme:
+    """Optics look for TOI's theme (toi_theme): day - obcom ``toi``; night - ``toi`` on TOI's dark ground, dimmed,
+    the meaning of the colours unchanged; funky - obcom ``holo`` (the blueprint of owies)."""
+    base = theme("toi")
+    if toi_theme_name == "funky":
+        return theme("holo")
+    if toi_theme_name != "night":
+        return base
+    tokens = dict(base.tokens)
+    tokens.update({"ground": "#1E1E20", "text": "#AAAAA0", "muted": "#80807A", "glyph": "#AAAAA0",
+                   "blocker": "#AAAAA0", "held": "#80807A", "idle": "#505050", "unknown": "#BE3C3C",
+                   "warning": "#C8782D", "sees": "#4A8CDC"})
+    status = dict(tokens["status"])
+    status.update({"field": "#303032", "none": {"fill": "#4A4A4E", "ink": "#AAAAA0"}})
+    tokens["status"] = status
+    return Theme("toi-night", tokens)
+
+
+THEME = look_for(toi_theme.name)
+
+
+def _restyle():
+    """TOI changed theme: new look here and in optics_gui (which imported THEME by name), repaint the drawings"""
+    global THEME
+    THEME = look_for(toi_theme.name)
+    import optics_gui
+    optics_gui.THEME = THEME
+    for widget in QApplication.allWidgets():
+        if isinstance(widget, (_Flowing, StatusLine)):
+            widget.update()
+
+
+toi_theme.on_change(_restyle)
 _RENDERERS: dict[tuple[str, str, float], QSvgRenderer] = {}
 
 

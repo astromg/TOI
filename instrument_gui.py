@@ -2,12 +2,12 @@
 
 import qasync as qs
 from PyQtX.QtCore import Qt
-from PyQtX.QtGui import QColor
 from PyQtX.QtWidgets import QWidget, QLabel,QCheckBox, QRadioButton, QLineEdit, QTabWidget, QPushButton, QGridLayout, QComboBox, QProgressBar
 from qasync import QEventLoop
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from base_window import BaseWindow
 from optics_gui import OpticsPanel
+from toi_theme import theme
 
 class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
@@ -26,13 +26,14 @@ class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidg
           self.updateUI()
           self.show()
           self.raise_()
+          theme.on_change(self.paint_tabs)
 
       def updateUI(self):
 
           tmp = ""
           if self.parent.active_tel != None:
               tmp = self.parent.active_tel
-          txt = tmp + " Instrument Manual Controll"
+          txt = tmp + " Instrument Manual Control"
           self.setWindowTitle(txt)
 
           tmp=QWidget()
@@ -84,10 +85,17 @@ class InstrumentGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidg
       def add_instrument(self, page):
           # tytul zakladki to dioda stanu i nazwa; dopoki nic nie wiemy - szary
           self.tab.addTab(page, f"\u25CF {page.name}")
-          self.set_connected(page, "#bebebe")
+          self.set_connected(page, "muted_fg")
 
-      def set_connected(self, page, color):
-          self.tab.tabBar().setTabTextColor(self.tab.indexOf(page), QColor(color))
+      def set_connected(self, page, color_key):
+          # dioda na zakladce: klucz toi_theme (ok_fg / bad_fg / muted_fg), zapamietany na zmiane motywu
+          page.tab_color = color_key
+          self.tab.tabBar().setTabTextColor(self.tab.indexOf(page), theme.qcolor(color_key))
+
+      def paint_tabs(self):
+          for i in range(self.tab.count()):
+              page = self.tab.widget(i)
+              self.set_connected(page, getattr(page, "tab_color", "muted_fg"))
 
       async def on_start_app(self):
           await self.run_background_tasks()
@@ -224,30 +232,30 @@ class GenericCamera(InstrumentTab):
       def Select(self):
           if self.Select1_r.isChecked():
               self.inst_Seq_e.setText("")
-              self.inst_Ndit_e.setStyleSheet("background-color: white; color: black;")
-              self.inst_Dit_e.setStyleSheet("background-color: white; color: black;")
-              self.inst_Seq_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+              theme.paint(self.inst_Ndit_e, bg="input_bg")
+              theme.paint(self.inst_Dit_e, bg="input_bg")
+              theme.paint(self.inst_Seq_e, bg="field_bg")
           else:
               self.inst_Ndit_e.setText("")
               self.inst_Dit_e.setText("")
-              self.inst_Ndit_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-              self.inst_Dit_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-              self.inst_Seq_e.setStyleSheet("background-color: white; color: black;")
+              theme.paint(self.inst_Ndit_e, bg="field_bg")
+              theme.paint(self.inst_Dit_e, bg="field_bg")
+              theme.paint(self.inst_Seq_e, bg="input_bg")
 
       def Select1(self,tmp):
           self.Select1_r.setChecked(True)
           self.inst_Seq_e.setText("")
-          self.inst_Ndit_e.setStyleSheet("background-color: white; color: black;")
-          self.inst_Dit_e.setStyleSheet("background-color: white; color: black;")
-          self.inst_Seq_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          theme.paint(self.inst_Ndit_e, bg="input_bg")
+          theme.paint(self.inst_Dit_e, bg="input_bg")
+          theme.paint(self.inst_Seq_e, bg="field_bg")
 
       def Select2(self,tmp):
           self.Select2_r.setChecked(True)
           self.inst_Ndit_e.setText("")
           self.inst_Dit_e.setText("")
-          self.inst_Ndit_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-          self.inst_Dit_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-          self.inst_Seq_e.setStyleSheet("background-color: white; color: black;")
+          theme.paint(self.inst_Ndit_e, bg="field_bg")
+          theme.paint(self.inst_Dit_e, bg="field_bg")
+          theme.paint(self.inst_Seq_e, bg="input_bg")
 
         # =================== OKNO GLOWNE ====================================
       def mkUI(self):
@@ -288,7 +296,7 @@ class GenericCamera(InstrumentTab):
           w=w+1
           self.inst_Seq_l=QLabel("Sequence:")
           self.inst_Seq_e=QLineEdit()
-          self.inst_Seq_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          theme.paint(self.inst_Seq_e, bg="field_bg")
           self.Select2_r = QRadioButton("")
           self.Select2_r.toggled.connect(self.Select)
           self.inst_Seq_e.mousePressEvent = self.Select2   # connect
@@ -299,13 +307,13 @@ class GenericCamera(InstrumentTab):
 
           w=w+1
           self.inst_NditProg_n=QProgressBar(self)
-          self.inst_NditProg_n.setStyleSheet("background-color: rgb(233, 233, 233)")
+          theme.paint(self.inst_NditProg_n, bg="field_bg")
           self.inst_NditProg_n.setValue(0)
           self.inst_NditProg_n.setFormat("0/1")
 
 
           self.inst_DitProg_n=QProgressBar(self)
-          self.inst_DitProg_n.setStyleSheet("background-color: rgb(233, 233, 233)")
+          theme.paint(self.inst_DitProg_n, bg="field_bg")
 
           grid.addWidget(self.inst_NditProg_n, w,0,1,2)
           grid.addWidget(self.inst_DitProg_n, w,2,1,2)
@@ -316,7 +324,8 @@ class GenericCamera(InstrumentTab):
           self.inst_Mode_s.addItems(self.modes)
           
           grid.addWidget(self.inst_Mode_l, w,0) 
-          grid.addWidget(self.inst_Mode_s, w,1)          
+          grid.addWidget(self.inst_Mode_s, w,1)
+          # Mode, Subraster i PAUSE: TOI ich (jeszcze) nie uzywa - wylaczone, zeby nie udawaly, ze dzialaja
 
           w=w+1
           self.inst_Bin_l=QLabel("Binning:")
@@ -325,7 +334,6 @@ class GenericCamera(InstrumentTab):
           self.inst_Bin_s=QComboBox()
           self.inst_Bin_s.addItems(self.bins)
           self.inst_SetBin_p=QPushButton('Set')
-          self.inst_SetBin_p.setStyleSheet(" color: gray;")
           self.inst_SetBin_p.clicked.connect(self.parent.ccd_setBin)
           
           grid.addWidget(self.inst_Bin_l, w,0) 
@@ -347,7 +355,7 @@ class GenericCamera(InstrumentTab):
           self.inst_gain_l=QLabel("GAIN:")
           self.inst_gain_e=QLineEdit()
           self.inst_gain_e.setReadOnly(True)
-          self.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          theme.paint(self.inst_gain_e, bg="field_bg")
           self.inst_setGain_e=QComboBox()
           self.inst_setGain_e.addItems(self.gain_names)
           self.inst_setGain_p=QPushButton('Set')
@@ -364,7 +372,7 @@ class GenericCamera(InstrumentTab):
           self.inst_read_l=QLabel("READ MODE:")
           self.inst_read_e=QLineEdit()
           self.inst_read_e.setReadOnly(True)
-          self.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          theme.paint(self.inst_read_e, bg="field_bg")
           self.inst_setRead_e=QComboBox()
           self.inst_setRead_e.addItems(self.rm_names)
           self.inst_setRead_p=QPushButton('Set')
@@ -381,7 +389,7 @@ class GenericCamera(InstrumentTab):
           self.inst_ccdTemp_l=QLabel(self.temp_label)
           self.inst_ccdTemp_e=QLineEdit()
           self.inst_ccdTemp_e.setReadOnly(True)
-          self.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          theme.paint(self.inst_ccdTemp_e, bg="field_bg")
           self.inst_setTemp_e=QLineEdit("" if self.temp_set is None else str(self.temp_set))
           self.inst_setTemp_e.setToolTip(f"Allowed: {self.temp_limits[0]} .. {self.temp_limits[1]} deg C")
           self.inst_setTemp_p=QPushButton('Set')
@@ -397,12 +405,12 @@ class GenericCamera(InstrumentTab):
           self.test_c = QCheckBox("Test")
           self.test_c.setChecked(False)
           self.test_c.setLayoutDirection(Qt.LeftToRight)
-          self.test_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
+          theme.paint(self.test_c, extra="QCheckBox::indicator:checked {image: url(ICONS/ToggleOnOrange.png)}::indicator:unchecked {image: url(ICONS/ToggleOffGreen.png)}")
 
           self.cooler_c = QCheckBox("Cooler")
           self.cooler_c.setChecked(False)
           self.cooler_c.setLayoutDirection(Qt.RightToLeft)
-          self.cooler_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+          theme.paint(self.cooler_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}")
           self.cooler_c.clicked.connect(self.parent.ccd_coolerOnOf)
 
           grid.addWidget(self.test_c, w, 0)
@@ -413,7 +421,7 @@ class GenericCamera(InstrumentTab):
           self.inst_Snap_p=QPushButton('SNAP')
           self.inst_Snap_p.clicked.connect(self.parent.ccd_Snap)
           self.inst_Pause_p=QPushButton('PAUSE')
-          self.inst_Pause_p.setStyleSheet(" color: gray;")
+          self.inst_Pause_p.setEnabled(False)      # nie podlaczony
           self.inst_Stop_p=QPushButton('STOP')
           self.inst_Stop_p.clicked.connect(self.parent.ccd_stopExp)
           #self.inst_Stop_p.setStyleSheet(" color: gray;")
@@ -431,6 +439,11 @@ class GenericCamera(InstrumentTab):
           self.optics_p = OpticsPanel(self.parent, self.parent.optics_model, self.detector)
           grid.addWidget(self.optics_p, w, 0, 1, 5)
           grid.setRowStretch(w + 1, 1)  # spare height below, the panel keeps its own
+
+          for widget in (self.inst_Mode_l, self.inst_Mode_s, self.inst_Subraster_l, self.inst_Subraster_s,
+                         self.inst_Pause_p):
+              widget.setEnabled(False)
+              widget.setToolTip("Not used yet.")
 
           # podpowiedz: ktora wartosc gain / read mode jest domyslna; inna podswietla pole na zolto
           for key, widgets in (("gain", (self.inst_gain_e, self.inst_setGain_e)),

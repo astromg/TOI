@@ -1477,8 +1477,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         theme.paint(name, fg=color)
 
                     # kamera: kolor tytulu jej zakladki w oknie instrumentu
-                    color = self.LED_ON if self.inst_con and self.tel_alpaca_con else self.LED_OFF
-                    self.instGui.set_connected(self.instGui.ccd_tab, color)
+                    color = "ok_fg" if self.inst_con and self.tel_alpaca_con else "bad_fg"
+                    if getattr(self.instGui.ccd_tab, "tab_color", None) != color:
+                        self.instGui.set_connected(self.instGui.ccd_tab, color)
 
             except Exception as e:
                 logger.warning(f'EXCEPTION 2: {e}')
@@ -2930,11 +2931,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             name=self.instGui.ccd_tab.inst_object_e.text().strip()
             if len(name)>0:
                 ok_name=True
-                self.instGui.ccd_tab.inst_object_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
+                theme.paint(self.instGui.ccd_tab.inst_object_e, bg="input_bg")
             else:
                 ok_name=False
                 await self.update_log(f'OBJECT NAME required', "WARNING", self.active_tel)
-                self.instGui.ccd_tab.inst_object_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+                theme.paint(self.instGui.ccd_tab.inst_object_e, bg="warn2_bg")
 
             exp=self.instGui.ccd_tab.inst_Dit_e.text()
             ndit=self.instGui.ccd_tab.inst_Ndit_e.text()
@@ -2943,11 +2944,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 exp=float(exp)
                 if exp>=0:
                     ok_exp=True
-                    self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
+                    theme.paint(self.instGui.ccd_tab.inst_Dit_e, bg="input_bg")
             except Exception:
                 ok_exp=False
                 await self.update_log(f'wrong EXP format', "WARNING", self.active_tel)
-                self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+                theme.paint(self.instGui.ccd_tab.inst_Dit_e, bg="warn2_bg")
             try:
                 if len(ndit)==0:
                     self.instGui.ccd_tab.inst_Ndit_e.setText("1")
@@ -2955,11 +2956,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 ndit=int(ndit)
                 if ndit>0:
                     ok_ndit=True
-                    self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
+                    theme.paint(self.instGui.ccd_tab.inst_Ndit_e, bg="input_bg")
             except Exception:
                 ok_exp=False
                 await self.update_log(f'wrong N format', "WARNING", self.active_tel)
-                self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+                theme.paint(self.instGui.ccd_tab.inst_Ndit_e, bg="warn2_bg")
             if ok_exp and ok_ndit:
                 seq = "1/"+str(self.curent_filter)+"/"+str(exp)
                 ok_seq = True
@@ -2994,11 +2995,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             if len(name)>0:
                 ok_name=True
-                self.instGui.ccd_tab.inst_object_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
+                theme.paint(self.instGui.ccd_tab.inst_object_e, bg="input_bg")
             else:
                 ok_name=False
                 await self.update_log(f'OBJECT NAME required', "WARNING", self.active_tel)
-                self.instGui.ccd_tab.inst_object_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+                theme.paint(self.instGui.ccd_tab.inst_object_e, bg="warn2_bg")
 
             if self.instGui.ccd_tab.Select1_r.isChecked():
                 exp=self.instGui.ccd_tab.inst_Dit_e.text()
@@ -3009,11 +3010,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     exp=float(exp)
                     if exp>-0.0001:
                         ok_exp=True
-                        self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
+                        theme.paint(self.instGui.ccd_tab.inst_Dit_e, bg="input_bg")
                 except Exception:
                     ok_exp=False
                     await self.update_log(f'wrong EXP TIME format', "WARNING", self.active_tel)
-                    self.instGui.ccd_tab.inst_Dit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+                    theme.paint(self.instGui.ccd_tab.inst_Dit_e, bg="warn2_bg")
 
                 try:
                     if len(ndit)==0:
@@ -3022,11 +3023,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                     ndit=int(ndit)
                     if ndit>0:
                         ok_ndit=True
-                        self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
+                        theme.paint(self.instGui.ccd_tab.inst_Ndit_e, bg="input_bg")
                 except Exception:
                     ok_exp=False
                     await self.update_log(f'wrong N format', "WARNING", self.active_tel)
-                    self.instGui.ccd_tab.inst_Ndit_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+                    theme.paint(self.instGui.ccd_tab.inst_Ndit_e, bg="warn2_bg")
 
                 if ok_exp and ok_ndit:
                     seq = str(ndit)+"/"+str(self.curent_filter)+"/"+str(exp)
@@ -3038,9 +3039,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 ok_seq,err = seq_verification(seq,self.filter_list)
                 if not ok_seq:
                     await self.update_log(f'wrong SEQ format {err} ', "WARNING", self.active_tel)
-                    self.instGui.ccd_tab.inst_Seq_e.setStyleSheet("background-color: rgb(255, 165, 0); color: black;")
+                    theme.paint(self.instGui.ccd_tab.inst_Seq_e, bg="warn2_bg")
                 else:
-                    self.instGui.ccd_tab.inst_Seq_e.setStyleSheet("background-color: rgb(255, 255, 255); color: black;")
+                    theme.paint(self.instGui.ccd_tab.inst_Seq_e, bg="input_bg")
 
             if ok_name and ok_seq:
 
@@ -3125,7 +3126,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 return
 
             if int(self.ccd_binx) != int(x) or int(self.ccd_biny) != int(y):
-                self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
+                theme.paint(self.instGui.ccd_tab.inst_Bin_e, bg="moving_bg")
             await self.ccd.aput_binx(int(x))
             await self.ccd.aput_biny(int(y))
             await self.update_log(f'setting bin xy {x} {y}', "TOI RESPONDER", self.active_tel)
@@ -3140,7 +3141,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             i = self.instGui.ccd_tab.inst_setGain_e.currentIndex()
             gain = self.instGui.ccd_tab.gain_ids[i]
             if int(self.ccd_gain) != int(gain):
-                self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(136, 142, 227); color: black;")
+                theme.paint(self.instGui.ccd_tab.inst_gain_e, bg="moving_bg")
             await self.ccd.aput_gain(int(gain))
             await self.update_log(f'setting gain {gain}', "TOI RESPONDER", self.active_tel)
         else:
@@ -3156,7 +3157,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            await self.ccd.aput_readoutmode(rm)
            await self.update_log(f'setting read mode {rm}', "TOI RESPONDER", self.active_tel)
            if int(self.ccd_readoutmode) != int(rm):
-               self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(136, 142, 228); color: black;")
+               theme.paint(self.instGui.ccd_tab.inst_read_e, bg="moving_bg")
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
@@ -3208,17 +3209,15 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.ccd_temp_update()
 
     async def ccd_temp_update(self):
-        if self.ccd_temp and self.ccd_temp_set:
+        # is not None: 0.0 C to tez temperatura (CMOS ustawiane na 0)
+        if self.ccd_temp is not None and self.ccd_temp_set is not None:
             ccd_temp=self.ccd_temp
-            if ccd_temp: txt = f" {ccd_temp:.1f} /"
-            else: txt = " -- /"
-            if self.ccd_temp_set: txt = txt +  f" {self.ccd_temp_set:.1f}"
-            else: txt = txt + " -- "
+            txt = f" {ccd_temp:.1f} / {self.ccd_temp_set:.1f}"
             self.instGui.ccd_tab.inst_ccdTemp_e.setText(txt)
-            if self.ccd_temp:
-                if float(ccd_temp) > self.instGui.ccd_tab.defaults["temp"]:
-                    self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(204,0,0)")
-                else: self.instGui.ccd_tab.inst_ccdTemp_e.setStyleSheet("background-color: rgb(233, 233, 233); color: rgb(0,150,0)")
+            if float(ccd_temp) > self.instGui.ccd_tab.defaults["temp"]:      # za cieplo - czerwony
+                theme.paint(self.instGui.ccd_tab.inst_ccdTemp_e, fg="bad_fg", bg="field_bg")
+            else:
+                theme.paint(self.instGui.ccd_tab.inst_ccdTemp_e, fg="ok_fg", bg="field_bg")
 
 
     async def ccd_gain_update(self, event):
@@ -3231,8 +3230,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 txt = cam.gain_names[cam.gain_ids.index(str(i))]
                 cam.inst_gain_e.setText(txt)
                 if cam.defaults["gain"] in (None, txt):
-                    self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-                else: self.instGui.ccd_tab.inst_gain_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
+                    theme.paint(self.instGui.ccd_tab.inst_gain_e, bg="field_bg")
+                else: theme.paint(self.instGui.ccd_tab.inst_gain_e, bg="warn_soft_bg")
             except Exception: pass
         self.telescope_switch_status["gain"] = True
 
@@ -3250,11 +3249,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         if self.ccd_readoutmode != None:
             cam = self.instGui.ccd_tab
-            txt = cam.rm_names[cam.rm_ids.index(str(int(self.ccd_readoutmode)))]
+            rm_id = str(int(self.ccd_readoutmode))
+            if rm_id in cam.rm_ids:
+                txt = cam.rm_names[cam.rm_ids.index(rm_id)]
+            else:       # tryb spoza konfiguracji kamery - numer i zolte tlo
+                txt = f"#{rm_id}"
+                logger.warning(f'TOI: read mode {rm_id} of {self.component_tel} not in the camera configuration')
             cam.inst_read_e.setText(txt)
-            if cam.defaults["rm"] in (None, txt):
-                self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-            else: self.instGui.ccd_tab.inst_read_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
+            if cam.defaults["rm"] in (None, txt) and not txt.startswith("#"):
+                theme.paint(self.instGui.ccd_tab.inst_read_e, bg="field_bg")
+            else: theme.paint(self.instGui.ccd_tab.inst_read_e, bg="warn_soft_bg")
         self.telescope_switch_status["rm"] = True
 
 
@@ -3271,8 +3275,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             txt=f"{self.ccd_binx}x{self.ccd_biny}"
             self.instGui.ccd_tab.inst_Bin_e.setText(txt)
             if txt == self.instGui.ccd_tab.defaults["bin"]:
-                self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
-            else: self.instGui.ccd_tab.inst_Bin_e.setStyleSheet("background-color: rgb(240, 232, 151); color: black;")
+                theme.paint(self.instGui.ccd_tab.inst_Bin_e, bg="field_bg")
+            else: theme.paint(self.instGui.ccd_tab.inst_Bin_e, bg="warn_soft_bg")
 
     async def ccd_update(self, event):
         self.ccd_state = await  self.ccd.aget_camerastate()
@@ -4665,8 +4669,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.obsGui.main_form.update_table()
 
     # dioda stanu: znak ● w kolorze stanu
-    # kolory zakladki kamery w oknie instrumentu (QColor) - okno Mount uzywa juz kluczy toi_theme
-    LED_ON, LED_OFF, LED_NA = "#009600", "#960000", "#bebebe"   # hex: dziala i w stylesheet, i w QColor
 
     def set_led(self, widget, color_key):
         # dioda: znak ● w kolorze klucza toi_theme
