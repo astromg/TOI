@@ -438,6 +438,7 @@ class MainForm(QWidget):
                 self.rows = tels
                 self.obs_t.setRowCount(len(tels))
                 self._cells.clear()
+                self.fit_table_height()
         except Exception as e:
             logger.exception(f'TOI: telescope table: {e}')
             return
@@ -450,6 +451,12 @@ class MainForm(QWidget):
                     logger.warning(f'TOI: telescope table {t} {self.COLUMNS[col]}: {e!r}')
                     content = ("text", "?", "tab_error")
                 self.set_cell(i, col, content)
+
+    def fit_table_height(self):
+        # tabela: teleskopy + 2 puste wiersze; reszte wysokosci bierze log (setRowStretch w mkUI)
+        t = self.obs_t
+        t.setFixedHeight(t.horizontalHeader().sizeHint().height()
+                         + t.verticalHeader().defaultSectionSize() * (t.rowCount() + 2) + 2 * t.frameWidth())
 
     def set_cell(self, i, col, content):
         if self._cells.get((i, col)) == content:
@@ -822,6 +829,8 @@ class MainForm(QWidget):
         #self.obs_t.setFixedWidth(550)  # Size
         self.obs_t.setStyleSheet(f"font-size: 9pt; selection-background-color: {theme.c('selection_bg')};")
         grid.addWidget(self.obs_t, w, 0, 1, 8)
+        self.obs_t.setRowCount(len(self.parent.local_cfg["toi"]["telescopes"]))
+        self.fit_table_height()
 
 
         #self.testowyPocisk_p.clicked.connect(self.parent.force_update)
@@ -839,7 +848,8 @@ class MainForm(QWidget):
         self.msg_e = QTextEdit()
         self.msg_e.setReadOnly(True)
         self.msg_e.setStyleSheet(theme.field_style())
-        grid.addWidget(self.msg_e, w, 0, 3, 4)
+        grid.addWidget(self.msg_e, w, 0, 4, 4)     # 4. wiersz pusty po prawej - miejsce na kolejne pola
+        grid.setRowStretch(w + 3, 1)                # zapas wysokosci okna idzie do logu
 
         # czas obok logu, w miejscu po przyciskach okien - uklad jak dawniej na gorze
         grid.addWidget(self.date_l, w, 4)
@@ -860,7 +870,7 @@ class MainForm(QWidget):
         grid.addWidget(self.sun_l, w + 2, 4)
         grid.addWidget(self.sun_e, w + 2, 5)
 
-        w = w + 3
+        w = w + 4
 
         self.line_l = QFrame()
         self.line_l.setFrameShape(QFrame.HLine)
