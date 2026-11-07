@@ -85,6 +85,9 @@ THEMES = {
 }
 TITLES = {"day": "Day", "night": "Night", "funky": "Funky"}
 
+# katalog obrazkow przelacznikow (w stylesheetach pisane jako ICONS/SwitchOn.png); nocne - Icons/make_night_icons.py
+ICON_DIRS = {"day": "./Icons/", "night": "./Icons/night/", "funky": "./Icons/"}
+
 # tekst na tle *_bg: czarny na jasnych tlach dziennych, jasny na ciemnych nocnych
 BG_TEXT = {"day": "black", "night": "rgb(210, 210, 200)", "funky": "black"}
 
@@ -129,18 +132,25 @@ class Theme:
                 parts.append(f"color: {self.c('field_fg')};")
             parts.append(f"background-color: {self.c(bg)};")
         if extra:
-            parts.append(extra)
+            parts.append(extra.replace("ICONS/", ICON_DIRS[self.name]))
         return " ".join(parts)
+
+    def text_on(self, color):
+        """czarny albo jasny tekst - czytelny na tle o kolorze color (QColor)"""
+        luminance = 0.299 * color.red() + 0.587 * color.green() + 0.114 * color.blue()
+        return "black" if luminance > 140 else "rgb(225, 225, 215)"
 
     def paint(self, widget, fg=None, bg=None, extra=""):
         """kolory widzetu wg kluczy motywu (fg - tekst, bg - tlo, extra - reszta stylesheetu). Klucze sa zapamietane
         na widzecie: zmiana motywu przemalowuje go sama, a powtorne malowanie tymi samymi kluczami nic nie kosztuje
         (petle odswiezajace co kilka sekund nie przeliczaja stylu)"""
         keys = (fg, bg, extra, self.name)
-        if getattr(widget, "_theme_paint", None) == keys:
+        css = self.css(fg, bg, extra)
+        # porownujemy tez z biezacym stylesheetem - ktos mogl go zmienic zwyklym setStyleSheet
+        if getattr(widget, "_theme_paint", None) == keys and widget.styleSheet() == css:
             return
         widget._theme_paint = keys
-        widget.setStyleSheet(self.css(fg, bg, extra))
+        widget.setStyleSheet(css)
 
     def repaint_all(self):
         for w in QApplication.allWidgets():
@@ -184,6 +194,11 @@ class Theme:
                                 (QtGui.QPalette.ColorRole.ToolTipText, text),
                                 (QtGui.QPalette.ColorRole.Highlight, self._css_to_qcolor(t["selection_bg"]))):
                 p.setColor(role, color)
+            # elementy wylaczone (np. SET przy M3 bez M3) - przygaszony tekst, inaczej wygladaja jak aktywne
+            muted = self._css_to_qcolor(t["muted_fg"])
+            for role in (QtGui.QPalette.ColorRole.Text, QtGui.QPalette.ColorRole.ButtonText,
+                         QtGui.QPalette.ColorRole.WindowText):
+                p.setColor(QtGui.QPalette.ColorGroup.Disabled, role, muted)
             # linie i ramki (QFrame HLine itd.) z tych rol - bez nich swieca na bialo
             for role, color in ((QtGui.QPalette.ColorRole.Light, window.lighter(170)),
                                 (QtGui.QPalette.ColorRole.Midlight, window.lighter(140)),

@@ -1058,7 +1058,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         self.cfg_tel_directory = self.local_cfg[self.active_tel]["tel_directory"]
         self.cfg_tel_ob_list = self.local_cfg[self.active_tel]["tel_ob_list"]
-        self.cfg_showRotator = self.local_cfg[self.active_tel]["showRotator"]
+        # rotator: wg komponentu "derotator" w konfiguracji TIC; bez listy komponentow - dawne showRotator z toi_config
+        components = self.nats_cfg[self.active_tel].get("components")
+        if components is not None:
+            self.cfg_showRotator = "derotator" in components
+        else:
+            self.cfg_showRotator = self.local_cfg[self.active_tel].get("showRotator", False)
+        # M3: wg komponentu "tertiary" (jego pozycje to porty); bez niego wiersz M3 wyszarzony, bez subskrypcji
+        self.has_m3 = self.nats_cfg[self.active_tel]["tertiary_port_list"] is not None
 
         self.overhed = self.local_cfg[self.active_tel]["overhead"]
 
@@ -1147,7 +1154,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.run_method_in_background(self.cover.asubscribe_coverstate(self.covers_update), group="subscribe")
         await self.run_method_in_background(self.focus.asubscribe_fansstatus(self.mirrorFans_update), group="subscribe")
         #
-        await self.run_method_in_background(self.m3.asubscribe_tertiarystatus(self.m3_update), group="subscribe")
+        if self.has_m3:
+            await self.run_method_in_background(self.m3.asubscribe_tertiarystatus(self.m3_update), group="subscribe")
+        else:
+            # bez M3 nie przyjdzie m3_update, ktory wybiera zakladke instrumentu - kamera
+            self.m3_name = None
+            self.inst_tab_switch = False
+            self.instGui.tab.setCurrentWidget(self.instGui.ccd_tab)
         await self.run_method_in_background(self.optics_model.asubscribe(self.telescope), group="subscribe")
         #
         await self.run_method_in_background(self.fw.asubscribe_connected(self.filter_con_update), group="subscribe")
@@ -4257,6 +4270,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def set_m3(self):
         await self.update_log(f'SET M3', "OPERATOR", self.active_tel)
 
+        if not self.has_m3:
+            await self.update_log(f'no M3 on {self.active_tel}', "WARNING", self.active_tel)
+            return
         if self.tel_acces[self.active_tel]:
             m3_i = int(self.mntGui.telM3_s.currentIndex())
             m3_i = str(m3_i + 1) # bo jest 1 based
@@ -4371,23 +4387,23 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.rotator_pos is not None and self.rotator_mechpos is not None:
             self.mntGui.telRotator1_e.setText(f"{self.rotator_mechpos:.2f}")
             self.mntGui.rotatorEq_e.setText(f"{self.rotator_pos:.2f}")
-            style = "background-color: rgb(233, 233, 233); color: black;"
+            fg, bg = None, "field_bg"
             if self.rotator_moving:
-                style = "background-color: rgb(234, 245, 249); color: black;"
+                bg = "input_edit_bg"
                 try:
                     if self.rotator_pos_prev - self.rotator_pos > 1:
-                        style = "background-color: rgb(136, 142, 228); color: black;"
+                        bg = "moving_bg"
                 except (AttributeError, TypeError):
                     pass
         else:
             for field in fields:
                 field.setText("ERROR")
-            style = "background-color: rgb(233, 233, 233); color: rgb(150, 0, 0);"
+            fg, bg = "bad_fg", "field_bg"
         for field in fields:
-            field.setStyleSheet(style)
+            theme.paint(field, fg=fg, bg=bg)
         # kat mechaniczny w 10 deg od miekkiego limitu ASA (+-160) - zolte tlo, takze w ruchu
         if self.rotator_mechpos is not None and abs((self.rotator_mechpos + 180) % 360 - 180) > 150:
-            theme.paint(self.mntGui.telRotator1_e, bg="warn_bg")
+            theme.paint(self.mntGui.telRotator1_e, fg=fg, bg="warn_bg")
         self.rotator_pos_prev = self.rotator_pos
 
     @qs.asyncSlot()
@@ -4761,6 +4777,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.nats_cfg[k]["tertiary_port_dict"] = None
                 self.nats_cfg[k]["tertiary_port_list"] = None
 
+            # komponenty teleskopu z TIC (observatory.components): derotator -> wiersz ROTATOR, tertiary -> M3
+            try:
+                self.nats_cfg[k]["components"] = set(nats_cfg[k]["observatory"]["components"])
+            except (KeyError, TypeError):
+                self.nats_cfg[k]["components"] = None
+
         # statusty wszystkich teleskopow
 
         templeate = {
@@ -4924,6 +4946,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # M3
         self.m3_name = None
         self.m3_port = None     # ostatni port M3 aktywnego teleskopu
+        self.has_m3 = False     # wg komponentu tertiary w TIC, ustawia telescope_switched
         self.dome_follower_seen = None
         self.services_since = time.time()
         self.started = time.time()

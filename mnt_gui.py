@@ -222,7 +222,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.mntMotors_c = QCheckBox()
         self.mntMotors_c.setChecked(False)
         self.mntMotors_c.setLayoutDirection(Qt.RightToLeft)
-        self.mntMotors_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        theme.paint(self.mntMotors_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}")
         self.mntMotors_c.clicked.connect(self.parent.mount_motorsOnOff)
 
 
@@ -342,13 +342,13 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.tracking_c = QCheckBox()
         self.tracking_c.setChecked(False)
         self.tracking_c.setLayoutDirection(Qt.RightToLeft)
-        self.tracking_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        theme.paint(self.tracking_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}")
         self.tracking_c.clicked.connect(self.parent.mount_trackOnOff)
 
         self.guiding_c = QCheckBox("GUIDING: ")
         self.guiding_c.setChecked(False)
         self.guiding_c.setLayoutDirection(Qt.RightToLeft)
-        self.guiding_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+        theme.paint(self.guiding_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOnGrey.png)}::indicator:unchecked {image: url(ICONS/SwitchOffGrey.png)}")
 
         w = w + 1
         self.grid.addWidget(self.target_l, w, 1)
@@ -405,7 +405,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeAuto_c = QCheckBox()
         self.domeAuto_c.setChecked(False)
         self.domeAuto_c.setLayoutDirection(Qt.RightToLeft)
-        self.domeAuto_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}::indicator:disabled {image: url(./Icons/SwitchOffGrey.png)}")
+        theme.paint(self.domeAuto_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}::indicator:disabled {image: url(ICONS/SwitchOffGrey.png)}")
         self.domeAuto_c.setEnabled(False)   # aktywny dopiero po odpowiedzi serwisu dome follower
         self.domeAuto_c.clicked.connect(self.parent.domeFollow)
 
@@ -428,7 +428,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.ventilators_c = QCheckBox()
         self.ventilators_c.setChecked(False)
         self.ventilators_c.setLayoutDirection(Qt.LeftToRight)
-        self.ventilators_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
+        theme.paint(self.ventilators_c, extra="QCheckBox::indicator:checked {image: url(ICONS/ToggleOnOrange.png)}::indicator:unchecked {image: url(ICONS/ToggleOffGreen.png)}")
         self.ventilators_c.clicked.connect(self.parent.VentilatorsOnOff)
 
         self.ventilators_e = QLineEdit()
@@ -444,8 +444,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeShutter_c = QCheckBox("")
         self.domeShutter_c.setChecked(False)
         self.domeShutter_c.setLayoutDirection(Qt.RightToLeft)
-        self.domeShutter_c.setStyleSheet(
-            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        theme.paint(self.domeShutter_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}")
 
         self.domeShutter_c.clicked.connect(self.parent.dome_openOrClose)
 
@@ -496,7 +495,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.domeLights_c = QCheckBox("")
         self.domeLights_c.setChecked(False)
         self.domeLights_c.setLayoutDirection(Qt.LeftToRight)
-        self.domeLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
+        theme.paint(self.domeLights_c, extra="QCheckBox::indicator:checked {image: url(ICONS/ToggleOnOrange.png)}::indicator:unchecked {image: url(ICONS/ToggleOffGreen.png)}")
         self.domeLights_c.clicked.connect(self.parent.domeLightOnOff)
 
         self.domeLights_e = QLineEdit()
@@ -512,7 +511,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.flatLights_e.setText("--")
         self.flatLights_c.setChecked(False)
         self.flatLights_c.setLayoutDirection(Qt.LeftToRight)
-        self.flatLights_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
+        theme.paint(self.flatLights_c, extra="QCheckBox::indicator:checked {image: url(ICONS/ToggleOnOrange.png)}::indicator:unchecked {image: url(ICONS/ToggleOffGreen.png)}")
         self.flatLights_c.clicked.connect(self.parent.FlatLampOnOff)
 
         w = w + 1
@@ -542,7 +541,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         theme.paint(self.mirrorFans_e, bg="field_bg")
         self.mirrorFans_e.setText("--")
         self.mirrorFans_c.setChecked(False)
-        self.mirrorFans_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
+        theme.paint(self.mirrorFans_c, extra="QCheckBox::indicator:checked {image: url(ICONS/ToggleOnOrange.png)}::indicator:unchecked {image: url(ICONS/ToggleOffGreen.png)}")
         self.mirrorFans_c.clicked.connect(self.parent.mirrorFansOnOff)
 
         self.telCovers_l = QLabel("MIRROR COVERS: ")
@@ -552,7 +551,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telCovers_c = QCheckBox("")
         self.telCovers_c.setChecked(False)
         self.telCovers_c.setLayoutDirection(Qt.RightToLeft)
-        self.telCovers_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        theme.paint(self.telCovers_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}")
         self.telCovers_c.clicked.connect(self.parent.covers_openOrClose)
 
         w=w+1
@@ -596,7 +595,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telAutoFocus_c = QCheckBox()
         self.telAutoFocus_c.setChecked(False)
         self.telAutoFocus_c.setLayoutDirection(Qt.RightToLeft)
-        self.telAutoFocus_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}::indicator:unchecked {image: url(./Icons/SwitchOff.png)}")
+        theme.paint(self.telAutoFocus_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}")
         self.telAutoFocus_c.clicked.connect(self.parent.focus_auto_adjust_OnOff)
 
         w = w + 1
@@ -696,7 +695,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.FilterAutoOffset_c = QCheckBox()
         self.FilterAutoOffset_c.setChecked(True)
         self.FilterAutoOffset_c.setLayoutDirection(Qt.RightToLeft)
-        self.FilterAutoOffset_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/SwitchOnGrey.png)}::indicator:unchecked {image: url(./Icons/SwitchOffGrey.png)}")
+        theme.paint(self.FilterAutoOffset_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOnGrey.png)}::indicator:unchecked {image: url(ICONS/SwitchOffGrey.png)}")
 
 
         w=w+1
@@ -729,7 +728,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.SafetySwitch_c = QCheckBox()
         self.SafetySwitch_c.setChecked(False)
         self.SafetySwitch_c.setLayoutDirection(Qt.RightToLeft)
-        self.SafetySwitch_c.setStyleSheet("QCheckBox::indicator:checked {image: url(./Icons/ToggleOnOrange.png)}::indicator:unchecked {image: url(./Icons/ToggleOffGreen.png)}")
+        theme.paint(self.SafetySwitch_c, extra="QCheckBox::indicator:checked {image: url(ICONS/ToggleOnOrange.png)}::indicator:unchecked {image: url(ICONS/ToggleOffGreen.png)}")
         self.SafetySwitch_c.clicked.connect(self.parent.safety_switch_OnOff)
 
         self.shutdown_p.clicked.connect(self.parent.shutdown)
@@ -761,8 +760,17 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.nextAz_e.textChanged.connect(self.updateNextRaDec)
 
         if self.parent.active_tel != None:
-            if self.parent.nats_cfg[self.parent.active_tel]["tertiary_port_list"] != None:
-                self.telM3_s.addItems(self.parent.nats_cfg[self.parent.active_tel]["tertiary_port_list"])
+            ports = self.parent.nats_cfg[self.parent.active_tel]["tertiary_port_list"]
+            if ports is not None:
+                self.telM3_s.addItems(ports)
+            else:       # teleskop bez M3 (brak komponentu tertiary w TIC) - wiersz wyszarzony
+                self.telM3_e.setText("no M3")
+                theme.paint(self.telM3_l, fg="muted_fg")
+                theme.paint(self.telM3_e, fg="muted_fg", bg="field_bg")
+                for widget in (self.telM3_s, self.telM3_p):
+                    widget.setEnabled(False)
+                for widget in (self.telM3_l, self.telM3_e, self.telM3_s, self.telM3_p):
+                    widget.setToolTip(f"{self.parent.active_tel} has no M3 (no tertiary in the TIC configuration).")
 
         if self.parent.filter_list != None:
             self.telFilter_s.addItems(self.parent.filter_list)

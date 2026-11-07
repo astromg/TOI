@@ -83,6 +83,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
         self.parent = parent
         self._geometry = None
+        self._panel_tel = None      # teleskop na paskach tytulowych paneli
         theme.apply_palette()       # motyw zapamietany w QSettings
         self.setWindowTitle('Telescope Operator Interface')
         self.main_form = MainForm(self.parent)
@@ -162,24 +163,44 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
     # panele wyraznie rozdzielone: pasek tytulu z tlem (kolor aktywnego teleskopu) i grubsze linie podzialu
     PANEL_STYLE = """
-        QMainWindow::separator { background: rgb(150, 150, 150); width: 5px; height: 5px; }
-        QMainWindow::separator:hover { background: rgb(100, 100, 100); }
-        QDockWidget::title { background: TITLE_BG; color: black; padding: 3px 6px; }
+        QMainWindow::separator { background: SEP; width: 5px; height: 5px; }
+        QMainWindow::separator:hover { background: SEP_HOVER; }
+        QDockWidget::title { background: TITLE_BG; color: TITLE_FG; padding: 3px 6px; }
     """
+    # linie podzialu paneli w motywach: (zwykla, pod kursorem)
+    PANEL_SEPARATORS = {"day": ("rgb(150, 150, 150)", "rgb(100, 100, 100)"),
+                        "night": ("rgb(70, 70, 75)", "rgb(110, 110, 115)"),
+                        "funky": ("rgb(120, 90, 150)", "rgb(200, 60, 160)")}
+
+    def panel_style(self, tel):
+        """paski tytulowe paneli w kolorze teleskopu (z configu TIC). Dzien: pol na pol z biela (ciemne kolory jak
+        zb08 #0082E8 nie zaglusza czarnego tekstu), noc: pol na pol z tlem okna - intensywny, ale ciemny, funky: pelny
+        kolor. Tekst czarny albo jasny wg jasnosci paska"""
+        color = QtGui.QColor((self.parent.nats_cfg.get(tel, {}) if tel else {}).get("color") or "#cdd2dc")
+        if theme.name == "day":
+            base, mix = QtGui.QColor(255, 255, 255), 0.5
+        elif theme.name == "night":
+            base, mix = theme.qcolor("window"), 0.5
+        else:
+            base, mix = color, 0.0
+        tint = QtGui.QColor(*(int(c * (1 - mix) + b * mix) for c, b in
+                              ((color.red(), base.red()), (color.green(), base.green()), (color.blue(), base.blue()))))
+        sep, sep_hover = self.PANEL_SEPARATORS[theme.name]
+        return (self.PANEL_STYLE.replace("TITLE_BG", tint.name()).replace("TITLE_FG", theme.text_on(tint))
+                .replace("SEP_HOVER", sep_hover).replace("SEP", sep))
 
     def set_panel_telescope(self, tel):
-        # paski tytulowe paneli w kolorze aktywnego teleskopu (z configu TIC) i z jego nazwa
-        # pol na pol z biela: ciemne kolory (zb08 #0082E8) nie zaglusza czarnego tekstu, odcien zostaje
-        color = QtGui.QColor(self.parent.nats_cfg.get(tel, {}).get("color") or "#cdd2dc")
-        tint = QtGui.QColor((color.red() + 255) // 2, (color.green() + 255) // 2, (color.blue() + 255) // 2)
-        self.setStyleSheet(self.PANEL_STYLE.replace("TITLE_BG", tint.name()))
+        # paski tytulowe paneli w kolorze aktywnego teleskopu i z jego nazwa
+        self._panel_tel = tel
+        self.setStyleSheet(self.panel_style(tel))
         for attr, title in self.PANELS:
             self.docks[attr].setWindowTitle(f"{title} \u00b7 {tel}")
         self.setWindowTitle(f"Telescope Operator Interface \u00b7 {tel}")
 
     def dock_panels(self):
         self._geometry = None       # rozmiar okna glownego ustawia uklad, nie obs_window_geometry
-        self.setStyleSheet(self.PANEL_STYLE.replace("TITLE_BG", "rgb(205, 210, 220)"))
+        self.setStyleSheet(self.panel_style(None))
+        theme.on_change(lambda: self.setStyleSheet(self.panel_style(self._panel_tel)))
         self.setDockOptions(QMainWindow.DockOption.AnimatedDocks | QMainWindow.DockOption.AllowTabbedDocks
                             | QMainWindow.DockOption.AllowNestedDocks)
         # prawa kolumna na cala wysokosc, Mount tylko pod oknem obserwacji
