@@ -369,7 +369,7 @@ class SkyView(QWidget):
             color = self.c("tab_moving")
         facecolor = color
         if self.parent.cover_status == 3:
-            facecolor = "white" if theme.name != "night" else self.c("text")
+            facecolor = self.c("text") if theme.dark else "white"
         if self.parent.mount_alt is not None and self.parent.mount_az is not None:
             alt = 90 - self.parent.mount_alt
             az = self.parent.mount_az

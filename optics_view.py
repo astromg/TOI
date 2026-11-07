@@ -27,25 +27,27 @@ from PyQtX.QtWidgets import QApplication, QSizePolicy, QToolTip, QWidget
 
 from optics_model import OpticsModel
 
-from toi_theme import theme as toi_theme
+from toi_theme import theme as toi_theme, THEMES, DARK
 
 
 def look_for(toi_theme_name: str) -> Theme:
-    """Optics look for TOI's theme (toi_theme): day - obcom ``toi``; night - ``toi`` on TOI's dark ground, dimmed,
-    the meaning of the colours unchanged; funky - obcom ``holo`` (the blueprint of owies)."""
+    """Optics look for TOI's theme (toi_theme): day - obcom ``toi``; funky - obcom ``holo`` (the blueprint of owies);
+    dark themes (night, cosmic, nord, dim) - ``toi`` on the theme's own ground and text, the meaning of the colours
+    unchanged."""
     base = theme("toi")
     if toi_theme_name == "funky":
         return theme("holo")
-    if toi_theme_name != "night":
+    if toi_theme_name not in DARK:
         return base
+    c = lambda key: QColor(*(int(v) for v in THEMES[toi_theme_name][key][4:-1].split(","))).name()
     tokens = dict(base.tokens)
-    tokens.update({"ground": "#1E1E20", "text": "#AAAAA0", "muted": "#80807A", "glyph": "#AAAAA0",
-                   "blocker": "#AAAAA0", "held": "#80807A", "idle": "#505050", "unknown": "#BE3C3C",
-                   "warning": "#C8782D", "sees": "#4A8CDC"})
+    tokens.update({"ground": c("window"), "text": c("text"), "muted": c("muted_fg"), "glyph": c("text"),
+                   "blocker": c("text"), "held": c("muted_fg"), "idle": c("input_bg"), "unknown": c("bad_fg"),
+                   "warning": c("warn2_fg"), "sees": c("change_fg")})
     status = dict(tokens["status"])
-    status.update({"field": "#303032", "none": {"fill": "#4A4A4E", "ink": "#AAAAA0"}})
+    status.update({"field": c("field_bg"), "none": {"fill": c("input_bg"), "ink": c("text")}})
     tokens["status"] = status
-    return Theme("toi-night", tokens)
+    return Theme(f"toi-{toi_theme_name}", tokens)
 
 
 THEME = look_for(toi_theme.name)

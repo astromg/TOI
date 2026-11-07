@@ -191,17 +191,17 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     def panel_style(self, tel):
         """paski tytulowe paneli w kolorze teleskopu (z configu TIC). Dzien: pol na pol z biela (ciemne kolory jak
         zb08 #0082E8 nie zaglusza czarnego tekstu), noc: pol na pol z tlem okna - intensywny, ale ciemny, funky: pelny
-        kolor. Tekst czarny albo jasny wg jasnosci paska"""
+        kolor. Inne ciemne motywy jak noc. Tekst czarny albo jasny wg jasnosci paska"""
         color = QtGui.QColor((self.parent.nats_cfg.get(tel, {}) if tel else {}).get("color") or "#cdd2dc")
         if theme.name == "day":
             base, mix = QtGui.QColor(255, 255, 255), 0.5
-        elif theme.name == "night":
+        elif theme.dark:
             base, mix = theme.qcolor("window"), 0.5
         else:
             base, mix = color, 0.0
         tint = QtGui.QColor(*(int(c * (1 - mix) + b * mix) for c, b in
                               ((color.red(), base.red()), (color.green(), base.green()), (color.blue(), base.blue()))))
-        sep, sep_hover = self.PANEL_SEPARATORS[theme.name]
+        sep, sep_hover = self.PANEL_SEPARATORS.get(theme.name) or (theme.c("field_bg"), theme.c("muted_fg"))
         return (self.PANEL_STYLE.replace("TITLE_BG", tint.name()).replace("TITLE_FG", theme.text_on(tint))
                 .replace("SEP_HOVER", sep_hover).replace("SEP", sep))
 

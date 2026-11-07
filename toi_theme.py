@@ -86,14 +86,81 @@ THEMES = {
         "tab_icon_ok": "rgb(60, 255, 160)", "tab_icon_bad": "rgb(255, 80, 120)", "tab_icon_warn": "rgb(255, 140, 0)",
         "tab_icon_warn2": "rgb(255, 180, 60)",
     },
+    # cosmic: granat i fiolet mglawicy, tekst jak swiatlo gwiazd; zorza / czerwony olbrzym / Slonce / goraca gwiazda
+    "cosmic": {
+        "window": "rgb(11, 14, 31)",
+        "text": "rgb(200, 208, 255)",
+        "field_bg": "rgb(24, 29, 58)",
+        "field_fg": "rgb(200, 208, 255)",
+        "muted_fg": "rgb(80, 88, 140)",
+        "selection_bg": "rgb(91, 58, 140)",
+        "ok_bg": "rgb(18, 92, 74)", "ok_fg": "rgb(61, 220, 151)", "ok_beat_fg": "rgb(160, 255, 210)",
+        "bad_bg": "rgb(122, 24, 56)", "bad_fg": "rgb(255, 77, 109)",
+        "warn_bg": "rgb(120, 96, 30)", "warn_fg": "rgb(255, 209, 102)",
+        "warn2_bg": "rgb(128, 70, 26)", "warn2_fg": "rgb(255, 159, 67)",
+        "change_bg": "rgb(28, 70, 120)", "change_fg": "rgb(76, 201, 240)",
+        "idle_fg": "rgb(200, 208, 255)",
+        "tab_ok": "rgb(61, 220, 151)", "tab_moving": "rgb(255, 159, 67)", "tab_error": "rgb(255, 77, 109)",
+        "input_bg": "rgb(34, 38, 74)", "input_edit_bg": "rgb(34, 38, 74)", "moving_bg": "rgb(52, 40, 110)",
+        "moving_fg": "rgb(255, 159, 67)", "warn_soft_bg": "rgb(120, 96, 30)",
+        "row_sel_bg": "rgb(91, 58, 140)", "row_prev_bg": "rgb(30, 26, 60)", "dim_fg": "rgb(110, 118, 170)",
+        "tab_icon_ok": "rgb(61, 220, 151)", "tab_icon_bad": "rgb(255, 77, 109)", "tab_icon_warn": "rgb(255, 159, 67)",
+        "tab_icon_warn2": "rgb(255, 209, 102)",
+    },
+    # nord: spokojny, chlodny, arktyczny (paleta Nord)
+    "nord": {
+        "window": "rgb(46, 52, 64)",
+        "text": "rgb(216, 222, 233)",
+        "field_bg": "rgb(59, 66, 82)",
+        "field_fg": "rgb(216, 222, 233)",
+        "muted_fg": "rgb(97, 110, 136)",
+        "selection_bg": "rgb(94, 129, 172)",
+        "ok_bg": "rgb(84, 110, 74)", "ok_fg": "rgb(163, 190, 140)", "ok_beat_fg": "rgb(200, 230, 180)",
+        "bad_bg": "rgb(130, 60, 68)", "bad_fg": "rgb(191, 97, 106)",
+        "warn_bg": "rgb(140, 118, 72)", "warn_fg": "rgb(235, 203, 139)",
+        "warn2_bg": "rgb(138, 86, 70)", "warn2_fg": "rgb(208, 135, 112)",
+        "change_bg": "rgb(70, 96, 126)", "change_fg": "rgb(129, 161, 193)",
+        "idle_fg": "rgb(216, 222, 233)",
+        "tab_ok": "rgb(163, 190, 140)", "tab_moving": "rgb(208, 135, 112)", "tab_error": "rgb(191, 97, 106)",
+        "input_bg": "rgb(67, 76, 94)", "input_edit_bg": "rgb(67, 76, 94)", "moving_bg": "rgb(76, 86, 140)",
+        "moving_fg": "rgb(208, 135, 112)", "warn_soft_bg": "rgb(140, 118, 72)",
+        "row_sel_bg": "rgb(94, 129, 172)", "row_prev_bg": "rgb(52, 58, 72)", "dim_fg": "rgb(140, 150, 170)",
+        "tab_icon_ok": "rgb(163, 190, 140)", "tab_icon_bad": "rgb(191, 97, 106)", "tab_icon_warn": "rgb(208, 135, 112)",
+        "tab_icon_warn2": "rgb(235, 203, 139)",
+    },
+    # dim: noc dla adaptacji wzroku - ciemniej niz night, wszystko przygaszone, kolory zostaja
+    "dim": {
+        "window": "rgb(10, 10, 11)",
+        "text": "rgb(115, 112, 105)",
+        "field_bg": "rgb(20, 20, 22)",
+        "field_fg": "rgb(115, 112, 105)",
+        "muted_fg": "rgb(55, 55, 55)",
+        "selection_bg": "rgb(40, 44, 60)",
+        "ok_bg": "rgb(22, 50, 22)", "ok_fg": "rgb(60, 120, 60)", "ok_beat_fg": "rgb(110, 170, 110)",
+        "bad_bg": "rgb(70, 20, 20)", "bad_fg": "rgb(150, 50, 50)",
+        "warn_bg": "rgb(65, 55, 18)", "warn_fg": "rgb(150, 130, 50)",
+        "warn2_bg": "rgb(70, 40, 14)", "warn2_fg": "rgb(160, 95, 40)",
+        "change_bg": "rgb(22, 36, 66)", "change_fg": "rgb(70, 100, 160)",
+        "idle_fg": "rgb(115, 112, 105)",
+        "tab_ok": "rgb(60, 120, 60)", "tab_moving": "rgb(160, 95, 40)", "tab_error": "rgb(150, 50, 50)",
+        "input_bg": "rgb(26, 26, 28)", "input_edit_bg": "rgb(26, 26, 28)", "moving_bg": "rgb(30, 30, 70)",
+        "moving_fg": "rgb(160, 95, 40)", "warn_soft_bg": "rgb(65, 55, 18)",
+        "row_sel_bg": "rgb(40, 44, 60)", "row_prev_bg": "rgb(18, 18, 22)", "dim_fg": "rgb(80, 78, 74)",
+        "tab_icon_ok": "rgb(60, 120, 60)", "tab_icon_bad": "rgb(150, 50, 50)", "tab_icon_warn": "rgb(160, 95, 40)",
+        "tab_icon_warn2": "rgb(150, 130, 50)",
+    },
 }
-TITLES = {"day": "Day", "night": "Night", "funky": "Funky"}
+TITLES = {"day": "Day", "night": "Night", "funky": "Funky", "cosmic": "Cosmic", "nord": "Nord", "dim": "Dim"}
 
 # katalog obrazkow przelacznikow (w stylesheetach pisane jako ICONS/SwitchOn.png); nocne - Icons/make_night_icons.py
-ICON_DIRS = {"day": "./Icons/", "night": "./Icons/night/", "funky": "./Icons/"}
+ICON_DIRS = {"day": "./Icons/", "night": "./Icons/night/", "funky": "./Icons/", "cosmic": "./Icons/night/",
+             "nord": "./Icons/night/", "dim": "./Icons/night/"}
 
 # tekst na tle *_bg: czarny na jasnych tlach dziennych, jasny na ciemnych nocnych
-BG_TEXT = {"day": "black", "night": "rgb(210, 210, 200)", "funky": "black"}
+BG_TEXT = {"day": "black", "night": "rgb(210, 210, 200)", "funky": "black", "cosmic": "rgb(225, 230, 255)",
+           "nord": "rgb(236, 239, 244)", "dim": "rgb(150, 145, 135)"}
+# ciemne motywy w stylu nocy (paski paneli, panel optyki): wszystkie poza day i funky
+DARK = {"night", "cosmic", "nord", "dim"}
 
 
 class Theme:
@@ -161,6 +228,10 @@ class Theme:
             keys = getattr(w, "_theme_paint", None)
             if keys is not None:
                 self.paint(w, *keys[:3])
+
+    @property
+    def dark(self):
+        return self.name in DARK
 
     def hex(self, key):
         """kolor motywu jako #rrggbb (matplotlib, HTML)"""
