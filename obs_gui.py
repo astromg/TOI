@@ -14,6 +14,7 @@ from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from base_window import BaseWindow
 from claude_report import write_claude_report
 from toi_lib import *
+from toi_theme import theme, THEMES, TITLES
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,6 @@ class HoldMarker(QLabel):
     def __init__(self, field):
         super().__init__(field)
         self.field = field
-        self.setStyleSheet("background: transparent; color: black;")
         field.installEventFilter(self)
         self.hide()
 
@@ -39,6 +39,7 @@ class HoldMarker(QLabel):
         self.move(self.field.width() - self.width() - 4, (self.field.height() - self.height()) // 2)
 
     def show_hold(self, color, minutes, tip):
+        self.setStyleSheet(f"background: transparent; color: {theme.c('field_fg')};")
         self.setText(f'<span style="color: {color}; font-size: 13pt;">&#9679;</span>{minutes}\'')
         self.setToolTip(tip)
         self.place()
@@ -82,6 +83,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         BaseAsyncWidget.__init__(self, loop=loop, client_api=client_api)
         self.parent = parent
         self._geometry = None
+        theme.apply_palette()       # motyw zapamietany w QSettings
         self.setWindowTitle('Telescope Operator Interface')
         self.main_form = MainForm(self.parent)
         self.setCentralWidget(self.main_form)
@@ -109,6 +111,13 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             menu.addAction(title, lambda _=False, attr=attr: self.bring_up(getattr(self.parent, attr)))
         aux_tabs = menu.addMenu("Aux tabs")
         aux_tabs.aboutToShow.connect(lambda: self.fill_aux_menu(aux_tabs))
+        themes = menu.addMenu("Theme")
+        group = QtGui.QActionGroup(themes)
+        for name in THEMES:
+            action = themes.addAction(TITLES[name], lambda _=False, name=name: theme.set(name))
+            action.setCheckable(True)
+            action.setChecked(name == theme.name)
+            group.addAction(action)
         menu.addSeparator()
         menu.addAction("Reset layout", lambda _=False: self.reset_layout())
 
@@ -370,244 +379,238 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
 class MainForm(QWidget):
+    # kolumny tabeli teleskopow
+    COLUMNS = ["Telescope", "Dome", "Mirror", "Mount", "Instrument", "Program"]
+
     def __init__(self, parent):
         super(MainForm, self).__init__()
         self.parent = parent
         self.setStyleSheet("font-size: 11pt;")
+        self._cells = {}            # (wiersz, kolumna) -> ostatnio pokazana zawartosc; rysujemy tylko zmiany
+        self._pixmaps = {}          # (ikonka, kolor) -> QPixmap
+        self._switching = False     # trwa przelaczanie teleskopu
+        self._wanted_row = None     # wiersz klikniety w trakcie przelaczania - po nim przelaczamy jeszcze raz
 
         self.mkUI()
-        # self.update_table()
         self.obs_t.itemSelectionChanged.connect(self.pocisniecie_tab)
-        #self.exit_p.clicked.connect(lambda: self.parent.app.closeAllWindows())
+        theme.on_change(self.apply_theme)
 
     @qs.asyncSlot()
     async def pocisniecie_tab(self):
-        i = self.obs_t.currentRow()
-        self.parent.active_tel_i = i
-        self.parent.active_tel = self.parent.obs_tel_tic_names[i]
-        await self.parent.telescope_switched()
+        # klikniecia w trakcie przelaczania nie odpalaja drugiego przelaczania naraz (zatrzymywanie i start
+        # subskrypcji by sie przeplataly) - zapamietujemy ostatni wiersz i przelaczamy na niego po skonczeniu
+        row = self.obs_t.currentRow()
+        if row < 0:
+            return
+        self._wanted_row = row
+        if self._switching:
+            return
+        self._switching = True
+        try:
+            while self._wanted_row is not None:
+                i, self._wanted_row = self._wanted_row, None
+                if i == self.parent.active_tel_i and self.parent.telescope is not None:
+                    continue
+                self.parent.active_tel_i = i
+                self.parent.active_tel = self.parent.obs_tel_tic_names[i]
+                await self.parent.telescope_switched()
+        finally:
+            self._switching = False
+
+    def pixmap(self, name, color_key):
+        key = (name, theme.c(color_key))
+        if key not in self._pixmaps:
+            self._pixmaps[key] = ToiIcon(name, theme.qcolor(color_key), size=14).pixmap(14, 14)
+        return self._pixmaps[key]
 
     def update_table(self):
+        # wolane z czytnikow NATS: wyjatek nie moze z nich wyjsc (konczy czytnik na stale), a blad jednego
+        # teleskopu nie moze zatrzymac reszty tabeli
+        try:
+            tels = self.parent.local_cfg["toi"]["telescopes"]
+            if self.obs_t.rowCount() != len(tels):
+                self.obs_t.setRowCount(len(tels))
+                self._cells.clear()
+        except Exception as e:
+            logger.exception(f'TOI: telescope table: {e}')
+            return
+        for i, t in enumerate(tels):
+            for col, f in enumerate((self.tel_cell, self.dome_cell, self.mirror_cell, self.mount_cell,
+                                     self.instrument_cell, self.program_cell)):
+                try:
+                    content = f(t)
+                except Exception as e:
+                    logger.warning(f'TOI: telescope table {t} {self.COLUMNS[col]}: {e!r}')
+                    content = ("text", "?", "bad_fg")
+                self.set_cell(i, col, content)
 
-        i = -1
-        for t in self.parent.local_cfg["toi"]["telescopes"]:
-            i = i + 1
-
-            # TELESKOPY
-
-
-            icons = QWidget()
-            lay = QHBoxLayout(icons)
-            lay.setContentsMargins(1,0,1,0)
-            lay.setSpacing(3)
-            lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-            acces = self.parent.tel_acces[t]
-            if acces:
-                icon_label1 = QLabel()
-                icon_label1.setPixmap(ToiIcon("icon_joystick", "darkGreen", size=14).pixmap(14, 14))
-                lay.addWidget(icon_label1)
-
-            lay.addWidget(QLabel(f'{t}'))
-
-            if self.parent.safety_cutoff.get(t):
-                icon_hat = QLabel()
-                icon_hat.setPixmap(ToiIcon("icon_hat", "red", size=14).pixmap(14, 14))
-                icon_hat.setToolTip("safety cutoff ON")
-                lay.addWidget(icon_hat)
-
-
-            if self.parent.nats_toi_op_status[t]:
-
-                k = "program_error"
-                if "error" in self.parent.ob_progress[t]:
-                    if self.parent.ob_progress[t]["error"]:
-                        icon_label2 = QLabel()
-                        icon_label2.setPixmap(ToiIcon("icon_bug", "red", size=14).pixmap(14, 14))
-                        lay.addWidget(icon_label2)
-
-                vent = False
-                k = "dome_ventilators"
-                if self.parent.nats_toi_op_status[t].get(k).get("state") != self.parent.nats_toi_op_status[t].get(k).get("defoult"):
-                    vent = True
-                k = "mirror_fans"
-                mirror = self.parent.mirror_fans_on(t)      # z TIC; bez swiezej wiadomosci - stan zapisany przez TOI
-                if mirror is None:
-                    mirror = self.parent.nats_toi_op_status[t].get(k).get("state") != self.parent.nats_toi_op_status[t].get(k).get("defoult")
-                if mirror:
-                    vent = True
-
-                if vent:
-                    icon_label3 = QLabel()
-                    icon_label3.setPixmap(ToiIcon("icon_fan", "darkOrange", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label3)
-
-                light = False
-                k = "flat_lamps"
-                if self.parent.nats_toi_op_status[t].get(k).get("state") != self.parent.nats_toi_op_status[t].get(k).get("defoult"):
-                    light = True
-                k = "dome_lights"
-                if self.parent.nats_toi_op_status[t].get(k).get("state") != self.parent.nats_toi_op_status[t].get(k).get("defoult"):
-                    light = True
-
-                if light:
-                    icon_label4 = QLabel()
-                    icon_label4.setPixmap(ToiIcon("icon_bulb", "darkOrange", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label4)
-
-                def _f(v):
-                    try:
-                        return float(v)
-                    except (TypeError, ValueError):
-                        return None
-                wind = _f(self.parent.telemetry_wind)
-                humidity = _f(self.parent.telemetry_humidity)
-                temperature = _f(self.parent.telemetry_temp)
-
-                wind_limit, wind_limit_pointing = self.parent.wind_limits(t)
-
-                if wind is not None and wind > wind_limit:
-                    icon_label5 = QLabel()
-                    icon_label5.setPixmap(ToiIcon("icon_wind", "red", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label5)
-                elif wind is not None and wind > wind_limit_pointing:
-                    icon_label6 = QLabel()
-                    icon_label6.setPixmap(ToiIcon("icon_wind", "orange", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label6)
-
-                rain = _f(self.parent.telemetry_rain)
-                if rain is not None and rain > 0:
-                    icon_label9 = QLabel()
-                    icon_label9.setPixmap(ToiIcon("icon_rain", "red", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label9)
-
-                if humidity is not None and humidity > float(self.parent.cfg_humidity_limit):
-                    icon_label7 = QLabel()
-                    icon_label7.setPixmap(ToiIcon("icon_water", "red", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label7)
-
-                if temperature is not None and temperature < float(self.parent.cfg_temperature_limit):
-                    icon_label8 = QLabel()
-                    icon_label8.setPixmap(ToiIcon("icon_cold", "red", size=14).pixmap(14, 14))
-                    lay.addWidget(icon_label8)
-
-                # allsky_overwatch: teleskop obserwuje w polu zaznaczonym na zolto (pomaranczowa chmura) / czerwono
-                clouds = self.parent.clouds_at(t)
-                if clouds:
-                    icon_label10 = QLabel()
-                    icon_label10.setPixmap(ToiIcon("icon_cloud", "red" if clouds == "red" else "orange", size=14).pixmap(14, 14))
-                    icon_label10.setToolTip("pointing into thick clouds" if clouds == "red" else "pointing into clouds")
-                    lay.addWidget(icon_label10)
-
-
-            self.obs_t.setCellWidget(i,0,icons)
-
-            # DOME
-            state, rgb = "--", (0, 0, 0)
-            shutter = self.parent.oca_tel_state[t]["dome_shutterstatus"]["val"]
-            moving = self.parent.oca_tel_state[t]["dome_slewing"]["val"]
-
-            if shutter != None or moving != None:
-                if shutter == None and moving == None : state,rgb = "SHUTTER and STATUS ERROR",(150, 0, 0)
-                elif shutter == None: state,rgb = "SHUTTER ERROR",(150, 0, 0)
-                elif moving == None : state,rgb = "DOME STATUS ERROR",(150, 0, 0)
-                else:
-                    if moving: state,rgb = "MOVING",(255, 160, 0)
-                    elif shutter==0: state,rgb = "OPEN",(0, 150, 0)
-                    elif shutter==1: state,rgb = "CLOSED",(0, 0, 0)
-                    elif shutter==2: state,rgb = "OPENING",(255, 160, 0)
-                    elif shutter==3: state,rgb = "CLOSING",(255, 160, 0)
-                    else: state,rgb = "SHUTTER ERROR",(150, 0, 0)
-
-            item = QTableWidgetItem(state)
-            item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
+    def set_cell(self, i, col, content):
+        if self._cells.get((i, col)) == content:
+            return
+        self._cells[(i, col)] = content
+        if content[0] == "icons":
+            self.obs_t.setCellWidget(i, col, self.icons_widget(content[1]))
+            return
+        _, txt, color_key = content
+        item = self.obs_t.item(i, col)
+        if item is None:
+            item = QTableWidgetItem()
             item.setTextAlignment(QtCore.Qt.AlignCenter)
-            self.obs_t.setItem(i, 1, item)
+            self.obs_t.setItem(i, col, item)
+        item.setText(txt)
+        item.setForeground(QtGui.QBrush(theme.qcolor(color_key)))
 
-
-            # MIRROR
-            state, rgb = "--", (0, 0, 0)
-            status = self.parent.oca_tel_state[t]["mirror_status"]["val"]
-            if status == None:
-                state, rgb = "NO IDEA", (0, 0, 0)
+    def icons_widget(self, parts):
+        icons = QWidget()
+        lay = QHBoxLayout(icons)
+        lay.setContentsMargins(1, 0, 1, 0)
+        lay.setSpacing(3)
+        lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        for part in parts:
+            label = QLabel()
+            if part[0] == "name":
+                label.setText(part[1])
             else:
-                if status == 3: state, rgb = "OPEN", (0, 150, 0)
-                elif status == 1: state, rgb = "CLOSED", (0, 0, 0)
-                elif status == 2:
-                    state, rgb = "MOVING", (255, 160, 0)
-                else:
-                    state, rgb = "ERROR", (150, 0, 0)
+                _, name, color_key, tip = part
+                label.setPixmap(self.pixmap(name, color_key))
+                label.setToolTip(tip)
+            lay.addWidget(label)
+        return icons
 
-            item = QTableWidgetItem(state)
-            item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
-            item.setTextAlignment(QtCore.Qt.AlignCenter)
-            self.obs_t.setItem(i, 2, item)
+    # ---- zawartosc komorek: ("text", tekst, klucz koloru) albo ("icons", krotka ikonek)
 
-            # MOUNT
-            state, rgb = "--", (0, 0, 0)
-            slewing = self.parent.oca_tel_state[t]["mount_slewing"]["val"]
-            tracking = self.parent.oca_tel_state[t]["mount_tracking"]["val"]
-            motors = self.parent.oca_tel_state[t]["mount_motor"]["val"]
+    def tel_cell(self, t):
+        p = self.parent
+        parts = []
+        if p.tel_acces.get(t):
+            parts.append(("icon", "icon_joystick", "ok_fg", "You have control of this telescope"))
+        parts.append(("name", t))
+        if p.safety_cutoff.get(t):
+            parts.append(("icon", "icon_hat", "bad_fg", "safety cutoff ON"))
 
-            if slewing != None or tracking != None:
-                if motors == "false": state,rgb = "MOTORS OFF", (0, 0, 0)
-                elif slewing: state,rgb = "SLEWING", (255, 160, 0)
-                elif tracking: state,rgb = "TRACKING",(0, 150, 0)
-                else: state,rgb = "IDLE",(0, 0, 0)
+        progress = p.ob_progress.get(t) or {}
+        if progress.get("error"):
+            parts.append(("icon", "icon_bug", "bad_fg", "Program error"))
 
-            item = QTableWidgetItem(state)
-            item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
-            item.setTextAlignment(QtCore.Qt.AlignCenter)
-            self.obs_t.setItem(i, 3, item)
+        op = p.nats_toi_op_status.get(t)
+        if op:      # stan zapisany przez TOI (toi.status)
+            def changed(k):
+                v = op.get(k) or {}
+                return v.get("state") != v.get("defoult")
+            mirror = p.mirror_fans_on(t)        # z TIC; bez swiezej wiadomosci - stan zapisany przez TOI
+            if mirror is None:
+                mirror = changed("mirror_fans")
+            if changed("dome_ventilators") or mirror:
+                parts.append(("icon", "icon_fan", "warn2_fg", "Dome ventilators or mirror fans on"))
+            if changed("flat_lamps") or changed("dome_lights"):
+                parts.append(("icon", "icon_bulb", "warn2_fg", "Flat lamps or dome lights on"))
 
-            # CCD
-            state, rgb = "--", (0, 0, 0)
-            filtr = "--"
-            pos = self.parent.oca_tel_state[t]["fw_position"]["val"]
-            ccd =  self.parent.oca_tel_state[t]["ccd_state"]["val"]
+        # pogoda: stacja Davis wspolna, ale limity wiatru sa per teleskop; nie zalezy od toi.status
+        def _f(v):
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+        wind = _f(p.telemetry_wind)
+        humidity = _f(p.telemetry_humidity)
+        temperature = _f(p.telemetry_temp)
+        rain = _f(p.telemetry_rain)
+        wind_limit, wind_limit_pointing = p.wind_limits(t)
+        if wind is not None and wind > wind_limit:
+            parts.append(("icon", "icon_wind", "bad_fg", f"Wind above the stop limit ({wind_limit:g} m/s)"))
+        elif wind is not None and wind > wind_limit_pointing:
+            parts.append(("icon", "icon_wind", "warn2_fg", f"Wind above the pointing limit ({wind_limit_pointing:g} m/s)"))
+        if rain is not None and rain > 0:
+            parts.append(("icon", "icon_rain", "bad_fg", "Rain"))
+        if humidity is not None and humidity > float(p.cfg_humidity_limit):
+            parts.append(("icon", "icon_water", "bad_fg", f"Humidity above {p.cfg_humidity_limit} %"))
+        if temperature is not None and temperature < float(p.cfg_temperature_limit):
+            parts.append(("icon", "icon_cold", "bad_fg", f"Temperature below {p.cfg_temperature_limit} C"))
 
-            if pos != None:
-                filtr = self.parent.nats_cfg[t]["filter_list_names"][pos]
+        # allsky_overwatch: teleskop obserwuje w polu zaznaczonym na zolto (pomaranczowa chmura) / czerwono
+        clouds = p.clouds_at(t)
+        if clouds:
+            parts.append(("icon", "icon_cloud", "bad_fg" if clouds == "red" else "warn2_fg",
+                          "pointing into thick clouds" if clouds == "red" else "pointing into clouds"))
+        return ("icons", tuple(parts))
 
-            if ccd != None :
-                if ccd == 2:
-                    state,rgb = f"EXP [{filtr}]", (0, 150, 0)
-                elif ccd == 0:
-                    state,rgb = f"IDLE [{filtr}]", (0, 0, 0)
-                else:
-                    state, rgb = f"NO IDEA [{filtr}]", (0, 0, 0)
+    def dome_cell(self, t):
+        st = self.parent.oca_tel_state[t]
+        shutter = st["dome_shutterstatus"]["val"]
+        moving = st["dome_slewing"]["val"]
+        state, color = "--", "idle_fg"
+        if shutter is not None or moving is not None:
+            if shutter is None and moving is None: state, color = "SHUTTER and STATUS ERROR", "bad_fg"
+            elif shutter is None: state, color = "SHUTTER ERROR", "bad_fg"
+            elif moving is None: state, color = "DOME STATUS ERROR", "bad_fg"
+            elif moving: state, color = "MOVING", "change_fg"
+            elif shutter == 0: state, color = "OPEN", "ok_fg"
+            elif shutter == 1: state, color = "CLOSED", "idle_fg"
+            elif shutter == 2: state, color = "OPENING", "change_fg"
+            elif shutter == 3: state, color = "CLOSING", "change_fg"
+            else: state, color = "SHUTTER ERROR", "bad_fg"
+        return ("text", state, color)
 
-            item = QTableWidgetItem(state)
-            item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
-            item.setTextAlignment(QtCore.Qt.AlignCenter)
-            self.obs_t.setItem(i, 4, item)
+    def mirror_cell(self, t):
+        status = self.parent.oca_tel_state[t]["mirror_status"]["val"]
+        if status is None: return ("text", "NO IDEA", "idle_fg")
+        if status == 3: return ("text", "OPEN", "ok_fg")
+        if status == 1: return ("text", "CLOSED", "idle_fg")
+        if status == 2: return ("text", "MOVING", "change_fg")
+        return ("text", "ERROR", "bad_fg")
 
-            # PROGRAM
-            state, rgb = "--", (0, 0, 0)
-            #print(t,self.parent.ob_progress[t])
-            #templeate = {"ob_started": False, "ob_done": False, "ob_expected_time": 0.01, "ob_start_time": 0,"ob_program": None}
-            started = self.parent.ob_progress[t]["ob_started"]
-            done = self.parent.ob_progress[t]["ob_done"]
-            program = self.parent.ob_progress[t]["ob_program"]
-            if started and not done:
-                if "OBJECT" in program:
-                    state,rgb = f"{program.split()[1]}", (0, 150, 0)
-                else:
-                    if len(program.split())>1:
-                        state, rgb = f"{program.split()[0]} {program.split()[1]}", (0, 150, 0)
-                    else:
-                        state, rgb = f"{program.split()[0]}", (0, 0, 0)
-            if "error" in self.parent.ob_progress[t]:
-               if  self.parent.ob_progress[t]["error"]:
-                   state, rgb = f"ERROR {state}", (150, 0, 0)
+    def mount_cell(self, t):
+        st = self.parent.oca_tel_state[t]
+        slewing = st["mount_slewing"]["val"]
+        tracking = st["mount_tracking"]["val"]
+        motors = st["mount_motor"]["val"]
+        if slewing is None and tracking is None: return ("text", "--", "idle_fg")
+        if motors == "false": return ("text", "MOTORS OFF", "idle_fg")
+        if slewing: return ("text", "SLEWING", "change_fg")
+        if tracking: return ("text", "TRACKING", "ok_fg")
+        return ("text", "IDLE", "idle_fg")
 
-            item = QTableWidgetItem(state)
-            item.setForeground(QtGui.QBrush(QtGui.QColor(*rgb)))
-            item.setTextAlignment(QtCore.Qt.AlignCenter)
-            self.obs_t.setItem(i, 5, item)
+    def instrument_cell(self, t):
+        st = self.parent.oca_tel_state[t]
+        pos = st["fw_position"]["val"]
+        ccd = st["ccd_state"]["val"]
+        filtr = "--"
+        names = (self.parent.nats_cfg.get(t) or {}).get("filter_list_names") or []
+        if pos is not None:
+            try:
+                filtr = names[int(pos)]
+            except (IndexError, TypeError, ValueError):
+                filtr = f"#{pos}"       # pozycja spoza listy filtrow
+        if ccd is None: return ("text", "--", "idle_fg")
+        if ccd == 2: return ("text", f"EXP [{filtr}]", "ok_fg")
+        if ccd == 0: return ("text", f"IDLE [{filtr}]", "idle_fg")
+        return ("text", f"NO IDEA [{filtr}]", "idle_fg")
 
-            self.obs_t.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+    def program_cell(self, t):
+        progress = self.parent.ob_progress.get(t) or {}
+        state, color = "--", "idle_fg"
+        program = str(progress.get("ob_program") or "")
+        words = program.split()
+        if progress.get("ob_started") and not progress.get("ob_done") and words:
+            if "OBJECT" in program and len(words) > 1:
+                state, color = words[1], "ok_fg"
+            elif len(words) > 1:
+                state, color = f"{words[0]} {words[1]}", "ok_fg"
+            else:
+                state, color = words[0], "idle_fg"
+        if progress.get("error"):
+            state, color = f"ERROR {state}", "bad_fg"
+        return ("text", state, color)
 
+    def apply_theme(self):
+        # pola przemalowuja ich petle (almanac co 1 s, pogoda, lampki), tu tylko to, co inaczej zostaloby stare
+        for field in self.plain_fields:
+            field.setStyleSheet(theme.field_style())
+        self.msg_e.setStyleSheet(theme.field_style())
+        self.obs_t.setStyleSheet(f"font-size: 9pt; selection-background-color: {theme.c('selection_bg')};")
+        self.config_p.setStyleSheet(f"color: {theme.c('muted_fg')};")
+        self._cells.clear()
+        self.update_table()
 
     def msg(self, txt, color):
         c = QtCore.Qt.black
@@ -658,7 +661,8 @@ class MainForm(QWidget):
             "zeropoint": "Photometric zero point from weather_overwatch.",
             "clouds": "Clouds from the allsky camera (allsky_overwatch).",
             "date": "UT date.",
-            "ut": "Yellow: Sun above 1°. Blue: Sun 1° to -18°.",
+            "ut": "Universal Time.",
+            "sun": "Sun altitude. Yellow: above 0°. Blue: twilight, 0° to -18°.",
             "ojd": "Julian Date.",
             "sid": "Local sidereal time.",
         }
@@ -675,7 +679,7 @@ class MainForm(QWidget):
         # lampki polaczen obok siebie, od lewej
         self.ticStatus2_l = QLabel("\u2665  TIC")
         self.natsStatus_l = QLabel("\u2665  NATS")
-        self.natsStatus_l.setStyleSheet("color: red;")
+        self.natsStatus_l.setStyleSheet(f"color: {theme.c('bad_fg')};")
         # serwisy aktywnego teleskopu; szare, dopoki nic o nich nie wiemy
         # krotkie nazwy, zeby caly wiersz sie miescil - pelne w podpowiedziach
         self.followerStatus_l = QLabel("\u2665 DOME FLW")
@@ -693,7 +697,7 @@ class MainForm(QWidget):
         for lamp in lamps:
             status_box.addWidget(lamp)
         for lamp in lamps[2:]:
-            lamp.setStyleSheet("color: rgb(190,190,190);")
+            lamp.setStyleSheet(f"color: {theme.c('muted_fg')};")
         status_box.addStretch(1)
         grid.addLayout(status_box, w, 0, 1, 8)
 
@@ -703,28 +707,28 @@ class MainForm(QWidget):
         self.date_e = QLineEdit("--/--/--")
         self.date_e.setAlignment(Qt.AlignCenter)
         self.date_e.setReadOnly(True)
-        self.date_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.date_e.setStyleSheet(theme.field_style())
 
         self.ut_l = QLabel("UT:")
         self.ut_l.setAlignment(Qt.AlignCenter)
         self.ut_e = QLineEdit("--:--:--")
         self.ut_e.setReadOnly(True)
         self.ut_e.setAlignment(Qt.AlignCenter)
-        self.ut_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.ut_e.setStyleSheet(theme.field_style())
 
         self.wind_l = QLabel("Wind:")
         self.wind_l.setAlignment(Qt.AlignCenter)
         self.wind_e = QLineEdit()
         self.wind_e.setAlignment(Qt.AlignCenter)
         self.wind_e.setReadOnly(True)
-        self.wind_e.setStyleSheet("background-color: rgb(235,235,235);")
+        self.wind_e.setStyleSheet(theme.field_style())
 
         self.windDir_l = QLabel("Direction:")
         self.windDir_l.setAlignment(Qt.AlignCenter)
         self.windDir_e = QLineEdit()
         self.windDir_e.setAlignment(Qt.AlignCenter)
         self.windDir_e.setReadOnly(True)
-        self.windDir_e.setStyleSheet("background-color: rgb(235,235,235);")
+        self.windDir_e.setStyleSheet(theme.field_style())
 
 
         self.ojd_l = QLabel("JD:")
@@ -732,28 +736,28 @@ class MainForm(QWidget):
         self.ojd_e = QLineEdit("--")
         self.ojd_e.setAlignment(Qt.AlignCenter)
         self.ojd_e.setReadOnly(True)
-        self.ojd_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.ojd_e.setStyleSheet(theme.field_style())
 
         self.sid_l = QLabel("SID:")
         self.sid_l.setAlignment(Qt.AlignCenter)
         self.sid_e = QLineEdit("--:--:--")
         self.sid_e.setAlignment(Qt.AlignCenter)
         self.sid_e.setReadOnly(True)
-        self.sid_e.setStyleSheet("background-color: rgb(233, 233, 233);")
+        self.sid_e.setStyleSheet(theme.field_style())
 
         self.temp_l = QLabel("Temp:")
         self.temp_l.setAlignment(Qt.AlignCenter)
         self.temp_e = QLineEdit()
         self.temp_e.setAlignment(Qt.AlignCenter)
         self.temp_e.setReadOnly(True)
-        self.temp_e.setStyleSheet("background-color: rgb(235,235,235);")
+        self.temp_e.setStyleSheet(theme.field_style())
 
         self.hummidity_l = QLabel("Humidity:")
         self.hummidity_l.setAlignment(Qt.AlignCenter)
         self.hummidity_e = QLineEdit()
         self.hummidity_e.setAlignment(Qt.AlignCenter)
         self.hummidity_e.setReadOnly(True)
-        self.hummidity_e.setStyleSheet("background-color: rgb(235,235,235);")
+        self.hummidity_e.setStyleSheet(theme.field_style())
 
         # na gorze warunki; czas (Date, UT, JD, SID) jest na dole obok logu
         grid.addWidget(self.temp_l, w, 0)
@@ -776,7 +780,7 @@ class MainForm(QWidget):
             field = QLineEdit("--")
             field.setAlignment(Qt.AlignCenter)
             field.setReadOnly(True)
-            field.setStyleSheet("background-color: rgb(235,235,235);")
+            field.setStyleSheet(theme.field_style())
             setattr(self, f"{name}_l", label)
             setattr(self, f"{name}_e", field)
             grid.addWidget(label, w, 2 * col)
@@ -790,21 +794,22 @@ class MainForm(QWidget):
         # self.pressure_l = QLabel("Pressure:")
         # self.pressure_e = QLineEdit()
         # self.pressure_e.setReadOnly(True)
-        # self.pressure_e.setStyleSheet("background-color: rgb(235,235,235);")
+        # self.pressure_e.setStyleSheet(theme.field_style())
 
         # grid.addWidget(self.pressure_l, w, 6)
         # grid.addWidget(self.pressure_e, w, 7)
 
         w = w + 1
-        self.obs_t = QTableWidget(3, 6)
-        self.obs_t.setHorizontalHeaderLabels(["Telescope", "Dome", "Mirror", "Mount", "Instrument", "Program"])
+        self.obs_t = QTableWidget(len(self.parent.local_cfg["toi"]["telescopes"]), len(self.COLUMNS))
+        self.obs_t.setHorizontalHeaderLabels(self.COLUMNS)
+        self.obs_t.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.obs_t.setSelectionBehavior(QTableWidget.SelectRows)
         self.obs_t.setSelectionMode(QTableWidget.SingleSelection)
         self.obs_t.verticalHeader().hide()
         self.obs_t.setShowGrid(False)
         self.obs_t.setEditTriggers(QTableWidget.NoEditTriggers)
         #self.obs_t.setFixedWidth(550)  # Size
-        self.obs_t.setStyleSheet("font-size: 9pt; selection-background-color: rgb(138,176,219);")
+        self.obs_t.setStyleSheet(f"font-size: 9pt; selection-background-color: {theme.c('selection_bg')};")
         grid.addWidget(self.obs_t, w, 0, 1, 8)
 
 
@@ -822,7 +827,7 @@ class MainForm(QWidget):
 
         self.msg_e = QTextEdit()
         self.msg_e.setReadOnly(True)
-        self.msg_e.setStyleSheet("background-color: rgb(235,235,235);")
+        self.msg_e.setStyleSheet(theme.field_style())
         grid.addWidget(self.msg_e, w, 0, 3, 4)
 
         # czas obok logu, w miejscu po przyciskach okien - uklad jak dawniej na gorze
@@ -834,6 +839,15 @@ class MainForm(QWidget):
         grid.addWidget(self.ojd_e, w + 1, 5)
         grid.addWidget(self.sid_l, w + 1, 6)
         grid.addWidget(self.sid_e, w + 1, 7)
+        # wysokosc Slonca pod Date/JD; tlo wg Slonca ustawia TOI.almanac_loop
+        self.sun_l = QLabel("Sun:")
+        self.sun_l.setAlignment(Qt.AlignCenter)
+        self.sun_e = QLineEdit("--")
+        self.sun_e.setAlignment(Qt.AlignCenter)
+        self.sun_e.setReadOnly(True)
+        self.sun_e.setStyleSheet(theme.field_style())
+        grid.addWidget(self.sun_l, w + 2, 4)
+        grid.addWidget(self.sun_e, w + 2, 5)
 
         w = w + 3
 
@@ -847,7 +861,7 @@ class MainForm(QWidget):
         w = w + 1
 
         self.config_p = QPushButton("\u2699")
-        self.config_p.setStyleSheet(" color: gray;")
+        self.config_p.setStyleSheet(f"color: {theme.c('muted_fg')};")
 
 
         # obserwatorzy tej nocy (tic.status.ocm.observers); klikniecie otwiera okno rejestracji do poprawki
@@ -860,6 +874,9 @@ class MainForm(QWidget):
         grid.addWidget(self.observers_p, w, 2, 1, 5)
         grid.addWidget(self.config_p, w, 7)
 
+
+        # pola bez wlasnego kolorowania - przemalowuje je apply_theme
+        self.plain_fields = (self.date_e, self.ut_e, self.ojd_e, self.sid_e)
 
         grid.setSpacing(5)
 

@@ -53,6 +53,7 @@ from instrument_gui import InstrumentGui
 from mnt_gui import MntGui
 from sky_gui import SkyGui
 from obs_gui import ObsGui, CzuwakWindow, ObserversWindow, SoundTestWindow
+from toi_theme import theme
 from optics_model import OpticsModel
 from plan_gui import PlanGui
 from fits_gui import FitsWindow
@@ -468,41 +469,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             r = get_reader(f'tic.status.ocm.messages', deliver_policy='new')
             async for data, meta in r:
                 label = data["label"]
-                c = QtCore.Qt.black
-                if label == "INFO":
-                    c = QtCore.Qt.black
-                if label == "PING":
-                    c = QtCore.Qt.darkYellow
-                if label == "WEATHER ALERT":
-                    c = QtCore.Qt.darkRed
-                if label == "WEATHER WARNING":
-                    c = QtCore.Qt.darkYellow
+                # kolory wg znaczenia (toi_theme): zielony OK, zolty uwaga, pomaranczowy gorzej, czerwony zle
+                c = "field_fg"
+                if label in ("PING", "WEATHER WARNING", "CLOUDS INFO", "FWHM WARNING", "ZERO POINT WARNING"):
+                    c = "warn_fg"
+                if label in ("WEATHER ALERT", "SYSTEM ALERT", "CLOUDS ALERT"):     # SYSTEM ALERT: bateria, serwerownia
+                    c = "bad_fg"
                 if label == "WEATHER LEVEL DOWN":      # weather_overwatch: ograniczenia pogodowe spadaja
-                    c = QtCore.Qt.darkGreen
-                if label == "SYSTEM ALERT":            # weather_overwatch: bateria, serwerownia, pomieszczenia techniczne
-                    c = QtCore.Qt.red
-                # allsky_overwatch, kolory jak pole Clouds: thin / veil, cloudy, overcast
-                if label == "CLOUDS INFO":
-                    c = QtCore.Qt.darkYellow
-                if label == "CLOUDS WARNING":
-                    c = QtGui.QColor(220, 110, 0)
-                if label == "CLOUDS ALERT":
-                    c = QtCore.Qt.darkRed
+                    c = "ok_fg"
+                if label == "CLOUDS WARNING":          # allsky_overwatch, kolory jak pole Clouds
+                    c = "warn2_fg"
                 if label in ("FWHM WARNING", "ZERO POINT WARNING"):
-                    c = QtCore.Qt.darkYellow
                     try:        # alarm seeingu / zero pointu - zakladka Conditions z tym wykresem na wierzch
                         if not data.get("test"):        # test dzwieku z okna PING - bez przelaczania zakladki
                             self.auxGui.alert_received(label)
                     except Exception as e:
                         logger.warning(f'TOI: EXCEPTION alert tab: {e}')
 
-                # if label == "TOI RESPONDER":
-                #     c = QtCore.Qt.darkGreen
-                # if label == "PLANRUNNER":
-                #     c = QtCore.Qt.darkGray
-
                 if data.get("test"):        # test dzwieku z okna PING - szary, nie kolor prawdziwego alarmu
-                    c = QtCore.Qt.gray
+                    c = "muted_fg"
+                c = theme.qcolor(c)
                 txt = f'{data["ut"]} [{data["user"]}] {data["info"]}'
                 self.obsGui.main_form.msg_e.setTextColor(c)
                 self.obsGui.main_form.msg_e.append(txt)
@@ -553,8 +539,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # stan nieba z allsky_overwatch (toi.conditions_subjects.clouds), jedna klatka co ~2.4 min w nocy: samo slowo, bez
     # liczb; kolor jak Wind / Direction - thin i veil zolty, cloudy pomaranczowy, overcast czerwony. Zmierzch (Slonce
     # powyzej -18, chmur nie mierzymy) jak dzien: "--" na szaro (Marek 2026-11-02, wczesniej "twilight" na niebiesko)
-    CLOUD_COLORS = {"clear": "rgb(235,235,235)", "veil": "rgb(255, 220, 0)", "thin": "rgb(255, 220, 0)",
-                    "cloudy": "rgb(255, 140, 0)", "overcast": "red"}
+    CLOUD_COLORS = {"clear": "field_bg", "veil": "warn_bg", "thin": "warn_bg",       # klucze toi_theme
+                    "cloudy": "warn2_bg", "overcast": "bad_bg"}
     CLOUDS_MAX_AGE = 600        # s; starsza wiadomosc (dzien, serwis stoi) - pole "--"
     CLOUDS_HINT = ("Clouds from the allsky camera (allsky_overwatch), every ~2.4 min at night:\n"
                    "clear - clear sky\n"
@@ -608,21 +594,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         steps = sorted({float(x[k]) for x in limits.values() for k in ("warning", "alert") if k in x},
                        key=lambda x: worse * x)
         passed = [x for x in steps if value is not None and worse * value >= worse * x]
-        color = "rgb(235,235,235)"
+        color = "field_bg"
         if clouds:      # alarm z chmur, nawet gdy mediana jest dobra (chmury daja malo punktow, mediana je odrzuca)
             field.setText((fmt.format(value) + " " if value is not None else "") + "\u2601")
-            color = "red"
+            color = "bad_bg"
         elif value is None:
             field.setText("--")
         else:
             field.setText(fmt.format(value))
             if passed and len(passed) == len(steps) and len(steps) > 1:
-                color = "red"
+                color = "bad_bg"
             elif len(passed) == 1:
-                color = "rgb(255, 220, 0)"
+                color = "warn_bg"
             elif passed:
-                color = "rgb(255, 140, 0)"
-        field.setStyleSheet(f"color: black; background-color: {color};")
+                color = "warn2_bg"
+        field.setStyleSheet(theme.field_style(color))
         tip = hint
         if d:
             tip += f" from the last {d.get('window_min')} min, {d.get('n')} {unit}."
@@ -666,7 +652,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         tels = [k for k in levels if k.startswith("wind:")]
 
         def scale(n, total):
-            return "red" if n == total else "rgb(255, 220, 0)" if n == 1 else "rgb(255, 140, 0)"
+            return theme.c("bad_bg" if n == total else "warn_bg" if n == 1 else "warn2_bg")
 
         def held(keys, level):
             """klucze, ktore oficjalnie sa >= level, a biezaco nizej (w karencji)"""
@@ -689,13 +675,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         for name, kinds in (("hummidity_e", ("humidity", "rain")), ("temp_e", ("temperature",))):
             keys = held(kinds, 2)
             if keys and not any(raw.get(k, 0) >= 2 for k in kinds):
-                show(name, keys, "red", lambda k: self.HOLD_TEXT[k])
+                show(name, keys, theme.c("bad_bg"), lambda k: self.HOLD_TEXT[k])
             else:
                 markers[name].clear()
         keys = [k for k in ("clouds",) if raw.get(k, 0) < levels.get(k, 0) and k in until]     # tez overcast -> cloudy
         if keys:
             c = levels["clouds"]
-            show("clouds_e", keys, "red" if c >= 2 else "rgb(255, 140, 0)", lambda k: self.HOLD_TEXT[("clouds", min(c, 2))])
+            show("clouds_e", keys, theme.c("bad_bg" if c >= 2 else "warn2_bg"), lambda k: self.HOLD_TEXT[("clouds", min(c, 2))])
         else:
             markers["clouds_e"].clear()
 
@@ -719,7 +705,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if d.get("twilight"):       # o zmierzchu chmur nie mierzymy - jak w dzien
                     state = None
         field.setText("--" if state is None else state)
-        field.setStyleSheet(f"color: black; background-color: {self.CLOUD_COLORS.get(state, 'rgb(235,235,235)')};")
+        field.setStyleSheet(theme.field_style(self.CLOUD_COLORS.get(state, "field_bg")))
         if d and d.get("telescopes") != self.clouds_telescopes:     # ikonki chmur w tabeli teleskopow
             self.clouds_telescopes = d.get("telescopes")
             self.obsGui.main_form.update_table()
@@ -735,10 +721,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.tic_con = await self.observatory_model.is_tic_server_available()
                 if self.tic_con == True:
                     self.obsGui.main_form.ticStatus2_l.setText("\u2665 TIC")
-                    self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: green;")
+                    self.obsGui.main_form.ticStatus2_l.setStyleSheet(f"color: {theme.c('ok_fg')};")
                 else:
                     self.obsGui.main_form.ticStatus2_l.setText("\u2665 TIC")
-                    self.obsGui.main_form.ticStatus2_l.setStyleSheet("color: red;")
+                    self.obsGui.main_form.ticStatus2_l.setStyleSheet(f"color: {theme.c('bad_fg')};")
                 await asyncio.sleep(3)
             except (asyncio.CancelledError, asyncio.TimeoutError):
                 raise
@@ -751,14 +737,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             try:
                 nc = Messenger().connection.nc
                 if nc is not None and nc.is_connected:
-                    color = "green"
+                    color = theme.c("ok_fg")
                 elif nc is not None and nc.is_reconnecting:
-                    color = "orange"
+                    color = theme.c("warn2_fg")
                 else:
-                    color = "red"
+                    color = theme.c("bad_fg")
             except Exception as e:
                 logger.warning(f'EXCEPTION 103b: {e}')
-                color = "red"
+                color = theme.c("bad_fg")
             self.obsGui.main_form.natsStatus_l.setStyleSheet(f"color: {color};")
             await asyncio.sleep(1)
 
@@ -778,7 +764,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 110c: {e}')
 
-    def heartbeat_color(self, seen, since, green="green", red="red", grey="rgb(190,190,190)"):
+    def heartbeat_color(self, seen, since):
+        green, red, grey = theme.c("ok_fg"), theme.c("bad_fg"), theme.c("muted_fg")
         now = time.time()
         if seen is not None and now - seen < self.SERVICE_STALE:
             return green
@@ -802,9 +789,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             return False
 
     async def service_lamps_loop(self):
-        green, red, grey = "green", "red", "rgb(190,190,190)"
         while True:
             try:
+                green, red, grey = theme.c("ok_fg"), theme.c("bad_fg"), theme.c("muted_fg")
                 tel = self.active_tel
                 if tel is not None:
                     f = self.obsGui.main_form
@@ -1408,15 +1395,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                 self.obsGui.main_form.date_e.setText(str(self.date))
                 self.obsGui.main_form.ut_e.setText(str(ut))
-                # tlo UT wg Slonca: dzien zolty, zmierzch (1..-18 deg) bladoniebieski, noc szary
+                # wysokosc Slonca: dzien zolty (uwaga), zmierzch 0..-18 deg niebieski (zmiana), noc zwykle tlo
                 sun_alt = deg_to_decimal_deg(self.almanac["sun_alt"])
-                if sun_alt > 1:
-                    ut_color = "rgb(255, 230, 120)"
-                elif sun_alt > -18:
-                    ut_color = "rgb(190, 220, 255)"
-                else:
-                    ut_color = "rgb(233, 233, 233)"
-                self.obsGui.main_form.ut_e.setStyleSheet(f"background-color: {ut_color};")
+                sun_e = self.obsGui.main_form.sun_e
+                sun_e.setText(f"{sun_alt:.1f}\u00b0")
+                key = "warn_bg" if sun_alt > 0 else "change_bg" if sun_alt > -18 else "field_bg"
+                style = theme.field_style(key)
+                if sun_e.styleSheet() != style:
+                    sun_e.setStyleSheet(style)
                 if self.skyGui.skyView:
                     self.skyGui.skyView.updateAlmanac()
                 #self.obsGui.main_form.skyView.updateAlmanac()
@@ -4527,14 +4513,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         limits = {t: self.wind_limits(t)[which] for t in tels}
         over = [t for t in tels if wind > limits[t]]
         if not over:
-            color = "rgb(235,235,235)"
+            color = "field_bg"
         elif len(over) == len(tels):
-            color = "red"
+            color = "bad_bg"
         elif len(over) == 1:
-            color = "rgb(255, 220, 0)"
+            color = "warn_bg"
         else:
-            color = "rgb(255, 140, 0)"
-        field.setStyleSheet(f"color: black; background-color: {color};")
+            color = "warn2_bg"
+        field.setStyleSheet(theme.field_style(color))
         tip = f"{hint} [m/s]: " + ", ".join(f"{t} {limits[t]:g}" for t in tels)
         if over:
             tip += f"\nExceeded: {', '.join(over)}"
@@ -4557,14 +4543,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.wind_field_style(self.obsGui.main_form.windDir_e, 1, "Davis weather station.\nPointing limits")
 
             if rain or float(self.telemetry_humidity)> float(self.cfg_humidity_limit):
-                self.obsGui.main_form.hummidity_e.setStyleSheet("color: rgb(0, 0, 0); background-color: red;")
+                self.obsGui.main_form.hummidity_e.setStyleSheet(theme.field_style("bad_bg"))
             else:
-                self.obsGui.main_form.hummidity_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
+                self.obsGui.main_form.hummidity_e.setStyleSheet(theme.field_style())
 
             if float(self.telemetry_temp) < -1:
-                self.obsGui.main_form.temp_e.setStyleSheet("color: rgb(0, 0, 0); background-color: red;")
+                self.obsGui.main_form.temp_e.setStyleSheet(theme.field_style("bad_bg"))
             else:
-                self.obsGui.main_form.temp_e.setStyleSheet("color: black; background-color: rgb(235,235,235);")
+                self.obsGui.main_form.temp_e.setStyleSheet(theme.field_style())
 
 
             self.obsGui.main_form.update_table()   # ikonki pogody (wiatr, deszcz, wilgotnosc, zimno)
