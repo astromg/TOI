@@ -1012,6 +1012,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         #self.fitsGui.clear()
         self.telescope_switch_status["plan"] = False
+        # plan opublikowany w NATS i zaznaczenie w tabeli naleza do poprzedniego teleskopu: bez zerowania tabela
+        # pokazywala jego plan (na stale, gdy nowy teleskop nie ma opublikowanego), a Del/Up/Skip dzialaly na wierszu,
+        # ktorego nikt w nowym planie nie wybral
+        self.nats_plan_status = {"current_i": -1, "next_i": -1, "plan": []}
+        self.planGui.i = 0
+        self.planGui.prev_i = -1
         self.telescope_switch_status["mntGui"] = False
         self.telescope_switch_status["instGui"] = False
         self.telescope_switch_status["filters"] = False
@@ -1246,6 +1252,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             reader = get_reader(f'tic.status.{self.active_tel}.toi.plan', deliver_policy='last')
             async for data, meta in reader:
                 self.nats_plan_status = data
+                # z kontrola tabela pokazuje lokalny plan, a ta wiadomosc to nasza wlasna publikacja z update_plan
+                # (ktory juz przerysowal tabele) - drugie rysowanie niczego nie zmienia
+                if self.tel_acces.get(self.active_tel) and self.telescope_switch_status.get("plan"):
+                    continue
 
                 # RESET PLAN
                 # ob = {"command_name": "STOP"}
@@ -1487,6 +1497,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
 
+    @staticmethod
+    def red_progbar_style():
+        # pasek postepu OB: blad albo OB trwa ponad 110 % planu - czerwone segmenty
+        return ("QProgressBar { border: 2px solid grey; border-radius: 5px; text-align: center; }"
+                f" QProgressBar::chunk {{ background-color: {theme.c('bad_bg')}; width: 10px; margin: 1px; }}")
+
     async def tel_progress_loop(self):
         while True:
             #print(self.nats_ob_progress)
@@ -1550,24 +1566,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 else:
 
                                     if error:
-                                        RED_PROGBAR_STYLE = """
-                                        QProgressBar{
-                                            border: 2px solid grey;
-                                            border-radius: 5px;
-                                            text-align: center
-                                        }
-
-                                        QProgressBar::chunk {
-                                            background-color: red;
-                                            width: 10px;
-                                            margin: 1px;
-                                        }
-                                        """
                                         t = self.time - float(ob_start_time)
                                         p = t / float(ob_expected_time)
                                         txt = f"{int(t)}/{int(ob_expected_time)}"
                                         self.planGui.ob_Prog_n.setValue(int(100 * p))
-                                        self.planGui.ob_Prog_n.setStyleSheet(RED_PROGBAR_STYLE)
+                                        theme.paint(self.planGui.ob_Prog_n, extra=self.red_progbar_style())
                                         txt = f"ERROR {int(t)}/{int(ob_expected_time)}"
                                         self.planGui.ob_Prog_n.setFormat(txt)
 
@@ -1578,35 +1581,22 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         self.planGui.ob_Prog_n.setValue(int(100 * p))
                                         self.planGui.ob_Prog_n.setFormat(txt)
 
-                                        if p > 1.1:
-                                            RED_PROGBAR_STYLE = """
-                                            QProgressBar{
-                                                border: 2px solid grey;
-                                                border-radius: 5px;
-                                                text-align: center
-                                            }
-                
-                                            QProgressBar::chunk {
-                                                background-color: red;
-                                                width: 10px;
-                                                margin: 1px;
-                                            }
-                                            """
-                                            self.planGui.ob_Prog_n.setStyleSheet(RED_PROGBAR_STYLE)
+                                        if p > 1.1:     # OB trwa wyraznie dluzej niz planowano
+                                            theme.paint(self.planGui.ob_Prog_n, extra=self.red_progbar_style())
                                         else:
-                                            self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
+                                            theme.paint(self.planGui.ob_Prog_n, bg="field_bg")
 
                         elif ob_done:
                             self.planGui.ob_e.setText("")
                             self.planGui.ob_Prog_n.setValue(100)
                             self.planGui.ob_Prog_n.setFormat(f"DONE")
-                            self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
+                            theme.paint(self.planGui.ob_Prog_n, bg="field_bg")
 
                         else:
                             self.planGui.ob_e.setText("")
                             self.planGui.ob_Prog_n.setValue(0)
                             self.planGui.ob_Prog_n.setFormat(f"")
-                            self.planGui.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
+                            theme.paint(self.planGui.ob_Prog_n, bg="field_bg")
 
 
             except Exception as e:

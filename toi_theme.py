@@ -41,6 +41,8 @@ THEMES = {
         # okno Mount: pola do wpisywania, tlo w ruchu, napis w ruchu (SLEWING - dawny pomaranczowy, zostaje)
         "input_bg": "white", "input_edit_bg": "rgb(234, 245, 249)", "moving_bg": "rgb(136, 142, 228)",
         "moving_fg": "rgb(204, 82, 0)", "warn_soft_bg": "rgb(240, 232, 151)",
+        # okno Plan: wiersz zaznaczony / poprzednio zaznaczony, przygaszony tekst logu (cudze, planrunner)
+        "row_sel_bg": "rgb(125, 195, 227)", "row_prev_bg": "rgb(230, 236, 240)", "dim_fg": "rgb(128, 128, 128)",
         "tab_icon_ok": "darkgreen", "tab_icon_bad": "red", "tab_icon_warn": "darkorange", "tab_icon_warn2": "orange",
     },
     # ciemny i przygaszony, zeby nie oslepiac w nocy; znaczenie kolorow bez zmian (czerwony = zle)
@@ -60,6 +62,7 @@ THEMES = {
         "tab_ok": "rgb(70, 150, 70)", "tab_moving": "rgb(200, 130, 40)", "tab_error": "rgb(190, 60, 60)",
         "input_bg": "rgb(62, 62, 66)", "input_edit_bg": "rgb(50, 62, 72)", "moving_bg": "rgb(50, 55, 110)",
         "moving_fg": "rgb(200, 120, 50)", "warn_soft_bg": "rgb(95, 88, 35)",
+        "row_sel_bg": "rgb(55, 75, 105)", "row_prev_bg": "rgb(42, 46, 54)", "dim_fg": "rgb(110, 110, 105)",
         "tab_icon_ok": "rgb(70, 150, 70)", "tab_icon_bad": "rgb(190, 60, 60)", "tab_icon_warn": "rgb(190, 110, 30)",
         "tab_icon_warn2": "rgb(200, 140, 50)",
     },
@@ -79,6 +82,7 @@ THEMES = {
         "tab_ok": "rgb(60, 255, 160)", "tab_moving": "rgb(255, 170, 40)", "tab_error": "rgb(255, 80, 120)",
         "input_bg": "rgb(95, 55, 135)", "input_edit_bg": "rgb(110, 70, 160)", "moving_bg": "rgb(60, 120, 255)",
         "moving_fg": "rgb(255, 150, 40)", "warn_soft_bg": "rgb(230, 215, 90)",
+        "row_sel_bg": "rgb(200, 60, 160)", "row_prev_bg": "rgb(90, 55, 125)", "dim_fg": "rgb(170, 150, 200)",
         "tab_icon_ok": "rgb(60, 255, 160)", "tab_icon_bad": "rgb(255, 80, 120)", "tab_icon_warn": "rgb(255, 140, 0)",
         "tab_icon_warn2": "rgb(255, 180, 60)",
     },

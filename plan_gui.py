@@ -33,6 +33,40 @@ from tpg.config import load_config as tpg_load_config
 
 from pyaraucaria.obs_plan.obs_plan_parser import ObsPlanParser
 from pyaraucaria.ob_validator import ObsValidator
+from toi_theme import theme
+
+import asyncio
+import functools
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def plan_action(control=True, row=False):
+    """Przycisk okna planu (zwykly slot Qt - wyjatek zamknalby cale TOI). Najpierw wspolna kontrola: wybrany
+    teleskop, kontrola nad nim (control), zaznaczony wiersz w planie (row); wyjatek trafia do logu i okienka."""
+    def deco(f):
+        nargs = f.__code__.co_argcount - 1      # clicked(bool) itp. podaja argumenty, ktorych metoda nie chce
+
+        @functools.wraps(f)
+        def wrapper(self, *args):
+            tel = self.parent.active_tel
+            if tel is None:
+                self.parent.WarningWindow("WARNING: Telescope NOT selected!")
+                return
+            if control and not self.parent.tel_acces.get(tel):
+                self.parent.WarningWindow("WARNING: U don't have control")
+                return
+            if row and not 0 <= self.i < len(self.parent.plan.get(tel) or []):
+                self.parent.WarningWindow("WARNING: select an OB in the plan first")
+                return
+            try:
+                return f(self, *args[:nargs])
+            except Exception as e:
+                logger.exception(f'TOI plan window: {f.__name__}: {e}')
+                self.parent.WarningWindow(f"WARNING: {f.__name__} failed: {e}")
+        return wrapper
+    return deco
 
 
 class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
@@ -67,19 +101,29 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.update_table()
           self.show()
           self.raise_()
+          theme.on_change(self.update_table)     # ikony i zaznaczenie w kolorach motywu
 
+    @plan_action(control=False)
     def plot_plan(self):
          if len(self.plan)>self.i:
             self.plot_window=PlotWindow(self)
             self.plot_window.show()
             self.plot_window.raise_()
-         else: print("no plan loaded") # ERROR MSG
+         else: self.log("no plan loaded")
+
+    @plan_action(control=False)
+    def log(self, txt, label="WARNING"):
+        """komunikat do logu operatora (TOI.update_log jest async, tu sloty sa zwykle)"""
+        logger.warning(f'TOI plan window: {txt}')
+        if self.parent.active_tel:
+            asyncio.ensure_future(self.parent.update_log(txt, label, self.parent.active_tel))
 
     def plot_phase(self):
             self.phase_window=PhaseWindow(self)
             self.phase_window.show()
             self.phase_window.raise_()
 
+    @plan_action()
     def run_tpg(self):
         if not self.parent.active_tel:
             return
@@ -90,6 +134,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             txt="WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
+    @plan_action(row=True)
     def pocisniecie_copy(self):
         if self.parent.tel_acces[self.parent.active_tel]:
              if len(self.parent.plan[self.parent.active_tel])>self.i:
@@ -99,31 +144,34 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                  self.parent.plan[self.parent.active_tel][i]["ob"]["uobi"] = str(uuid.uuid4())[:8]
                  self.parent.update_plan(self.parent.active_tel)
                  #self.repaint()
-             else: print("no plan loaded") # ERROR MSG
+             else: self.log("no plan loaded")
         else:
-            txt="WARNING: U don't have controll"
+            txt="WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
+    @plan_action()
     def pocisniecie_addOB(self):
         if self.parent.tel_acces[self.parent.active_tel]:
             self.add_window = AddWindow(self)
         else:
-            txt="WARNING: U don't have controll"
+            txt="WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
 
 
+    @plan_action(row=True)
     def pocisniecie_edit(self):
         if self.parent.tel_acces[self.parent.active_tel]:
             if len(self.plan) > self.i:
                 self.edit_window = EditWindow(self)
             else:
-                print("no plan loaded") # ERROR MSG
+                self.log("no plan loaded")
         else:
-            txt="WARNING: U don't have controll"
+            txt="WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
 
+    @plan_action()
     def pocisniecie_addStop(self):
         if self.parent.tel_acces[self.parent.active_tel]:
 
@@ -139,9 +187,10 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             else: pass
 
         else:
-            txt="WARNING: U don't have controll"
+            txt="WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
+    @plan_action()
     def pocisniecie_addBell(self):
         if self.parent.tel_acces[self.parent.active_tel]:
              if len(self.plan)>self.i:
@@ -155,7 +204,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
              else: pass
 
         else:
-            txt="WARNING: U don't have controll"
+            txt="WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
 
@@ -175,13 +224,13 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     self.current_i = self.parent.current_i[self.parent.active_tel]
                     self.next_i = self.parent.next_i[self.parent.active_tel]
 
-                    self.plan_t.setStyleSheet("")
+                    theme.paint(self.plan_t)                   # wlasny plan - zwykle tlo
                 else:
                     self.plan = self.parent.nats_plan_status["plan"]
                     self.current_i = self.parent.nats_plan_status["current_i"]
                     self.next_i = self.parent.nats_plan_status["next_i"]
 
-                    self.plan_t.setStyleSheet("background-color: #F0F0F0;")
+                    theme.paint(self.plan_t, bg="field_bg")    # plan z NATS (bez kontroli) - szare tlo
 
                 if not self.plan:
                     self.plan_t.clearContents()
@@ -225,7 +274,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                    txt=QTableWidgetItem("\u29D6")     # prosta klepsydra
                                    txt.setFont(font)
                                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                                   txt.setForeground(QtGui.QColor("darkCyan"))
+                                   txt.setForeground(theme.qcolor("change_fg"))
                                    self.plan_t.setItem(i,0,txt)
 
                              if "command_name" in self.plan[i]["ob"].keys():     # stop
@@ -235,7 +284,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                    txt=QTableWidgetItem("\u2B23")
                                    txt.setFont(font)
                                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                                   txt.setForeground(QtGui.QColor("red"))
+                                   txt.setForeground(theme.qcolor("bad_fg"))
                                    self.plan_t.setItem(i,0,txt)
 
                              if "command_name" in self.plan[i]["ob"].keys():     # stop
@@ -245,7 +294,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                    txt=QTableWidgetItem("\u266A")
                                    txt.setFont(font)
                                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                                   #txt.setForeground(QtGui.QColor("red"))
+                                   #txt.setForeground(theme.qcolor("bad_fg"))
                                    self.plan_t.setItem(i,0,txt)
 
                              if "plan_alt" in self.plan[i]["meta"].keys():
@@ -256,7 +305,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                      txt = QTableWidgetItem("\u26A0") # ostrzezenie
                                      txt.setFont(font)
                                      txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                                     txt.setForeground(QtGui.QColor("orange"))
+                                     txt.setForeground(theme.qcolor("warn2_fg"))
                                      self.plan_t.setItem(i, 0, txt)
 
                              if "skip_alt" in self.plan[i]["meta"].keys():
@@ -266,7 +315,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                      txt = QTableWidgetItem("\u26A0")
                                      txt.setFont(font)
                                      txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                                     txt.setForeground(QtGui.QColor("red"))
+                                     txt.setForeground(theme.qcolor("bad_fg"))
                                      self.plan_t.setItem(i, 0, txt)
 
                              if "ok" in self.plan[i]["meta"].keys():
@@ -279,7 +328,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                      #txt = QTableWidgetItem("\u2692")       # mlotek i cos tam
                                      txt.setFont(font)
                                      txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                                     txt.setForeground(QtGui.QColor("red"))
+                                     txt.setForeground(theme.qcolor("bad_fg"))
                                      self.plan_t.setItem(i, 0, txt)
                              else:
                                  font = QtGui.QFont()
@@ -290,7 +339,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                  # txt = QTableWidgetItem("\u2692")       # mlotek i cos tam
                                  txt.setFont(font)
                                  txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                                 txt.setForeground(QtGui.QColor("red"))
+                                 txt.setForeground(theme.qcolor("bad_fg"))
                                  self.plan_t.setItem(i, 0, txt)
 
 
@@ -303,7 +352,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                    txt = QTableWidgetItem("\u23ED")  # nastepna piosenka
                                    txt.setFont(font)
                                    txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                                   #txt.setForeground(QtGui.QColor("red"))
+                                   #txt.setForeground(theme.qcolor("bad_fg"))
                                    self.plan_t.setItem(i,0,txt)
 
                              if "uobi" in self.plan[i]["ob"].keys():
@@ -313,7 +362,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                      txt=QTableWidgetItem("\u2713")
                                      txt.setFont(font)
                                      txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                                     txt.setForeground(QtGui.QColor("green"))
+                                     txt.setForeground(theme.qcolor("ok_fg"))
                                      self.plan_t.setItem(i,0,txt)
 
                              if i==self.next_i: #and self.current_i<0:    # nastepmy
@@ -322,7 +371,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                 txt=QTableWidgetItem("\u2192")  # szczalka next
                                 txt.setFont(font)
                                 txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                                txt.setForeground(QtGui.QColor("blue"))
+                                txt.setForeground(theme.qcolor("change_fg"))
                                 self.plan_t.setItem(i,0,txt)
 
                              if i==self.current_i:          # aktualnie robiony
@@ -331,7 +380,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                 txt=QTableWidgetItem("\u21BB")
                                 txt.setFont(font)
                                 txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                                txt.setForeground(QtGui.QColor("green"))
+                                txt.setForeground(theme.qcolor("ok_fg"))
                                 self.plan_t.setItem(i,0,txt)
 
                              # 1 KOLUMNA
@@ -351,9 +400,9 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                              else:
                                  if "command_name" in self.plan[i]["ob"].keys():
                                      if self.plan[i]["ob"]["command_name"] == "FOCUS":
-                                         txt = "FOCUS "+ self.plan[i]["ob"]["name"]
+                                         txt = "FOCUS " + self.plan[i]["ob"].get("name", "")
                                      elif self.plan[i]["ob"]["command_name"] == "SKYFLAT":
-                                         txt = "SKYFLAT "+ self.plan[i]["ob"]["name"]
+                                         txt = "SKYFLAT " + self.plan[i]["ob"].get("name", "")
                                      elif self.plan[i]["ob"]["command_name"] == "WAIT":
                                          txt = f'{self.plan[i]["block"].split()[1]} '
                                      else:
@@ -382,11 +431,11 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                      alt = float(self.plan[i]["meta"]["plan_alt"])
                                      txt = QTableWidgetItem(txt)
                                      if alt < self.parent.cfg_alt_limits["min"]:
-                                         txt.setForeground(QtGui.QColor("red"))
+                                         txt.setForeground(theme.qcolor("bad_fg"))
                                      elif alt < self.parent.cfg_alt_limits["low"]:
-                                         txt.setForeground(QtGui.QColor("orange"))
+                                         txt.setForeground(theme.qcolor("warn2_fg"))
                                      elif alt > self.parent.cfg_alt_limits["max"]:
-                                         txt.setForeground(QtGui.QColor("red"))
+                                         txt.setForeground(theme.qcolor("bad_fg"))
                              elif self.state_ut == 1:
                                  if "alt" in self.plan[i]["meta"].keys():
                                      txt = str(self.plan[i]["meta"]["alt"])
@@ -432,17 +481,10 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                              self.plan_t.setItem(i,4,txt)
 
-                         if self.prev_i >= 0 and self.prev_i < len(self.plan):
-                             self.plan_t.item(self.prev_i,1).setBackground(QtGui.QColor(230, 236, 240))
-                             self.plan_t.item(self.prev_i,2).setBackground(QtGui.QColor(230, 236, 240))
-                             self.plan_t.item(self.prev_i, 3).setBackground(QtGui.QColor(230, 236, 240))
-                             self.plan_t.item(self.prev_i, 4).setBackground(QtGui.QColor(230, 236, 240))
-
-                         if self.i >= 0 and self.i < len(self.plan):
-                             self.plan_t.item(self.i,1).setBackground(QtGui.QColor(125, 195, 227))
-                             self.plan_t.item(self.i,2).setBackground(QtGui.QColor(125, 195, 227))
-                             self.plan_t.item(self.i, 3).setBackground(QtGui.QColor(125, 195, 227))
-                             self.plan_t.item(self.i, 4).setBackground(QtGui.QColor(125, 195, 227))
+                         for row, key in ((self.prev_i, "row_prev_bg"), (self.i, "row_sel_bg")):
+                             if 0 <= row < len(self.plan):
+                                 for col in range(1, 5):
+                                     self.plan_t.item(row, col).setBackground(theme.qcolor(key))
 
                       #self.plan_t.setColumnWidth(0,30)
 
@@ -451,8 +493,9 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       if self.parent.skyGui.skyView:
                           self.parent.skyGui.skyView.updateRadar()
 
+                      # sygnaly zawsze z powrotem (dawniej w widoku OB zostawaly zablokowane - klikniecia nie dzialaly)
+                      self.plan_t.blockSignals(False)
                       if not self.show_ob:
-                          self.plan_t.blockSignals(False)
                           self.plan_t.resizeColumnsToContents()
 
 
@@ -473,30 +516,15 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         level = log["level"]
         txt = log["txt"]
 
-        c = QtCore.Qt.gray
+        c = "dim_fg"        # cudze wpisy przygaszone; swoje wg etykiety (klucze toi_theme)
         if float(level) > 10:
             if user == self.parent.myself:
-                if label == "OPERATOR":
-                    c = QtCore.Qt.blue
-                if label == "TOI RESPONDER":
-                    c = QtCore.Qt.darkGreen
-                if label == "TOI":
-                    c = QtCore.Qt.black
-                if label == "WARNING":
-                    c = QtCore.Qt.darkYellow
-                if label == "ERROR":
-                    c = QtCore.Qt.darkRed
-                if label == "PLANRUNNER":
-                    c = QtCore.Qt.darkGray
-                if label == "OFP":
-                    c = QtCore.Qt.darkGray
-                if label == "DOWNLOADER":
-                    c = QtCore.Qt.darkGray
-                if label == "GUIDER":
-                    c = QtCore.Qt.darkGray
+                c = {"OPERATOR": "change_fg", "TOI RESPONDER": "ok_fg", "TOI": "field_fg", "WARNING": "warn_fg",
+                     "ERROR": "bad_fg", "PLANRUNNER": "dim_fg", "OFP": "dim_fg", "DOWNLOADER": "dim_fg",
+                     "GUIDER": "dim_fg"}.get(label, c)
 
             msg = f'{ut} [{label}] {txt}'
-            self.info_e.setTextColor(c)
+            self.info_e.setTextColor(theme.qcolor(c))
             self.info_e.append(msg)
             self.info_e.repaint()
 
@@ -517,12 +545,12 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                         txt = self.parent.ob_log[i]["time"]["end_dt"]
                         txt = txt.split("T")[1].split(":")[0]+":"+txt.split("T")[1].split(":")[1]
                         txt=QTableWidgetItem(txt)
-                        txt.setBackground(QtGui.QColor(233, 233, 233))
+                        txt.setBackground(theme.qcolor("field_bg"))
                         txt.setFont(font)
 
                         self.log_t.setItem(i,0,txt)
                      except Exception as e:
-                         print("update_log_table col 0 Exception: ",e,self.parent.ob_log[i])
+                         logger.warning(f"TOI plan log table col 0: {e} {self.parent.ob_log[i]}")
                  if True:
                      try:
                          if "command_name" in self.parent.ob_log[i]["command_dict"].keys():
@@ -535,12 +563,12 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                              txt = ""
 
                          txt=QTableWidgetItem(txt)
-                         txt.setBackground(QtGui.QColor(233, 233, 233))
+                         txt.setBackground(theme.qcolor("field_bg"))
                          txt.setFont(font)
                          self.log_t.setItem(i,1,txt)
 
                      except Exception as e:
-                         print("update_log_table col 1 Exception: ", e, self.parent.ob_log[i])
+                         logger.warning(f"TOI plan log table col 1: {e} {self.parent.ob_log[i]}")
 
                  if True:
                      try:
@@ -549,11 +577,11 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                              if "seq" in self.parent.ob_log[i]["command_dict"]["kwargs"].keys():
                                  txt = str(self.parent.ob_log[i]["command_dict"]["kwargs"]["seq"])
                          txt=QTableWidgetItem(txt)
-                         txt.setBackground(QtGui.QColor(233, 233, 233))
+                         txt.setBackground(theme.qcolor("field_bg"))
                          txt.setFont(font)
                          self.log_t.setItem(i,2,txt)
                      except Exception as e:
-                         print("update_log_table col 2 Exception: ", e, self.parent.ob_log[i])
+                         logger.warning(f"TOI plan log table col 2: {e} {self.parent.ob_log[i]}")
 
              self.log_t.scrollToBottom()
              self.log_t.resizeColumnsToContents()
@@ -563,6 +591,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
 
+    @plan_action(row=True)
     def setNext(self):
         if self.parent.tel_acces[self.parent.active_tel]:
 
@@ -571,10 +600,11 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.parent.update_plan(self.parent.active_tel)
 
         else:
-            txt="WARNING: U don't have controll"
+            txt="WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
 
+    @plan_action(row=True)
     def import_to_manuall(self):                  # uzupelnia nazwe i wspolrzedne w oknie manual
         if self.parent.tel_acces[self.parent.active_tel]:
           try:
@@ -602,30 +632,28 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                       if self.parent.plan[self.parent.active_tel][self.i]["ob"]["command_name"] == "OBJECT":
                           self.parent.instGui.ccd_tab.inst_Obtype_s.setCurrentIndex(0)
           except Exception as e:
-              print(f"PLAN GUI EXCEPTION 34: {e}")
+              self.log(f"import to manual failed: {e}")
         else:
-            txt="WARNING: U don't have controll"
+            txt="WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
+    @plan_action(row=True)
     def setSkip(self):
         if self.parent.tel_acces[self.parent.active_tel]:
 
-            if "skip" in self.parent.plan[self.parent.active_tel][self.i].keys():
-                if self.parent.plan[self.parent.active_tel][self.i]["meta"]["skip"]:
-                    self.parent.plan[self.parent.active_tel][self.i]["meta"]["skip"] = False
-                else:
-                    self.parent.plan[self.parent.active_tel][self.i]["meta"]["skip"] = True
-            else:
-                self.parent.plan[self.parent.active_tel][self.i]["meta"]["skip"] = True
+            # skip jest w meta (dawniej sprawdzane w zlym miejscu - nie dalo sie go zdjac)
+            meta = self.parent.plan[self.parent.active_tel][self.i]["meta"]
+            meta["skip"] = not meta.get("skip", False)
             self.parent.update_plan(self.parent.active_tel)
 
         else:
-            txt = "WARNING: U don't have controll"
+            txt = "WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
 
 
 
+    @plan_action(control=False)
     def pocisniecie_headera(self,index):
         if index == 4:
             if self.show_seq:
@@ -653,12 +681,14 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.plan_t.setHorizontalHeaderLabels(self.table_header)
         self.update_table()
 
+    @plan_action(control=False)
     def pocisniecie_tabelki(self,i,j):
         self.prev_i=self.i
         self.i=i
         self.update_table()
         self.repaint()
 
+    @plan_action()
     def pocisniecie_delAll(self):
         try:
             if self.parent.tel_acces[self.parent.active_tel]:
@@ -672,13 +702,14 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                 self.prev_i = -1
                 self.parent.update_plan(self.parent.active_tel)
             else:
-                txt = "WARNING: U don't have controll"
+                txt = "WARNING: U don't have control"
                 self.parent.WarningWindow(txt)
 
         except Exception as e:
-            print(f'TOI PLAN_GUI: EXCEPTION 102: {e}')
+            self.log(f"Del All failed: {e}")
 
 
+    @plan_action(row=True)
     def pocisniecie_del(self):
         if self.parent.tel_acces[self.parent.active_tel]:
               if self.i != self.parent.current_i[self.parent.active_tel] and self.i < len(self.parent.plan[self.parent.active_tel]):
@@ -692,9 +723,10 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   self.parent.update_plan(self.parent.active_tel)
 
         else:
-            txt = "WARNING: U don't have controll"
+            txt = "WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
+    @plan_action(row=True)
     def pocisniecie_first(self):
         if self.parent.tel_acces[self.parent.active_tel]:
 
@@ -712,10 +744,11 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               #self.repaint()
 
         else:
-            txt = "WARNING: U don't have controll"
+            txt = "WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
 
+    @plan_action(row=True)
     def pocisniecie_last(self):
         if self.parent.tel_acces[self.parent.active_tel]:
           if self.i != self.parent.current_i[self.parent.active_tel]:
@@ -729,9 +762,10 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               #self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               #self.repaint()
         else:
-            txt = "WARNING: U don't have controll"
+            txt = "WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
+    @plan_action(row=True)
     def pocisniecie_up(self):
         if self.parent.tel_acces[self.parent.active_tel]:
           if self.i != self.parent.current_i[self.parent.active_tel]:
@@ -749,10 +783,11 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               #self.repaint()
         else:
-            txt = "WARNING: U don't have controll"
+            txt = "WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
 
+    @plan_action(row=True)
     def pocisniecie_down(self):
         if self.parent.tel_acces[self.parent.active_tel]:
 
@@ -772,11 +807,15 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               #self.repaint()
 
         else:
-            txt = "WARNING: U don't have controll"
+            txt = "WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
+    @plan_action(row=True)
     def pocisniecie_swap(self):
         if self.parent.tel_acces[self.parent.active_tel]:
+          if not 0 <= self.prev_i < len(self.parent.plan[self.parent.active_tel]):
+              self.parent.WarningWindow("WARNING: Swap needs two OBs - click one, then the other")
+              return
           if self.i != self.parent.current_i[self.parent.active_tel] and self.prev_i != self.parent.current_i[self.parent.active_tel]:
               self.parent.plan[self.parent.active_tel][self.i],self.parent.plan[self.parent.active_tel][self.prev_i]=self.parent.plan[self.parent.active_tel][self.prev_i],self.parent.plan[self.parent.active_tel][self.i]
               self.parent.update_plan(self.parent.active_tel)
@@ -784,9 +823,10 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
               self.plan_t.scrollToItem(self.plan_t.item(self.i, 1))
               #self.repaint()
         else:
-            txt = "WARNING: U don't have controll"
+            txt = "WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
+    @plan_action(control=False)
     def savePlan(self):
           self.File_dialog = QFileDialog()
           self.fileName = self.File_dialog.getSaveFileName(None,"Open file")[0]
@@ -804,6 +844,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                   self.parent.WarningWindow(f"WARNING: can't save plan to {self.fileName}: {e}")
 
 
+    @plan_action()
     def loadPlan(self):
         if self.parent.active_tel == None:
             txt = "WARNING: Telescope NOT selected!"
@@ -830,6 +871,8 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     self.parent.WarningWindow(f"WARNING: can't read plan file {self.fileName}: {e}")
                     return
                 tmp_plan = []
+                # jeden walidator na caly plik (dawniej na kazda linie - ~6 ms kazdy, 100 linii = 0.6 s zamrozenia)
+                validator = ObsValidator(ObsValidator.load_schema("base_schema"), ObsValidator.load_schema("base_rules.yaml"))
                 for line in lines:
                     data = None
                     if len(line.strip())>0:
@@ -837,10 +880,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                             if "TEL: zb08" in line:
                                pass  # wprowadzic do planow jako obowiazek?
 
-                            BASE_SCHEMA = ObsValidator.load_schema("base_schema")
-                            COMMAND_RULES = ObsValidator.load_schema("base_rules.yaml")
-
-                            validator = ObsValidator(BASE_SCHEMA, COMMAND_RULES)
                             result = validator.validate_txt(line,allowed_filters=self.parent.nats_cfg[self.parent.active_tel]["filter_list_names"])
                             if result["valid"]:
                                 data = {}
@@ -851,7 +890,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                 # slotTime liczy update_plan (jedna instancja CTC, aktualny tryb odczytu)
 
                             else:
-                                print(f'Error plan reading: \n {line}')
+                                self.log(f'not a valid OB, skipped: {line.strip()}')
 
                     if data:
                         tmp_plan.append(data)
@@ -871,14 +910,15 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.parent.upload_plan()
             self.update_table()
         else:
-            txt = "WARNING: U don't have controll"
+            txt = "WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
+    @plan_action()
     def plan_start(self):
         if self.parent.tel_acces[self.parent.active_tel]:
             self.parent.manual_plan_start(self.parent.active_tel)
         else:
-              txt = "WARNING: U don't have controll"
+              txt = "WARNING: U don't have control"
               self.parent.WarningWindow(txt)
         # =================== OKNO GLOWNE ====================================
     def updateUI(self):
@@ -896,7 +936,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=0
           self.info_e = QTextEdit()
           self.info_e.setReadOnly(True)
-          self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
+          theme.paint(self.info_e, bg="field_bg")
           self.grid.addWidget(self.info_e, w, 0, 3, 5)
           w = w + 3
           self.log_t=QTableWidget(0,3)
@@ -904,7 +944,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.log_t.setSelectionMode(QAbstractItemView.NoSelection)
           self.log_t.verticalHeader().hide()
           self.log_t.setEditTriggers(QTableWidget.NoEditTriggers)
-          self.log_t.setStyleSheet("selection-background-color: white;")
+          theme.paint(self.log_t, extra="selection-background-color: transparent;")
           self.log_t.verticalHeader().setDefaultSectionSize(10)
 
           self.grid.addWidget(self.log_t, w,0,4,5)
@@ -921,18 +961,18 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.ob_l=QLabel("current OB:")
           self.ob_e=QLineEdit("")
           self.ob_e.setReadOnly(True)
-          self.ob_e.setStyleSheet("background-color: rgb(233, 233, 233); color: black;")
+          theme.paint(self.ob_e, bg="field_bg")
           self.grid.addWidget(self.ob_l, w,0)
           self.grid.addWidget(self.ob_e, w,1,1,4)
 
           w=w+1
           self.ob_Prog_n=QProgressBar(self)
-          self.ob_Prog_n.setStyleSheet("background-color: rgb(233, 233, 233)")
+          theme.paint(self.ob_Prog_n, bg="field_bg")
           self.grid.addWidget(self.ob_Prog_n, w, 0,1,5)
 
           w=w+1
           self.plan_t=QTableWidget(0,5)
-          self.plan_t.setStyleSheet("selection-background-color: green; background-color: #F0F0F0;")
+          theme.paint(self.plan_t, bg="field_bg")
           self.plan_t.setHorizontalHeaderLabels(self.table_header)
           self.plan_t.setSelectionMode(QAbstractItemView.NoSelection)
           self.plan_t.verticalHeader().hide()

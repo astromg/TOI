@@ -80,7 +80,8 @@ In an `@qs.asyncSlot` coroutine or a background task it only prints a traceback.
 `try` wraps the whole `async for` dies silently on its first bad message — put a per-message `try` inside the
 loop (see `nats_weather_loop`, `nats_safety_reader`). `tpg` calls `sys.exit()` on bad input, so `TPG_Worker.run`
 catches `SystemExit` — without that the whole process silently exits with code 0. `plan_gui.py` has no
-`asyncSlot`s, so every plan-window button is a plain slot. When inserting OBs into a running plan, shift
+`asyncSlot`s, so every plan-window button is a plain slot — wrap new ones in `@plan_action(control=…, row=…)`
+(checks telescope / control / selected row, logs exceptions instead of aborting). When inserting OBs into a running plan, shift
 `current_i`/`next_i` (see `AddWindow.save_ob`, `loadPlan`). Open crash items are tracked in the knowledge-base
 note "TOI Crash Review 2026-10-14".
 
