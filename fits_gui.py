@@ -75,6 +75,7 @@ class FitsWindow(BaseWindow):
         self._ffs_token = 0
         self._ffs_jobs = []         # (QThread, worker) - referencje, dopoki watek nie skonczy
         self.load_token = 0         # odczyt pliku w watku (TOI.new_fits): nowszy obraz / zmiana teleskopu - wynik do kosza
+        self.image_name = None      # nazwa pliku pokazywanego obrazu
         self.display = None         # obraz do rysowania (pelny albo zbinowany) i jego binning
         self.display_factor = 1
         self._overlays = []         # nakladki na obrazie (pointing, obiekty OFP, gwiazdy nasycone) - usuwane przed nowymi
@@ -153,8 +154,9 @@ class FitsWindow(BaseWindow):
         except (TypeError, ValueError):
             return False
 
-    def updateImage(self, image, display=None, factor=1):
+    def updateImage(self, image, display=None, factor=1, name=None):
         self.image = image
+        self.image_name = name      # plik pokazywanego obrazu - nakladki OFP tylko dla niego
         self.display, self.display_factor = display, factor
         self._overlays = []         # plot_image czysci osie
 
@@ -298,6 +300,11 @@ class FitsWindow(BaseWindow):
 
             try:
 
+                # OFP opisuje konkretny plik; obraz czytany w tle moze byc jeszcze poprzedni (wiadomosc OFP o nowym
+                # zdjeciu przychodzi przed koncem odczytu) - nakladki tylko na obrazie, ktorego dotycza
+                ofp_file = self.parent.fits_ofp_data["raw"].get("file_name")
+                if self.image_name is not None and ofp_file != self.image_name:
+                    raise LookupError(f"OFP data for {ofp_file}, image shown {self.image_name} - overlays skipped")
                 if "pointing_error" in self.parent.fits_ofp_data["raw"].keys():
                     #pointing_err_ra = self.parent.fits_ofp_data["raw"]["pointing_error"]["real_ra_diff"]
                     #pointing_err_dec = self.parent.fits_ofp_data["raw"]["pointing_error"]["dec_diff"]
@@ -321,6 +328,8 @@ class FitsWindow(BaseWindow):
                     self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")
                     self._overlays += self.objects
 
+            except LookupError as e:
+                logger.debug(f"TOI FITS: {e}")
             except Exception as e:
                 logger.warning(f"TOI FITS EXCEPTION 3a: {e}")
 

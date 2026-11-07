@@ -2910,7 +2910,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if token != self.fitsGui.load_token or tel != self.active_tel:
             return
         self.image = image
-        self.fitsGui.updateImage(image, display, factor)
+        self.fitsGui.updateImage(image, display, factor, name=os.path.basename(path))
 
     @qs.asyncSlot()
     async def ccd_Snap(self):
