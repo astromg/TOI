@@ -927,9 +927,9 @@ class SoundTestWindow(QWidget):
         ("PROGRAM BELL", "bell", "BELL in a program (TOI)"),
         ("PROGRAM STOP", "stop", "STOP reached in a program (TOI)"),
         ("PROGRAM ERROR", "error", "error in a program (TOI)"),
-        ("FWHM WARNING", "notification", "check that everything is ok: seeing, zero point, thin clouds / veil, "
+        ("OBS NOTIFICATION", "notification", "check that everything is ok: seeing, zero point, thin clouds / veil, "
                                          "a telescope pointing into clouds"),
-        ("WEATHER WARNING", "warning", "weather restrictions rise: pointing restricted, a telescope to close, cloudy"),
+        ("WEATHER WARNING", "warning", "weather restrictions rise: pointing restricted or time to close a telescope"),
         ("WEATHER ALERT", "alert", "close everything: wind on all telescopes, humidity, temperature, rain, overcast"),
         ("WEATHER LEVEL DOWN", "level down", "a weather restriction dropped (after the hold time)"),
         ("SYSTEM ALERT", "facility alarm", "equipment at risk: battery SOC, server / battery / electric room temperature"),
