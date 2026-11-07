@@ -438,7 +438,6 @@ class MainForm(QWidget):
                 self.rows = tels
                 self.obs_t.setRowCount(len(tels))
                 self._cells.clear()
-                self.fit_table_height()
         except Exception as e:
             logger.exception(f'TOI: telescope table: {e}')
             return
@@ -451,12 +450,6 @@ class MainForm(QWidget):
                     logger.warning(f'TOI: telescope table {t} {self.COLUMNS[col]}: {e!r}')
                     content = ("text", "?", "tab_error")
                 self.set_cell(i, col, content)
-
-    def fit_table_height(self):
-        # tabela tak wysoka jak jej wiersze - bez pustego miejsca pod ostatnim teleskopem
-        t = self.obs_t
-        t.setFixedHeight(t.horizontalHeader().height() + t.verticalHeader().defaultSectionSize() * t.rowCount()
-                         + 2 * t.frameWidth())
 
     def set_cell(self, i, col, content):
         if self._cells.get((i, col)) == content:
@@ -627,7 +620,6 @@ class MainForm(QWidget):
             logger.warning(f'TOI: theme weather fields: {e}')
         self.msg_e.setStyleSheet(theme.field_style())
         self.obs_t.setStyleSheet(f"font-size: 9pt; selection-background-color: {theme.c('selection_bg')};")
-        self.config_p.setStyleSheet(f"QPushButton {{color: {theme.c('muted_fg')};}}")     # nie menu pod nim
         self._cells.clear()
         self.update_table()
 
@@ -880,7 +872,6 @@ class MainForm(QWidget):
         w = w + 1
 
         self.config_p = QPushButton("\u2699")
-        self.config_p.setStyleSheet(f"QPushButton {{color: {theme.c('muted_fg')};}}")     # nie menu pod nim
 
 
         # obserwatorzy tej nocy (tic.status.ocm.observers); klikniecie otwiera okno rejestracji do poprawki
