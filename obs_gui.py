@@ -15,6 +15,7 @@ from base_window import BaseWindow
 from claude_report import write_claude_report
 from toi_lib import *
 from toi_theme import theme, THEMES, TITLES
+from plan_gui import PLAN_LOG_LINES_CHOICES, plan_log_lines, set_plan_log_lines
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,13 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             menu.addAction(title, lambda _=False, attr=attr: self.bring_up(getattr(self.parent, attr)))
         aux_tabs = menu.addMenu("Aux tabs")
         aux_tabs.aboutToShow.connect(lambda: self.fill_aux_menu(aux_tabs))
+        log_lines = menu.addMenu("Plan log lines")      # ile ostatnich linii logu na gorze okna planu
+        group_lines = QtGui.QActionGroup(log_lines)
+        for n in PLAN_LOG_LINES_CHOICES:
+            action = log_lines.addAction(str(n), lambda _=False, n=n: set_plan_log_lines(n, self.parent.planGui))
+            action.setCheckable(True)
+            action.setChecked(n == plan_log_lines())
+            group_lines.addAction(action)
         themes = menu.addMenu("Theme")
         group = QtGui.QActionGroup(themes)
         for name in THEMES:

@@ -69,7 +69,26 @@ def plan_action(control=True, row=False):
     return deco
 
 
+# log operacji na gorze okna planu: ile ostatnich linii trzymac (menu ⚙ "Plan log lines", QSettings)
+PLAN_LOG_LINES_CHOICES = (200, 500, 1000, 2000, 5000)
+PLAN_LOG_LINES_DEFAULT = 500
+
+
+def plan_log_lines():
+    try:
+        return int(QtCore.QSettings("OCA", "TOI").value("plan_log_lines", PLAN_LOG_LINES_DEFAULT))
+    except (TypeError, ValueError):
+        return PLAN_LOG_LINES_DEFAULT
+
+
+def set_plan_log_lines(n, plan_gui=None):
+    QtCore.QSettings("OCA", "TOI").setValue("plan_log_lines", int(n))
+    if plan_gui is not None:
+        plan_gui.info_e.document().setMaximumBlockCount(int(n))
+
+
 class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
+    LOG_FLUSH_MS = 300
 
     def __init__(self, parent, loop: QEventLoop = None, client_api=None):
           BaseWindow.__init__(self)
@@ -97,6 +116,11 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.current_i=-1         # zmienna funckjonalna, ktore ob wlasnie sie wykonuje.
           self.done=[]              # lista uobi wykonanych ob
 
+          self._log_buffer = []
+          self._log_timer = QtCore.QTimer(self)        # dopisywanie logu paczkami co LOG_FLUSH_MS
+          self._log_timer.setSingleShot(True)
+          self._log_timer.setInterval(self.LOG_FLUSH_MS)
+          self._log_timer.timeout.connect(self.flush_log)
           self.updateUI()
           self.update_table()
           self.show()
@@ -523,10 +547,32 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                      "ERROR": "bad_fg", "PLANRUNNER": "dim_fg", "OFP": "dim_fg", "DOWNLOADER": "dim_fg",
                      "GUIDER": "dim_fg"}.get(label, c)
 
-            msg = f'{ut} [{label}] {txt}'
-            self.info_e.setTextColor(theme.qcolor(c))
-            self.info_e.append(msg)
-            self.info_e.repaint()
+            # do bufora - dopisywane paczka (flush_log): po zmianie teleskopu przychodzi godzina historii, na zb08
+            # ~2400 widocznych wpisow; dopisywanie po jednym z repaint() stawialo GUI na kilka sekund
+            self._log_buffer.append((c, f'{ut} [{label}] {txt}'))
+            del self._log_buffer[:-self.info_e.document().maximumBlockCount()]   # i tak zostanie tylko tyle
+            if not self._log_timer.isActive():
+                self._log_timer.start()
+
+    def flush_log(self):
+        lines, self._log_buffer = self._log_buffer, []
+        if not lines:
+            return
+        bar = self.info_e.verticalScrollBar()
+        at_bottom = bar.value() >= bar.maximum() - 2     # przewijamy na dol tylko, gdy operator nie czyta wyzej
+        doc = self.info_e.document()
+        cursor = QtGui.QTextCursor(doc)
+        cursor.movePosition(QtGui.QTextCursor.MoveOperation.End)
+        cursor.beginEditBlock()
+        for color, msg in lines:
+            if not doc.isEmpty():
+                cursor.insertBlock()
+            fmt = QtGui.QTextCharFormat()
+            fmt.setForeground(theme.qcolor(color))
+            cursor.insertText(msg, fmt)
+        cursor.endEditBlock()
+        if at_bottom:
+            bar.setValue(bar.maximum())
 
     def update_log_table(self):
           if len(self.parent.ob_log)==0:
@@ -545,7 +591,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                         txt = self.parent.ob_log[i]["time"]["end_dt"]
                         txt = txt.split("T")[1].split(":")[0]+":"+txt.split("T")[1].split(":")[1]
                         txt=QTableWidgetItem(txt)
-                        txt.setBackground(theme.qcolor("field_bg"))
                         txt.setFont(font)
 
                         self.log_t.setItem(i,0,txt)
@@ -563,7 +608,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                              txt = ""
 
                          txt=QTableWidgetItem(txt)
-                         txt.setBackground(theme.qcolor("field_bg"))
                          txt.setFont(font)
                          self.log_t.setItem(i,1,txt)
 
@@ -577,7 +621,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                              if "seq" in self.parent.ob_log[i]["command_dict"]["kwargs"].keys():
                                  txt = str(self.parent.ob_log[i]["command_dict"]["kwargs"]["seq"])
                          txt=QTableWidgetItem(txt)
-                         txt.setBackground(theme.qcolor("field_bg"))
                          txt.setFont(font)
                          self.log_t.setItem(i,2,txt)
                      except Exception as e:
@@ -936,6 +979,9 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           w=0
           self.info_e = QTextEdit()
           self.info_e.setReadOnly(True)
+          # najwyzej tyle ostatnich linii (menu ⚙ "Plan log lines"); bufor poprzedniego teleskopu - do kosza
+          self.info_e.document().setMaximumBlockCount(plan_log_lines())
+          self._log_buffer = []
           theme.paint(self.info_e, bg="field_bg")
           self.grid.addWidget(self.info_e, w, 0, 3, 5)
           w = w + 3
@@ -944,7 +990,9 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
           self.log_t.setSelectionMode(QAbstractItemView.NoSelection)
           self.log_t.verticalHeader().hide()
           self.log_t.setEditTriggers(QTableWidget.NoEditTriggers)
-          theme.paint(self.log_t, extra="selection-background-color: transparent;")
+          # tlo calej tabeli z motywu (dawniej kazda komorka dostawala tlo przy tworzeniu - po zmianie motywu
+          # zostawalo jasne pod jasnym tekstem)
+          theme.paint(self.log_t, bg="field_bg", extra="selection-background-color: transparent;")
           self.log_t.verticalHeader().setDefaultSectionSize(10)
 
           self.grid.addWidget(self.log_t, w,0,4,5)
