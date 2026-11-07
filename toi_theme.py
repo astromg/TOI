@@ -191,19 +191,42 @@ THEMES = {
         "tab_icon_ok": "rgb(26, 127, 55)", "tab_icon_bad": "rgb(207, 34, 46)", "tab_icon_warn": "rgb(188, 76, 0)",
         "tab_icon_warn2": "rgb(154, 103, 0)",
     },
+    # synthwave: lata 80. - fioletowa noc retrowave, neonowy roz / cyjan / zolc, zielen jak monitor CRT
+    "synthwave": {
+        "window": "rgb(26, 11, 46)",
+        "text": "rgb(242, 225, 255)",
+        "field_bg": "rgb(44, 20, 74)",
+        "field_fg": "rgb(242, 225, 255)",
+        "muted_fg": "rgb(110, 80, 150)",
+        "selection_bg": "rgb(140, 30, 140)",
+        "ok_bg": "rgb(20, 110, 70)", "ok_fg": "rgb(57, 255, 140)", "ok_beat_fg": "rgb(200, 255, 220)",
+        "bad_bg": "rgb(150, 20, 80)", "bad_fg": "rgb(255, 42, 109)",
+        "warn_bg": "rgb(130, 120, 20)", "warn_fg": "rgb(249, 248, 113)",
+        "warn2_bg": "rgb(150, 80, 0)", "warn2_fg": "rgb(255, 158, 0)",
+        "change_bg": "rgb(10, 90, 130)", "change_fg": "rgb(5, 217, 232)",
+        "idle_fg": "rgb(242, 225, 255)",
+        "tab_ok": "rgb(57, 255, 140)", "tab_moving": "rgb(255, 158, 0)", "tab_error": "rgb(255, 42, 109)",
+        "input_bg": "rgb(58, 26, 96)", "input_edit_bg": "rgb(58, 26, 96)", "moving_bg": "rgb(90, 30, 150)",
+        "moving_fg": "rgb(255, 158, 0)", "warn_soft_bg": "rgb(130, 120, 20)",
+        "row_sel_bg": "rgb(140, 30, 140)", "row_prev_bg": "rgb(52, 22, 82)", "dim_fg": "rgb(170, 130, 210)",
+        "tab_icon_ok": "rgb(57, 255, 140)", "tab_icon_bad": "rgb(255, 42, 109)", "tab_icon_warn": "rgb(255, 158, 0)",
+        "tab_icon_warn2": "rgb(249, 248, 113)",
+    },
 }
 TITLES = {"day": "Day", "paper": "Paper", "clearsky": "Clear sky", "night": "Night", "cosmic": "Cosmic", "nord": "Nord",
-          "dim": "Dim", "funky": "Funky"}
+          "dim": "Dim", "synthwave": "80's Synthwave", "funky": "Funky"}
 
 # katalog obrazkow przelacznikow (w stylesheetach pisane jako ICONS/SwitchOn.png); nocne - Icons/make_night_icons.py
 ICON_DIRS = {"day": "./Icons/", "night": "./Icons/night/", "funky": "./Icons/", "cosmic": "./Icons/night/",
-             "nord": "./Icons/night/", "dim": "./Icons/night/", "paper": "./Icons/", "clearsky": "./Icons/"}
+             "nord": "./Icons/night/", "dim": "./Icons/night/", "paper": "./Icons/", "clearsky": "./Icons/",
+             "synthwave": "./Icons/"}
 
 # tekst na tle *_bg: czarny na jasnych tlach dziennych, jasny na ciemnych nocnych
 BG_TEXT = {"day": "black", "night": "rgb(210, 210, 200)", "funky": "black", "cosmic": "rgb(225, 230, 255)",
-           "nord": "rgb(236, 239, 244)", "dim": "rgb(150, 145, 135)", "paper": "black", "clearsky": "black"}
+           "nord": "rgb(236, 239, 244)", "dim": "rgb(150, 145, 135)", "paper": "black", "clearsky": "black",
+           "synthwave": "rgb(250, 240, 255)"}
 # ciemne motywy w stylu nocy (paski paneli, panel optyki): wszystkie poza day i funky
-DARK = {"night", "cosmic", "nord", "dim"}
+DARK = {"night", "cosmic", "nord", "dim", "synthwave"}
 
 
 class Theme:
