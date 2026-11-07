@@ -18,7 +18,7 @@ zapamietany w QSettings("OCA", "TOI") / "theme". Okna sa przerabiane po kolei - 
 
 from PyQtX import QtGui
 from PyQtX.QtCore import QSettings
-from PyQtX.QtWidgets import QApplication
+from PyQtX.QtWidgets import QApplication, QStyleFactory
 
 THEMES = {
     # dotychczasowe kolory TOI
@@ -134,22 +134,22 @@ class Theme:
             self._system_style = app.style().name()
         t = THEMES[self.name]
         if t["window"] is None:
-            app.setStyle(self._system_style)
-            app.setPalette(self._system_palette)
-            return
-        # styl systemowy (np. GTK, Breeze) potrafi ignorowac palete aplikacji - okna zostaja szare; Fusion ja respektuje
-        app.setStyle("Fusion")
-        p = QtGui.QPalette(self._system_palette)
-        window, text = self._css_to_qcolor(t["window"]), self._css_to_qcolor(t["text"])
-        field = self._css_to_qcolor(t["field_bg"])
-        for role, color in ((QtGui.QPalette.ColorRole.Window, window), (QtGui.QPalette.ColorRole.Base, field),
-                            (QtGui.QPalette.ColorRole.AlternateBase, window), (QtGui.QPalette.ColorRole.Button, field),
-                            (QtGui.QPalette.ColorRole.WindowText, text), (QtGui.QPalette.ColorRole.Text, text),
-                            (QtGui.QPalette.ColorRole.ButtonText, text), (QtGui.QPalette.ColorRole.ToolTipBase, window),
-                            (QtGui.QPalette.ColorRole.ToolTipText, text),
-                            (QtGui.QPalette.ColorRole.Highlight, self._css_to_qcolor(t["selection_bg"]))):
-            p.setColor(role, color)
+            p, style = self._system_palette, self._system_style
+        else:
+            # styl systemowy potrafi ignorowac palete aplikacji - okna zostaja szare; Fusion ja respektuje
+            p, style = QtGui.QPalette(self._system_palette), "Fusion"
+            window, text = self._css_to_qcolor(t["window"]), self._css_to_qcolor(t["text"])
+            field = self._css_to_qcolor(t["field_bg"])
+            for role, color in ((QtGui.QPalette.ColorRole.Window, window), (QtGui.QPalette.ColorRole.Base, field),
+                                (QtGui.QPalette.ColorRole.AlternateBase, window), (QtGui.QPalette.ColorRole.Button, field),
+                                (QtGui.QPalette.ColorRole.WindowText, text), (QtGui.QPalette.ColorRole.Text, text),
+                                (QtGui.QPalette.ColorRole.ButtonText, text), (QtGui.QPalette.ColorRole.ToolTipBase, window),
+                                (QtGui.QPalette.ColorRole.ToolTipText, text),
+                                (QtGui.QPalette.ColorRole.Highlight, self._css_to_qcolor(t["selection_bg"]))):
+                p.setColor(role, color)
+        # najpierw paleta, potem styl: zmiana stylu przemalowuje wszystkie okna (takze te z wlasnym stylesheetem,
+        # ktore samej zmiany palety nie widza) - odwrotnie okna zostawaly o jeden motyw w tyle
         app.setPalette(p)
-
+        app.setStyle(QStyleFactory.create(style))
 
 theme = Theme()
