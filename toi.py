@@ -1696,11 +1696,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         if tel == self.active_tel:
                             txt = self.tel_users[tel]
                             self.skyGui.user_e.setText(txt)
-                            if self.tel_acces[tel]:
-                                self.skyGui.user_e.setStyleSheet(f"background-color: {self.nats_cfg[tel]['color']};")
+                            if self.tel_acces[tel]:     # kontrola: pole w kolorze teleskopu
+                                color = QtGui.QColor(self.nats_cfg[tel]['color'] or "#cdd2dc")
+                                theme.paint(self.skyGui.user_e, extra=f"background-color: {color.name()}; "
+                                                                      f"color: {theme.text_on(color)};")
                             else:
-                                self.skyGui.user_e.setStyleSheet(
-                                    f"background-color: rgb(233, 233, 233); color: black;")
+                                theme.paint(self.skyGui.user_e, bg="field_bg")
 
                 self.update_oca()
 

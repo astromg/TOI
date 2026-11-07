@@ -5,6 +5,8 @@
 # Marek Gorski
 # ----------------
 
+import logging
+
 from PyQtX.QtCore import Qt
 from PyQtX import QtGui, QtCore
 from PyQtX.QtGui import QFont
@@ -15,6 +17,9 @@ from matplotlib.figure import Figure
 from pyaraucaria.coordinates import *
 from toi_lib import *
 from base_window import BaseWindow
+from toi_theme import theme
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -24,9 +29,22 @@ class SkyGui(BaseWindow):
         self.parent = parent
         self.set_initial_geometry(self.parent.obs_window_geometry[0]+910,self.parent.obs_window_geometry[1],500,500)
 
+        self.skyView = None
         self.updateUI()
         self.show()
         self.raise_()
+        theme.on_change(self.on_theme)      # raz na okno - SkyView powstaje od nowa przy kazdej zmianie teleskopu
+
+    def on_theme(self):
+        if self.skyView is not None:
+            self.skyView.refresh(telescope=True)
+        if self.parent.telescope:
+            self.paint_tel()
+
+    def paint_tel(self):
+        # pole teleskopu w jego kolorze (z configu TIC), tekst czytelny na nim
+        color = QtGui.QColor(self.parent.nats_cfg[self.parent.active_tel]['color'] or "#cdd2dc")
+        theme.paint(self.tel_e, extra=f"background-color: {color.name()}; color: {theme.text_on(color)};")
 
     def updateUI(self):
         tmp = QWidget()
@@ -53,7 +71,7 @@ class SkyGui(BaseWindow):
             font = QFont()
             font.setBold(True)
             self.tel_e.setFont(font)
-            self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[self.parent.active_tel]['color']};")
+            self.paint_tel()
             self.layout.addWidget(self.tel_e, w, 1, 1, 1)
 
             self.user_p = QPushButton('Take Control')
@@ -64,9 +82,12 @@ class SkyGui(BaseWindow):
             w = 1
             self.skyView = SkyView(self.parent)
             self.layout.addWidget(self.skyView, w, 0, 1, 3)
+            # nowy wykres: od razu to, co nie zalezy od teleskopu (montaz i kopula nowego teleskopu przyjda
+            # z subskrypcji - w zmiennych sa jeszcze wartosci poprzedniego)
+            self.skyView.refresh(telescope=False)
             w = 2
             self.exit_p = QPushButton('EXIT')
-            self.exit_p.clicked.connect(lambda: self.parent.obsGui.quit_toi())
+            self.exit_p.clicked.connect(lambda: self.parent.obsGui.ask_quit())    # z pytaniem, jak krzyzyk
             self.layout.addWidget(self.exit_p, w, 0, 1, 3)
             self.layout.setColumnStretch(0, 0)
             self.layout.setColumnStretch(1, 1)
@@ -83,7 +104,7 @@ class SkyGui(BaseWindow):
             w = 1
             self.info_e = QTextEdit()
             self.info_e.setReadOnly(True)
-            self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
+            theme.paint(self.info_e, bg="field_bg")
             with open("./Misc/changelog.txt", "r") as plik:
                 txt = plik.read()
             self.info_e.setHtml(txt)
@@ -92,7 +113,7 @@ class SkyGui(BaseWindow):
             self.layout.addWidget(self.info_e, w, 0, 1, 1)
             w = 2
             self.exit_p = QPushButton('EXIT')
-            self.exit_p.clicked.connect(lambda: self.parent.obsGui.quit_toi())
+            self.exit_p.clicked.connect(lambda: self.parent.obsGui.ask_quit())
             self.layout.addWidget(self.exit_p, w, 0, 1, 1)
 
         self.setLayout(self.layout)
@@ -124,14 +145,49 @@ class SkyView(QWidget):
         self.a = [10, 20, 30, 40, 50, 100, 40, 40, 70]
         self.h = [50, 50, 50, 50, 50, 30, 40, 40, 20]
 
-        self.update()
+        self.plan = []
+        self.draw_base()
 
         self.dome_az = 0
 
         # self.updateDome()
 
-    def update(self):
+    @staticmethod
+    def c(key):
+        """kolor motywu dla matplotlib (hex)"""
+        return theme.qcolor(key).name()
+
+    def refresh(self, telescope=True):
+        """wszystko od nowa w kolorach motywu: tlo, siatka, almanac, plan, wiatr; telescope - takze montaz i kopula"""
+        self.draw_base()
+        steps = [self.updateAlmanac, self.updateRadar, lambda: self.updateWind(self.parent)]
+        if telescope:
+            steps += [self.updateMount, self.updateDome]
+        for step in steps:
+            try:
+                step()
+            except Exception as e:
+                logger.warning(f'TOI: sky refresh: {e!r}')
+
+    def draw_base(self):
+        # dawniej update() - przeslanialo QWidget.update()
         self.axes.clear()
+        self._alm = None        # artysci almanacu poszli z clear() - updateAlmanac utworzy ich od nowa
+        self._alm_shown = None
+        self.mount = []
+        self.dome = None
+        self.wind = None
+        self.stars = []
+        self.track = []
+        bg = self.c("window") if theme.c("window") else "white"
+        text = self.c("text")
+        self.fig.set_facecolor(bg)
+        self.fig.set_edgecolor(bg)      # bez tego biala ramka wokol wykresu w nocy
+        self.axes.set_facecolor(bg)
+        self.axes.tick_params(colors=text)
+        self.axes.grid(color=self.c("muted_fg"))
+        for spine in self.axes.spines.values():
+            spine.set_edgecolor(self.c("muted_fg"))
 
         self.axes.set_theta_direction(-1)
         self.axes.set_theta_zero_location('N')
@@ -142,74 +198,49 @@ class SkyView(QWidget):
         self.axes.set_rmax(self.rmax)
         self.axes.set_rticks([20, 40, 60, 90])
         self.axes.set_yticklabels(["", "", "", ""])
-        self.axes.bar(0, self.rmax - 90, width=2 * math.pi, bottom=90, color='k',
+        self.axes.bar(0, self.rmax - 90, width=2 * math.pi, bottom=90, color=text,
                       alpha=0.05)  # tutaj zmienia sie pasek ponizej horyzoontu
 
         self.redraw()
-        self.show()
+
+    # napisy almanacu: (x, y) w ukladzie wykresu, etykieta
+    ALMANAC_TEXTS = (((130, -140), "Sunset"), ((115, -140), "Sunrise"), ((100, -140), "Sun Alt"),
+                     ((-100, -140), "Moon"), ((-115, -140), "Moonrise"), ((-130, -140), "Moonset"))
 
     def updateAlmanac(self):
+        """co 1 s z petli almanacu: zmienia tylko tekst i polozenie istniejacych elementow, a przerysowuje wykres
+        tylko, gdy cos widocznego sie zmienilo (godziny co minute, wysokosc Slonca z dokladnoscia 0.1)"""
+        alm = self.parent.almanac
+        hm = lambda d: ":".join(str(d).split()[1].split(":")[:2])
+        texts = [hm(alm["sunset"]), hm(alm["sunrise"]), f"{deg_to_decimal_deg(alm['sun_alt']):.1f}",
+                 f"{alm['moon_phase']:.2f}", hm(alm["moonrise"]), hm(alm["moonset"])]
+        rad = lambda deg: deg * 2 * math.pi / 360.
+        sun = (round(rad(deg_to_decimal_deg(alm["sun_az"])), 3), round(90 - deg_to_decimal_deg(alm["sun_alt"]), 1))
+        moon = (round(rad(deg_to_decimal_deg(alm["moon_az"])), 3), round(90 - deg_to_decimal_deg(alm["moon_alt"]), 1))
         try:
-            self.txt1.remove()
-            self.txt2.remove()
-            self.txt3.remove()
-            self.txt4.remove()
-            self.txt5.remove()
-            self.txt6.remove()
-            for p in self.sun: p.remove()
-            for p in self.moon: p.remove()
-            for p in self.nextOb: p.remove()
-        except:
-            pass
-        sun_h = f"{deg_to_decimal_deg(self.parent.almanac['sun_alt']):.2f}"
-        sunrise_tmp = str(self.parent.almanac["sunrise"]).split()[1]
-        sunset_tmp = str(self.parent.almanac["sunset"]).split()[1]
-        sunrise = sunrise_tmp.split(":")[0] + ":" + sunrise_tmp.split(":")[1]
-        sunset = sunset_tmp.split(":")[0] + ":" + sunset_tmp.split(":")[1]
+            next_ob = (rad(float(self.parent.mntGui.nextAz_e.text())), 90 - float(self.parent.mntGui.nextAlt_e.text()))
+        except (ValueError, AttributeError):
+            next_ob = None
+        shown = (tuple(texts), sun, moon, next_ob)
+        if shown == self._alm_shown:
+            return
+        self._alm_shown = shown
 
-        moonrise_tmp = str(self.parent.almanac["moonrise"]).split()[1]
-        moonset_tmp = str(self.parent.almanac["moonset"]).split()[1]
-        moonrise = moonrise_tmp.split(":")[0] + ":" + moonrise_tmp.split(":")[1]
-        moonset = moonset_tmp.split(":")[0] + ":" + moonset_tmp.split(":")[1]
-        moon_phase = f"{self.parent.almanac['moon_phase']:.2f}"
-
-        fi,r = xy2rt(130,-140)
-        self.txt1 = self.axes.text(fi, r, f"Sunset: {sunset}", fontsize=9)
-
-        fi, r = xy2rt(115, -140)
-        self.txt2 = self.axes.text(fi, r, f"Sunrise: {sunrise}", fontsize=9)
-
-        fi, r = xy2rt(100, -140)
-        self.txt3 = self.axes.text(fi, r, f"Sun Alt: {sun_h}", fontsize=9)
-
-        fi, r = xy2rt(-100, -140)
-        self.txt4 = self.axes.text(fi, r, f"Moon: {moon_phase}", fontsize=9)
-
-        fi, r = xy2rt(-115, -140)
-        self.txt5 = self.axes.text(fi, r, f"Moonrise: {moonrise}", fontsize=9)
-
-        fi,r = xy2rt(-130,-140)
-        self.txt6 = self.axes.text(fi, r, f"Moonset: {moonset}", fontsize=9)
-
-        try:
-            self.sun = self.axes.plot(deg_to_decimal_deg(self.parent.almanac["sun_az"]) * 2 * 3.14 / 360.,
-                                      90 - deg_to_decimal_deg(self.parent.almanac["sun_alt"]), "oy", alpha=0.7, markersize=10)
-            self.moon = self.axes.plot(deg_to_decimal_deg(self.parent.almanac["moon_az"]) * 2 * 3.14 / 360.,
-                                       90 - deg_to_decimal_deg(self.parent.almanac["moon_alt"]), "ok", alpha=0.7, markersize=8)
-        except Exception as es:
-            print(es)
-
-        try:
-            next_az = self.parent.mntGui.nextAz_e.text()
-            next_alt = self.parent.mntGui.nextAlt_e.text()
-            next_az = float(next_az) * 2 * 3.14 / 360.
-            next_alt = 90 - float(next_alt)
-            self.nextOb = self.axes.plot(next_az, next_alt, "xb")
-        except:
-            pass
-
+        if self._alm is None:
+            text_color = self.c("text")
+            self._alm = {
+                "texts": [self.axes.text(*xy2rt(*xy), "", fontsize=9, color=text_color)
+                          for xy, _ in self.ALMANAC_TEXTS],
+                "sun": self.axes.plot([], [], "o", color=self.c("warn_bg"), alpha=0.7, markersize=10)[0],
+                "moon": self.axes.plot([], [], "o", color=self.c("text"), alpha=0.7, markersize=8)[0],
+                "next": self.axes.plot([], [], "x", color=self.c("change_fg"))[0],
+            }
+        for artist, (_, label), value in zip(self._alm["texts"], self.ALMANAC_TEXTS, texts):
+            artist.set_text(f"{label}: {value}")
+        self._alm["sun"].set_data([sun[0]], [sun[1]])
+        self._alm["moon"].set_data([moon[0]], [moon[1]])
+        self._alm["next"].set_data(*(([next_ob[0]], [next_ob[1]]) if next_ob else ([], [])))
         self.redraw()
-        self.show()
 
     def updateRadar(self):
         # ### STARS ###
@@ -277,7 +308,6 @@ class SkyView(QWidget):
                 pass
             self.updateTrack()
             self.redraw()
-            self.show()
 
     def updateTrack(self):
         try:
@@ -330,16 +360,16 @@ class SkyView(QWidget):
             for p in self.mount: p.remove()
         except:
             pass
-        color = "r"
-        facecolor = "r"
+        self.mount = []
+        # montaz: w spoczynku czerwony, sledzi zielony, w ruchu pomaranczowy; otwarte lustro - srodek jasny
+        color = self.c("bad_fg")
         if self.parent.mount_tracking:
-            color = "g"
-            facecolor = "g"
+            color = self.c("ok_fg")
         if self.parent.mount_slewing:
-            color = "orange"
-            facecolor = "orange"
+            color = self.c("tab_moving")
+        facecolor = color
         if self.parent.cover_status == 3:
-            facecolor = "white"
+            facecolor = "white" if theme.name != "night" else self.c("text")
         if self.parent.mount_alt is not None and self.parent.mount_az is not None:
             alt = 90 - self.parent.mount_alt
             az = self.parent.mount_az
@@ -348,23 +378,17 @@ class SkyView(QWidget):
                                         alpha=0.7)
 
             self.redraw()
-            self.show()
 
     def updateDome(self):
         try:
             self.dome.remove()
         except:
             pass
-        if self.parent.dome_shutterstatus == 0:
-            color = "g"
-        elif self.parent.dome_shutterstatus == 1:
-            color = "r"
-        elif self.parent.dome_shutterstatus == 2:
-            color = "orange"
-        elif self.parent.dome_shutterstatus == 3:
-            color = "orange"
-        else:
-            color = "b"
+        self.dome = None
+        # kopula: otwarta zielona, zamknieta czerwona, otwiera / zamyka sie pomaranczowa, nieznana niebieska
+        color = {0: "ok_fg", 1: "bad_fg", 2: "tab_moving", 3: "tab_moving"}.get(self.parent.dome_shutterstatus,
+                                                                               "change_fg")
+        color = self.c(color)
         ok = False
         try:
             float(self.parent.dome_az)
@@ -376,7 +400,6 @@ class SkyView(QWidget):
             self.dome = self.axes.bar(dome_az, self.rmax - 90, width=30 * (2 * math.pi) / 360., bottom=90, color=color,
                                       alpha=0.5)
         self.redraw()
-        self.show()
 
     def updateWind(self, parent):
         try:
@@ -389,11 +412,11 @@ class SkyView(QWidget):
             wind = float(self.parent.telemetry_wind)
             wind_limit, wind_limit_pointing = self.parent.wind_limits(self.parent.active_tel)
             if wind < wind_limit_pointing:
-                color = "g"
+                color = self.c("ok_fg")
             elif wind < wind_limit:
-                color = "orange"
+                color = self.c("tab_moving")
             else:
-                color = "r"
+                color = self.c("bad_fg")
             theta = float(self.parent.telemetry_wind_direction)
             theta = theta * numpy.pi / 180.
 
@@ -401,9 +424,8 @@ class SkyView(QWidget):
                                         length_includes_head=True, head_starts_at_zero=True)
 
             self.redraw()
-            self.show()
         except Exception as e:
-            print("toi, updateWind: ", e)
+            logger.warning(f"TOI: sky updateWind: {e!r}")
 
     # ======= Budowa okna ====================
 

@@ -384,6 +384,10 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             super().closeEvent(event)
             return
         event.ignore()
+        self.ask_quit()
+
+    def ask_quit(self):
+        """pytanie "Close TOI?" - krzyzyk tego okna i przycisk EXIT w oknie Sky"""
         self._close_box = QMessageBox(QMessageBox.Icon.Question, "TOI", "Close TOI (all windows)?",
                                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, self)
         self._close_box.buttonClicked.connect(self._close_answer)
