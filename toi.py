@@ -4650,6 +4650,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             except KeyError:
                 tmp = None
             self.nats_cfg[k]["color"] = tmp
+            # flagi teleskopu z TIC (production / dev / disabled) - tabela teleskopow pokazuje tylko production
+            try:
+                self.nats_cfg[k]["flags"] = nats_cfg[k]["observatory"].get("flags")
+            except (KeyError, TypeError, AttributeError):
+                self.nats_cfg[k]["flags"] = None
 
             # limity wiatru per teleskop (obs_limits, oca-problems#273); None -> globalne cfg_wind_limit*
             try:

@@ -390,6 +390,7 @@ class MainForm(QWidget):
         self._pixmaps = {}          # (ikonka, kolor) -> QPixmap
         self._switching = False     # trwa przelaczanie teleskopu
         self._wanted_row = None     # wiersz klikniety w trakcie przelaczania - po nim przelaczamy jeszcze raz
+        self.rows = []              # teleskopy w wierszach tabeli (table_tels)
 
         self.mkUI()
         self.obs_t.itemSelectionChanged.connect(self.pocisniecie_tab)
@@ -409,10 +410,12 @@ class MainForm(QWidget):
         try:
             while self._wanted_row is not None:
                 i, self._wanted_row = self._wanted_row, None
-                if i == self.parent.active_tel_i and self.parent.telescope is not None:
+                if i >= len(self.rows) or (self.rows[i] == self.parent.active_tel and self.parent.telescope is not None):
                     continue
-                self.parent.active_tel_i = i
-                self.parent.active_tel = self.parent.obs_tel_tic_names[i]
+                # numer teleskopu w toi_config.yaml (telescope_switched go uzywa), nie numer wiersza
+                tel = self.rows[i]
+                self.parent.active_tel_i = self.parent.local_cfg["toi"]["telescopes"].index(tel)
+                self.parent.active_tel = tel
                 await self.parent.telescope_switched()
         finally:
             self._switching = False
@@ -423,12 +426,26 @@ class MainForm(QWidget):
             self._pixmaps[key] = ToiIcon(name, theme.qcolor(color_key), size=14).pixmap(14, 14)
         return self._pixmaps[key]
 
+    # kolory tabeli: dawne (klucze tab_* w toi_theme) - inny kod niz reszta TOI (ruch pomaranczowy, nie niebieski);
+    # rozbieznosc znana, na razie zostaje
+
+    def table_tels(self):
+        """wiersze tabeli: teleskopy z toi_config.yaml, ktore w konfiguracji TIC maja flage "production"
+        (observatory.flags; bez flag w ogole - pokazujemy, jak dawniej)"""
+        tels = []
+        for t in self.parent.local_cfg["toi"]["telescopes"]:
+            flags = (self.parent.nats_cfg.get(t) or {}).get("flags")
+            if flags is None or "production" in flags:
+                tels.append(t)
+        return tels
+
     def update_table(self):
         # wolane z czytnikow NATS: wyjatek nie moze z nich wyjsc (konczy czytnik na stale), a blad jednego
         # teleskopu nie moze zatrzymac reszty tabeli
         try:
-            tels = self.parent.local_cfg["toi"]["telescopes"]
-            if self.obs_t.rowCount() != len(tels):
+            tels = self.table_tels()
+            if tels != self.rows:
+                self.rows = tels
                 self.obs_t.setRowCount(len(tels))
                 self._cells.clear()
         except Exception as e:
@@ -441,7 +458,7 @@ class MainForm(QWidget):
                     content = f(t)
                 except Exception as e:
                     logger.warning(f'TOI: telescope table {t} {self.COLUMNS[col]}: {e!r}')
-                    content = ("text", "?", "bad_fg")
+                    content = ("text", "?", "tab_error")
                 self.set_cell(i, col, content)
 
     def set_cell(self, i, col, content):
@@ -483,14 +500,14 @@ class MainForm(QWidget):
         p = self.parent
         parts = []
         if p.tel_acces.get(t):
-            parts.append(("icon", "icon_joystick", "ok_fg", "You have control of this telescope"))
+            parts.append(("icon", "icon_joystick", "tab_icon_ok", "You have control of this telescope"))
         parts.append(("name", t))
         if p.safety_cutoff.get(t):
-            parts.append(("icon", "icon_hat", "bad_fg", "safety cutoff ON"))
+            parts.append(("icon", "icon_hat", "tab_icon_bad", "safety cutoff ON"))
 
         progress = p.ob_progress.get(t) or {}
         if progress.get("error"):
-            parts.append(("icon", "icon_bug", "bad_fg", "Program error"))
+            parts.append(("icon", "icon_bug", "tab_icon_bad", "Program error"))
 
         op = p.nats_toi_op_status.get(t)
         if op:      # stan zapisany przez TOI (toi.status)
@@ -501,9 +518,9 @@ class MainForm(QWidget):
             if mirror is None:
                 mirror = changed("mirror_fans")
             if changed("dome_ventilators") or mirror:
-                parts.append(("icon", "icon_fan", "warn2_fg", "Dome ventilators or mirror fans on"))
+                parts.append(("icon", "icon_fan", "tab_icon_warn", "Dome ventilators or mirror fans on"))
             if changed("flat_lamps") or changed("dome_lights"):
-                parts.append(("icon", "icon_bulb", "warn2_fg", "Flat lamps or dome lights on"))
+                parts.append(("icon", "icon_bulb", "tab_icon_warn", "Flat lamps or dome lights on"))
 
         # pogoda: stacja Davis wspolna, ale limity wiatru sa per teleskop; nie zalezy od toi.status
         def _f(v):
@@ -517,20 +534,20 @@ class MainForm(QWidget):
         rain = _f(p.telemetry_rain)
         wind_limit, wind_limit_pointing = p.wind_limits(t)
         if wind is not None and wind > wind_limit:
-            parts.append(("icon", "icon_wind", "bad_fg", f"Wind above the stop limit ({wind_limit:g} m/s)"))
+            parts.append(("icon", "icon_wind", "tab_icon_bad", f"Wind above the stop limit ({wind_limit:g} m/s)"))
         elif wind is not None and wind > wind_limit_pointing:
-            parts.append(("icon", "icon_wind", "warn2_fg", f"Wind above the pointing limit ({wind_limit_pointing:g} m/s)"))
+            parts.append(("icon", "icon_wind", "tab_icon_warn2", f"Wind above the pointing limit ({wind_limit_pointing:g} m/s)"))
         if rain is not None and rain > 0:
-            parts.append(("icon", "icon_rain", "bad_fg", "Rain"))
+            parts.append(("icon", "icon_rain", "tab_icon_bad", "Rain"))
         if humidity is not None and humidity > float(p.cfg_humidity_limit):
-            parts.append(("icon", "icon_water", "bad_fg", f"Humidity above {p.cfg_humidity_limit} %"))
+            parts.append(("icon", "icon_water", "tab_icon_bad", f"Humidity above {p.cfg_humidity_limit} %"))
         if temperature is not None and temperature < float(p.cfg_temperature_limit):
-            parts.append(("icon", "icon_cold", "bad_fg", f"Temperature below {p.cfg_temperature_limit} C"))
+            parts.append(("icon", "icon_cold", "tab_icon_bad", f"Temperature below {p.cfg_temperature_limit} C"))
 
         # allsky_overwatch: teleskop obserwuje w polu zaznaczonym na zolto (pomaranczowa chmura) / czerwono
         clouds = p.clouds_at(t)
         if clouds:
-            parts.append(("icon", "icon_cloud", "bad_fg" if clouds == "red" else "warn2_fg",
+            parts.append(("icon", "icon_cloud", "tab_icon_bad" if clouds == "red" else "tab_icon_warn2",
                           "pointing into thick clouds" if clouds == "red" else "pointing into clouds"))
         return ("icons", tuple(parts))
 
@@ -540,24 +557,24 @@ class MainForm(QWidget):
         moving = st["dome_slewing"]["val"]
         state, color = "--", "idle_fg"
         if shutter is not None or moving is not None:
-            if shutter is None and moving is None: state, color = "SHUTTER and STATUS ERROR", "bad_fg"
-            elif shutter is None: state, color = "SHUTTER ERROR", "bad_fg"
-            elif moving is None: state, color = "DOME STATUS ERROR", "bad_fg"
-            elif moving: state, color = "MOVING", "change_fg"
-            elif shutter == 0: state, color = "OPEN", "ok_fg"
+            if shutter is None and moving is None: state, color = "SHUTTER and STATUS ERROR", "tab_error"
+            elif shutter is None: state, color = "SHUTTER ERROR", "tab_error"
+            elif moving is None: state, color = "DOME STATUS ERROR", "tab_error"
+            elif moving: state, color = "MOVING", "tab_moving"
+            elif shutter == 0: state, color = "OPEN", "tab_ok"
             elif shutter == 1: state, color = "CLOSED", "idle_fg"
-            elif shutter == 2: state, color = "OPENING", "change_fg"
-            elif shutter == 3: state, color = "CLOSING", "change_fg"
-            else: state, color = "SHUTTER ERROR", "bad_fg"
+            elif shutter == 2: state, color = "OPENING", "tab_moving"
+            elif shutter == 3: state, color = "CLOSING", "tab_moving"
+            else: state, color = "SHUTTER ERROR", "tab_error"
         return ("text", state, color)
 
     def mirror_cell(self, t):
         status = self.parent.oca_tel_state[t]["mirror_status"]["val"]
         if status is None: return ("text", "NO IDEA", "idle_fg")
-        if status == 3: return ("text", "OPEN", "ok_fg")
+        if status == 3: return ("text", "OPEN", "tab_ok")
         if status == 1: return ("text", "CLOSED", "idle_fg")
-        if status == 2: return ("text", "MOVING", "change_fg")
-        return ("text", "ERROR", "bad_fg")
+        if status == 2: return ("text", "MOVING", "tab_moving")
+        return ("text", "ERROR", "tab_error")
 
     def mount_cell(self, t):
         st = self.parent.oca_tel_state[t]
@@ -566,8 +583,8 @@ class MainForm(QWidget):
         motors = st["mount_motor"]["val"]
         if slewing is None and tracking is None: return ("text", "--", "idle_fg")
         if motors == "false": return ("text", "MOTORS OFF", "idle_fg")
-        if slewing: return ("text", "SLEWING", "change_fg")
-        if tracking: return ("text", "TRACKING", "ok_fg")
+        if slewing: return ("text", "SLEWING", "tab_moving")
+        if tracking: return ("text", "TRACKING", "tab_ok")
         return ("text", "IDLE", "idle_fg")
 
     def instrument_cell(self, t):
@@ -582,7 +599,7 @@ class MainForm(QWidget):
             except (IndexError, TypeError, ValueError):
                 filtr = f"#{pos}"       # pozycja spoza listy filtrow
         if ccd is None: return ("text", "--", "idle_fg")
-        if ccd == 2: return ("text", f"EXP [{filtr}]", "ok_fg")
+        if ccd == 2: return ("text", f"EXP [{filtr}]", "tab_ok")
         if ccd == 0: return ("text", f"IDLE [{filtr}]", "idle_fg")
         return ("text", f"NO IDEA [{filtr}]", "idle_fg")
 
@@ -593,13 +610,13 @@ class MainForm(QWidget):
         words = program.split()
         if progress.get("ob_started") and not progress.get("ob_done") and words:
             if "OBJECT" in program and len(words) > 1:
-                state, color = words[1], "ok_fg"
+                state, color = words[1], "tab_ok"
             elif len(words) > 1:
-                state, color = f"{words[0]} {words[1]}", "ok_fg"
+                state, color = f"{words[0]} {words[1]}", "tab_ok"
             else:
                 state, color = words[0], "idle_fg"
         if progress.get("error"):
-            state, color = f"ERROR {state}", "bad_fg"
+            state, color = f"ERROR {state}", "tab_error"
         return ("text", state, color)
 
     def apply_theme(self):
@@ -608,7 +625,7 @@ class MainForm(QWidget):
             field.setStyleSheet(theme.field_style())
         self.msg_e.setStyleSheet(theme.field_style())
         self.obs_t.setStyleSheet(f"font-size: 9pt; selection-background-color: {theme.c('selection_bg')};")
-        self.config_p.setStyleSheet(f"color: {theme.c('muted_fg')};")
+        self.config_p.setStyleSheet(f"QPushButton {{color: {theme.c('muted_fg')};}}")     # nie menu pod nim
         self._cells.clear()
         self.update_table()
 
@@ -800,7 +817,7 @@ class MainForm(QWidget):
         # grid.addWidget(self.pressure_e, w, 7)
 
         w = w + 1
-        self.obs_t = QTableWidget(len(self.parent.local_cfg["toi"]["telescopes"]), len(self.COLUMNS))
+        self.obs_t = QTableWidget(0, len(self.COLUMNS))      # wiersze ustawia update_table
         self.obs_t.setHorizontalHeaderLabels(self.COLUMNS)
         self.obs_t.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.obs_t.setSelectionBehavior(QTableWidget.SelectRows)
@@ -861,7 +878,7 @@ class MainForm(QWidget):
         w = w + 1
 
         self.config_p = QPushButton("\u2699")
-        self.config_p.setStyleSheet(f"color: {theme.c('muted_fg')};")
+        self.config_p.setStyleSheet(f"QPushButton {{color: {theme.c('muted_fg')};}}")     # nie menu pod nim
 
 
         # obserwatorzy tej nocy (tic.status.ocm.observers); klikniecie otwiera okno rejestracji do poprawki
