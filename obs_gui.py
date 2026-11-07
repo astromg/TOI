@@ -390,7 +390,7 @@ class MainForm(QWidget):
         self._pixmaps = {}          # (ikonka, kolor) -> QPixmap
         self._switching = False     # trwa przelaczanie teleskopu
         self._wanted_row = None     # wiersz klikniety w trakcie przelaczania - po nim przelaczamy jeszcze raz
-        self.rows = []              # teleskopy w wierszach tabeli (table_tels)
+        self.rows = []              # teleskopy w wierszach tabeli (toi_config.yaml)
 
         self.mkUI()
         self.obs_t.itemSelectionChanged.connect(self.pocisniecie_tab)
@@ -429,25 +429,16 @@ class MainForm(QWidget):
     # kolory tabeli: dawne (klucze tab_* w toi_theme) - inny kod niz reszta TOI (ruch pomaranczowy, nie niebieski);
     # rozbieznosc znana, na razie zostaje
 
-    def table_tels(self):
-        """wiersze tabeli: teleskopy z toi_config.yaml, ktore w konfiguracji TIC maja flage "production"
-        (observatory.flags; bez flag w ogole - pokazujemy, jak dawniej)"""
-        tels = []
-        for t in self.parent.local_cfg["toi"]["telescopes"]:
-            flags = (self.parent.nats_cfg.get(t) or {}).get("flags")
-            if flags is None or "production" in flags:
-                tels.append(t)
-        return tels
-
     def update_table(self):
         # wolane z czytnikow NATS: wyjatek nie moze z nich wyjsc (konczy czytnik na stale), a blad jednego
         # teleskopu nie moze zatrzymac reszty tabeli
         try:
-            tels = self.table_tels()
+            tels = list(self.parent.local_cfg["toi"]["telescopes"])
             if tels != self.rows:
                 self.rows = tels
                 self.obs_t.setRowCount(len(tels))
                 self._cells.clear()
+                self.fit_table_height()
         except Exception as e:
             logger.exception(f'TOI: telescope table: {e}')
             return
@@ -460,6 +451,12 @@ class MainForm(QWidget):
                     logger.warning(f'TOI: telescope table {t} {self.COLUMNS[col]}: {e!r}')
                     content = ("text", "?", "tab_error")
                 self.set_cell(i, col, content)
+
+    def fit_table_height(self):
+        # tabela tak wysoka jak jej wiersze - bez pustego miejsca pod ostatnim teleskopem
+        t = self.obs_t
+        t.setFixedHeight(t.horizontalHeader().height() + t.verticalHeader().defaultSectionSize() * t.rowCount()
+                         + 2 * t.frameWidth())
 
     def set_cell(self, i, col, content):
         if self._cells.get((i, col)) == content:
@@ -621,8 +618,13 @@ class MainForm(QWidget):
 
     def apply_theme(self):
         # pola przemalowuja ich petle (almanac co 1 s, pogoda, lampki), tu tylko to, co inaczej zostaloby stare
-        for field in self.plain_fields:
+        for field in self.plain_fields + (self.temp_e, self.hummidity_e, self.wind_e, self.windDir_e,
+                                          self.fwhm_e, self.zeropoint_e, self.clouds_e):
             field.setStyleSheet(theme.field_style())
+        try:        # pola pogody od razu w kolorach nowego motywu, nie dopiero przy nastepnej wiadomosci
+            self.parent.updateWeather()
+        except Exception as e:
+            logger.warning(f'TOI: theme weather fields: {e}')
         self.msg_e.setStyleSheet(theme.field_style())
         self.obs_t.setStyleSheet(f"font-size: 9pt; selection-background-color: {theme.c('selection_bg')};")
         self.config_p.setStyleSheet(f"QPushButton {{color: {theme.c('muted_fg')};}}")     # nie menu pod nim
