@@ -1231,6 +1231,7 @@ class PicturesTab(QWidget):
         self.title_l = QLabel("")
         self.title_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.title_l.setStyleSheet("font-size: 14pt; font-weight: bold;")
+        self.title_l.hide()         # na razie sam obraz; tytul (show_file) czeka na inne zdjecia
         self.picture_l = QLabel("")
         self.picture_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.picture_l.setMinimumSize(1, 1)     # obraz skalowany do zakladki, nie rozpycha okna
