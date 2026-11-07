@@ -680,14 +680,14 @@ class MainForm(QWidget):
     def set_hints(self):
         # okienka z wyjasnieniem po najechaniu na pole; Wind/Direction dopisuja limity w TOI.wind_field_style
         hints = {
-            "ticStatus2": "TIC server, checked every 3 s.",
-            "natsStatus": "TOI connection to NATS. Orange: reconnecting.",
-            "followerStatus": "Dome follower of the active telescope: heartbeat every 10 s. Red: none for 30 s.",
-            "downloaderStatus": "OFP downloader of the active telescope, asked every 5 s (alive RPC).",
-            "ofpStatus": "OFP pipeline of the active telescope, asked every 5 s (alive RPC).",
-            "flatOwStatus": "flat_overwatch, asked every 5 s (alive RPC). Grey: no subject in toi_config.yaml.",
-            "weatherOwStatus": "weather_overwatch, asked every 5 s (alive RPC). Grey: no subject in toi_config.yaml.",
-            "allskyOwStatus": "allsky_overwatch (clouds from the allsky camera), asked every 5 s (alive RPC). Grey: no subject in toi_config.yaml.",
+            "ticStatus2": "TIC server, checked every 8 s.",
+            "natsStatus": "TOI connection to NATS, checked every 8 s. Orange: reconnecting.",
+            "followerStatus": "Dome follower of the active telescope: heartbeat every 10 s, checked every 8 s. Red: none for 30 s.",
+            "downloaderStatus": "OFP downloader of the active telescope, asked every 8 s (alive RPC).",
+            "ofpStatus": "OFP pipeline of the active telescope, asked every 8 s (alive RPC).",
+            "flatOwStatus": "flat_overwatch, asked every 8 s (alive RPC). Grey: no subject in toi_config.yaml.",
+            "weatherOwStatus": "weather_overwatch, asked every 8 s (alive RPC). Grey: no subject in toi_config.yaml.",
+            "allskyOwStatus": "allsky_overwatch (clouds from the allsky camera), asked every 8 s (alive RPC). Grey: no subject in toi_config.yaml.",
             "temp": "Davis weather station. Red below -1 °C.",
             "hummidity": f"Davis weather station. Red above {self.parent.cfg_humidity_limit} % or rain.",
             "wind": "Davis weather station.",

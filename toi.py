@@ -127,9 +127,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # wszystkie okna sa juz zbudowane - wchodza jako panele do okna obserwacji
         self.obsGui.dock_panels()
 
-        self.add_background_task(self.tic_con_loop())
-        self.add_background_task(self.nats_con_loop())
-        self.add_background_task(self.service_lamps_loop())
+        self.add_background_task(self.lamps_loop())
         self.add_background_task(self.dome_follow_table_loop())
         self.add_background_task(self.nats_observers_reader())
         self.add_background_task(self.observers_check_loop())
@@ -716,43 +714,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         field.setToolTip(tip)
 
 
-    async def tic_con_loop(self):
-        while True:
-            try:
-                self.tic_con = await self.observatory_model.is_tic_server_available()
-                if self.tic_con == True:
-                    self.obsGui.main_form.ticStatus2_l.setStyleSheet(f"color: {theme.c('ok_fg')};")
-                    self.obsGui.main_form.beat(self.obsGui.main_form.ticStatus2_l)
-                else:
-                    self.obsGui.main_form.ticStatus2_l.setStyleSheet(f"color: {theme.c('bad_fg')};")
-                await asyncio.sleep(3)
-            except (asyncio.CancelledError, asyncio.TimeoutError):
-                raise
-            except Exception as e:
-                logger.warning(f'EXCEPTION 103: {e}')
-
-    async def nats_con_loop(self):
-        # polaczenie TOI z NATS (nats-py pod serverish); w trakcie ponownego laczenia - pomaranczowy
-        # sprawdzane co 1 s, serduszko bije co 3 s (jak TIC)
-        n = 0
-        while True:
-            n += 1
-            try:
-                nc = Messenger().connection.nc
-                if nc is not None and nc.is_connected:
-                    color = theme.c("ok_fg")
-                    if n % 3 == 0:
-                        self.obsGui.main_form.beat(self.obsGui.main_form.natsStatus_l)
-                elif nc is not None and nc.is_reconnecting:
-                    color = theme.c("warn2_fg")
-                else:
-                    color = theme.c("bad_fg")
-            except Exception as e:
-                logger.warning(f'EXCEPTION 103b: {e}')
-                color = theme.c("bad_fg")
-            self.obsGui.main_form.natsStatus_l.setStyleSheet(f"color: {color};")
-            await asyncio.sleep(1)
-
     # ---- lampki serwisow aktywnego teleskopu: dome follower (heartbeat ocabox-tcs co 10 s),
     # downloader i pipeline ofp (RPC tic.rpc.<tel>.<serwis>.alive -> {"status": "ok"}), tak samo jak GUI TEXT;
     # overwatche tak samo jak ofp (toi.alive_subjects), nie zaleza od teleskopu
@@ -764,22 +725,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                            deliver_policy='new')
             async for data, meta in r:
                 self.dome_follower_seen = time.time()
-                f = self.obsGui.main_form
-                f.followerStatus_l.setStyleSheet(f"color: {theme.c('ok_fg')};")    # od razu, nie po petli lampek
-                f.beat(f.followerStatus_l)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
             logger.warning(f'EXCEPTION 110c: {e}')
-
-    def heartbeat_color(self, seen, since):
-        green, red, grey = theme.c("ok_fg"), theme.c("bad_fg"), theme.c("muted_fg")
-        now = time.time()
-        if seen is not None and now - seen < self.SERVICE_STALE:
-            return green
-        if now - since < self.SERVICE_STALE:
-            return grey     # jeszcze czekamy na pierwszy heartbeat
-        return red
 
     async def ofp_alive(self, tel, service):
         # subject jak w GUI TEXT (ocabox-cli): site.global.nats.subjects.rpc.<serwis>_alive z configu TIC
@@ -824,38 +773,77 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.dome_follow_all.update(changed)
             self.obsGui.main_form.update_table()
 
-    async def service_lamps_loop(self):
+    # lampki na gorze okna obserwacji odpytywane po kolei, od lewej, jedna na sekunde: TIC, NATS, DOME FLW, FITS DWL,
+    # OFP, FLAT OW, WEATHER OW, ALLSKY OW - kazdy serwis co 8 s, mrugniecie (MainForm.beat) przesuwa sie fala.
+    # Pytanie idzie jako osobne zadanie, wiec serwis, ktory nie odpowiada (timeout 3 s), nie zatrzymuje fali
+    LAMP_STEP = 1.0     # s miedzy kolejnymi lampkami
+
+    async def lamps_loop(self):
+        f = self.obsGui.main_form
+        slots = [(f.ticStatus2_l, self.lamp_tic), (f.natsStatus_l, self.lamp_nats),
+                 (f.followerStatus_l, self.lamp_follower),
+                 (f.downloaderStatus_l, lambda: self.lamp_ofp("download")),
+                 (f.ofpStatus_l, lambda: self.lamp_ofp("pipeline")),
+                 (f.flatOwStatus_l, lambda: self.lamp_alive("flat_overwatch")),
+                 (f.weatherOwStatus_l, lambda: self.lamp_alive("weather_overwatch")),
+                 (f.allskyOwStatus_l, lambda: self.lamp_alive("allsky_overwatch"))]
+        pending = {}
+        i = 0
         while True:
-            try:
-                green, red, grey = theme.c("ok_fg"), theme.c("bad_fg"), theme.c("muted_fg")
-                tel = self.active_tel
-                if tel is not None:
-                    f = self.obsGui.main_form
-                    color = self.heartbeat_color(self.dome_follower_seen, self.services_since)
-                    f.followerStatus_l.setStyleSheet(f"color: {color};")
-                    overwatches = (("flat_overwatch", f.flatOwStatus_l), ("weather_overwatch", f.weatherOwStatus_l),
-                                   ("allsky_overwatch", f.allskyOwStatus_l))
-                    download, pipeline, *alive = await asyncio.gather(
-                        self.ofp_alive(tel, "download"), self.ofp_alive(tel, "pipeline"),
-                        *(self.rpc_alive(self.alive_subjects[name]) for name, _ in overwatches
-                          if self.alive_subjects.get(name)))
-                    for name, lamp in overwatches:
-                        ok = alive.pop(0) if self.alive_subjects.get(name) else None
-                        color = grey if ok is None else green if ok else red
-                        lamp.setStyleSheet(f"color: {color};")
-                        if ok:
-                            f.beat(lamp)
-                    if tel == self.active_tel:
-                        f.downloaderStatus_l.setStyleSheet(f"color: {green if download else red};")
-                        f.ofpStatus_l.setStyleSheet(f"color: {green if pipeline else red};")
-                        for lamp, ok in ((f.downloaderStatus_l, download), (f.ofpStatus_l, pipeline)):
-                            if ok:
-                                f.beat(lamp)
-            except (asyncio.CancelledError, asyncio.TimeoutError):
-                raise
-            except Exception as e:
-                logger.warning(f'EXCEPTION 103c: {e}')
-            await asyncio.sleep(5)
+            lamp, check = slots[i]
+            if lamp not in pending or pending[lamp].done():      # poprzednie pytanie tej lampki jeszcze trwa - pomijamy
+                pending[lamp] = asyncio.ensure_future(self.lamp_update(lamp, check))
+            i = (i + 1) % len(slots)
+            await asyncio.sleep(self.LAMP_STEP)
+
+    async def lamp_update(self, lamp, check):
+        """check() -> True (dziala: zielona i mrugniecie), False (czerwona), "wait" (szara), "reconnect" (pomaranczowa)"""
+        try:
+            tel = self.active_tel
+            ok = await check()
+            if tel != self.active_tel and lamp in (self.obsGui.main_form.downloaderStatus_l,
+                                                    self.obsGui.main_form.ofpStatus_l):
+                return      # w trakcie pytania zmienil sie teleskop - odpowiedz dotyczy poprzedniego
+            color = {True: "ok_fg", False: "bad_fg", "wait": "muted_fg", "reconnect": "warn2_fg"}[ok]
+            lamp.setStyleSheet(f"color: {theme.c(color)};")
+            if ok is True:
+                self.obsGui.main_form.beat(lamp)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION 103c: lamp {lamp.text()}: {e}')
+
+    async def lamp_tic(self):
+        self.tic_con = await self.observatory_model.is_tic_server_available()
+        return bool(self.tic_con)
+
+    async def lamp_nats(self):
+        # polaczenie TOI z NATS (nats-py pod serverish); w trakcie ponownego laczenia - pomaranczowy
+        nc = Messenger().connection.nc
+        if nc is not None and nc.is_connected:
+            return True
+        if nc is not None and nc.is_reconnecting:
+            return "reconnect"
+        return False
+
+    async def lamp_follower(self):
+        # heartbeat dome followera aktywnego teleskopu (co 10 s), zbierany przez dome_follower_heartbeat_reader
+        now = time.time()
+        if self.dome_follower_seen is not None and now - self.dome_follower_seen < self.SERVICE_STALE:
+            return True
+        if now - self.services_since < self.SERVICE_STALE:
+            return "wait"       # jeszcze czekamy na pierwszy heartbeat
+        return False
+
+    async def lamp_ofp(self, service):
+        if self.active_tel is None:
+            return "wait"
+        return await self.ofp_alive(self.active_tel, service)
+
+    async def lamp_alive(self, name):
+        if not self.alive_subjects.get(name):
+            return "wait"       # brak subjectu w toi_config.yaml
+        return await self.rpc_alive(self.alive_subjects[name])
 
     # ---- obserwatorzy nocy, wspolni dla obserwatorium: lista w observers.yaml, wybor publikowany na
     # tic.status.ocm.observers (strumien tic_status trzyma ostatni wpis). Wpis wazny do kolejnego resetu - codziennie

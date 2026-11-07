@@ -9,7 +9,7 @@ Kolory maja znaczenie i jest ono wspolne dla wszystkich motywow - zmienia sie ty
 Kazdy kolor jest w dwoch wersjach: *_bg - tlo pola, *_fg - tekst lub ikonka na zwyklym tle.
 WYJATEK (rozbieznosc swiadomie zostawiona na razie, 2026-11-06): tabela teleskopow w oknie obserwacji ma dawne kolory
 (klucze tab_*): ruch (MOVING, SLEWING, OPENING...) pomaranczowy zamiast niebieskiego, ikonki darkgreen/red/darkorange.
-ok_beat_fg - mrugniecie zielonej lampki serwisu (jasniejsza zielen).
+ok_beat_fg - mrugniecie zielonej lampki serwisu (w dzien ciemniejsza zielen, w nocy jasniejsza).
 Pozostale klucze to neutralne elementy okna (tla pol, tekst, wylaczone lampki).
 
 Uzycie: `from toi_theme import theme` i `theme.c("bad_bg")`; `theme.set(name)` przelacza motyw i wola funkcje
@@ -30,7 +30,7 @@ THEMES = {
         "field_fg": "black",
         "muted_fg": "rgb(190,190,190)",
         "selection_bg": "rgb(138,176,219)",
-        "ok_bg": "rgb(150, 220, 150)", "ok_fg": "rgb(0, 150, 0)", "ok_beat_fg": "rgb(90, 230, 90)",
+        "ok_bg": "rgb(150, 220, 150)", "ok_fg": "rgb(0, 150, 0)", "ok_beat_fg": "rgb(0, 80, 0)",
         "bad_bg": "red", "bad_fg": "rgb(190, 0, 0)",
         "warn_bg": "rgb(255, 220, 0)", "warn_fg": "rgb(170, 140, 0)",
         "warn2_bg": "rgb(255, 140, 0)", "warn2_fg": "rgb(255, 140, 0)",
