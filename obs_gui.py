@@ -14,7 +14,7 @@ from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from base_window import BaseWindow
 from claude_report import write_claude_report
 from toi_lib import *
-from toi_theme import theme, THEMES, TITLES
+from toi_theme import theme, TITLES
 from plan_gui import PLAN_LOG_LINES_CHOICES, plan_log_lines, set_plan_log_lines
 from fits_gui import FITS_DISPLAY_MODES, fits_display_mode
 
@@ -130,7 +130,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             group_fits.addAction(action)
         themes = menu.addMenu("Theme")
         group = QtGui.QActionGroup(themes)
-        for name in THEMES:
+        for name in TITLES:         # kolejnosc w menu: jasne, ciemne, funky
             action = themes.addAction(TITLES[name], lambda _=False, name=name: theme.set(name))
             action.setCheckable(True)
             action.setChecked(name == theme.name)
@@ -191,9 +191,9 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     def panel_style(self, tel):
         """paski tytulowe paneli w kolorze teleskopu (z configu TIC). Dzien: pol na pol z biela (ciemne kolory jak
         zb08 #0082E8 nie zaglusza czarnego tekstu), noc: pol na pol z tlem okna - intensywny, ale ciemny, funky: pelny
-        kolor. Inne ciemne motywy jak noc. Tekst czarny albo jasny wg jasnosci paska"""
+        kolor. Inne ciemne motywy jak noc, jasne (paper, clear sky) jak dzien. Tekst czarny albo jasny wg jasnosci paska"""
         color = QtGui.QColor((self.parent.nats_cfg.get(tel, {}) if tel else {}).get("color") or "#cdd2dc")
-        if theme.name == "day":
+        if theme.light:
             base, mix = QtGui.QColor(255, 255, 255), 0.5
         elif theme.dark:
             base, mix = theme.qcolor("window"), 0.5
@@ -201,7 +201,8 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             base, mix = color, 0.0
         tint = QtGui.QColor(*(int(c * (1 - mix) + b * mix) for c, b in
                               ((color.red(), base.red()), (color.green(), base.green()), (color.blue(), base.blue()))))
-        sep, sep_hover = self.PANEL_SEPARATORS.get(theme.name) or (theme.c("field_bg"), theme.c("muted_fg"))
+        sep, sep_hover = self.PANEL_SEPARATORS.get(theme.name) or (
+            (theme.c("muted_fg"), theme.c("dim_fg")) if theme.light else (theme.c("field_bg"), theme.c("muted_fg")))
         return (self.PANEL_STYLE.replace("TITLE_BG", tint.name()).replace("TITLE_FG", theme.text_on(tint))
                 .replace("SEP_HOVER", sep_hover).replace("SEP", sep))
 

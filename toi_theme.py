@@ -149,16 +149,59 @@ THEMES = {
         "tab_icon_ok": "rgb(60, 120, 60)", "tab_icon_bad": "rgb(150, 50, 50)", "tab_icon_warn": "rgb(160, 95, 40)",
         "tab_icon_warn2": "rgb(150, 130, 50)",
     },
+    # paper: dzien - cieply kremowy papier, lagodniejszy dla oczu niz biel; kolory w stylu Material
+    "paper": {
+        "window": "rgb(244, 241, 234)",
+        "text": "rgb(43, 43, 43)",
+        "field_bg": "rgb(234, 229, 219)",
+        "field_fg": "rgb(43, 43, 43)",
+        "muted_fg": "rgb(160, 152, 140)",
+        "selection_bg": "rgb(190, 210, 232)",
+        "ok_bg": "rgb(200, 230, 201)", "ok_fg": "rgb(46, 125, 50)", "ok_beat_fg": "rgb(20, 80, 25)",
+        "bad_bg": "rgb(255, 180, 185)", "bad_fg": "rgb(198, 40, 40)",
+        "warn_bg": "rgb(255, 236, 150)", "warn_fg": "rgb(160, 120, 0)",
+        "warn2_bg": "rgb(255, 205, 150)", "warn2_fg": "rgb(230, 119, 0)",
+        "change_bg": "rgb(200, 222, 250)", "change_fg": "rgb(21, 101, 192)",
+        "idle_fg": "rgb(43, 43, 43)",
+        "tab_ok": "rgb(46, 125, 50)", "tab_moving": "rgb(230, 119, 0)", "tab_error": "rgb(198, 40, 40)",
+        "input_bg": "rgb(253, 251, 246)", "input_edit_bg": "rgb(253, 251, 246)", "moving_bg": "rgb(170, 180, 240)",
+        "moving_fg": "rgb(230, 119, 0)", "warn_soft_bg": "rgb(255, 236, 150)",
+        "row_sel_bg": "rgb(190, 210, 232)", "row_prev_bg": "rgb(232, 226, 214)", "dim_fg": "rgb(120, 114, 104)",
+        "tab_icon_ok": "rgb(46, 125, 50)", "tab_icon_bad": "rgb(198, 40, 40)", "tab_icon_warn": "rgb(230, 119, 0)",
+        "tab_icon_warn2": "rgb(160, 120, 0)",
+    },
+    # clear sky: dzien - chlodna, czysta biel z niebieskawym odcieniem, wyrazne akcenty
+    "clearsky": {
+        "window": "rgb(245, 247, 250)",
+        "text": "rgb(31, 41, 51)",
+        "field_bg": "rgb(233, 237, 242)",
+        "field_fg": "rgb(31, 41, 51)",
+        "muted_fg": "rgb(150, 160, 175)",
+        "selection_bg": "rgb(168, 199, 250)",
+        "ok_bg": "rgb(190, 240, 200)", "ok_fg": "rgb(26, 127, 55)", "ok_beat_fg": "rgb(10, 80, 30)",
+        "bad_bg": "rgb(255, 190, 190)", "bad_fg": "rgb(207, 34, 46)",
+        "warn_bg": "rgb(255, 238, 150)", "warn_fg": "rgb(154, 103, 0)",
+        "warn2_bg": "rgb(255, 210, 170)", "warn2_fg": "rgb(188, 76, 0)",
+        "change_bg": "rgb(205, 232, 255)", "change_fg": "rgb(9, 105, 218)",
+        "idle_fg": "rgb(31, 41, 51)",
+        "tab_ok": "rgb(26, 127, 55)", "tab_moving": "rgb(188, 76, 0)", "tab_error": "rgb(207, 34, 46)",
+        "input_bg": "white", "input_edit_bg": "white", "moving_bg": "rgb(160, 175, 245)",
+        "moving_fg": "rgb(188, 76, 0)", "warn_soft_bg": "rgb(255, 238, 150)",
+        "row_sel_bg": "rgb(168, 199, 250)", "row_prev_bg": "rgb(226, 232, 240)", "dim_fg": "rgb(110, 119, 129)",
+        "tab_icon_ok": "rgb(26, 127, 55)", "tab_icon_bad": "rgb(207, 34, 46)", "tab_icon_warn": "rgb(188, 76, 0)",
+        "tab_icon_warn2": "rgb(154, 103, 0)",
+    },
 }
-TITLES = {"day": "Day", "night": "Night", "funky": "Funky", "cosmic": "Cosmic", "nord": "Nord", "dim": "Dim"}
+TITLES = {"day": "Day", "paper": "Paper", "clearsky": "Clear sky", "night": "Night", "cosmic": "Cosmic", "nord": "Nord",
+          "dim": "Dim", "funky": "Funky"}
 
 # katalog obrazkow przelacznikow (w stylesheetach pisane jako ICONS/SwitchOn.png); nocne - Icons/make_night_icons.py
 ICON_DIRS = {"day": "./Icons/", "night": "./Icons/night/", "funky": "./Icons/", "cosmic": "./Icons/night/",
-             "nord": "./Icons/night/", "dim": "./Icons/night/"}
+             "nord": "./Icons/night/", "dim": "./Icons/night/", "paper": "./Icons/", "clearsky": "./Icons/"}
 
 # tekst na tle *_bg: czarny na jasnych tlach dziennych, jasny na ciemnych nocnych
 BG_TEXT = {"day": "black", "night": "rgb(210, 210, 200)", "funky": "black", "cosmic": "rgb(225, 230, 255)",
-           "nord": "rgb(236, 239, 244)", "dim": "rgb(150, 145, 135)"}
+           "nord": "rgb(236, 239, 244)", "dim": "rgb(150, 145, 135)", "paper": "black", "clearsky": "black"}
 # ciemne motywy w stylu nocy (paski paneli, panel optyki): wszystkie poza day i funky
 DARK = {"night", "cosmic", "nord", "dim"}
 
@@ -232,6 +275,11 @@ class Theme:
     @property
     def dark(self):
         return self.name in DARK
+
+    @property
+    def light(self):
+        """jasne motywy w stylu dnia (day, paper, clear sky) - bez funky"""
+        return self.name not in DARK and self.name != "funky"
 
     def hex(self, key):
         """kolor motywu jako #rrggbb (matplotlib, HTML)"""
