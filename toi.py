@@ -721,10 +721,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             try:
                 self.tic_con = await self.observatory_model.is_tic_server_available()
                 if self.tic_con == True:
-                    self.obsGui.main_form.ticStatus2_l.setText("\u2665 TIC")
                     self.obsGui.main_form.ticStatus2_l.setStyleSheet(f"color: {theme.c('ok_fg')};")
+                    self.obsGui.main_form.beat(self.obsGui.main_form.ticStatus2_l)
                 else:
-                    self.obsGui.main_form.ticStatus2_l.setText("\u2665 TIC")
                     self.obsGui.main_form.ticStatus2_l.setStyleSheet(f"color: {theme.c('bad_fg')};")
                 await asyncio.sleep(3)
             except (asyncio.CancelledError, asyncio.TimeoutError):
@@ -734,11 +733,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_con_loop(self):
         # polaczenie TOI z NATS (nats-py pod serverish); w trakcie ponownego laczenia - pomaranczowy
+        # sprawdzane co 1 s, serduszko bije co 3 s (jak TIC)
+        n = 0
         while True:
+            n += 1
             try:
                 nc = Messenger().connection.nc
                 if nc is not None and nc.is_connected:
                     color = theme.c("ok_fg")
+                    if n % 3 == 0:
+                        self.obsGui.main_form.beat(self.obsGui.main_form.natsStatus_l)
                 elif nc is not None and nc.is_reconnecting:
                     color = theme.c("warn2_fg")
                 else:
@@ -760,6 +764,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                            deliver_policy='new')
             async for data, meta in r:
                 self.dome_follower_seen = time.time()
+                f = self.obsGui.main_form
+                f.followerStatus_l.setStyleSheet(f"color: {theme.c('ok_fg')};")    # od razu, nie po petli lampek
+                f.beat(f.followerStatus_l)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -833,11 +840,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         *(self.rpc_alive(self.alive_subjects[name]) for name, _ in overwatches
                           if self.alive_subjects.get(name)))
                     for name, lamp in overwatches:
-                        color = (green if alive.pop(0) else red) if self.alive_subjects.get(name) else grey
+                        ok = alive.pop(0) if self.alive_subjects.get(name) else None
+                        color = grey if ok is None else green if ok else red
                         lamp.setStyleSheet(f"color: {color};")
+                        if ok:
+                            f.beat(lamp)
                     if tel == self.active_tel:
                         f.downloaderStatus_l.setStyleSheet(f"color: {green if download else red};")
                         f.ofpStatus_l.setStyleSheet(f"color: {green if pipeline else red};")
+                        for lamp, ok in ((f.downloaderStatus_l, download), (f.ofpStatus_l, pipeline)):
+                            if ok:
+                                f.beat(lamp)
             except (asyncio.CancelledError, asyncio.TimeoutError):
                 raise
             except Exception as e:
