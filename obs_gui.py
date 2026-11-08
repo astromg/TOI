@@ -16,7 +16,7 @@ from claude_report import write_claude_report
 from toi_lib import *
 from toi_theme import theme, TITLES
 from plan_gui import PLAN_LOG_LINES_CHOICES, plan_log_lines, set_plan_log_lines
-from fits_gui import FITS_DISPLAY_MODES, fits_display_mode, FITS_CMAPS, fits_cmap
+from fits_gui import FITS_DISPLAY_MODES, fits_display_mode, FITS_CMAPS, fits_cmap, fits_show_trails
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +128,11 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             action.setCheckable(True)
             action.setChecked(mode == fits_display_mode())
             group_fits.addAction(action)
+        fits_menu.addSeparator()
+        trails = fits_menu.addAction("Show satellite trails")       # linie z FFS na obrazie (ostrzezenie zostaje)
+        trails.setCheckable(True)
+        trails.setChecked(fits_show_trails(self.parent.local_cfg["toi"].get("show_trails", True)))
+        trails.toggled.connect(lambda on: self.parent.fitsGui.set_show_trails(on))     # toggled podaje stan
         cmap_menu = menu.addMenu("FITS colormap")      # mapa kolorow obrazu FITS
         group_cmap = QtGui.QActionGroup(cmap_menu)
         for name, (title, _) in FITS_CMAPS.items():

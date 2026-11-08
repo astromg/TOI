@@ -52,6 +52,11 @@ def fits_display_mode():
     return mode if mode in FITS_DISPLAY_MODES else FITS_DISPLAY_DEFAULT
 
 
+def fits_show_trails(default=True):
+    # linie satelitow z FFS na obrazie (menu ⚙ "FITS display", QSettings); default - toi.show_trails z configu
+    return bool(QtCore.QSettings("OCA", "TOI").value("fits_show_trails", default, type=bool))
+
+
 def display_binning(shape, mode):
     if mode != "binned" or len(shape) != 2:
         return 1
@@ -120,6 +125,15 @@ class FitsWindow(BaseWindow):
         if self.image is not None and numpy.ndim(self.image) == 2:
             self.plot_image()
             self.update_fits_data()     # nakladki w kolorze dla nowej mapy
+
+    def set_show_trails(self, on):
+        # zwykly slot (menu) - wyjatek nie moze wyjsc
+        try:
+            QtCore.QSettings("OCA", "TOI").setValue("fits_show_trails", bool(on))
+            if self.image is not None and numpy.ndim(self.image) == 2:
+                self.update_fits_data()     # nakladki od nowa: z liniami albo bez
+        except Exception as e:
+            logger.warning(f'TOI FITS: show trails: {e!r}')
 
     def set_display_mode(self, mode):
         QtCore.QSettings("OCA", "TOI").setValue("fits_display", mode)
@@ -397,7 +411,7 @@ class FitsWindow(BaseWindow):
                     spike = numpy.asarray(lines["spike"], dtype=bool) if "spike" in lines.colnames \
                         else numpy.zeros(len(lines), dtype=bool)
                     n_trails, n_spikes = int((~spike).sum()), int(spike.sum())
-                    if self.parent.local_cfg["toi"].get("show_trails", True):
+                    if fits_show_trails(self.parent.local_cfg["toi"].get("show_trails", True)):
                         overlay = FITS_CMAPS[fits_cmap()][1]
                         for row, is_spike in zip(lines, spike):
                             # FFS liczy na obrazie transponowanym (FFS_Worker): x linii = wiersz obrazu
