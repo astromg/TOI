@@ -307,7 +307,14 @@ class SkyView(QWidget):
             except Exception:
                 pass
             self.updateTrack()
-            self.redraw()
+        else:
+            # pusty plan (Del All): bez toru obiektu
+            try:
+                for p in self.track: p[0].remove()
+            except Exception:
+                pass
+            self.track = []
+        self.redraw()       # zawsze - takze gdy gwiazdki tylko zniknely
 
     def updateTrack(self):
         try:

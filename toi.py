@@ -31,7 +31,6 @@ from ctc import CycleTimeCalc
 from pyaraucaria.ffs import FFS
 
 from PyQtX import QtWidgets, QtCore, QtGui
-from astropy.io import fits
 
 
 from obcom.comunication.base_client_api import BaseClientAPI
@@ -54,6 +53,7 @@ from mnt_gui import MntGui
 from sky_gui import SkyGui
 from obs_gui import ObsGui, CzuwakWindow, ObserversWindow, SoundTestWindow
 from fits_gui import read_fits_image, fits_display_mode
+from toi_subjects import subject, toi_publisher, history_reader
 from toi_theme import theme
 from optics_model import OpticsModel
 from plan_gui import PlanGui
@@ -189,19 +189,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # NATS WRITER
 
         for k in self.local_cfg["toi"]["telescopes"]:
-            self.nats_toi_plan_status[k] = get_publisher(f'tic.status.{k}.toi.plan')
-            self.nats_toi_ob_status[k] = get_publisher(f'tic.status.{k}.toi.ob')
+            self.nats_toi_plan_status[k] = toi_publisher("plan", k)
+            self.nats_toi_ob_status[k] = toi_publisher("ob", k)
 
-            self.nats_toi_switch_synchro[k] = get_publisher(f'tic.status.{k}.toi.switch_synchro')
+            self.nats_toi_switch_synchro[k] = toi_publisher("switch_synchro", k)
 
-            self.nats_toi_flat_status[k] = get_publisher(f'tic.status.{k}.toi.flat')
-            self.nats_toi_focus_status[k] = get_publisher(f'tic.status.{k}.toi.focus')
-            self.nats_toi_focus_record[k] = get_publisher(f'tic.status.{k}.toi.focus_record')
-            self.nats_toi_focus_reference[k] = get_publisher(f'tic.status.{k}.toi.focus_reference')
+            self.nats_toi_flat_status[k] = toi_publisher("flat", k)
+            self.nats_toi_focus_status[k] = toi_publisher("focus", k)
+            self.nats_toi_focus_record[k] = toi_publisher("focus_record", k)
+            self.nats_toi_focus_reference[k] = toi_publisher("focus_reference", k)
 
-            self.nats_toi_plan_log[k] = get_publisher(f'tic.status.{k}.toi.plan_log')
-            self.nats_toi_log[k] = get_publisher(f'tic.status.{k}.toi.log')
-            self.nats_pub_toi_status[k] = get_publisher(f'tic.status.{k}.toi.status')  # dome status
+            self.nats_toi_plan_log[k] = toi_publisher("plan_log", k)
+            self.nats_toi_log[k] = toi_publisher("log", k)
+            self.nats_pub_toi_status[k] = toi_publisher("status", k)  # wentylatory, lampy, swiatla
             #self.nats_pub_toi_message[k] = get_publisher(f'tic.status.{k}.toi.message')
 
     async def nats_safety_reader(self,tel):
@@ -223,10 +223,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_toi_switch_synchro_reader(self,tel):
         try:
-            reader = get_reader(f'tic.status.{tel}.toi.switch_synchro', deliver_policy='last')
+            reader = history_reader("switch_synchro", tel)
             async for data, meta in reader:
-                self.toi_switch_status[tel] = data
-                self.focus_adjust_switch_update()
+                try:
+                    self.toi_switch_status[tel] = data
+                    self.focus_adjust_switch_update()
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_toi_switch_synchro_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -236,8 +239,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             r = get_reader(f'telemetry.conditions.{tel}-htsensor', deliver_policy='last')
             async for data, meta in r:
-                self.sensors[tel]["dome_conditions"] = data["measurements"]
-                self.update_dome_temp()
+                try:
+                    self.sensors[tel]["dome_conditions"] = data["measurements"]
+                    self.update_dome_temp()
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader oca_telemetry_conditions_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -249,10 +255,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             r = get_reader(f'tic.status.{tel}{self.oca_tel_state[tel][key]["pms_topic"]}', deliver_policy='last')
             async for data, meta in r:
-                txt = data["measurements"][f"{tel}{self.oca_tel_state[tel][key]['pms_topic']}"]
-                self.oca_tel_state[tel][key]["val"] = txt
-                self.update_oca()
-                # tutaj jakas zmienna ktora nadaje jak nic nie idzie
+                try:
+                    txt = data["measurements"][f"{tel}{self.oca_tel_state[tel][key]['pms_topic']}"]
+                    self.oca_tel_state[tel][key]["val"] = txt
+                    self.update_oca()
+                    # tutaj jakas zmienna ktora nadaje jak nic nie idzie
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader oca_telemetry_reader({tel}, {key}): bad message skipped: {e!r}')
 
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
@@ -261,10 +270,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def oca_telemetry_program_reader(self,tel):
         try:
-            reader = get_reader(f'tic.status.{tel}.toi.ob', deliver_policy='last')
+            reader = history_reader("ob", tel)
             async for status, meta in reader:
-                self.ob_progress[tel] = status
-                self.update_oca()
+                try:
+                    self.ob_progress[tel] = status
+                    self.update_oca()
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader oca_telemetry_program_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -272,13 +284,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_pub_toi_status_reader(self,tel):
         try:
-            reader = get_reader(f'tic.status.{tel}.toi.status', deliver_policy='last')
+            reader = history_reader("status", tel)
             async for data, meta in reader:
-                self.nats_toi_op_status[tel] = data
-                self.obsGui.main_form.update_table()
-                # if "dome_follow_switch" in data.keys():
-                #     self.toi_status["dome_follow_switch"] = data["dome_follow_switch"]
-                #     self.mntGui.domeAuto_c.setChecked(self.toi_status["dome_follow_switch"])
+                try:
+                    self.nats_toi_op_status[tel] = data
+                    self.obsGui.main_form.update_table()
+                    # if "dome_follow_switch" in data.keys():
+                    #     self.toi_status["dome_follow_switch"] = data["dome_follow_switch"]
+                    #     self.mntGui.domeAuto_c.setChecked(self.toi_status["dome_follow_switch"])
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_pub_toi_status_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -288,10 +303,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def nats_toi_focus_record_reader(self,tel):           # to moze powinno sie raczej robic jako append
         try:
             time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24)  # do konfiguracji
-            reader = get_reader(f'tic.status.{tel}.toi.focus_record', deliver_policy='by_start_time',opt_start_time=time)
+            reader = history_reader("focus_record", tel, time)     # najpierw historia starego tematu - bez luki
             async for data, meta in reader:
-                self.nats_focus_record[tel] = data
-                self.focusGui.add_record(tel, data)
+                try:
+                    self.nats_focus_record[tel] = data
+                    self.focusGui.add_record(tel, data)
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_toi_focus_record_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -299,9 +317,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_toi_focus_reference_reader(self,tel):
         try:
-            reader = get_reader(f'tic.status.{tel}.toi.focus_reference', deliver_policy='last')
+            reader = history_reader("focus_reference", tel)
             async for data, meta in reader:
-                self.nats_focus_reference[tel] = data
+                try:
+                    self.nats_focus_reference[tel] = data
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_toi_focus_reference_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -311,8 +332,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             r = get_reader(f'tic.status.{tel}.planner.command.log', deliver_policy='new')
             async for data, meta in r:
-                if self.tel_acces[tel]:
-                    await self.plan_log_agregator(tel,data)
+                try:
+                    if self.tel_acces[tel]:
+                        await self.plan_log_agregator(tel,data)
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_plan_ofp_log_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -325,8 +349,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             r = get_journalreader(f'tic.journal.{tel}.planner', deliver_policy='new')
             async for data, meta in r:
-                if self.tel_acces[tel]:
-                    await self.update_log(f'{data.message}', "PLANRUNNER", tel, level=data.level)
+                try:
+                    if self.tel_acces[tel]:
+                        await self.update_log(f'{data.message}', "PLANRUNNER", tel, level=data.level)
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_journal_planner_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -338,9 +365,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             r = get_journalreader(f'tic.journal.{tel}.pipeline', deliver_policy='new')
             async for data, meta in r:
-                if data.level > 10:
-                    if self.tel_acces[tel]:
-                        await self.update_log(f'{data.message}', "OFP", tel, level=data.level)
+                try:
+                    if data.level > 10:
+                        if self.tel_acces[tel]:
+                            await self.update_log(f'{data.message}', "OFP", tel, level=data.level)
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_journal_ofp_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -352,8 +382,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             r = get_journalreader(f'tic.journal.{tel}.download', deliver_policy='new')
             async for data, meta in r:
-                if self.tel_acces[tel]:
-                    await self.update_log(f'{data.message}', "DOWNLOADER", tel, level=data.level)
+                try:
+                    if self.tel_acces[tel]:
+                        await self.update_log(f'{data.message}', "DOWNLOADER", tel, level=data.level)
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_journal_downloader_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -366,8 +399,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             r = get_journalreader(f'tic.journal.{tel}.optics', deliver_policy='new')
             async for data, meta in r:
-                if self.tel_acces[tel]:
-                    await self.update_log(data.message, "OPTICS", tel, level=data.level)
+                try:
+                    if self.tel_acces[tel]:
+                        await self.update_log(data.message, "OPTICS", tel, level=data.level)
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_journal_optics_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -377,8 +413,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             r = get_journalreader(f'tic.journal.{tel}.guider', deliver_policy='new')
             async for data, meta in r:
-                if self.tel_acces[tel]:
-                    await self.update_log(data.message, "GUIDER", tel, level=data.level)
+                try:
+                    if self.tel_acces[tel]:
+                        await self.update_log(data.message, "GUIDER", tel, level=data.level)
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_journal_guider_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -420,13 +459,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24)
             r = get_reader(f'tic.status.{tel}.fits.pipeline.faststat',  deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in r:
-                self.fits_ffs_data[tel].append(data)
-                try:        # tryb odczytu kazdego teleskopu, nie tylko aktywnego - do czasow planu (CTC)
-                    rm = data["raw"]["header"].get("READ-MOD")
-                    if rm is not None:
-                        self.readoutmode_tel[tel] = int(rm)
-                except (KeyError, TypeError, ValueError):
-                    pass
+                try:
+                    self.fits_ffs_data[tel].append(data)
+                    try:        # tryb odczytu kazdego teleskopu, nie tylko aktywnego - do czasow planu (CTC)
+                        rm = data["raw"]["header"].get("READ-MOD")
+                        if rm is not None:
+                            self.readoutmode_tel[tel] = int(rm)
+                    except (KeyError, TypeError, ValueError):
+                        pass
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_ffs_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -456,8 +498,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 opt_start_time=tim_range_max['yesterday']
             )
             async for data, meta in r:
-                self.fits_photo_z0_data[tel].append(data)
-                #self.conditionsGui.update()
+                try:
+                    self.fits_photo_z0_data[tel].append(data)
+                    #self.conditionsGui.update()
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_photo_zo_reader({tel}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -468,36 +513,39 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             r = get_reader(f'tic.status.ocm.messages', deliver_policy='new')
             async for data, meta in r:
-                label = data["label"]
-                # kolory wg znaczenia (toi_theme): zielony OK, zolty uwaga, pomaranczowy gorzej, czerwony zle
-                c = "field_fg"
-                if label in ("PING", "WEATHER WARNING", "CLOUDS INFO", "FWHM WARNING", "ZERO POINT WARNING"):
-                    c = "warn_fg"
-                if label in ("WEATHER ALERT", "SYSTEM ALERT", "CLOUDS ALERT"):     # SYSTEM ALERT: bateria, serwerownia
-                    c = "bad_fg"
-                if label == "WEATHER LEVEL DOWN":      # weather_overwatch: ograniczenia pogodowe spadaja
-                    c = "ok_fg"
-                if label == "CLOUDS WARNING":          # allsky_overwatch, kolory jak pole Clouds
-                    c = "warn2_fg"
-                if label in ("FWHM WARNING", "ZERO POINT WARNING"):
-                    try:        # alarm seeingu / zero pointu - zakladka Conditions z tym wykresem na wierzch
-                        if not data.get("test"):        # test dzwieku z okna PING - bez przelaczania zakladki
-                            self.auxGui.alert_received(label)
-                    except Exception as e:
-                        logger.warning(f'TOI: EXCEPTION alert tab: {e}')
+                try:
+                    label = data["label"]
+                    # kolory wg znaczenia (toi_theme): zielony OK, zolty uwaga, pomaranczowy gorzej, czerwony zle
+                    c = "field_fg"
+                    if label in ("PING", "WEATHER WARNING", "CLOUDS INFO", "FWHM WARNING", "ZERO POINT WARNING"):
+                        c = "warn_fg"
+                    if label in ("WEATHER ALERT", "SYSTEM ALERT", "CLOUDS ALERT"):     # SYSTEM ALERT: bateria, serwerownia
+                        c = "bad_fg"
+                    if label == "WEATHER LEVEL DOWN":      # weather_overwatch: ograniczenia pogodowe spadaja
+                        c = "ok_fg"
+                    if label == "CLOUDS WARNING":          # allsky_overwatch, kolory jak pole Clouds
+                        c = "warn2_fg"
+                    if label in ("FWHM WARNING", "ZERO POINT WARNING"):
+                        try:        # alarm seeingu / zero pointu - zakladka Conditions z tym wykresem na wierzch
+                            if not data.get("test"):        # test dzwieku z okna PING - bez przelaczania zakladki
+                                self.auxGui.alert_received(label)
+                        except Exception as e:
+                            logger.warning(f'TOI: EXCEPTION alert tab: {e}')
 
-                if data.get("test"):        # test dzwieku z okna PING - szary, nie kolor prawdziwego alarmu
-                    c = "muted_fg"
-                c = theme.qcolor(c)
-                txt = f'{data["ut"]} [{data["user"]}] {data["info"]}'
-                self.obsGui.main_form.msg_e.setTextColor(c)
-                self.obsGui.main_form.msg_e.append(txt)
-                self.obsGui.main_form.msg_e.repaint()
+                    if data.get("test"):        # test dzwieku z okna PING - szary, nie kolor prawdziwego alarmu
+                        c = "muted_fg"
+                    c = theme.qcolor(c)
+                    txt = f'{data["ut"]} [{data["user"]}] {data["info"]}'
+                    self.obsGui.main_form.msg_e.setTextColor(c)
+                    self.obsGui.main_form.msg_e.append(txt)
+                    self.obsGui.main_form.msg_e.repaint()
 
-                if label == "PING":
-                    info = f"TOI reporting in"
-                    label = "INFO"
-                    await self.send_ocm_message(info, label=label)
+                    if label == "PING":
+                        info = f"TOI reporting in"
+                        label = "INFO"
+                        await self.send_ocm_message(info, label=label)
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader reader_ocm_messages: bad message skipped: {e!r}')
 
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
@@ -725,7 +773,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             r = get_reader(f'svc.heartbeat.dome_follower_svc.dome_follower.{self.active_tel}-dome_follower',
                            deliver_policy='new')
             async for data, meta in r:
-                self.dome_follower_seen = time.time()
+                try:
+                    self.dome_follower_seen = time.time()
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader dome_follower_heartbeat_reader: bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -849,12 +900,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     # ---- obserwatorzy nocy, wspolni dla obserwatorium: lista w observers.yaml, wybor publikowany na
     # tic.status.ocm.observers (strumien tic_status trzyma ostatni wpis). Wpis wazny do kolejnego resetu - codziennie
     # o toi.observers_reset_ut (godzina UT, okolo poludnia lokalnie); starszy - okno samo wyskakuje
-    OBSERVERS_SUBJECT = 'tic.status.ocm.observers'
+    OBSERVERS_SUBJECT = subject("observers")
     OBSERVERS_LATER = 30 * 60           # s, "Later" odklada pytanie
 
     async def nats_observers_reader(self):
         try:
-            r = get_reader(self.OBSERVERS_SUBJECT, deliver_policy='last')
+            r = history_reader("observers", None)
             async for data, meta in r:
                 try:
                     self.night_observers = data
@@ -940,11 +991,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     # ---- codzienna checklista obserwatorow (checklist.yaml), wspolna dla obserwatorium jak obserwatorzy: caly stan
     # na tic.status.ocm.checklist {"done": {id: {"time", "by"}}, "time", "by"}; odhaczenie wazne do resetu dnia
-    CHECKLIST_SUBJECT = 'tic.status.ocm.checklist'
+    CHECKLIST_SUBJECT = subject("checklist")
 
     async def nats_checklist_reader(self):
         try:
-            r = get_reader(self.CHECKLIST_SUBJECT, deliver_policy='last')
+            r = history_reader("checklist", None)
             async for data, meta in r:
                 try:
                     self.checklist_state = data
@@ -1243,24 +1294,27 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_toi_plan_status_reader(self):
         try:
-            reader = get_reader(f'tic.status.{self.active_tel}.toi.plan', deliver_policy='last')
+            reader = history_reader("plan", self.active_tel)
             async for data, meta in reader:
-                self.nats_plan_status = data
-                # z kontrola tabela pokazuje lokalny plan, a ta wiadomosc to nasza wlasna publikacja z update_plan
-                # (ktory juz przerysowal tabele) - drugie rysowanie niczego nie zmienia
-                if self.tel_acces.get(self.active_tel) and self.telescope_switch_status.get("plan"):
-                    continue
+                try:
+                    self.nats_plan_status = data
+                    # z kontrola tabela pokazuje lokalny plan, a ta wiadomosc to nasza wlasna publikacja z update_plan
+                    # (ktory juz przerysowal tabele) - drugie rysowanie niczego nie zmienia
+                    if self.tel_acces.get(self.active_tel) and self.telescope_switch_status.get("plan"):
+                        continue
 
-                # RESET PLAN
-                # ob = {"command_name": "STOP"}
-                # data["ob"] = ob
-                # data["block"] = "STOP"
-                # data["meta"] = {"ok": True}
-                #
-                # self.nats_plan_status = {"current_i":-1,"next_i":-1,"plan":[data]}
+                    # RESET PLAN
+                    # ob = {"command_name": "STOP"}
+                    # data["ob"] = ob
+                    # data["block"] = "STOP"
+                    # data["meta"] = {"ok": True}
+                    #
+                    # self.nats_plan_status = {"current_i":-1,"next_i":-1,"plan":[data]}
 
 
-                self.planGui.update_table()
+                    self.planGui.update_table()
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_toi_plan_status_reader: bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1269,17 +1323,20 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_toi_ob_status_reader(self):
         try:
-            reader = get_reader(f'tic.status.{self.active_tel}.toi.ob', deliver_policy='last')
+            reader = history_reader("ob", self.active_tel)
             last_ob = None      # pierwszy odczyt to stan zastany po zmianie teleskopu - nie przelacza zakladek
             async for status, meta in reader:
-                self.nats_ob_progress = status
                 try:
-                    ob = (status.get("ob_program"), status.get("ob_start_time"))
-                    if last_ob is not None and ob != last_ob and status.get("ob_started") and not status.get("ob_done"):
-                        self.auxGui.ob_started(ob[0])
-                    last_ob = ob
-                except Exception as e:
-                    logger.warning(f'EXCEPTION 105a: {e}')
+                    self.nats_ob_progress = status
+                    try:
+                        ob = (status.get("ob_program"), status.get("ob_start_time"))
+                        if last_ob is not None and ob != last_ob and status.get("ob_started") and not status.get("ob_done"):
+                            self.auxGui.ob_started(ob[0])
+                        last_ob = ob
+                    except Exception as e:
+                        logger.warning(f'EXCEPTION 105a: {e}')
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_toi_ob_status_reader: bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1290,10 +1347,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def nats_toi_log_reader(self):
         try:
             time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1)
-            reader = get_reader(f'tic.status.{self.active_tel}.toi.log', deliver_policy='by_start_time',opt_start_time=time)
+            reader = history_reader("log", self.active_tel, time)     # najpierw historia starego tematu - bez luki
             async for log, meta in reader:
-                if True:
-                    self.planGui.update_log_window(log)
+                try:
+                    if True:
+                        self.planGui.update_log_window(log)
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_toi_log_reader: bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1303,10 +1363,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def nats_toi_flat_status_reader(self):
         try:
             time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=25)  # do konfiguracji
-            reader = get_reader(f'tic.status.{self.active_tel}.toi.flat', deliver_policy='by_start_time',opt_start_time=time)
+            reader = history_reader("flat", self.active_tel, time)     # najpierw historia starego tematu - bez luki
             async for data, meta in reader:
-                self.flat_log.append(data)
-                self.flatGui.schedule_update()      # seria rekordow po zmianie teleskopu - jedno rysowanie
+                try:
+                    self.flat_log.append(data)
+                    self.flatGui.schedule_update()      # seria rekordow po zmianie teleskopu - jedno rysowanie
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_toi_flat_status_reader: bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1328,10 +1391,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def nats_toi_focus_status_reader(self):           # to moze powinno sie raczej robic jako append
         try:
-            reader = get_reader(f'tic.status.{self.active_tel}.toi.focus', deliver_policy='last')
+            reader = history_reader("focus", self.active_tel)
             async for data, meta in reader:
-                self.nats_focus_status = data
-                self.update_focus_window()
+                try:
+                    self.nats_focus_status = data
+                    self.update_focus_window()
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_toi_focus_status_reader: bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1341,13 +1407,16 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def nats_toi_plan_log_reader(self):
         try:
             time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1)
-            reader = get_reader(f'tic.status.{self.active_tel}.toi.plan_log', deliver_policy='by_start_time',opt_start_time=time)
+            reader = history_reader("plan_log", self.active_tel, time)     # najpierw historia starego tematu - bez luki
             async for data, meta in reader:
-                self.ob_log.append(data)
-                if "uobi" in data.keys():
-                    if data["uobi"] not in self.done_uobi:
-                        self.done_uobi.append(data["uobi"])
-                self.planGui.update_log_table()
+                try:
+                    self.ob_log.append(data)
+                    if "uobi" in data.keys():
+                        if data["uobi"] not in self.done_uobi:
+                            self.done_uobi.append(data["uobi"])
+                    self.planGui.update_log_table()
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_toi_plan_log_reader: bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1359,8 +1428,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             tel = self.active_tel
             r = get_reader(f'tic.status.{tel}.download', deliver_policy='last')
             async for data, meta in r:
-                self.fits_downloader_data = data
-                self.new_fits()
+                try:
+                    self.fits_downloader_data = data
+                    self.new_fits()
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_downloader_reader: bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1373,8 +1445,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             tel = self.active_tel
             r = get_reader(f'tic.status.{tel}.fits.pipeline.raw', deliver_policy='last')
             async for data, meta in r:
-                self.fits_ofp_data = data
-                self.update_fits_data()
+                try:
+                    self.fits_ofp_data = data
+                    self.update_fits_data()
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_ofp_reader: bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1388,7 +1463,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             tel = self.active_tel
             r = get_reader(f'tic.planner.{tel}.status.error', deliver_policy='new')
             async for data, meta in r:
-                await self.update_log(f'{data["error_description"]}', "ERROR", tel)
+                try:
+                    await self.update_log(f'{data["error_description"]}', "ERROR", tel)
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_ofp_error_reader: bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1403,7 +1481,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             template = self.local_cfg["toi"].get("flat_overwatch_subject", "tic.status.{tel}.flat_overwatch.{item}")
             r = get_reader(template.format(tel=tel, item=item), deliver_policy='last')
             async for data, meta in r:
-                self.flatGui.update_flat_overwatch(tel, item, data)
+                try:
+                    self.flatGui.update_flat_overwatch(tel, item, data)
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader reader_nats_flat_overwatch({item}): bad message skipped: {e!r}')
         except (asyncio.CancelledError, asyncio.TimeoutError):
             raise
         except Exception as e:
@@ -1700,103 +1781,146 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             #if True:
             try:
                 for tel in self.local_cfg["toi"]["telescopes"]:
-                    if tel in self.planrunners.keys():
-                        if "done" in self.ob[tel]["meta"].keys() and "run" in self.ob[tel]["meta"].keys() and "seq" in self.ob[tel]["ob"].keys():
-                            if not self.ob[tel]["meta"]["done"] and self.ob[tel]["meta"]["run"] and "seq" in self.ob[tel]["block"]:
-                                if not self.planrunners[tel].is_nightplan_running(self.ob[tel]["meta"]["origin"]):
-                                    try:
-                                        self.ob_progress[tel]["ob_started"] = self.ob[tel]["meta"]["run"]
-                                        self.ob_progress[tel]["ob_done"] = self.ob[tel]["meta"]["done"]
-                                        self.ob_progress[tel]["ob_start_time"] = self.ob_start_time
-                                        self.ob_progress[tel]["ob_expected_time"] = self.ob[tel]["meta"]["slot_time"]
-                                        self.ob_progress[tel]["ob_program"] = self.ob[tel]["block"]
-                                        self.ob_progress[tel]["error"] = True
+                    try:
+                        if tel in self.planrunners.keys():
+                            if "done" in self.ob[tel]["meta"].keys() and "run" in self.ob[tel]["meta"].keys() and "seq" in self.ob[tel]["ob"].keys():
+                                if not self.ob[tel]["meta"]["done"] and self.ob[tel]["meta"]["run"] and "seq" in self.ob[tel]["block"]:
+                                    if not self.planrunners[tel].is_nightplan_running(self.ob[tel]["meta"]["origin"]):
+                                        try:
+                                            self.ob_progress[tel]["ob_started"] = self.ob[tel]["meta"]["run"]
+                                            self.ob_progress[tel]["ob_done"] = self.ob[tel]["meta"]["done"]
+                                            self.ob_progress[tel]["ob_start_time"] = self.ob_start_time
+                                            self.ob_progress[tel]["ob_expected_time"] = self.ob[tel]["meta"]["slot_time"]
+                                            self.ob_progress[tel]["ob_program"] = self.ob[tel]["block"]
+                                            self.ob_progress[tel]["error"] = True
 
-                                        await self.nats_toi_ob_status[tel].publish(data=self.ob_progress[tel], timeout=10)
-                                    except Exception as e:
-                                        logger.warning(f'TOI: EXCEPTION 8a: {e}')
+                                            await self.nats_toi_ob_status[tel].publish(data=self.ob_progress[tel], timeout=10)
+                                        except Exception as e:
+                                            logger.warning(f'TOI: EXCEPTION 8a: {e}')
 
-                                    try:
-                                        info = f"program error on {tel}"
-                                        label = "PROGRAM ERROR"
-                                        await self.send_ocm_message(info, label=label)
-                                    except Exception as e:
-                                        logger.warning(f'TOI: EXCEPTION 8b: {e}')
-                                    self.ob[tel]["meta"]["done"] = False
-                                    self.ob[tel]["meta"]["run"] = False
+                                        try:
+                                            info = f"program error on {tel}"
+                                            label = "PROGRAM ERROR"
+                                            await self.send_ocm_message(info, label=label)
+                                        except Exception as e:
+                                            logger.warning(f'TOI: EXCEPTION 8b: {e}')
+                                        self.ob[tel]["meta"]["done"] = False
+                                        self.ob[tel]["meta"]["run"] = False
+                                        self.ob[tel]["meta"]["continue_plan"] = False
+                                        await self.update_log(f'planrunner STOPPED', "ERROR", tel)
+
+                        if self.telescope and self.tel_acces[tel] is False:    # obsluga tego ze w czasie realizacji planu, ktos inny przejal kontrole; None = unknown, NOT a takeover
+                            if "continue_plan" in self.ob[tel]["meta"].keys():
+                                if self.ob[tel]["meta"]["continue_plan"]:
                                     self.ob[tel]["meta"]["continue_plan"] = False
-                                    await self.update_log(f'planrunner STOPPED', "ERROR", tel)
+                                    self.current_i[tel] = -1
+                                    self.ob[tel]["done"] = False
+                                    #self.ob[tel]["run"] = False
+                                    self.update_plan(tel)
 
-                    if self.telescope and self.tel_acces[tel] is False:    # obsluga tego ze w czasie realizacji planu, ktos inny przejal kontrole; None = unknown, NOT a takeover
-                        if "continue_plan" in self.ob[tel]["meta"].keys():
-                            if self.ob[tel]["meta"]["continue_plan"]:
-                                self.ob[tel]["meta"]["continue_plan"] = False
-                                self.current_i[tel] = -1
-                                self.ob[tel]["done"] = False
-                                #self.ob[tel]["run"] = False
-                                self.update_plan(tel)
+                        if self.telescope and self.tel_acces[tel]:
+                            if self.ob[tel]["meta"].get("origin"):
+                                if "done" in self.ob[tel]["meta"].keys() and "origin" in self.ob[tel]["meta"].keys() and "continue_plan" in self.ob[tel]["meta"].keys():
+                                    if self.ob[tel]["meta"]["done"] and "plan" in self.ob[tel]["meta"]["origin"] and self.ob[tel]["meta"]["continue_plan"]:
+                                        await self.plan_start(tel)
+                                    elif "plan" in self.ob[tel]["meta"]["origin"] and self.ob[tel]["meta"]["continue_plan"]:
+                                        if "sec" in self.ob[tel]["ob"].keys() and "start_time" in self.ob[tel]["meta"].keys():
+                                            if self.ob[tel]["ob"]["sec"] != "":
+                                                dt = self.time - self.ob[tel]["meta"]["start_time"]
+                                                if float(dt) > float(self.ob[tel]["ob"]["sec"]):
+                                                    self.ob[tel]["meta"]["done"] = True
+                                                    self._pop_current(tel)       # wykonany OB z planu (nie przy current_i = -1)
+                                                    await self.check_plan_finished(tel)
+                                                    self.current_i[tel] = -1
+                                                    self.update_plan(tel)
+                                                    time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                                    tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sec={self.ob[tel]["ob"]["sec"]}'}},"time": {"end_dt": time}}
+                                                    self.plan_log_agregator(tel, tmp)
+                                        if "ut" in self.ob[tel]["ob"].keys():
+                                            if self.ob[tel]["ob"]["ut"] != "":
+                                                if wait_ut_sec(self.ob[tel]["ob"]["ut"], ephem.now()) <= 0:
+                                                    self.ob[tel]["meta"]["done"] = True
+                                                    self._pop_current(tel)       # wykonany OB z planu (nie przy current_i = -1)
+                                                    await self.check_plan_finished(tel)
+                                                    self.current_i[tel] = -1
+                                                    self.update_plan(tel)
+                                                    time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                                    tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'ut={self.ob[tel]["ob"]["ut"]}'}},"time": {"end_dt": time}}
+                                                    self.plan_log_agregator(tel, tmp)
+                                        if "sunrise" in self.ob[tel]["ob"].keys():
+                                            if self.ob[tel]["ob"]["sunrise"] != "":
+                                                if deg_to_decimal_deg(self.almanac["sun_alt"]) > float(self.ob[tel]["ob"]["sunrise"]):
+                                                    self.ob[tel]["meta"]["done"] = True
+                                                    self._pop_current(tel)       # wykonany OB z planu (nie przy current_i = -1)
+                                                    await self.check_plan_finished(tel)
+                                                    self.current_i[tel] = -1
+                                                    self.update_plan(tel)
+                                                    time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                                    tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sunrise={self.ob[tel]["ob"]["sunrise"]}'}},"time": {"end_dt": time}}
+                                                    self.plan_log_agregator(tel, tmp)
+                                        if "sunset" in self.ob[tel]["ob"].keys():
+                                            if self.ob[tel]["ob"]["sunset"] != "":
+                                                if deg_to_decimal_deg(self.almanac["sun_alt"]) < float(self.ob[tel]["ob"]["sunset"]):
+                                                    self.ob[tel]["meta"]["done"] = True
 
-                    if self.telescope and self.tel_acces[tel]:
-                        if self.ob[tel]["meta"].get("origin"):
-                            if "done" in self.ob[tel]["meta"].keys() and "origin" in self.ob[tel]["meta"].keys() and "continue_plan" in self.ob[tel]["meta"].keys():
-                                if self.ob[tel]["meta"]["done"] and "plan" in self.ob[tel]["meta"]["origin"] and self.ob[tel]["meta"]["continue_plan"]:
-                                    await self.plan_start(tel)
-                                elif "plan" in self.ob[tel]["meta"]["origin"] and self.ob[tel]["meta"]["continue_plan"]:
-                                    if "sec" in self.ob[tel]["ob"].keys() and "start_time" in self.ob[tel]["meta"].keys():
-                                        if self.ob[tel]["ob"]["sec"] != "":
-                                            dt = self.time - self.ob[tel]["meta"]["start_time"]
-                                            if float(dt) > float(self.ob[tel]["ob"]["sec"]):
-                                                self.ob[tel]["meta"]["done"] = True
-                                                self.next_i[tel] = self.current_i[tel]
-                                                self.plan[tel].pop(self.current_i[tel])
-                                                await self.check_plan_finished(tel)
-                                                self.current_i[tel] = -1
-                                                self.update_plan(tel)
-                                                time = self.ut.split()[0] + "T" + self.ut.split()[1]
-                                                tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sec={self.ob[tel]["ob"]["sec"]}'}},"time": {"end_dt": time}}
-                                                self.plan_log_agregator(tel, tmp)
-                                    if "ut" in self.ob[tel]["ob"].keys():
-                                        if self.ob[tel]["ob"]["ut"] != "":
-                                            if wait_ut_sec(self.ob[tel]["ob"]["ut"], ephem.now()) <= 0:
-                                                self.ob[tel]["meta"]["done"] = True
-                                                self.next_i[tel] = self.current_i[tel]
-                                                self.plan[tel].pop(self.current_i[tel])
-                                                await self.check_plan_finished(tel)
-                                                self.current_i[tel] = -1
-                                                self.update_plan(tel)
-                                                time = self.ut.split()[0] + "T" + self.ut.split()[1]
-                                                tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'ut={self.ob[tel]["ob"]["ut"]}'}},"time": {"end_dt": time}}
-                                                self.plan_log_agregator(tel, tmp)
-                                    if "sunrise" in self.ob[tel]["ob"].keys():
-                                        if self.ob[tel]["ob"]["sunrise"] != "":
-                                            if deg_to_decimal_deg(self.almanac["sun_alt"]) > float(self.ob[tel]["ob"]["sunrise"]):
-                                                self.ob[tel]["meta"]["done"] = True
-                                                self.next_i[tel] = self.current_i[tel]
-                                                self.plan[tel].pop(self.current_i[tel])
-                                                await self.check_plan_finished(tel)
-                                                self.current_i[tel] = -1
-                                                self.update_plan(tel)
-                                                time = self.ut.split()[0] + "T" + self.ut.split()[1]
-                                                tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sunrise={self.ob[tel]["ob"]["sunrise"]}'}},"time": {"end_dt": time}}
-                                                self.plan_log_agregator(tel, tmp)
-                                    if "sunset" in self.ob[tel]["ob"].keys():
-                                        if self.ob[tel]["ob"]["sunset"] != "":
-                                            if deg_to_decimal_deg(self.almanac["sun_alt"]) < float(self.ob[tel]["ob"]["sunset"]):
-                                                self.ob[tel]["meta"]["done"] = True
-
-                                                self.next_i[tel] = self.current_i[tel]
-                                                self.plan[tel].pop(self.current_i[tel])
-                                                await self.check_plan_finished(tel)
-                                                self.current_i[tel] = -1
-                                                self.update_plan(tel)
-                                                time = self.ut.split()[0] + "T" + self.ut.split()[1]
-                                                tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sunset={self.ob[tel]["ob"]["sunset"]}'}},"time": {"end_dt": time}}
-                                                self.plan_log_agregator(tel, tmp)
+                                                    self._pop_current(tel)       # wykonany OB z planu (nie przy current_i = -1)
+                                                    await self.check_plan_finished(tel)
+                                                    self.current_i[tel] = -1
+                                                    self.update_plan(tel)
+                                                    time = self.ut.split()[0] + "T" + self.ut.split()[1]
+                                                    tmp = {"object_name": "WAIT", "command_dict": {"command_name": "","kwargs":{"seq":f'sunset={self.ob[tel]["ob"]["sunset"]}'}},"time": {"end_dt": time}}
+                                                    self.plan_log_agregator(tel, tmp)
+                    except Exception as e:     # blad jednego teleskopu nie zatrzymuje sterowania planem pozostalych
+                        logger.exception(f'TOI: EXCEPTION 8 (plan control, {tel}): {e}')
 
             except Exception as e:
                 logger.exception(f'TOI: EXCEPTION 8 (plan control): {e}')
 
             await asyncio.sleep(1)
+
+    @staticmethod
+    async def delivered(event, getter):
+        """Wartosc w callbacku subskrypcji ocabox: ta, ktora subskrypcja wlasnie dostarczyla - z komponentu i parametru
+        zdarzenia (event.obj, event.name; event.new to funkcja parametru, nie wartosc). Wg Mikolaja (2026-09) jedyny
+        poprawny odczyt z cache komponentu; event.obj to komponent, ktory wyslal zdarzenie - zdarzenie starego teleskopu
+        po przelaczeniu nie wpisze wartosci z kamery / montazu nowego. Bez zdarzenia (wywolanie reczne, np. przywrocenie
+        przelacznika) - zapytanie do serwera jak dotad. Gdy ocabox zacznie podawac callbackom Value (jak dla optyki),
+        zmiana tylko tutaj."""
+        if hasattr(event, "obj") and hasattr(event, "name"):
+            return getattr(event.obj, event.name)
+        return await getter()
+
+    async def _remember_focus(self, tel):
+        """pozycja fokusera przed autofocusem - do niej wraca nieudany autofocus; nieznana -> None (nie stara wartosc)"""
+        try:
+            pos = await self.tel_focusers[tel].aget_position()
+        except Exception as e:
+            logger.warning(f'TOI: {tel} focuser position: {e!r}')
+            pos = None
+        self.last_focus_position[tel] = float(pos) if pos is not None else None
+        if pos is None:
+            await self.update_log('focuser position unknown - if the autofocus fails, the focuser stays where it is',
+                                  "WARNING", tel)
+
+    async def _focus_failed(self, tel):
+        """nieudany autofocus: fokuser wraca do pozycji sprzed autofocusa, jesli ja znamy"""
+        prev = self.last_focus_position[tel]
+        if prev is None:
+            await self.update_log('focusing FAILED. Previous focus unknown - focuser not moved', "TOI", tel)
+            return
+        await self.focus_move(tel, prev, "autofocus_failed")
+        await self.update_log(f'focusing FAILED. Focus set to previous value {int(prev)}', "TOI", tel)
+
+    def _pop_current(self, tel):
+        """wykonany OB (current_i) z planu; nastepny startuje z jego miejsca. Przy current_i spoza planu (-1 po Stop /
+        Del All / przejeciu kontroli) nic nie usuwa - pop(-1) zabieral po cichu ostatni OB planu"""
+        i = self.current_i[tel]
+        if 0 <= i < len(self.plan[tel]):
+            self.next_i[tel] = i
+            self.plan[tel].pop(i)
+            return True
+        logger.warning(f'TOI: {tel} finished OB not removed - current_i {i}, plan length {len(self.plan[tel])}')
+        return False
 
     async def check_plan_finished(self, tel):
         if len(self.plan[tel]) == 0:
@@ -2138,8 +2262,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         self.ob[tel]["meta"]["done"] = True
 
                         if "plan" in self.ob[tel]["meta"]["origin"]:
-                            self.next_i[tel] = self.current_i[tel]
-                            self.plan[tel].pop(self.current_i[tel])
+                            self._pop_current(tel)       # wykonany OB z planu (nie przy current_i = -1)
                             await self.check_plan_finished(tel)
                             self.current_i[tel] = -1
                             self.update_plan(tel)
@@ -2263,10 +2386,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 result = Focus.calculate(fits_path=self.local_cfg[tel]["tel_directory"] + "focus/actual",method=self.focus_method)
 
                                 if result is None:
-                                    await self.focus_move(tel, self.last_focus_position[tel], "autofocus_failed")
-                                    await self.update_log(
-                                        f'focusing FAILED. Focus set to previous value {int(self.last_focus_position[tel])}',
-                                        "TOI", tel)
+                                    await self._focus_failed(tel)
                                 else:
                                     max_sharpness_focus, calc_metadata = result
 
@@ -2315,10 +2435,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         await self.focus_move(tel, max_sharpness_focus, "autofocus")
                                         await self.update_log(f'focus set to {int(max_sharpness_focus)}', "TOI", tel)
                                     else:
-                                        await self.focus_move(tel, self.last_focus_position[tel], "autofocus_failed")
-                                        await self.update_log(
-                                            f'focusing FAILED. Focus set to previous value {int(self.last_focus_position[tel])}',
-                                            "TOI", tel)
+                                        await self._focus_failed(tel)
 
 
                                 if "switchOnFocusAdjast" in self.ob[tel]["meta"].keys():
@@ -2387,8 +2504,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         data=self.toi_switch_status[self.active_tel], timeout=10)
 
                 self.autofocus_started[self.active_tel] = True
-                tmp = await self.tel_focusers[self.active_tel].aget_position()
-                self.last_focus_position[self.active_tel] = float(tmp)
+                await self._remember_focus(self.active_tel)
                 await self.update_log(f'autofocussing', "TOI RESPONDER", self.active_tel)
                 self.planrunner_start(self.active_tel)
 
@@ -2403,7 +2519,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def manual_plan_start(self,tel):
         await self.update_log(f'PLAN START ', "OPERATOR", tel)
 
-        self.plan_start(self.active_tel)
+        await self.plan_start(tel)
 
     # to ustawia wszytskie potrzebne parametry dla planrunnera i wywoluje planrunner_start
     @qs.asyncSlot()
@@ -2488,8 +2604,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 self.ob[tel]["meta"]["origin"] = "plan"
                                 self.ob[tel]["meta"]["continue_plan"] = True
 
-                                self.next_i[tel] = self.current_i[tel]
-                                self.plan[tel].pop(self.current_i[tel])
+                                self._pop_current(tel)       # wykonany OB z planu (nie przy current_i = -1)
                                 await self.check_plan_finished(tel)
                                 self.current_i[tel] = -1
                                 self.update_plan(tel)
@@ -2558,6 +2673,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                 program_name = "plan_auto_focus"
                                 program = self.ob[tel]["block"]
 
+                                # najpierw pozycja fokusera (do niej wraca nieudany autofocus) - przed wylaczeniem focus
+                                # adjust, zeby blad odczytu nie zostawial niczego w polowie
+                                await self._remember_focus(tel)
                                 self.focus_method = self.focus_default_method(tel)
                                 self.autofocus_started[tel] = True
 
@@ -2567,9 +2685,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     self.toi_switch_status[tel]["focus_adjust"] = False
                                     await self.nats_toi_switch_synchro[tel].publish(
                                         data=self.toi_switch_status[tel], timeout=10)
-
-                                focus = await self.tel_focusers[tel].aget_position()
-                                self.last_focus_position[tel] = float(focus)
 
                             if self.ob[tel]["ob"]["command_name"] == "OBJECT" and "block" in self.ob[tel].keys():
                                 run_nightplan = True
@@ -2746,6 +2861,12 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                         ob["seq"], overhead=self.overhed, base_time=5,
                                         filter_overhead=2, auto_time=5
                                     )
+                                    if slotTime is None and not meta.get("seq_warned"):
+                                        # zla sekwencja: OB bez czasu wypada z osi czasu planu - raz mowimy operatorowi
+                                        meta["seq_warned"] = True
+                                        asyncio.ensure_future(self.update_log(
+                                            f'wrong seq in OB {ob.get("name", ob.get("command_name", "?"))}: {ob["seq"]}'
+                                            f' - no time for it in the plan', "WARNING", tel))
                                 else:
                                     ctc_synced = on_timeline
                                 meta["slotTime"] = slotTime
@@ -3117,7 +3238,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 await self.update_log(f'not a valid BIN option', "WARNING", self.active_tel)
                 return
 
-            if int(self.ccd_binx) != int(x) or int(self.ccd_biny) != int(y):
+            # binning nieznany (zaraz po starcie / zmianie teleskopu) - int(None) przerywal przed wyslaniem do kamery
+            if self.ccd_binx is None or self.ccd_biny is None or int(self.ccd_binx) != int(x) or int(self.ccd_biny) != int(y):
                 theme.paint(self.instGui.ccd_tab.inst_Bin_e, bg="moving_bg")
             await self.ccd.aput_binx(int(x))
             await self.ccd.aput_biny(int(y))
@@ -3174,30 +3296,28 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     @qs.asyncSlot()
     async def ccd_coolerOnOf(self):
-        await self.update_log(f'ccd cooler ON/OFF', "OPERATOR", self.active_tel)
-        if self.tel_acces[self.active_tel]:
-            if self.ccd.cooleron:
-              txt="REQUEST: CCD cooler OFF"
-              await self.update_log(f'setting cooler OFF', "TOI RESPONDER", self.active_tel)
-            else:
-              await self.ccd.aput_cooleron(True)
-              await self.update_log(f'setting cooler ON', "TOI RESPONDER", self.active_tel)
-        else:
-            txt="WARNING: U don't have control"
-            self.WarningWindow(txt)
-            await self.ccd_update(True)
+        tel = self.active_tel
+        cam = self.instGui.ccd_tab
+        cooler_on = bool(self.ccd.cooleron)         # stan kamery, nie polozenie przelacznika
+        await self.update_log(f'ccd cooler {"OFF" if cooler_on else "ON"}', "OPERATOR", tel)
+        if not self.tel_acces[tel]:
+            self.WarningWindow("WARNING: U don't have control")
+            cam.cooler_c.setChecked(cooler_on)       # przelacznik wraca do stanu kamery
+            return
+        await self.ccd.aput_cooleron(not cooler_on)
+        await self.update_log(f'setting cooler {"OFF" if cooler_on else "ON"}', "TOI RESPONDER", tel)
 
     async def ccd_cooler_update(self, event):
-        self.ccd_cooler = await  self.ccd.aget_cooleron()
+        self.ccd_cooler = await self.delivered(event, self.ccd.aget_cooleron)
         if self.ccd_cooler != None:
             self.instGui.ccd_tab.cooler_c.setChecked(self.ccd_cooler)
 
     async def ccd_current_temp_update(self, event):
-        self.ccd_temp = await  self.ccd.aget_ccdtemperature()
+        self.ccd_temp = await self.delivered(event, self.ccd.aget_ccdtemperature)
         await self.ccd_temp_update()
 
     async def ccd_set_temp_update(self, event):
-        self.ccd_temp_set = await self.ccd.aget_setccdtemperature()
+        self.ccd_temp_set = await self.delivered(event, self.ccd.aget_setccdtemperature)
         await self.ccd_temp_update()
 
     async def ccd_temp_update(self):
@@ -3213,8 +3333,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     async def ccd_gain_update(self, event):
-        self.ccd_gain = await  self.ccd.aget_gain()
-        self.ccd_gain = self.ccd.gain
+        self.ccd_gain = await self.delivered(event, self.ccd.aget_gain)     # dawniej pobierany dwa razy
         if self.ccd_gain != None:
             try:
                 i = int(self.ccd_gain)
@@ -3234,7 +3353,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         return rm if rm is not None else getattr(self, "ccd_readoutmode", None)
 
     async def ccd_rm_update(self, event):
-        self.ccd_readoutmode = await self.ccd.aget_readoutmode()
+        self.ccd_readoutmode = await self.delivered(event, self.ccd.aget_readoutmode)
         if self.ccd_readoutmode is not None:
             self.readoutmode_tel[self.component_tel] = int(self.ccd_readoutmode)
         # READ MODES
@@ -3255,11 +3374,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     async def ccd_binx_update(self, event):
-        self.ccd_binx = await  self.ccd.aget_binx()
+        self.ccd_binx = await self.delivered(event, self.ccd.aget_binx)
         await self.ccd_bin_update()
 
     async def ccd_biny_update(self, event):
-        self.ccd_biny = await  self.ccd.aget_biny()
+        self.ccd_biny = await self.delivered(event, self.ccd.aget_biny)
         await self.ccd_bin_update()
 
     async def ccd_bin_update(self):
@@ -3271,7 +3390,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             else: theme.paint(self.instGui.ccd_tab.inst_Bin_e, bg="warn_soft_bg")
 
     async def ccd_update(self, event):
-        self.ccd_state = await  self.ccd.aget_camerastate()
+        self.ccd_state = await self.delivered(event, self.ccd.aget_camerastate)
 
     async def ccd_con_update(self, event):
         self.inst_con = self.ccd.connected
@@ -3353,7 +3472,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def mountMotors_update(self,event):
-           r = await self.mount.aget_motorstatus()
+           r = await self.delivered(event, self.mount.aget_motorstatus)
            if r=="true":
                self.mount_motortatus = True
            else:
@@ -3389,7 +3508,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def covers_update(self,event):
-           self.cover_status = await self.cover.aget_coverstate()
+           self.cover_status = await self.delivered(event, self.cover.aget_coverstate)
 
            if self.cover_status==3:
                self.mntGui.telCovers_c.setChecked(True)
@@ -3502,7 +3621,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.update_log(f'mount tracking ON/OFF', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
             if await self.mount.aget_motorstatus() != "false":
-                self.mount_tracking = await self.mount.aget_tracking()
+                self.mount_tracking = await self.mount.aget_tracking()     # akcja przycisku - swiezy odczyt z serwera
 
                 if self.mount_tracking:
                    await self.mount.aput_tracking(False)
@@ -3524,11 +3643,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def mount_tracking_update(self, event):
-        self.mount_tracking = await self.mount.aget_tracking()
+        self.mount_tracking = await self.delivered(event, self.mount.aget_tracking)
         await self.mount_update()
 
     async def mount_slewing_update(self, event):
-        self.mount_slewing = await self.mount.aget_slewing()
+        self.mount_slewing = await self.delivered(event, self.mount.aget_slewing)
         await self.mount_update()
 
     async def mount_update(self):
@@ -3569,19 +3688,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             theme.paint(self.mntGui.mntDec_e, bg="field_bg")
 
     async def ra_update(self, event):
-        self.mount_ra = await self.mount.aget_ra()
+        self.mount_ra = await self.delivered(event, self.mount.aget_ra)
         await self.radec_update()
 
     async def dec_update(self, event):
-        self.mount_dec = await self.mount.aget_dec()
+        self.mount_dec = await self.delivered(event, self.mount.aget_dec)
         await self.radec_update()
 
     async def alt_update(self, event):
-        self.mount_alt = await self.mount.aget_alt()
+        self.mount_alt = await self.delivered(event, self.mount.aget_alt)
         await self.radec_update()
 
     async def az_update(self, event):
-        self.mount_az = await self.mount.aget_az()
+        self.mount_az = await self.delivered(event, self.mount.aget_az)
         await self.radec_update()
 
 
@@ -3820,7 +3939,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.set_dome_follow_table({self.active_tel: self.dome_follow})     # FOLLOW w tabeli od razu
 
     async def domeShutterStatus_update(self, event):
-           self.dome_shutterstatus=await self.dome.aget_shutterstatus()
+           self.dome_shutterstatus = await self.delivered(event, self.dome.aget_shutterstatus)
            if self.dome_shutterstatus==0:
               txt="OPEN"
               theme.paint(self.mntGui.domeShutter_e, fg="ok_fg", bg="field_bg")
@@ -3853,7 +3972,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            self.mntGui.domeShutter_e.setText(txt)
 
     async def domeStatus_update(self, event):
-        self.dome_status=await self.dome.aget_slewing()
+        self.dome_status = await self.delivered(event, self.dome.aget_slewing)
         if self.dome_status==False:
             txt="STOPPED"
             theme.paint(self.mntGui.domeStat_e, bg="field_bg")
@@ -3867,7 +3986,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.mntGui.domeStat_e.setText(txt)
 
     async def domeAZ_update(self, event):
-        self.dome_az = await self.dome.aget_az()
+        self.dome_az = await self.delivered(event, self.dome.aget_az)
         if self.dome_az:
             self.mntGui.domeAz_e.setText(f"{self.dome_az:.2f}")
             #self.obsGui.main_form.skyView.updateDome()
@@ -3978,7 +4097,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def mirrorFans_update(self,event):
-           r = await self.focus.aget_fansstatus()
+           r = await self.delivered(event, self.focus.aget_fansstatus)
            if r is None:
                self.mntGui.mirrorFans_e.setText("--")
                theme.paint(self.mntGui.mirrorFans_e, bg="field_bg")
@@ -4020,28 +4139,32 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if self.mntGui.flatLights_c.isChecked(): self.mntGui.flatLights_c.setChecked(False)
             else: self.mntGui.flatLights_c.setChecked(True)
 
+    DOME_LIGHT_TIMEOUT = 3      # s - sterownik swiatel (Blebox rgbw) w sieci kopuly
+
     @qs.asyncSlot()
     async def domeLightOnOff(self):
-        if self.tel_acces[self.active_tel]:
-            if self.mntGui.domeLights_c.isChecked():
-                val = str(hex(int(255))).replace('0x', '', 1)
-                if len(val) == 1:
-                    val = '0' + val
-                requests.post('http://' + self.local_cfg[self.active_tel]["light_ip"] + '/api/rgbw/set', json={"rgbw": {"desiredColor": val}})
-                if self.tel_acces[self.active_tel]:
-                    self.toi_op_status[self.active_tel]["dome_lights"]["state"] = True
-                    await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
-            else:
-                val = str(hex(int(0))).replace('0x', '', 1)
-                if len(val) == 1:
-                    val = '0' + val
-                requests.post('http://' + self.local_cfg[self.active_tel]["light_ip"] + '/api/rgbw/set', json={"rgbw": {"desiredColor": val}})
-                if self.tel_acces[self.active_tel]:
-                    self.toi_op_status[self.active_tel]["dome_lights"]["state"] = False
-                    await self.nats_pub_toi_status[self.active_tel].publish(data=self.toi_op_status[self.active_tel], timeout=10)
-        else:
-            txt="WARNING: U don't have control"
-            self.WarningWindow(txt)
+        tel = self.active_tel
+        on = self.mntGui.domeLights_c.isChecked()       # polozenie po kliknieciu
+        await self.update_log(f'dome lights {"ON" if on else "OFF"}', "OPERATOR", tel)
+        if not self.tel_acces[tel]:
+            self.WarningWindow("WARNING: U don't have control")
+            self.mntGui.domeLights_c.setChecked(not on)    # przelacznik wraca
+            return
+        ip = self.local_cfg[tel]["light_ip"]
+        try:
+            # w watku i z limitem czasu: bez odpowiedzi sterownika GUI stalo bez konca
+            r = await asyncio.to_thread(
+                requests.post, f'http://{ip}/api/rgbw/set',
+                json={"rgbw": {"desiredColor": "ff" if on else "00"}}, timeout=self.DOME_LIGHT_TIMEOUT)
+            r.raise_for_status()
+        except Exception as e:
+            await self.update_log(f'dome lights: no answer from {ip} ({e.__class__.__name__})', "WARNING", tel)
+            if tel == self.active_tel:
+                self.mntGui.domeLights_c.setChecked(not on)    # stan sie nie zmienil
+            return
+        await self.update_log(f'dome lights {"ON" if on else "OFF"}', "TOI RESPONDER", tel)
+        self.toi_op_status[tel]["dome_lights"]["state"] = on
+        await self.nats_pub_toi_status[tel].publish(data=self.toi_op_status[tel], timeout=10)
 
 
     def update_dome_temp(self):
@@ -4199,39 +4322,46 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         try:
             focus_adjast_step = 5
             for t in self.local_cfg["toi"]["telescopes"]:
-                if self.tel_acces[t]:
+                try:
+                    if self.tel_acces[t]:
 
-                    var = self.toi_switch_status[t]["focus_adjust"]
-                    self.report["focus_adjust"]["status"] = var
-                    self.report["focus_adjust"]["type"] = type(var)
-                    self.report["focus_adjust"]["repr"] = repr(var)
-                    self.report["focus_adjust"]["efect"] = False
+                        var = self.toi_switch_status[t]["focus_adjust"]
+                        self.report["focus_adjust"]["status"] = var
+                        self.report["focus_adjust"]["type"] = type(var)
+                        self.report["focus_adjust"]["repr"] = repr(var)
+                        self.report["focus_adjust"]["efect"] = False
 
-                    if self.toi_switch_status[t]["focus_adjust"]:
-                        self.report["focus_adjust"]["efect"] = True
-                        if self.autofocus_started[t]:
-                            continue
-                        # nie ruszamy focusem w trakcie ekspozycji (1 waiting, 2 exposing, 3 reading, 4 download)
-                        if self.oca_tel_state[t]["ccd_state"]["val"] in (1, 2, 3, 4):
-                            continue
-                        target = self.focus_adjust_target(t)
-                        if target is None:
-                            continue
-                        ref = self.nats_focus_reference[t]
-                        if abs(target - ref["position"]) > focus_adjast_step:
-                            await self.focus_move(t, target, "focus_adjust")
-                            await self.update_log(f'adjusting focus {ref["position"]} -> {target} '
-                                                  f'(ref: {ref["source"]} {ref["time"]}, '
-                                                  f'{float(ref["davis_temperature"]):.1f}C/{float(ref["davis_humidity"]):.0f}% -> '
-                                                  f'{float(self.telemetry_temp):.1f}C/{float(self.telemetry_humidity):.0f}%)', "TOI", t)
+                        if self.toi_switch_status[t]["focus_adjust"]:
+                            self.report["focus_adjust"]["efect"] = True
+                            if self.autofocus_started[t]:
+                                continue
+                            # nie ruszamy focusem w trakcie ekspozycji (1 waiting, 2 exposing, 3 reading, 4 download)
+                            if self.oca_tel_state[t]["ccd_state"]["val"] in (1, 2, 3, 4):
+                                continue
+                            target = self.focus_adjust_target(t)
+                            if target is None:
+                                continue
+                            ref = self.nats_focus_reference[t]
+                            if abs(target - ref["position"]) > focus_adjast_step:
+                                await self.focus_move(t, target, "focus_adjust")
+                                await self.update_log(f'adjusting focus {ref["position"]} -> {target} '
+                                                      f'(ref: {ref["source"]} {ref["time"]}, '
+                                                      f'{float(ref["davis_temperature"]):.1f}C/{float(ref["davis_humidity"]):.0f}% -> '
+                                                      f'{float(self.telemetry_temp):.1f}C/{float(self.telemetry_humidity):.0f}%)', "TOI", t)
+                except Exception as e:     # blad jednego teleskopu nie zatrzymuje korekty pozostalych
+                    logger.warning(f'EXCEPTION Focus Adjust ({t}): {e}')
         except Exception as e:
             logger.warning(f'EXCEPTION Focus Adjust: {e}')
 
     @qs.asyncSlot()
     async def focus_update(self, event):
 
-        self.focus_value = await self.focus.aget_position()
-        self.focus_moving = await self.focus.aget_ismoving()
+        # subskrypcje position i ismoving - zapisujemy ten parametr, ktory przyszedl (wywolanie reczne: oba z serwera)
+        name = getattr(event, "name", None)
+        if name != "ismoving":
+            self.focus_value = await self.delivered(event, self.focus.aget_position)
+        if name != "position":
+            self.focus_moving = await self.delivered(event, self.focus.aget_ismoving)
         target = self.focus_adjust_target(self.active_tel)
 
         ref = self.nats_focus_reference[self.active_tel]
@@ -4288,7 +4418,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             moving = False
             error = False
             port = None
-            status = await self.m3.aget_tertiarystatus()
+            status = await self.delivered(event, self.m3.aget_tertiarystatus)
             if status != None:
                 try:
                     pos = str(status["NasmythPort"])
@@ -4351,7 +4481,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             self.WarningWindow(txt)
 
     async def filter_update(self, event):
-            pos = await self.fw.aget_position()
+            pos = await self.delivered(event, self.fw.aget_position)
             if pos is None:
                 self.mntGui.telFilter_e.setText("--")
                 theme.paint(self.mntGui.telFilter_e, bg="moving_bg")
@@ -4743,6 +4873,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 tmp_i= [item["position"]  for item in sorted(tmp, key=lambda x: x["position"])]
             except KeyError:
                 tmp_n = None
+                tmp_i = None        # bez kola filtrow - nie pozycje poprzedniego teleskopu (pierwszy: NameError przy starcie)
             self.nats_cfg[k]["filter_list_names"] = tmp_n
             self.nats_cfg[k]["filter_list"] = tmp_i
 
@@ -4998,6 +5129,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # focus
         self.focus_editing=False
         self.focus_value=0
+        self.focus_moving = None
 
         # rotator
         self.rotator_pos="unknown"

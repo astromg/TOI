@@ -557,11 +557,17 @@ class CameraCalibration(QWidget):
         font.setPointSize(10)
         self.log_t.setRowCount(len(self.parent.flat_log))
         for i, r in enumerate(self.parent.flat_log):
-            n = f'{r["n_exp"]}/{r["exp_no"]}' if "n_exp" in r and "exp_no" in r else "--"
-            date, ut = r["timestamp_utc"].split()[:2]
-            row = [date, ut.split(".")[0], r["filter"], n, f'{r["exp_time"]:.2f}', r["h_sun"], r["mean"]]
+            try:
+                n = f'{r["n_exp"]}/{r["exp_no"]}' if "n_exp" in r and "exp_no" in r else "--"
+                date, ut = (str(r.get("timestamp_utc") or "").split() + ["--", "--"])[:2]
+                exp = r.get("exp_time")
+                row = [date, ut.split(".")[0], r.get("filter", "--"), n,
+                       f'{float(exp):.2f}' if exp is not None else "--", r.get("h_sun", "--"), r.get("mean", "--")]
+            except Exception as e:      # dziwny rekord - wiersz z "--", log zamiast zamkniecia TOI (rysowanie z timera)
+                logger.warning(f'TOI flat log: bad record {r}: {e!r}')
+                row = ["--"] * 7
             for col, txt in enumerate(row):
-                self.log_t.setItem(i, col, self._flat_cell(str(txt), font))
+                self.log_t.setItem(i, col, self._flat_cell(str(txt if txt is not None else "--"), font))
         self.log_t.resizeColumnsToContents()
         self.log_t.scrollToBottom()
 

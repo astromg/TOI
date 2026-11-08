@@ -152,6 +152,13 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         if not self.parent.active_tel:
             return
         if self.parent.tel_acces[self.parent.active_tel]:
+            old = getattr(self, "tpg_window", None)
+            if old is not None and old.generating():
+                # nowe okno usunieloby stare z dzialajacym watkiem TPG - to zamyka cale TOI
+                old.show()
+                old.raise_()
+                old.activateWindow()
+                return
             self.tpg_window = TPGWindow(self)
             self.tpg_window._smart_sunset_checkbox()
         else:
@@ -466,7 +473,8 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                      txt=QTableWidgetItem(txt)
                              elif self.state_ut == 2:
                                  if "slotTime" in self.plan[i]["meta"].keys():
-                                     txt = f' {self.plan[i]["meta"]["slotTime"] / 60.:.1f} [m]'
+                                     st = self.plan[i]["meta"].get("slotTime")      # None przy zlej sekwencji
+                                     txt = f' {st / 60.:.1f} [m]' if isinstance(st, (int, float)) else " -- "
                                      txt=QTableWidgetItem(txt)
                              elif self.state_ut == 3:
 
@@ -514,8 +522,6 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                       self.plan_t.resizeColumnsToContents()
                       self.plan_t.horizontalHeader().setStretchLastSection(True)
-                      if self.parent.skyGui.skyView:
-                          self.parent.skyGui.skyView.updateRadar()
 
                       # sygnaly zawsze z powrotem (dawniej w widoku OB zostawaly zablokowane - klikniecia nie dzialaly)
                       self.plan_t.blockSignals(False)
@@ -529,6 +535,10 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
             # except Exception as e:
             #     print(f"TOI plan GUI: EXCEPTION 103 {e}")
+
+            # niebo przy kazdym odswiezeniu, takze przy pustym planie (po Del All gwiazdki zostawaly na niebie)
+            if self.parent.skyGui.skyView:
+                self.parent.skyGui.skyView.updateRadar()
 
         self.parent.telescope_switch_status["plan"] = True
 
@@ -1265,7 +1275,20 @@ class TPGWindow(BaseWindow):
         self._night_monitor_gap_default()
         self.sunset_changed()
 
+    def generating(self):
+        """TPG liczy (watek dziala)"""
+        try:
+            return self.thread is not None and self.thread.isRunning()
+        except (AttributeError, RuntimeError):      # brak watku albo juz usuniety przez Qt
+            return False
+
+    def generation_done(self):
+        self.add_p.setEnabled(True)
+        self.add_p.setText('Generate Plan')
+
     def add(self):
+        if self.generating():       # drugie klikniecie w trakcie: nowy watek nadpisalby dzialajacy (zamyka TOI)
+            return
         tel = self.parent.parent.active_tel
 
         dt = self.ut_e.text().split()
@@ -1278,7 +1301,7 @@ class TPGWindow(BaseWindow):
             fwhm = float(self.fwhm_e.text()) if self.fwhm_c.isChecked() else None
             tag = self.tag_e.text() if self.tag_c.isChecked() else None
         except Exception as e:
-            print(f'EXCEPTION TPG 2: {e}')
+            logger.warning(f'TPG: wrong wind / fwhm / tag: {e}')
 
         if self.repeat_c.isChecked():
             uobi_done = list(self.parent.parent.done_uobi)
@@ -1306,8 +1329,11 @@ class TPGWindow(BaseWindow):
 
         self.worker.done_signal.connect(self.thread.quit)
         self.worker.done_signal.connect(self.worker.deleteLater)
+        self.worker.done_signal.connect(self.generation_done)
         self.thread.finished.connect(self.thread.deleteLater)
 
+        self.add_p.setEnabled(False)
+        self.add_p.setText('Generating...')
         self.thread.start()
 
     def _flat_history(self, tel):
@@ -1338,30 +1364,27 @@ class TPGWindow(BaseWindow):
         self.info_e.append(f"<span style='color: red; font-weight: bold;'>✘ {txt}</span>")
 
     def get_plan(self, plan):
-        tmp_plan = []
+        # zwykly slot Qt (sygnal z watku TPG) - wyjatek stad zamknalby cale TOI
+        try:
+            tmp_plan = []
+            filters = self.parent.parent.nats_cfg[self.parent.parent.active_tel]["filter_list_names"]
+            # jeden walidator na caly plan (dawniej na kazda linie - ~6 ms kazdy, 70 OB = 0.5 s zamrozenia)
+            validator = ObsValidator(ObsValidator.load_schema("base_schema"), ObsValidator.load_schema("base_rules.yaml"))
+            for blok in plan:
+                result = validator.validate_txt(blok, allowed_filters=filters)
+                if not result["valid"]:
+                    # wczesniej zla linia dokladala do planu poprzednia (albo NameError na pierwszej)
+                    logger.warning(f'TPG: invalid plan line skipped: {blok}')
+                    self.show_error(f"invalid plan line skipped: {blok}")
+                    continue
+                tmp_plan.append({"ob": result["data"], "meta": {"ok": True}, "block": blok})
 
-        for blok in plan:
-            BASE_SCHEMA = ObsValidator.load_schema("base_schema")
-            COMMAND_RULES = ObsValidator.load_schema("base_rules.yaml")
-
-            validator = ObsValidator(BASE_SCHEMA, COMMAND_RULES)
-            result = validator.validate_txt(blok, allowed_filters=self.parent.parent.nats_cfg[self.parent.parent.active_tel]["filter_list_names"])
-            if result["valid"]:
-                data = {}
-                data["ob"] = result["data"]
-                data["meta"] = {"ok": True}
-                data["block"] = blok
-            else:
-                # wczesniej zla linia dokladala do planu poprzednia (albo NameError na pierwszej)
-                print(f'Error plan reading: \n {blok}')
-                self.show_error(f"invalid plan line skipped: {blok}")
-                continue
-
-            tmp_plan.append(data)
-
-        self.parent.plan[self.parent.i + 1:self.parent.i + 1] = tmp_plan
-        self.parent.parent.upload_plan()
-        self.parent.parent.update_plan(self.parent.parent.active_tel)
+            self.parent.plan[self.parent.i + 1:self.parent.i + 1] = tmp_plan
+            self.parent.parent.upload_plan()
+            self.parent.parent.update_plan(self.parent.parent.active_tel)
+        except Exception as e:
+            logger.exception(f'TPG: plan not inserted: {e}')
+            self.show_error(f"plan not inserted: {e}")
 
     def sunset_changed(self):
         dt = datetime.datetime.strptime(self.parent.parent.ut, "%Y/%m/%d %H:%M:%S")
@@ -1474,7 +1497,10 @@ class TPGWindow(BaseWindow):
         )
 
         self.wind_e = QLineEdit("")
-        self.wind_e.setText(f"{self.parent.parent.telemetry_wind_direction:.0f}")
+        try:
+            self.wind_e.setText(f"{float(self.parent.parent.telemetry_wind_direction):.0f}")
+        except (TypeError, ValueError):
+            self.wind_e.setText("")     # brak danych Davis - pole puste, okno i tak sie otwiera
 
         self.fwhm_c = QCheckBox("FWHM Limit")
         self.fwhm_c.setChecked(False)
@@ -1759,6 +1785,18 @@ class PlotWindow(BaseWindow):
         self.close_p.clicked.connect(lambda: self.close())
 
     def refresh(self):
+        # wolane tez ze zwyklych slotow okna (All night) - wyjatek nie moze zamknac TOI
+        try:
+            self._refresh()
+        except Exception as e:
+            logger.exception(f'TOI Plot Plan: {e}')
+            # bez wykresu nie ma krzywych nocy ani slotow - All night i najechanie mysza nie moga na nich polegac
+            self.night, self.night_lines, self.segments = {}, {}, []
+            self.axes.clear()
+            self.axes.text(0.5, 0.5, f"cannot draw the plan: {e}", ha="center", va="center", transform=self.axes.transAxes)
+            self.canvas.draw_idle()
+
+    def _refresh(self):
 
         self.oca = ephem.Observer()
         self.oca.date = ephem.now()
@@ -1844,8 +1882,9 @@ class PlotWindow(BaseWindow):
                             events.append((self.t, txt))
                             self.axes.axvline(x=self.t, color="deepskyblue",alpha=0.5)
 
-                        if "slotTime" in self.parent.plan[i]["meta"].keys():
-                            slotTime = float(self.parent.plan[i]["meta"]["slotTime"])
+                        slotTime = self.parent.plan[i]["meta"].get("slotTime")
+                        if isinstance(slotTime, (int, float)):      # bez czasu (zla sekwencja) - pomijany, jak w update_plan
+                            slotTime = float(slotTime)
 
                             if "sec" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
@@ -2230,11 +2269,12 @@ class EditWindow(QWidget):
             ob = ObsValidator.convert_to_obdict(ob_tmp)
             cmd = ob.get("command_name", "OBJECT")
         else:
-            ob = {"command_name", "OBJECT"}
+            ob = {"command_name": "OBJECT"}
             cmd = "OBJECT"
 
-        if cmd not in self.base_schema["properties"]["command_name"]["enum"]:
-            ob = {"command_name", "OBJECT"}
+        # komendy jak na liscie typow - z regul; schemat dopuszcza FLAT, ktory regul nie ma (rebuild_table zamykal TOI)
+        if cmd not in self.command_rules:
+            ob = {"command_name": "OBJECT"}
             cmd = "OBJECT"
 
         self.updating = True
@@ -2542,11 +2582,12 @@ class AddWindow(QWidget):
             ob = ObsValidator.convert_to_obdict(ob_tmp)
             cmd = ob.get("command_name", "OBJECT")
         else:
-            ob = {"command_name", "OBJECT"}
+            ob = {"command_name": "OBJECT"}
             cmd = "OBJECT"
 
-        if cmd not in self.base_schema["properties"]["command_name"]["enum"]:
-            ob = {"command_name", "OBJECT"}
+        # komendy jak na liscie typow - z regul; schemat dopuszcza FLAT, ktory regul nie ma (rebuild_table zamykal TOI)
+        if cmd not in self.command_rules:
+            ob = {"command_name": "OBJECT"}
             cmd = "OBJECT"
 
         self.updating = True

@@ -155,6 +155,18 @@ is a pure latency/stability win with **no behavioural change** — the displayed
 values are the same values, sourced from the message that triggered the
 callback.
 
+**Correction and status (2026-11-08, done).** The `event[0].value.v` shape above is not what
+ocaboxapi 2.12 hands a component callback: the `List[ValueResponse]` goes to ocabox's internal
+`sub_callback`, which updates the component cache and stamps it; the user callback is a `param`
+watcher whose `event.new` is the *function* of the dynamic parameter. And the follow-up `aget_*()`
+mostly did no I/O (cache younger than T1 = 0.5 s) - the cost was hidden pulls when the value was
+`None` or the callback ran late, plus a suspension point where a telescope switch could interleave.
+Done: `TOI.delivered(event, getter)` reads `getattr(event.obj, event.name)` - the value of the
+component that sent the event (Mikołaj's verdict 2026-09-03: the only sound read of the cache);
+without an event (manual calls that restore a switch) it awaits `getter()` as before. 24 callbacks
+use it; action handlers keep `aget_*`. When ocabox hands callbacks a `Value` (already so for optics),
+only `delivered` changes.
+
 ### 1.2 [DISCUSS] Collapse the three data paths into one
 
 **Options.**

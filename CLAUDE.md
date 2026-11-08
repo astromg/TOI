@@ -74,6 +74,11 @@ conflict between Qt and Python's `ABC`. This pattern repeats in `toi.py` (`TOI`)
 - Every subclass must implement `on_start_app()` (abstract) — this is where a window kicks off its
   background tasks and does async initialization after construction (Qt widgets can't have async `__init__`).
 
+In an ocabox subscription callback read the delivered value with `await self.delivered(event, self.<comp>.aget_<x>)`
+(`getattr(event.obj, event.name)`; `event.new` is the parameter's function, not the value); in action handlers use
+`aget_*` - the bare sync properties (`self.mount.slewing`) are a bad contract outside a callback (vault: "ocaboxapi Sync
+Properties").
+
 **What kills the app (no `sys.excepthook` is installed yet):** an exception escaping a *plain* Qt slot or a Qt
 virtual override (`paintEvent`, `QThread`/worker `run`, …) makes PyQt6 call qFatal → `Aborted (core dumped)`.
 In an `@qs.asyncSlot` coroutine or a background task it only prints a traceback. A NATS reader whose
@@ -100,7 +105,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
 `TOI` (in `toi.py`) is the top-level widget that owns one instance of each major window/controller:
 - `mnt_gui.py` (`MntGui`) — mount control (slew, track, park), uses `BaseAsyncWidget` subscriptions.
 - `obs_gui.py` (`ObsGui`, `CzuwakWindow`) — main observation window. Its operator message box (`msg_e`) is
-  filled only from the `tic.status.<tel>.toi.log` subscription, so operator-visible messages go through
+  filled only from the `journal.toi.<tel>.self.log` subscription, so operator-visible messages go through
   `TOI.update_log(...)` (the old `TOI.msg()` was a no-op and has been removed). `CzuwakWindow` ("watcher") is
   still constructed as `TOI.czuwakGui`, but all code that used it is commented out.
 - `instrument_gui.py` (`InstrumentGui`) — instrument control, one tab per science instrument of the telescope
@@ -129,7 +134,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   left, changelog `telescope_<tel>_changelog` on the right, in a splitter), Tasks (shown first; left: the daily checklist from `checklist.yaml`, items in the order of the
   day, `scope: telescope` items ticked per telescope (key `id@tel`) and shown for the active telescope (refreshed in
   `AuxWindow.updateUI`), the others once for the observatory; only who has control ticks (`TOI.checklist_allowed`: telescope items
-  need control of the active telescope, observatory items of any; otherwise the usual "U don't have control" warning); ticks shared over NATS `tic.status.ocm.checklist` and reset with the observers at `toi.observers_reset_ut`
+  need control of the active telescope, observatory items of any; otherwise the usual "U don't have control" warning); ticks shared over NATS `status.toi.oca.self.checklist` and reset with the observers at `toi.observers_reset_ut`
   — `TOI.set_checklist_item` / `checklist_done`; right: observation requests of the active telescope from ocm-plans `requests.json` (`toi.requests_json`, NFS,
   read in a thread every 2 min if its mtime changed; open ones, "closed (30 d)" adds the rest; double click → the GitHub
   issue, "Data (OCADB)" → `ocadb_url`; TOI writes nothing back — status is changed on the GitHub board)), Optical path (`SchematicView`, hidden when the
@@ -164,18 +169,25 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   window's camera tabs) and its filters from `TOI.instrument_filters` (today the telescope's wheel).
 - Focus auto-adjust (in `toi.py`) — every focuser move made by TOI must go through
   `focus_move(tel, pos, source)` (not a bare `aput_move`), because it also publishes the adjust baseline to
-  `tic.status.<tel>.toi.focus_reference`. Adjust target = reference position + Δ`focus_model` since the
+  `status.toi.<tel>.focuser.focus_reference`. Adjust target = reference position + Δ`focus_model` since the
   reference was set. See README "FOCUS ADJUST".
 
 - Observers of the night (2026-10-27): `observers.yaml` (repo root) lists the people; `obs_gui.ObserversWindow`
   (non-modal; a checkable table with a search field, pre-checked with the last entry, i.e. the previous night,
   checked names sorted to the top; names are ASCII only — they are meant for the FITS `OBSERVER` keyword:
   `toi_lib.is_fits_ascii`/`fits_ascii`, a warning at start for observers.yaml, "Other" refused with the ASCII suggestion)
-  publishes the chosen ones on `tic.status.ocm.observers` (`{"observers", "time" ISO UTC, "by"}`, kept by
-  the `tic_status` stream), shown on the button between PING and ⚙. The window pops up by itself when the last entry
+  publishes the chosen ones on `status.toi.oca.self.observers` (`{"observers", "time" ISO UTC, "by"}`, kept by
+  the `status` stream), shown on the button between PING and ⚙. The window pops up by itself when the last entry
   is older than the daily reset at `toi.observers_reset_ut` UT (default 15; `TOI.observers_valid`, `TOI.observers_check_loop`, "Later" snoozes 30 min) and closes on every station once someone
   saves. One list for the whole observatory. "Only this TOI" keeps the choice in the session only
   (`TOI.observers_local`, nothing published; NATS entries then do not override it) — for tests from elsewhere.
+
+NATS subjects TOI publishes (and reads) are all in `toi_subjects.py`, in the new grammar
+`<class>.<realm>.<scope>.<element>.<item>` (oca_nats_config#2): `subject(name, tel)`, `toi_publisher(name, tel)` (also
+publishes the old `tic.status.<tel>.toi.*` name for `ob` / `status` / `plan`, which oca_monitor and pms/Halina still read)
+and `history_reader(name, tel, start=None)` (reads the old subject first, then the new one - no gap after the switch;
+`HISTORY_FROM_OLD` can go after a few days). Messages (`tic.status.ocm.messages`) are not moved yet - later, with the
+overwatches.
 
 Shared, non-GUI helpers live in `toi_lib.py` (OB/sequence parsing, coordinate/time conversions, almanac,
 icon helpers) and are imported with `from toi_lib import *` throughout — check there before adding a

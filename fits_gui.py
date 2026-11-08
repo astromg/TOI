@@ -26,6 +26,27 @@ FITS_DISPLAY_DEFAULT = "full"
 DISPLAY_TARGET = 2048
 
 
+# mapy kolorow obrazu (menu ⚙ "FITS colormap", QSettings): wielobarwne z rownomiernie rosnaca jasnoscia jak viridis -
+# gradienty tla i slabe struktury widac wyrazniej niz na dwubarwnych; overlay - kolor nakladek (pointing, obiekty
+# OFP), czytelny na danej mapie
+FITS_CMAPS = {
+    "viridis": ("Viridis (default)", "black"),
+    "cividis": ("Cividis (colour-blind safe)", "black"),
+    "plasma": ("Plasma", "black"),
+    "inferno": ("Inferno", "white"),
+    "magma": ("Magma", "white"),
+    "cubehelix": ("Cubehelix", "white"),
+    "turbo": ("Turbo (strong contrast)", "black"),
+    "gray": ("Gray", "red"),
+}
+FITS_CMAP_DEFAULT = "viridis"
+
+
+def fits_cmap():
+    name = str(QtCore.QSettings("OCA", "TOI").value("fits_cmap", FITS_CMAP_DEFAULT))
+    return name if name in FITS_CMAPS else FITS_CMAP_DEFAULT
+
+
 def fits_display_mode():
     mode = str(QtCore.QSettings("OCA", "TOI").value("fits_display", FITS_DISPLAY_DEFAULT))
     return mode if mode in FITS_DISPLAY_MODES else FITS_DISPLAY_DEFAULT
@@ -94,6 +115,12 @@ class FitsWindow(BaseWindow):
         if getattr(self, "_dirty", False):     # mkUI pokazuje okno, zanim __init__ ustawi _dirty
             self.redraw()
 
+    def set_cmap(self, name):
+        QtCore.QSettings("OCA", "TOI").setValue("fits_cmap", name)
+        if self.image is not None and numpy.ndim(self.image) == 2:
+            self.plot_image()
+            self.update_fits_data()     # nakladki w kolorze dla nowej mapy
+
     def set_display_mode(self, mode):
         QtCore.QSettings("OCA", "TOI").setValue("fits_display", mode)
         if self.image is not None and numpy.ndim(self.image) == 2:
@@ -138,7 +165,7 @@ class FitsWindow(BaseWindow):
                 display, f = self.image, 1
             h, w = numpy.shape(display)[0] * f, numpy.shape(display)[1] * f
             # extent w pikselach pelnego obrazu - nakladki (OFP, FFS) trafiaja w to samo miejsce przy binningu
-            self.axes.imshow(display, vmin=vmin, vmax=vmax, interpolation='none', resample=False,
+            self.axes.imshow(display, vmin=vmin, vmax=vmax, interpolation='none', resample=False, cmap=fits_cmap(),
                              extent=(-0.5, w - 0.5, h - 0.5, -0.5))
             # granice osi = obraz; nakladki (obiekty, pointing, gwiazdy) nie moga ich rozszerzyc - punkt z WCS
             # w milionach pikseli (snap bez rozwiazania) zmniejszal obraz do niewidocznej kropki
@@ -323,9 +350,10 @@ class FitsWindow(BaseWindow):
                         if "saturation_max" in self.parent.fits_ofp_data['raw']['objects'][k].keys():
                             txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
                 if self.pointing_x and self.in_image(self.pointing_x, self.pointing_y):
-                    self._overlays += self.axes.plot(self.pointing_x,self.pointing_y,"k+",markersize=20)
+                    overlay = FITS_CMAPS[fits_cmap()][1]
+                    self._overlays += self.axes.plot(self.pointing_x, self.pointing_y, "+", color=overlay, markersize=20)
                 if len(self.ob_x)>0:
-                    self.objects = self.axes.plot(self.ob_x, self.ob_y, color="black", marker="o", markersize="10", markerfacecolor="none",linestyle="")
+                    self.objects = self.axes.plot(self.ob_x, self.ob_y, color=FITS_CMAPS[fits_cmap()][1], marker="o", markersize="10", markerfacecolor="none",linestyle="")
                     self._overlays += self.objects
 
             except LookupError as e:

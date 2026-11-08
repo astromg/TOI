@@ -16,7 +16,7 @@ from claude_report import write_claude_report
 from toi_lib import *
 from toi_theme import theme, TITLES
 from plan_gui import PLAN_LOG_LINES_CHOICES, plan_log_lines, set_plan_log_lines
-from fits_gui import FITS_DISPLAY_MODES, fits_display_mode
+from fits_gui import FITS_DISPLAY_MODES, fits_display_mode, FITS_CMAPS, fits_cmap
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +128,13 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             action.setCheckable(True)
             action.setChecked(mode == fits_display_mode())
             group_fits.addAction(action)
+        cmap_menu = menu.addMenu("FITS colormap")      # mapa kolorow obrazu FITS
+        group_cmap = QtGui.QActionGroup(cmap_menu)
+        for name, (title, _) in FITS_CMAPS.items():
+            action = cmap_menu.addAction(title, lambda _=False, name=name: self.parent.fitsGui.set_cmap(name))
+            action.setCheckable(True)
+            action.setChecked(name == fits_cmap())
+            group_cmap.addAction(action)
         themes = menu.addMenu("Theme")
         group = QtGui.QActionGroup(themes)
         for name in TITLES:         # kolejnosc w menu: jasne, potem ciemne
