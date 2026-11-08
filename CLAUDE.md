@@ -125,7 +125,12 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   and validating OB definitions (see `Plans/*.txt` for the plan file format).
 - `sky_gui.py` (`SkyGui`, `SkyView`) — sky-position radar/visualization of telescope pointing.
 - `fits_gui.py` (`FitsWindow`, `FFS_Worker`) — FITS viewer; runs `pyaraucaria.ffs` star-detection stats in a
-  separate `QThread` (`FFS_Worker`) so image analysis doesn't block the Qt main thread.
+  separate `QThread` (`FFS_Worker`) so image analysis doesn't block the Qt main thread. The worker passes a
+  **transposed** image, so FFS x/y are swapped when drawing (stars: `x, y = zip(*coo)`; lines: x = `y0/y1`).
+  `FFS(image, saturation=..., autobin=True)` (2k -> bin 2, 4k -> bin 3; falls back to `FFS(image)` with pyaraucaria
+  master, which has no `autobin`). Saturation per telescope in `calc_ffs` (jk15 180000, others 45000). Satellite trails
+  from `ffs.lines` (not `spike`) are drawn red with a WARNING in the stats panel, diffraction spikes thin; config
+  `toi.show_trails` (default on). The panel shows FWHM, ellipticity, shape and "stars used" (cpe/ci were dropped).
 - `aux_gui.py` (`AuxWindow`) — one window with tabs, in order: Telescope (the active telescope's
   OCA manual pages fetched over HTTP from the intranet, `toi.oca_manual_url`: description `telescope_<tel>` on the
   left, changelog `telescope_<tel>_changelog` on the right, in a splitter), Tasks (shown first; left: the daily checklist from `checklist.yaml`, items in the order of the

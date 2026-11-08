@@ -371,8 +371,7 @@ class FitsWindow(BaseWindow):
 
                 ell = self.ffs.stats["frame"]["ellipticity"]
                 shape = self.ffs.stats["frame"]["shape"]
-                cpe = self.ffs.stats["frame"]["cpe"]
-                ci = self.ffs.stats["frame"]["ci"]
+                used = self.ffs.stats["frame"].get("used_stars")
 
                 frame_min = self.ffs.stats["frame"]["min"]
                 frame_max = self.ffs.stats["frame"]["max"]
@@ -389,6 +388,26 @@ class FitsWindow(BaseWindow):
                     txt = txt + f'<span style="color:{red};">WARNING</span>: bkg amplitude: <span style="color:{red};"><b>{bkg_ampl:.0f}</b></span> <br>'
                 if frame_median and abs(frame_ampl/frame_median) > 0.1:
                     txt = txt + f'<span style="color:{red};">WARNING</span>: frame gradient: <span style="color:{red};"><b>{frame_ampl:.0f}</b></span><br>'
+
+                # linie z FFS (pyaraucaria mgorski_dev; z mastera brak): slady (satelity) na czerwono
+                # z ostrzezeniem, promienie dyfrakcyjne nasyconych gwiazd cienko, bez ostrzezenia
+                lines = getattr(self.ffs, "lines", None)
+                n_trails = n_spikes = 0
+                if lines is not None and len(lines):
+                    spike = numpy.asarray(lines["spike"], dtype=bool) if "spike" in lines.colnames \
+                        else numpy.zeros(len(lines), dtype=bool)
+                    n_trails, n_spikes = int((~spike).sum()), int(spike.sum())
+                    if self.parent.local_cfg["toi"].get("show_trails", True):
+                        overlay = FITS_CMAPS[fits_cmap()][1]
+                        for row, is_spike in zip(lines, spike):
+                            # FFS liczy na obrazie transponowanym (FFS_Worker): x linii = wiersz obrazu
+                            xs, ys = [row["y0"], row["y1"]], [row["x0"], row["x1"]]
+                            if is_spike:
+                                self._overlays += self.axes.plot(xs, ys, color=overlay, lw=0.6, alpha=0.5)
+                            else:
+                                self._overlays += self.axes.plot(xs, ys, color="red", lw=1.0, alpha=0.8)
+                if n_trails:
+                    txt = txt + f'<span style="color:{red};">WARNING</span>: satellite trail(s): <span style="color:{red};"><b>{n_trails}</b></span><br>'
 
                 if fwhm_arcsec:
                     if fwhm_arcsec > 2.3:
@@ -413,8 +432,13 @@ class FitsWindow(BaseWindow):
                     txt = txt + f'ellipse:  <b>{num(ell)}</b> <br>'
 
                 txt = txt + f'shape:  <b>{num(shape)}</b> <br>'
-                txt = txt + f'cpe:  <b>{num(cpe)}</b> <br>'
-                txt = txt + f'ci:  <b>{num(ci)}</b> <br>'
+                if used is not None:        # z ilu gwiazd jest FWHM (worker mierzy najwyzej 50)
+                    if used < 5:
+                        txt = txt + f'stars used:  <span style="color:{red};"><b>{used}</b></span>/50 <br>'
+                    else:
+                        txt = txt + f'stars used:  <b>{used}</b>/50 <br>'
+                if n_spikes:
+                    txt = txt + f'diffraction spikes:  <i>{n_spikes}</i> <br>'
                 txt = txt + "<br>"
 
                 if len(self.coo)>0:
@@ -514,8 +538,13 @@ class FFS_Worker(QtCore.QObject):
     def run(self):
         # w watku QThread: wyjatek stad zamknalby cale TOI
         try:
-            self.ffs = FFS(self.image)
-            self.ffs.saturation = self.saturation
+            # autobin: obraz zbinowany do tla, linii i detekcji (2k -> bin 2, 4k -> bin 3), gwiazdy
+            # mierzone na oryginale; pyaraucaria z mastera (<= 2.14.5) nie zna autobin - wtedy bez binowania
+            try:
+                self.ffs = FFS(self.image, saturation=self.saturation, autobin=True)
+            except TypeError:
+                self.ffs = FFS(self.image)
+            self.ffs.saturation = self.saturation       # master: saturacja tylko jako atrybut
             self.ffs.calc_frame_fwhm(threshold=10, fwhm=5, box=15, N_stars=50, clip=4)
             self.ffs.sky_gradient(n_segments=7)
         except Exception as e:
