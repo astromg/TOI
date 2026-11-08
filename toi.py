@@ -1878,6 +1878,18 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             await asyncio.sleep(1)
 
+    async def read_for_action(self, getter, what):
+        """stan urzadzenia dla decyzji przycisku: zapytanie (aget_*), nie pamiec ocaboxa (werdykt Mikolaja: wlasciwosci
+        synchroniczne poza callbackiem to odczyt niesprawdzonej historii). Blad / brak odpowiedzi -> komunikat i
+        LookupError (przycisk nic nie robi)"""
+        try:
+            return await getter()
+        except Exception as e:
+            logger.warning(f'TOI: cannot read {what}: {e!r}')
+            await self.update_log(f'cannot read {what} - nothing done', "WARNING", self.active_tel)
+            self.WarningWindow(f"WARNING: cannot read {what} - nothing done")
+            raise LookupError(what)
+
     @staticmethod
     async def delivered(event, getter):
         """Wartosc w callbacku subskrypcji ocabox: ta, ktora subskrypcja wlasnie dostarczyla - z komponentu i parametru
@@ -2686,13 +2698,23 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                                     await self.nats_toi_switch_synchro[tel].publish(
                                         data=self.toi_switch_status[tel], timeout=10)
 
-                            if self.ob[tel]["ob"]["command_name"] == "OBJECT" and "block" in self.ob[tel].keys():
+                            # SNAP w planie jak OBJECT (planrunner go zna - okno Instrument tak go uruchamia); dawniej bez
+                            # galezi: OB zostawal "wykonywany", a plan stal po cichu
+                            if self.ob[tel]["ob"]["command_name"] in ("OBJECT", "SNAP") and "block" in self.ob[tel].keys():
                                 run_nightplan = True
                                 program_name = "plan"
                                 program = self.ob[tel]["block"]
                                 #DUPA
                                 if "comment" in program:
                                     program = program.split("comment")[0]
+
+                            if not run_nightplan and self.ob[tel]["ob"]["command_name"] not in ("STOP", "BELL", "WAIT"):
+                                # komenda, ktorej plan nie umie uruchomic - stop z komunikatem zamiast cichego stania
+                                cmd = self.ob[tel]["ob"]["command_name"]
+                                self.ob[tel]["meta"]["continue_plan"] = False
+                                self.current_i[tel] = -1
+                                self.update_plan(tel)
+                                await self.update_log(f'OB {cmd} not supported in a plan - plan stopped', "WARNING", tel)
 
                             if run_nightplan:
                                 # if "uobi=" not in program:
@@ -3491,7 +3513,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def covers_openOrClose(self):
         await self.update_log(f'mirror covers ON/OFF', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
-           self.cover_status = self.cover.coverstate
+           try:
+               self.cover_status = await self.read_for_action(self.cover.aget_coverstate, "mirror covers state")
+           except LookupError:
+               return
            if self.cover_status is None:
                self.WarningWindow("WARNING: Mirror covers state unknown (no fresh data) - refusing to act")
                return
@@ -3534,7 +3559,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def park_mount(self):
         await self.update_log(f'mount PARK', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
-            if self.mount.motorstatus == "true":
+            try:
+                motors = await self.read_for_action(self.mount.aget_motorstatus, "mount motor status")
+            except LookupError:
+                return
+            if motors == "true":
                 #self.mntGui.mntStat_e.setText(txt)
                 theme.paint(self.mntGui.mntStat_e, fg="bad_fg", bg="field_bg", extra=self.mntGui.STAT_STYLE)
                 await self.dome.aput_dome_follower_off()
@@ -3564,7 +3593,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def mount_slew(self):
         await self.update_log(f'mount SLEW', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
-            if self.mount.motorstatus == "true":
+            try:
+                motors = await self.read_for_action(self.mount.aget_motorstatus, "mount motor status")
+            except LookupError:
+                return
+            if motors == "true":
                 self.req_ra=""
                 self.req_dec=""
                 self.req_epoch=""
@@ -3837,15 +3870,21 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def dome_openOrClose(self):
         await self.update_log(f'dome OPEN/CLOSE', "OPERATOR", self.active_tel)
         if self.tel_acces[self.active_tel]:
-           if self.cover.coverstate == 1:
-               if self.dome_shutterstatus==0:
+           try:
+               covers = await self.read_for_action(self.cover.aget_coverstate, "mirror covers state")
+               shutter = await self.read_for_action(self.dome.aget_shutterstatus, "dome shutter state")
+           except LookupError:
+               return
+           if covers == 1:
+               if shutter==0:
                   await self.dome.aput_closeshutter()
                   await self.update_log(f'closing dome', "TOI RESPONDER", self.active_tel)
-               elif self.dome_shutterstatus==1:
+               elif shutter==1:
                   await self.dome.aput_openshutter()
                   await self.update_log(f'opening dome', "TOI RESPONDER", self.active_tel)
-               else:
-                   pass
+               else:       # w ruchu (2, 3) albo nieznany - dawniej bez slowa
+                   await self.update_log('dome shutter is moving or its state is unknown - nothing done', "WARNING",
+                                         self.active_tel)
            else:
                await self.domeShutterStatus_update(False)
                txt = "WARNING: Mirror covers are open. Close MIRROR for dome shutter operations"
@@ -4487,9 +4526,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 theme.paint(self.mntGui.telFilter_e, bg="moving_bg")
                 return
             pos = int(pos)
-            self.curent_filter=self.filter_list[pos]
-            if pos == -1: filtr = "--"
-            else: filtr = self.filter_list[pos]
+            if 0 <= pos < len(self.filter_list or []):
+                filtr = self.filter_list[pos]
+                self.curent_filter = filtr        # tylko znana pozycja; w ruchu (-1) zostaje poprzedni filtr
+            else:
+                filtr = "--" if pos == -1 else f"#{pos}"     # w ruchu / spoza konfiguracji (dawniej lista[-1] / IndexError)
             self.mntGui.telFilter_e.setText(filtr)
             self.filter = filtr
 
@@ -4828,7 +4869,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             try:
                 tmp = nats_cfg[k]["observatory"]["style"]["color"]
-            except KeyError:
+            except (KeyError, TypeError):      # brak wpisu albo null w konfiguracji TIC
                 tmp = None
             self.nats_cfg[k]["color"] = tmp
 
@@ -4844,26 +4885,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["mount"]["min_alt"]
-            except KeyError:
+            except (KeyError, TypeError):      # brak wpisu albo null w konfiguracji TIC
                 tmp = None
             self.nats_cfg[k]["min_alt"] = tmp
 
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["mount"]["max_alt"]
-            except KeyError:
+            except (KeyError, TypeError):      # brak wpisu albo null w konfiguracji TIC
                 tmp = None
             self.nats_cfg[k]["max_alt"] = tmp
 
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["mount"]["obs_min_alt"]
-            except KeyError:
+            except (KeyError, TypeError):      # brak wpisu albo null w konfiguracji TIC
                 tmp = None
             self.nats_cfg[k]["low_alt"] = tmp
 
 
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["camera"]["pixel_scale"]
-            except KeyError:
+            except (KeyError, TypeError):      # brak wpisu albo null w konfiguracji TIC
                 tmp = None
             self.nats_cfg[k]["pixel_scale"] = tmp
 
@@ -4871,7 +4912,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 tmp = nats_cfg[k]["observatory"]["components"]["filterwheel"]["filters"]
                 tmp_n = [item["name"] for item in sorted(tmp, key=lambda x: x["position"])]
                 tmp_i= [item["position"]  for item in sorted(tmp, key=lambda x: x["position"])]
-            except KeyError:
+            except (KeyError, TypeError):      # brak wpisu albo null w konfiguracji TIC
                 tmp_n = None
                 tmp_i = None        # bez kola filtrow - nie pozycje poprzedniego teleskopu (pierwszy: NameError przy starcie)
             self.nats_cfg[k]["filter_list_names"] = tmp_n
@@ -4879,19 +4920,19 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["focuser"]["default_position"]
-            except KeyError:
+            except (KeyError, TypeError):      # brak wpisu albo null w konfiguracji TIC
                 tmp = None
             self.nats_cfg[k]["focus_def_pos"] = tmp
 
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["focuser"]["default_step"]
-            except KeyError:
+            except (KeyError, TypeError):      # brak wpisu albo null w konfiguracji TIC
                 tmp = None
             self.nats_cfg[k]["focus_def_step"] = tmp
 
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["tertiary"]["positions"]
-            except KeyError:
+            except (KeyError, TypeError):      # brak wpisu albo null w konfiguracji TIC
                 tmp = None
 
             self.nats_cfg[k]["tertiary_dict"] = tmp

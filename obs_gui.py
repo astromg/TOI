@@ -698,31 +698,6 @@ class MainForm(QWidget):
         self._cells.clear()
         self.update_table()
 
-    def msg(self, txt, color):
-        c = QtCore.Qt.black
-        if "yellow" in color: c = QtCore.Qt.darkYellow
-        if "green" in color: c = QtCore.Qt.darkGreen
-        if "red" in color: c = QtCore.Qt.darkRed
-        self.msg_e.setTextColor(c)
-        ut = str(self.parent.ut).split()[1].split(":")[0] + ":" + str(self.parent.ut).split()[1].split(":")[1]
-        txt = ut + " " + txt
-        if txt.split()[1] != "TELEMETRY:":
-            self.msg_e.append(txt)
-
-        # LOG dzialan
-        if os.path.exists(self.parent.msg_log_file):
-            pass
-        else:
-            with open(self.parent.msg_log_file, "w") as log_file:
-                log_file.write("")
-        with open(self.parent.msg_log_file, "r") as log_file:
-            tmp = log_file.read().splitlines()
-            log = "\n".join(tmp[-1 * int(self.parent.msg_log_lines):])
-
-        with open(self.parent.msg_log_file, "w") as log_file:
-            log = log + "\n" + txt + "\n"
-            log_file.write(log)
-
     def report(self):
         self.report_window = ReportWindow(self.parent)
         self.report_window.show()

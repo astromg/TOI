@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import logging
 
 from collections import OrderedDict
 import datetime as _datetime   # z podkreslnikiem, zeby "from toi_lib import *" go nie eksportowal
@@ -90,15 +91,17 @@ def seq_parser(seq):
             r=r[:-1]
             return r
         except Exception as e:
-            print(f"seq_parser: {e}")
+            logging.getLogger(__name__).warning(f"seq_parser: wrong sequence {seq}: {e}")
     else:
         return seq
 
 def seq_verification(seq,filter_list):
     ok = True
     err = ""
-    seq = seq_parser(seq)
-    for x_seq in seq.split(","):
+    parsed = seq_parser(seq)
+    if parsed is None:          # zly zapis powtorzen, np. "ax(1/V/30)" - komunikat zamiast AttributeError
+        return False, f"wrong sequence format {seq}"
+    for x_seq in parsed.split(","):
         try:
             n,f,t = x_seq.split("/")
             try:
