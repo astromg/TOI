@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import List, Coroutine, Dict
 from PyQtX.QtGui import QStandardItem
 from obcom.comunication.base_client_api import BaseClientAPI
-from obcom.comunication.comunication_error import CommunicationRuntimeError, CommunicationTimeoutError
 from obcom.comunication.cycle_query import BaseCycleQuery
 from qasync import QEventLoop
 from util_functions.asyncio_util_functions import wait_for_psce
@@ -46,114 +45,6 @@ class BaseAsyncWidget(ABC):
         group = BaseAsyncWidget.DEFAULT_GROUP_NAME if not group else group
         bt = self.BackgroundTask(name=name, coro=coro, group=group)
         self._background_tasks.setdefault(group, []).append(bt)
-
-    def add_subscription(self, address: str, time_of_data_tolerance=None, delay=None,
-                         name='Unnamed subscription', callback_method: list = None, async_callback_method: list = None):
-        callback_method = [] if callback_method is None else callback_method
-        async_callback_method = [] if async_callback_method is None else async_callback_method
-        if not isinstance(callback_method, list) or not isinstance(async_callback_method, list):
-            logger.error("as a callback, either a list of methods or None should be given.")
-            raise RuntimeError
-        if callback_method and async_callback_method:
-            logger.error("No callback method was specified. You cannot start a subscription that does not affect "
-                         "the operation of the application.")
-            raise RuntimeError
-
-        async def start_subscription():
-            cq = await self.client_api.subscribe(address=address,
-                                                 time_of_data_tolerance=time_of_data_tolerance,
-                                                 delay=delay,
-                                                 name=name,
-                                                 max_missed_msg=-1)
-            for m in callback_method:
-                cq.add_callback_method(method=m)
-            for m in async_callback_method:
-                cq.add_callback_async_method(method=m)
-            self._subscriptions.append(cq)
-            cq.start()
-
-        self.add_background_task(start_subscription())
-
-    def add_subscription_client_side(self, address: str, time_of_data_tolerance=None, delay=None,
-                                     name='Unnamed subscription client side', callback_method: list = None,
-                                     async_callback_method: list = None):
-        """Warning! Is a special client-side subscription."""
-        callback_method = [] if callback_method is None else callback_method
-        async_callback_method = [] if async_callback_method is None else async_callback_method
-        if not isinstance(callback_method, list) or not isinstance(async_callback_method, list):
-            logger.error("as a callback, either a list of methods or None should be given.")
-            raise RuntimeError
-        if callback_method and async_callback_method:
-            logger.error("No callback method was specified. You cannot start a subscription that does not affect "
-                         "the operation of the application.")
-            raise RuntimeError
-
-        async def start_subscription():
-            cq = await self.client_api.send_cycle_multipart(address=address,
-                                                            time_of_data_tolerance=time_of_data_tolerance,
-                                                            delay=delay,
-                                                            name=name,
-                                                            max_missed_msg=-1,
-                                                            log_missed_msg=True)  # this creates 'cycle query' object
-            for m in callback_method:
-                cq.add_callback_method(method=m)
-            for m in async_callback_method:
-                cq.add_callback_async_method(method=m)
-            self._subscriptions.append(cq)
-            cq.start()
-
-        self.add_background_task(start_subscription())
-
-    @staticmethod
-    def update_field_callback(field, name="Default callback"):
-        async def callback(result):
-            if result and result[0].value:
-                if result[0].value.v is None:
-                    field.setText("--")  # rich None: no fresh data (Staleness Contract)
-                    return
-                # logger.info(f"updater named {name} change field value")
-                tex_to_put = result[0].value.v
-                field.setText(f"{tex_to_put}")  # update field in GUI
-
-        return callback
-
-    async def get_request(self, address: str, time_of_data: float or None = None,
-                          time_of_data_tolerance: float or None = None,
-                          parameters_dict: dict = None, action: str = ""):
-        try:
-            response = await self.client_api.get_async(address=address,
-                                                       time_of_data=time_of_data,
-                                                       time_of_data_tolerance=time_of_data_tolerance,
-                                                       parameters_dict=parameters_dict)
-            if response and response.value:
-                return response.value.v
-        except CommunicationRuntimeError:
-            logger.warning(f"Can not {action if action else f'call {address}'}: CommunicationRuntimeError")
-        except CommunicationTimeoutError:
-            logger.warning(f"Can not {action if action else f'call {address}'}: CommunicationTimeoutError")
-        except Exception as e:
-            logger.error(f"Unexpected error when {action if action else f'call {address}'}: {e}")
-        return None
-
-    async def put_base_request(self, address: str, time_of_data: float or None = None,
-                               time_of_data_tolerance: float or None = None,
-                               parameters_dict: dict = None, no_wait=True, action: str = ""):
-        try:
-            response = await self.client_api.put_async(address=address, time_of_data_tolerance=time_of_data_tolerance,
-                                                       time_of_data=time_of_data, parameters_dict=parameters_dict,
-                                                       no_wait=no_wait)
-            if response and response.value and response.value.v is True:
-                logger.debug(f"Successfully {action if action else f'call {address}'}")
-                return True
-            else:
-                logger.warning(f"Can not {action if action else f'call {address}'}: Normal")
-        except CommunicationRuntimeError:
-            logger.warning(f"Can not {action if action else f'call {address}'}: CommunicationRuntimeError")
-        except CommunicationTimeoutError:
-            logger.warning(f"Can not {action if action else f'call {address}'}: CommunicationTimeoutError")
-        except Exception as e:
-            logger.error(f"Unexpected error when {action if action else f'call {address}'}: {e}")
-        return False
 
     async def run_background_tasks(self, group: str = ""):
         await self._run_all_background_task(group=group)

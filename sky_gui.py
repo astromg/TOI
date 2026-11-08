@@ -60,10 +60,6 @@ class SkyGui(BaseWindow):
             self.user_e = QLineEdit("")
             self.user_e.setFixedWidth(180)
             self.user_e.setAlignment(Qt.AlignCenter)
-            #font = QFont()
-            #font.setBold(True)
-            #self.tel_e.setFont(font)
-            #self.tel_e.setStyleSheet(f"background-color: {self.parent.nats_cfg[self.parent.active_tel]['color']};")
             self.layout.addWidget(self.user_e, w, 0, 1, 1)
 
             self.tel_e = QLineEdit(self.parent.active_tel)
@@ -150,7 +146,6 @@ class SkyView(QWidget):
 
         self.dome_az = 0
 
-        # self.updateDome()
 
     @staticmethod
     def c(key):
@@ -454,11 +449,9 @@ class SkyView(QWidget):
             self.redraw()
 
     def mkUI(self):
-        # self.setWindowTitle('FC')
         self.fig = Figure((1.0, 1.0), linewidth=-1, dpi=100)
         self.canvas = FigureCanvas(self.fig)
         self.axes = self.fig.add_subplot(111, polar=True)
-        # self.axes.set_theta_zero_location('N')
 
         hbox1 = QHBoxLayout()
         hbox1.addWidget(self.canvas)
@@ -467,16 +460,10 @@ class SkyView(QWidget):
         self.vbox.addLayout(hbox1)
         self.setLayout(self.vbox)
 
-        # self.canvas.mpl_connect('button_press_event', self.zaznaczenie)
 
         self.axes.clear()
         self.resize(400, 500)
         self.canvas.draw_idle()
-        # self.axes.grid(True)
-        # self.axes.set_xticks([0,2*3.14*90/360,2*3.14*180/360,2*3.14*270/360])
-        # self.axes.set_yticks([20,40,60,80])
-        # self.axes.bar(0,self.rmax-90, width=2*math.pi,bottom=90,color='k',alpha=0.05)
-        # self.axes.set_rmax(self.rmax)
 
     #  ============ Klikanie w punkciki ==========================
 
@@ -505,9 +492,8 @@ class SkyView(QWidget):
 
 
             elif event.button == 3:
-                if True:
-                    self.parent.mntGui.setAltAz_r.setChecked(True)
-                    self.parent.mntGui.nextAlt_e.setText(f"{alt:.3f}")
-                    self.parent.mntGui.nextAz_e.setText(f"{az:.3f}")
+                self.parent.mntGui.setAltAz_r.setChecked(True)
+                self.parent.mntGui.nextAlt_e.setText(f"{alt:.3f}")
+                self.parent.mntGui.nextAz_e.setText(f"{az:.3f}")
 
             self.updateRadar()

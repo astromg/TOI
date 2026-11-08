@@ -1,5 +1,31 @@
 <h4>Whats New?</h4>
 
+--- 07.11.2026 (TOI 1.1.0) --- <br>
+NATS: TOI publishes and reads its subjects under the new names (journal.toi.&lt;tel&gt;.self.log, status.toi.&lt;tel&gt;.self.ob,
+...). Current OB, switches and plan are also sent under the old names for oca_monitor and Halina; history (log, flats,
+focus, observers, checklist) is read from the old subject first, so nothing is lost. All TOI stations must run this
+version - an older TOI no longer sees the log and switches of the new one.
+<br>
+Themes: ⚙ menu → Theme, for all panels (day, night, dark and several others) with matching icons and FITS colours;
+green = OK, red = not OK, yellow = caution, blue = change. Status hearts blink lighter instead of jumping.
+Aux: Pictures tab shows the picture of the current theme.
+<br>
+Aux Tasks: daily checklist (checklist.yaml; telescope items ticked per telescope, shared between stations, reset with
+the observers) and observation requests of the active telescope from ocm-plans (double click opens the GitHub issue).
+<br>
+Clouds: cloud icon in the telescope table from allsky_overwatch (orange in a yellow field, red in a red one); the
+Clouds field shows "twilight" when clouds are not measured. Weather level: hold time of weather restrictions shown
+on the conditions fields.
+<br>
+Stability: a bad message on NATS no longer stops its reader; plan buttons, timers and focus adjust catch errors
+instead of closing TOI; dome lights cannot freeze TOI (3 s timeout); an OB the plan cannot run stops the plan with a
+message instead of looping; unknown filter positions shown as "#n".
+Mount, dome and covers act on fresh values (read when the button is pressed, warning if they cannot be read).
+Camera cooler switch turns the cooler on and off like other switches.
+<br>
+Code: about 2000 lines of unused and commented-out code removed (old guider loop, watcher window, ffs_lib,
+calcFocus - pyaraucaria is used instead).
+<br><br>
 --- 27.10.2026 --- <br>
 Windows are now panels of the observation window: drag, tab or float them; the layout is remembered per screen
 setup, ⚙ menu brings any panel up and resets the layout. Panel titles show the active telescope and its colour.

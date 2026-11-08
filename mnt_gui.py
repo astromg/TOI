@@ -85,9 +85,8 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                             theme.paint(self.nextRa_e, bg="warn2_bg")
                     except ValueError: pass
                 else:
-                    if True:
-                        self.parent.nextOB_ok = False
-                        theme.paint(self.nextRa_e, bg="warn2_bg")
+                    self.parent.nextOB_ok = False
+                    theme.paint(self.nextRa_e, bg="warn2_bg")
                 if ":" in dec:
                     try:
                         if float(dec.split(":")[0]) < -90 or float(dec.split(":")[0]) > 90:
@@ -95,9 +94,8 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                             theme.paint(self.nextDec_e, bg="warn2_bg")
                     except ValueError: pass
                 else:
-                    if True:
-                        self.parent.nextOB_ok = False
-                        theme.paint(self.nextDec_e, bg="warn2_bg")
+                    self.parent.nextOB_ok = False
+                    theme.paint(self.nextDec_e, bg="warn2_bg")
 
         if self.setAltAz_r.isChecked():
             alt = self.nextAlt_e.text()
@@ -206,11 +204,9 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.mntConn1_l = QLabel("MOUNT")
         self.mntConn2_l = QLabel(" ")
-        #self.mntConn2_l.setText("\U0001F534")
         theme.paint(self.mntConn1_l, fg="bad_fg")
         self.mntConn2_l.setMaximumWidth(25)                                        # UWAGA!!! To steruje szeroskoscia 1 kolumny!!!!!!!
 
-        #self.mntStat_l = QLabel("MOUNT STATUS: ")
         self.mntStat_e = QLineEdit()
         self.mntStat_e.setReadOnly(True)
         theme.paint(self.mntStat_e, bg="field_bg", extra=self.STAT_STYLE)
@@ -231,7 +227,6 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.mntConn2_l, w, 0)
         self.grid.addWidget(self.mntConn1_l, w, 1)
 
-        #self.grid.addWidget(self.mntStat_l, w, 4)
         self.grid.addWidget(self.mntStat_e, w, 2, 1, 2)
         # SAFETY CUTOFF tworzony nizej (sekcja przyciskow), stawiany tutaj
         self.safety_row = w
@@ -334,8 +329,6 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.target_e = QLineEdit("")
         self.target_e.editingFinished.connect(self.parent.target_provided)
         self.target_e.textChanged.connect(self.parent.target_changed)
-        #self.target_e.setReadOnly(True)
-        #theme.paint(self.target_e, bg="field_bg")
 
         self.tracking_l = QLabel("TRACKING: ")
         self.tracking_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
@@ -388,7 +381,6 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.domeConn1_l = QLabel("DOME")
         self.domeConn2_l = QLabel(" ")
-        #self.domeConn2_l.setText("\U0001F534")
         theme.paint(self.domeConn1_l, fg="bad_fg")
 
         self.domeStat_e = QLineEdit()
@@ -516,11 +508,9 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         w = w + 1
         self.grid.addWidget(self.domeLights_l, w, 0,1,2)
-        #self.grid.addWidget(self.domeLights_e, w, 2)
         self.grid.addWidget(self.domeLights_c, w, 2)
 
         self.grid.addWidget(self.flatLights_l, w, 3)
-        #self.grid.addWidget(self.flatLights_e, w, 5)
         self.grid.addWidget(self.flatLights_c, w, 4)
 
 
@@ -563,13 +553,10 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.grid.addWidget(self.telCovers_e, w, 5,1,2)
         self.grid.addWidget(self.telCovers_c, w, 7)
 
-        #self.grid.addWidget(self.openCovers_p, w, 5)
-        #self.grid.addWidget(self.closeCovers_p, w, 6)
 
         #########################################################
 
         self.focusConn_l = QLabel(" ")
-        #self.focusConn_l.setText("\U0001F534")
         self.telFocus_l = QLabel("FOCUS: ")
         theme.paint(self.telFocus_l, fg="bad_fg")
         self.telFocus_e = QLineEdit()
@@ -583,7 +570,6 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.setFocus_s.setSingleStep(10)
         if tel is not None and tel not in self.FOCUS_MAX:
             logger.warning(f'TOI: no focuser range for {tel} in mnt_gui.FOCUS_MAX, using 0-{self.FOCUS_MAX_DEFAULT}')
-        #self.setFocus_s.valueChanged.connect(self.parent.focusClicked)
         self.setFocus_p = QPushButton('SET')
         self.setFocus_p.clicked.connect(self.parent.set_focus)
 
@@ -616,9 +602,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         theme.paint(self.telM3_e, bg="field_bg")
         self.telM3_e.setText("")
         self.telM3_s = QComboBox()
-        #self.telM3_s.setItems([])
         self.telM3_p = QPushButton('SET')
-        #self.telM3_p.setStyleSheet(" color: gray;")                 # tertiary - comment
         self.telM3_p.clicked.connect(self.parent.set_m3)
 
 
@@ -640,9 +624,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         ##########################################################
 
         self.comRotator1_l = QLabel(" ")
-        #self.comRotator1_l.setPixmap(QtGui.QPixmap('./Icons/red.png').scaled(20, 20))
         self.telRotator1_l = QLabel("ROTATOR: ")
-        #self.comRotator1_l.setText("\U0001F534")
         theme.paint(self.telRotator1_l, fg="bad_fg")
         self.telRotator1_l.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
         # ASA: MechanicalPosition - kat wzgledem tubusu (ja ustawia SET), Position - kat rownikowy na niebie (EQ);
@@ -681,7 +663,6 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.comFilter_l = QLabel(" ")
         self.telFilter_l = QLabel("FILTER: ")
-        #self.comFilter_l.setText("\U0001F534")
         theme.paint(self.telFilter_l, fg="bad_fg")
         self.telFilter_e = QLineEdit()
         self.telFilter_e.setReadOnly(True)
@@ -744,7 +725,6 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         safety_box.addWidget(self.SafetySwitch_c)
         self.grid.addLayout(safety_box, self.safety_row, 4, 1, 2)
 
-        #self.grid.addWidget(self.weatherStop_p, w, 3,1,2)
         self.grid.addWidget(self.EmStop_p, w, 0,1,3)
 
         ##########################################################
@@ -821,121 +801,110 @@ class PulseWindow(BaseWindow):
         self.sumDec_e.setText(str(self.parent.pulseDec))
         self.sumRa_e.setText(str(self.parent.pulseRa))
     def mkUI(self):
-        if True:
-            self.setWindowTitle("Pulse movements")
+        self.setWindowTitle("Pulse movements")
 
-            grid = QGridLayout()
-
-
-            w = 1
-            w = w + 1
-            self.up_p = QPushButton('\u2191')
-            self.up_p.clicked.connect(self.parent.pulse_up)
-            grid.addWidget(self.up_p, w, 2,)
-
-            w = w + 1
-            self.left_p = QPushButton('\u2190')
-            self.left_p.clicked.connect(self.parent.pulse_left)
-            self.right_p = QPushButton('\u2192')
-            self.right_p.clicked.connect(self.parent.pulse_right)
-            grid.addWidget(self.left_p, w, 1)
-            grid.addWidget(self.right_p, w, 3)
-
-            w = w + 1
-            self.down_p = QPushButton('\u2193')
-            self.down_p.clicked.connect(self.parent.pulse_down)
-            grid.addWidget(self.down_p, w, 2)
-
-            self.line2_l = QFrame()
-            self.line2_l.setFrameShape(QFrame.HLine)
-            self.line2_l.setFrameShadow(QFrame.Raised)
-            w = w + 1
-            grid.addWidget(self.line2_l,w,0,1,5)
-
-            self.pulseRa_l = QLabel("Ra PULSE:")
-            self.pulseRa_e = QLineEdit()
-            self.pulseRa_e.setText("5")
-            self.pulseRa_e.setMaximumWidth(50)
-            self.sumRa_l = QLabel("Ra SUM:")
-            self.sumRa_e = QLineEdit()
-            self.sumRa_e.setReadOnly(True)
-            theme.paint(self.sumRa_e, bg="field_bg")
-            self.sumRa_e.setMaximumWidth(50)
-            self.unitsRa_l = QLabel("[arc sec]")
-
-            w = w + 1
-            grid.addWidget(self.pulseRa_l, w, 0)
-            grid.addWidget(self.pulseRa_e, w, 1)
-            grid.addWidget(self.sumRa_l, w, 2)
-            grid.addWidget(self.sumRa_e, w, 3)
-            grid.addWidget(self.unitsRa_l, w, 4)
+        grid = QGridLayout()
 
 
-            self.pulseDec_l = QLabel("Dec PULSE:")
-            self.pulseDec_e = QLineEdit()
-            self.pulseDec_e.setText("5")
-            self.pulseDec_e.setMaximumWidth(50)
-            self.sumDec_l = QLabel("Dec SUM:")
-            self.sumDec_e = QLineEdit()
-            self.sumDec_e.setReadOnly(True)
-            theme.paint(self.sumDec_e, bg="field_bg")
-            self.sumDec_e.setMaximumWidth(50)
-            self.unitsDec_l = QLabel("[arc sec]")
+        w = 1
+        w = w + 1
+        self.up_p = QPushButton('\u2191')
+        self.up_p.clicked.connect(self.parent.pulse_up)
+        grid.addWidget(self.up_p, w, 2,)
 
-            w = w + 1
-            grid.addWidget(self.pulseDec_l, w, 0)
-            grid.addWidget(self.pulseDec_e, w, 1)
-            grid.addWidget(self.sumDec_l, w, 2)
-            grid.addWidget(self.sumDec_e, w, 3)
-            grid.addWidget(self.unitsDec_l, w, 4)
+        w = w + 1
+        self.left_p = QPushButton('\u2190')
+        self.left_p.clicked.connect(self.parent.pulse_left)
+        self.right_p = QPushButton('\u2192')
+        self.right_p.clicked.connect(self.parent.pulse_right)
+        grid.addWidget(self.left_p, w, 1)
+        grid.addWidget(self.right_p, w, 3)
 
-            self.line3_l = QFrame()
-            self.line3_l.setFrameShape(QFrame.HLine)
-            self.line3_l.setFrameShadow(QFrame.Raised)
-            w = w + 1
-            grid.addWidget(self.line3_l, w, 0, 1, 5)
+        w = w + 1
+        self.down_p = QPushButton('\u2193')
+        self.down_p.clicked.connect(self.parent.pulse_down)
+        grid.addWidget(self.down_p, w, 2)
 
-            w = w + 1
+        self.line2_l = QFrame()
+        self.line2_l.setFrameShape(QFrame.HLine)
+        self.line2_l.setFrameShadow(QFrame.Raised)
+        w = w + 1
+        grid.addWidget(self.line2_l,w,0,1,5)
 
-            self.rot_l = QLabel("ROTATOR:")
-            #self.rotpos_e = QLineEdit()
-            self.rotminus_p = QPushButton('-')
-            self.rotminus_p.clicked.connect(self.parent.rotator_minus)
+        self.pulseRa_l = QLabel("Ra PULSE:")
+        self.pulseRa_e = QLineEdit()
+        self.pulseRa_e.setText("5")
+        self.pulseRa_e.setMaximumWidth(50)
+        self.sumRa_l = QLabel("Ra SUM:")
+        self.sumRa_e = QLineEdit()
+        self.sumRa_e.setReadOnly(True)
+        theme.paint(self.sumRa_e, bg="field_bg")
+        self.sumRa_e.setMaximumWidth(50)
+        self.unitsRa_l = QLabel("[arc sec]")
 
-            self.rotstep_e = QLineEdit()
-            self.rotstep_e.setText("5")
-            self.rotstep_e.setMaximumWidth(70)
-            self.rotplus_p = QPushButton('+')
-            self.rotplus_p.clicked.connect(self.parent.rotator_plus)
-
-
-            grid.addWidget(self.rot_l, w, 0)
-            #grid.addWidget(self.rotpos_e, w, 1)
-            grid.addWidget(self.rotminus_p, w, 1)
-            grid.addWidget(self.rotstep_e, w, 2)
-            grid.addWidget(self.rotplus_p, w, 3)
-
-
-            w = w + 1
-            self.line4_l = QFrame()
-            self.line4_l.setFrameShape(QFrame.HLine)
-            self.line4_l.setFrameShadow(QFrame.Raised)
-            grid.addWidget(self.line4_l, w, 0, 1, 5)
-
-            w = w + 1
-            self.close_p = QPushButton("Close")
-            self.close_p.clicked.connect(lambda: self.close())
-            grid.addWidget(self.close_p, w, 3,1,2)
+        w = w + 1
+        grid.addWidget(self.pulseRa_l, w, 0)
+        grid.addWidget(self.pulseRa_e, w, 1)
+        grid.addWidget(self.sumRa_l, w, 2)
+        grid.addWidget(self.sumRa_e, w, 3)
+        grid.addWidget(self.unitsRa_l, w, 4)
 
 
-            #grid.setColumnMinimumWidth(0, 100)
-            #grid.setColumnMinimumWidth(1, 100)
-            #grid.setColumnMinimumWidth(2, 30)
-            #grid.setColumnMinimumWidth(3, 30)
-            #grid.setColumnMinimumWidth(4, 30)
-            #grid.setRowStretch(0, 0)
-            #grid.setRowStretch(1, 1)
-            #grid.setRowStretch(2, 0)
-            self.setLayout(grid)
-            self.show()
-            self.raise_()
+        self.pulseDec_l = QLabel("Dec PULSE:")
+        self.pulseDec_e = QLineEdit()
+        self.pulseDec_e.setText("5")
+        self.pulseDec_e.setMaximumWidth(50)
+        self.sumDec_l = QLabel("Dec SUM:")
+        self.sumDec_e = QLineEdit()
+        self.sumDec_e.setReadOnly(True)
+        theme.paint(self.sumDec_e, bg="field_bg")
+        self.sumDec_e.setMaximumWidth(50)
+        self.unitsDec_l = QLabel("[arc sec]")
+
+        w = w + 1
+        grid.addWidget(self.pulseDec_l, w, 0)
+        grid.addWidget(self.pulseDec_e, w, 1)
+        grid.addWidget(self.sumDec_l, w, 2)
+        grid.addWidget(self.sumDec_e, w, 3)
+        grid.addWidget(self.unitsDec_l, w, 4)
+
+        self.line3_l = QFrame()
+        self.line3_l.setFrameShape(QFrame.HLine)
+        self.line3_l.setFrameShadow(QFrame.Raised)
+        w = w + 1
+        grid.addWidget(self.line3_l, w, 0, 1, 5)
+
+        w = w + 1
+
+        self.rot_l = QLabel("ROTATOR:")
+        self.rotminus_p = QPushButton('-')
+        self.rotminus_p.clicked.connect(self.parent.rotator_minus)
+
+        self.rotstep_e = QLineEdit()
+        self.rotstep_e.setText("5")
+        self.rotstep_e.setMaximumWidth(70)
+        self.rotplus_p = QPushButton('+')
+        self.rotplus_p.clicked.connect(self.parent.rotator_plus)
+
+
+        grid.addWidget(self.rot_l, w, 0)
+        grid.addWidget(self.rotminus_p, w, 1)
+        grid.addWidget(self.rotstep_e, w, 2)
+        grid.addWidget(self.rotplus_p, w, 3)
+
+
+        w = w + 1
+        self.line4_l = QFrame()
+        self.line4_l.setFrameShape(QFrame.HLine)
+        self.line4_l.setFrameShadow(QFrame.Raised)
+        grid.addWidget(self.line4_l, w, 0, 1, 5)
+
+        w = w + 1
+        self.close_p = QPushButton("Close")
+        self.close_p.clicked.connect(lambda: self.close())
+        grid.addWidget(self.close_p, w, 3,1,2)
+
+
+        self.setLayout(grid)
+        self.show()
+        self.raise_()

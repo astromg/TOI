@@ -65,12 +65,10 @@ conflict between Qt and Python's `ABC`. This pattern repeats in `toi.py` (`TOI`)
   `run_background_tasks()` is called (typically from `on_start_app()`). Long-lived polling/monitoring loops
   (mount connection, telemetry, almanac, NATS subscriptions) are registered this way, grouped so they can be
   stopped together (`stop_background_tasks()`), e.g. when switching telescopes or closing a window.
-- `add_subscription(...)` / `add_subscription_client_side(...)` — subscribe to a NATS/cycle-query address
-  with sync or async callbacks, tracked so they can be cleanly stopped.
-- `get_request()` / `put_base_request()` — the standard wrappers for GET/PUT calls through `client_api`,
-  with consistent logging and exception handling for `CommunicationRuntimeError`/`CommunicationTimeoutError`.
-  They currently have no callers (their only user, `pery_gui.py`, was removed); the live code talks to
-  hardware through `ocaboxapi` component objects (`aget_*`/`aput_*`/`asubscribe_*`) and NATS readers.
+- `run_method_in_background(...)` — the ocabox `asubscribe_*` calls, grouped like the tasks. (The old
+  `add_subscription*` / `get_request` / `put_base_request` wrappers had no callers and were removed 2026-11-08;
+  the live code talks to hardware through `ocaboxapi` component objects (`aget_*`/`aput_*`/`asubscribe_*`) and
+  NATS readers.)
 - Every subclass must implement `on_start_app()` (abstract) — this is where a window kicks off its
   background tasks and does async initialization after construction (Qt widgets can't have async `__init__`).
 
@@ -104,10 +102,9 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
 `show()`/`raise_()` does nothing for its dock.
 `TOI` (in `toi.py`) is the top-level widget that owns one instance of each major window/controller:
 - `mnt_gui.py` (`MntGui`) — mount control (slew, track, park), uses `BaseAsyncWidget` subscriptions.
-- `obs_gui.py` (`ObsGui`, `CzuwakWindow`) — main observation window. Its operator message box (`msg_e`) is
+- `obs_gui.py` (`ObsGui`) — main observation window. Its operator message box (`msg_e`) is
   filled only from the `journal.toi.<tel>.self.log` subscription, so operator-visible messages go through
-  `TOI.update_log(...)` (the old `TOI.msg()` was a no-op and has been removed). `CzuwakWindow` ("watcher") is
-  still constructed as `TOI.czuwakGui`, but all code that used it is commented out.
+  `TOI.update_log(...)` (the old `TOI.msg()` and the commented-out `CzuwakWindow` "watcher" have been removed).
 - `instrument_gui.py` (`InstrumentGui`) — instrument control, one tab per science instrument of the telescope
   (2026-10-29): `science_instruments(components)` reads the published `observatory.components` (those flagged
   `scientific`, else every camera/spectrograph except guiders), `instrument_class(name, spec)` picks the tab class from
@@ -127,7 +124,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   estimation) external libraries, and to `pyaraucaria.obs_plan.obs_plan_parser`/`ob_validator` for parsing
   and validating OB definitions (see `Plans/*.txt` for the plan file format).
 - `sky_gui.py` (`SkyGui`, `SkyView`) — sky-position radar/visualization of telescope pointing.
-- `fits_gui.py` (`FitsWindow`, `FFS_Worker`) — FITS viewer; runs `ffs_lib` star-detection stats in a
+- `fits_gui.py` (`FitsWindow`, `FFS_Worker`) — FITS viewer; runs `pyaraucaria.ffs` star-detection stats in a
   separate `QThread` (`FFS_Worker`) so image analysis doesn't block the Qt main thread.
 - `aux_gui.py` (`AuxWindow`) — one window with tabs, in order: Telescope (the active telescope's
   OCA manual pages fetched over HTTP from the intranet, `toi.oca_manual_url`: description `telescope_<tel>` on the
@@ -163,8 +160,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   kept per telescope in `flat_records`; the TPG window's "Evening SKYFLATS" / "Morning SKYFLATS" switches (passed to tpg as
   `skyflats=[sessions]`; evening defaults off once the Sun is below the lower `skyflat.hsun` of the tpg config,
   `TPGWindow._smart_skyflats_checkboxes`) turn those records into the
-  `flat_history` passed to tpg (`TPGWindow._flat_history`). Autofocus fits use `pyaraucaria.focus`
-  (`calcFocus/calc_focus.py` is the old local version). In the Focus tab Recalculate only computes; SET
+  `flat_history` passed to tpg (`TPGWindow._flat_history`). Autofocus fits use `pyaraucaria.focus`. In the Focus tab Recalculate only computes; SET
   (`focus_set_result`) moves the focuser. Autofocus uses a camera (`FocusTab.set_camera`, from the instrument
   window's camera tabs) and its filters from `TOI.instrument_filters` (today the telescope's wheel).
 - Focus auto-adjust (in `toi.py`) — every focuser move made by TOI must go through

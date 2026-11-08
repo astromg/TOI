@@ -333,8 +333,6 @@ class FitsWindow(BaseWindow):
                 if self.image_name is not None and ofp_file != self.image_name:
                     raise LookupError(f"OFP data for {ofp_file}, image shown {self.image_name} - overlays skipped")
                 if "pointing_error" in self.parent.fits_ofp_data["raw"].keys():
-                    #pointing_err_ra = self.parent.fits_ofp_data["raw"]["pointing_error"]["real_ra_diff"]
-                    #pointing_err_dec = self.parent.fits_ofp_data["raw"]["pointing_error"]["dec_diff"]
                     self.pointing_x = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_ra"]
                     self.pointing_y = self.parent.fits_ofp_data["raw"]["pointing_error"]["new_px_dec"]
 
@@ -362,107 +360,99 @@ class FitsWindow(BaseWindow):
                 logger.warning(f"TOI FITS EXCEPTION 3a: {e}")
 
 
-            if True:
-            #try:
-                if self.ffs:
-                    fwhm_arcsec = None
+            if self.ffs:
+                fwhm_arcsec = None
 
-                    fwhm = self.ffs.stats["frame"]["fwhm"]
+                fwhm = self.ffs.stats["frame"]["fwhm"]
 
-                    if (self.parent.nats_cfg.get(tel) or {}).get("pixel_scale"):
-                        px = self.parent.nats_cfg[tel]["pixel_scale"]
-                        fwhm_arcsec = fwhm * px
+                if (self.parent.nats_cfg.get(tel) or {}).get("pixel_scale"):
+                    px = self.parent.nats_cfg[tel]["pixel_scale"]
+                    fwhm_arcsec = fwhm * px
 
-                    ell = self.ffs.stats["frame"]["ellipticity"]
-                    shape = self.ffs.stats["frame"]["shape"]
-                    cpe = self.ffs.stats["frame"]["cpe"]
-                    ci = self.ffs.stats["frame"]["ci"]
+                ell = self.ffs.stats["frame"]["ellipticity"]
+                shape = self.ffs.stats["frame"]["shape"]
+                cpe = self.ffs.stats["frame"]["cpe"]
+                ci = self.ffs.stats["frame"]["ci"]
 
-                    frame_min = self.ffs.stats["frame"]["min"]
-                    frame_max = self.ffs.stats["frame"]["max"]
-                    frame_mean = self.ffs.stats["frame"]["mean"]
-                    frame_median = self.ffs.stats["frame"]["median"]
-                    frame_rms = self.ffs.stats["frame"]["rms"]
-                    frame_q_sigma = self.ffs.stats["frame"]["q_sigma"]
+                frame_min = self.ffs.stats["frame"]["min"]
+                frame_max = self.ffs.stats["frame"]["max"]
+                frame_mean = self.ffs.stats["frame"]["mean"]
+                frame_median = self.ffs.stats["frame"]["median"]
+                frame_rms = self.ffs.stats["frame"]["rms"]
+                frame_q_sigma = self.ffs.stats["frame"]["q_sigma"]
 
-                    bkg_ampl = self.ffs.stats["frame"]["bkg_max_amplitude"]
-                    frame_ampl = self.ffs.stats["frame"]["bkg_frame_gradient"]
+                bkg_ampl = self.ffs.stats["frame"]["bkg_max_amplitude"]
+                frame_ampl = self.ffs.stats["frame"]["bkg_frame_gradient"]
 
-                    # mediana 0 (pusta / dziwna klatka) - bez dzielenia
-                    if frame_median and abs(bkg_ampl/frame_median) > 0.1:
-                        txt = txt + f'<span style="color:{red};">WARNING</span>: bkg amplitude: <span style="color:{red};"><b>{bkg_ampl:.0f}</b></span> <br>'
-                    if frame_median and abs(frame_ampl/frame_median) > 0.1:
-                        txt = txt + f'<span style="color:{red};">WARNING</span>: frame gradient: <span style="color:{red};"><b>{frame_ampl:.0f}</b></span><br>'
+                # mediana 0 (pusta / dziwna klatka) - bez dzielenia
+                if frame_median and abs(bkg_ampl/frame_median) > 0.1:
+                    txt = txt + f'<span style="color:{red};">WARNING</span>: bkg amplitude: <span style="color:{red};"><b>{bkg_ampl:.0f}</b></span> <br>'
+                if frame_median and abs(frame_ampl/frame_median) > 0.1:
+                    txt = txt + f'<span style="color:{red};">WARNING</span>: frame gradient: <span style="color:{red};"><b>{frame_ampl:.0f}</b></span><br>'
 
-                    if fwhm_arcsec:
-                        if fwhm_arcsec > 2.3:
-                            txt = txt + f'FWHM:  <span style="color:{red};"><b>{fwhm:.1f}</b></span> px'
-                            if fwhm_arcsec:
-                                txt = txt + f'&nbsp; &nbsp; (<span style="color:{red};"><b>{fwhm_arcsec:.1f}</b></span> arcsec) '
-                        else:
-                            txt = txt + f'FWHM:  <b>{fwhm:.1f}</b> px'
-                            if fwhm_arcsec:
-                                txt = txt + f'&nbsp; &nbsp; <b>({fwhm_arcsec:.1f})</b> arcsec '
+                if fwhm_arcsec:
+                    if fwhm_arcsec > 2.3:
+                        txt = txt + f'FWHM:  <span style="color:{red};"><b>{fwhm:.1f}</b></span> px'
+                        if fwhm_arcsec:
+                            txt = txt + f'&nbsp; &nbsp; (<span style="color:{red};"><b>{fwhm_arcsec:.1f}</b></span> arcsec) '
                     else:
                         txt = txt + f'FWHM:  <b>{fwhm:.1f}</b> px'
+                        if fwhm_arcsec:
+                            txt = txt + f'&nbsp; &nbsp; <b>({fwhm_arcsec:.1f})</b> arcsec '
+                else:
+                    txt = txt + f'FWHM:  <b>{fwhm:.1f}</b> px'
 
 
 
-                    txt = txt + "<br>"
+                txt = txt + "<br>"
 
-                    num = lambda v: "--" if v is None else f"{v:.2f}"     # FFS daje None przy malej liczbie gwiazd
-                    if ell is not None and ell > 0.1:
-                        txt = txt + f'ellipse:  <span style="color:{red};"><b>{ell:.2f}</b></span> <br>'
-                    else:
-                        txt = txt + f'ellipse:  <b>{num(ell)}</b> <br>'
+                num = lambda v: "--" if v is None else f"{v:.2f}"     # FFS daje None przy malej liczbie gwiazd
+                if ell is not None and ell > 0.1:
+                    txt = txt + f'ellipse:  <span style="color:{red};"><b>{ell:.2f}</b></span> <br>'
+                else:
+                    txt = txt + f'ellipse:  <b>{num(ell)}</b> <br>'
 
-                    txt = txt + f'shape:  <b>{num(shape)}</b> <br>'
-                    txt = txt + f'cpe:  <b>{num(cpe)}</b> <br>'
-                    txt = txt + f'ci:  <b>{num(ci)}</b> <br>'
-                    txt = txt + "<br>"
+                txt = txt + f'shape:  <b>{num(shape)}</b> <br>'
+                txt = txt + f'cpe:  <b>{num(cpe)}</b> <br>'
+                txt = txt + f'ci:  <b>{num(ci)}</b> <br>'
+                txt = txt + "<br>"
 
-                    if len(self.coo)>0:
-                        if True:
-                            if len(self.sat_coo)>0 and self.parent.local_cfg["toi"]["show_sat_stars"]:
-                                x,y = zip(*self.sat_coo)
-                                self._overlays += self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
-                        txt = txt + f"detected/saturated stars:  <i>{len(self.coo)}</i>/<i>{len(self.sat_coo)}</i> <br>"
+                if len(self.coo)>0:
+                    if len(self.sat_coo)>0 and self.parent.local_cfg["toi"]["show_sat_stars"]:
+                        x,y = zip(*self.sat_coo)
+                        self._overlays += self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
+                    txt = txt + f"detected/saturated stars:  <i>{len(self.coo)}</i>/<i>{len(self.sat_coo)}</i> <br>"
 
-                    txt = txt + f'min/max ADU:  <i>{frame_min:.0f}</i>/<i>{frame_max:.0f}</i><br>'
-                    txt = txt + f'mean/median ADU:  <i>{frame_mean:.0f}</i>/<i>{frame_median:.0f}</i> <br>'
-                    txt = txt + f'rms/q68 ADU:  <i>{frame_rms:.0f}</i>/<i>{frame_q_sigma:.0f}</i> <br>'
+                txt = txt + f'min/max ADU:  <i>{frame_min:.0f}</i>/<i>{frame_max:.0f}</i><br>'
+                txt = txt + f'mean/median ADU:  <i>{frame_mean:.0f}</i>/<i>{frame_median:.0f}</i> <br>'
+                txt = txt + f'rms/q68 ADU:  <i>{frame_rms:.0f}</i>/<i>{frame_q_sigma:.0f}</i> <br>'
 
+                txt = txt + f" <hr> <br>"
+
+            #
+            #
+
+            try:
+                if ok:
+                    txt = txt + " <b>OFP INFO</b>  <br>"
+                    txt = txt + f"alt:  <b>{alt}</b> <br>"
+                    txt = txt + f"airmass:  <b>{airmass}</b> <br>"
+                    txt = txt + f"focus:  <b>{focus}</b> <br>"
+                    txt = txt + f"CCD temp:  <b>{ccd_temp}</b> <br>"
+                    txt = txt + f"gain:  <i>{gain}</i> <br>"
+                    txt = txt + f"read mode:  <i>{rm}</i> <br>"
+                    txt = txt + f"bin:  <i>{xbin}</i>x<i>{ybin}</i> <br>"
                     txt = txt + f" <hr> <br>"
+                    txt = txt + " <b>OFP TARGETS</b>  <br>"
+                    txt = txt + txt2
+            except Exception as e:
+                logger.warning(f"TOI FITS EXCEPTION 5: {e}")
 
-            # except Exception as e:
-            #     print(f"TOI FITS EXCEPTION 4: {e}")
-            #
-            #
-            # except Exception as e:
-            #     print(f"TOI FITS EXCEPTION 4: {e}")
-
-                try:
-                    if ok:
-                        txt = txt + " <b>OFP INFO</b>  <br>"
-                        txt = txt + f"alt:  <b>{alt}</b> <br>"
-                        txt = txt + f"airmass:  <b>{airmass}</b> <br>"
-                        txt = txt + f"focus:  <b>{focus}</b> <br>"
-                        txt = txt + f"CCD temp:  <b>{ccd_temp}</b> <br>"
-                        txt = txt + f"gain:  <i>{gain}</i> <br>"
-                        txt = txt + f"read mode:  <i>{rm}</i> <br>"
-                        txt = txt + f"bin:  <i>{xbin}</i>x<i>{ybin}</i> <br>"
-                        txt = txt + f" <hr> <br>"
-                        txt = txt + " <b>OFP TARGETS</b>  <br>"
-                        txt = txt + txt2
-                except Exception as e:
-                    logger.warning(f"TOI FITS EXCEPTION 5: {e}")
-
-                self.stat_e.setHtml(txt)
+            self.stat_e.setHtml(txt)
             self.redraw()
 
     def updateUI(self):
 
-        #self.ffs_worker = None
 
         self.axes.clear()
         self.axes.axis("off")
@@ -485,8 +475,6 @@ class FitsWindow(BaseWindow):
         self.axes = self.fig.add_axes([0, 0, 1, 1])
         self.axes.axis("off")
 
-        # self.violin_axes = self.fig.add_axes([0.82,0.0,0.18,1])
-        # self.violin_axes.tick_params(axis='y', which='both', labelleft=False, labelright=True, direction='in')
 
         grid = QGridLayout()
 

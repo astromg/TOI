@@ -1,13 +1,75 @@
 # TOI Refactoring Plan
 
-> Telescope Operator Interface — plan to remove hardcoded state, retire `ephem`
-> without slowing calculations, lean on `pyaraucaria`/`ctc`, and re-architect the
-> data layer for smooth, observable, reliable operation **with identical
-> functionality**.
+> Telescope Operator Interface — plan to re-architect the data layer for smooth,
+> observable, reliable operation **with identical functionality**, keep the code
+> readable for a human, and remove dead code.
 >
-> Status: proposal for review. Sections marked **[GO DEEP]** are settled and
-> spelled out for direct implementation. Sections marked **[DISCUSS]** are forks
-> that need a decision before implementation — each carries a recommendation.
+> **Status 2026-11-08: revised after a code review — read section R first.** It
+> supersedes the order in §7 and the ephemeris decision in §8 (`ephem` stays).
+> Sections marked **[GO DEEP]** are settled; **[DISCUSS]** need a decision first.
+
+## R. Review and revised plan (2026-11-08)
+
+### What the code is like now (numbers from `toi.py`, 5300 lines)
+- **Strengths.** Literal code: from a button to the command sent to the hardware
+  one can usually follow a single function top to bottom, without layers. Names
+  and comments come from the domain; newer Polish comments explain *why*. Newer
+  modules (`aux_gui`, `optics_*`, `toi_theme`, `toi_subjects`, `instrument_gui`)
+  are in good shape. It has run every night for years — refactoring for elegance
+  alone is not a goal.
+- **One class knows everything.** `class TOI` has 211 methods and ~212
+  attributes; windows reach it through `self.parent.X` (`plan_gui` 474 times,
+  49 via `parent.parent`). The contract between TOI and the windows is not
+  visible anywhere, so changing an attribute can break any window (example:
+  `nats_plan_status` not reset on a telescope switch).
+- **The most important functions are the longest and deepest:**
+  `variables_init` 366 lines, `PlanRunFeedback` 243, `telescope_switched` 231,
+  `plan_start` 193, `TOItimer` 166; indentation up to 17 levels, 266 lines at
+  10+ levels. The bugs fixed in 2026-11 lived exactly there (`plan.pop(-1)`,
+  SNAP in a plan, one `try` for all telescopes).
+- **Dead code** makes reading slower: `guider_loop` (244 lines, not scheduled),
+  `dome_follow_loop` (`if False:`, not scheduled), ~80 lines of commented-out
+  code, 9 × `if True:`.
+
+### One file for the "mechanics"
+One file is not the problem — "all telescope logic is in `toi.py`" is a readable
+rule for a human, and splitting into many small files and layers would make it
+worse. The problem is that one class mixes four things: (1) the **plan engine**
+(OB start, planrunner feedback, WAIT, the 1 s control loop — the most critical
+code), (2) **telescope state** from subscriptions, (3) **NATS I/O**, (4) **GUI
+glue** (callbacks writing widgets, button actions). Split along these seams
+into 3–4 large topical files, each read top to bottom: `plan_engine.py`,
+`telemetry.py`, `toi_subjects.py` (exists), `toi.py` as the conductor and button
+actions. No frameworks, no clever abstractions, the same Polish comments.
+
+### Consistency
+Full uniformity is not worth a rewrite of a working system. Consistency matters
+in the risky places, and conventions for them now exist (documented in
+`CLAUDE.md`): reading device state (`TOI.delivered` in callbacks,
+`TOI.read_for_action` in buttons), protecting plain Qt slots (`@plan_action`,
+per-message `try` in readers), colours (`theme.paint`), NATS subjects
+(`toi_subjects`). New code follows them; the rest is tidied on the way.
+
+### Ephemeris: `ephem` stays (replaces §2 and decision 1 in §8)
+No important reason to switch: `ephem` is fast (C), stable, works on Python
+3.14, and is precise far beyond what an operator display needs; astropy is
+slower per call (the `copilot/migrate-ephemeris-…` branch got slower); and
+`pyaraucaria.coordinates` is itself an `ephem` wrapper. Changing the engine of a
+night-critical tool risks subtle coordinate/time differences for no gain.
+**Kept instead:** move all astronomy calculations into **`toi_lib`** (today ~100
+`ephem.` uses in `toi.py`, `plan_gui.py`, `sky_gui.py`, `toi_lib.py`), so a
+future change of engine would touch one file only.
+
+### Revised order
+| # | Step | Value | Risk |
+|---|------|-------|------|
+| R1 | Remove dead code (`guider_loop`, `dome_follow_loop`, commented-out blocks, `if True:`) | readability | low |
+| R2 | `TelemetryStore` pilot on the Mount window (§1.2-B / P9), branch + test on telescope `sim` | stale/mixed values, base for fast switch | medium |
+| R3 | Extract the plan engine into `plan_engine.py`, no change of logic | readability of the most critical code, testable without Qt | medium |
+| R4 | Staleness indicator on the store (§1.4 / P2) | the operator sees a value is not live | low |
+| R5 | Store for the other windows, then fast switch as a view re-point (P9/P10) + upstream ocabox "callbacks stop firing" fix (P9b) | slow telescope switch | medium-high |
+| R6 | All `ephem` calls into `toi_lib` (one place for astronomy) | future engine change in one file | low |
+| — | Dropped: P5–P7 (`toi_astro`, batched astropy, pyerfa path). Low priority: P11 (plan table model). Mostly done on the way: P1 (callbacks read the delivered value, 2026-11-08), P3, P4 (`toi_subjects.py`), P8 (M3/rotator/focuser from config) | | |
 
 ---
 

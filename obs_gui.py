@@ -6,7 +6,7 @@ import qasync as qs
 from PyQtX import QtCore, QtGui
 from PyQtX.QtCore import Qt, QSettings, QTimer
 from PyQtX.QtWidgets import QMainWindow, QWidget, QLabel, QTextEdit, QLineEdit, QPushButton, QGridLayout, QHBoxLayout, QCheckBox, \
-    QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox, QMenu, QDockWidget, QApplication, QScrollArea
+    QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QMessageBox, QMenu, QDockWidget, QApplication, QScrollArea
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
@@ -854,14 +854,7 @@ class MainForm(QWidget):
         self.hold_markers = {name: HoldMarker(getattr(self, name))
                              for name in ("wind_e", "windDir_e", "hummidity_e", "temp_e", "clouds_e")}
 
-        # w = w + 1
-        # self.pressure_l = QLabel("Pressure:")
-        # self.pressure_e = QLineEdit()
-        # self.pressure_e.setReadOnly(True)
-        # self.pressure_e.setStyleSheet(theme.field_style())
 
-        # grid.addWidget(self.pressure_l, w, 6)
-        # grid.addWidget(self.pressure_e, w, 7)
 
         w = w + 1
         self.obs_t = QTableWidget(0, len(self.COLUMNS))      # wiersze ustawia update_table
@@ -872,14 +865,12 @@ class MainForm(QWidget):
         self.obs_t.verticalHeader().hide()
         self.obs_t.setShowGrid(False)
         self.obs_t.setEditTriggers(QTableWidget.NoEditTriggers)
-        #self.obs_t.setFixedWidth(550)  # Size
         self.obs_t.setStyleSheet(f"font-size: 9pt; selection-background-color: {theme.c('selection_bg')};")
         grid.addWidget(self.obs_t, w, 0, 1, 8)
         self.obs_t.setRowCount(len(self.parent.local_cfg["toi"]["telescopes"]))
         self.fit_table_height()
 
 
-        #self.testowyPocisk_p.clicked.connect(self.parent.force_update)
 
 
 
@@ -1309,31 +1300,3 @@ class ReportWindow(BaseWindow):
 
         self.setLayout(grid)
 
-
-class CzuwakWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.czuwak = 0
-
-        self.setWindowTitle("Czuwak")
-        self.setGeometry(100, 100, 300, 200)
-
-        # Układ w pionie
-        layout = QVBoxLayout()
-
-        # Etykieta z instrukcją
-        self.label = QLabel("Time Left: ", self)
-        layout.addWidget(self.label)
-
-        # Przycisk
-        self.button = QPushButton("Push Me!", self)
-        self.button.clicked.connect(self.on_button_click)
-        layout.addWidget(self.button)
-
-        # Ustawienie układu
-        self.setLayout(layout)
-
-    def on_button_click(self):
-        self.czuwak = 0
-        self.label.setText("Ok!")
-        self.close()

@@ -424,7 +424,6 @@ class GenericCamera(InstrumentTab):
           self.inst_Pause_p.setEnabled(False)      # nie podlaczony
           self.inst_Stop_p=QPushButton('STOP')
           self.inst_Stop_p.clicked.connect(self.parent.ccd_stopExp)
-          #self.inst_Stop_p.setStyleSheet(" color: gray;")
           self.inst_Start_p=QPushButton('START')
           self.inst_Start_p.clicked.connect(self.parent.ccd_startExp)
           
