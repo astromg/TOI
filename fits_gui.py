@@ -74,8 +74,11 @@ STAR_SHAPE_CLASSES = ((0.55, 0.82, None, None, "ok", "ok_fg"),
 SATURATED_STAR_COLOR = "red"
 OFP_TARGET_ALPHA = 0.45       # kolka obiektow OFP (targets) - polprzezroczyste
 # wzor katow wydluzen gwiazd (FFS calc_star_field_stats, psf_pattern; kolor - fits_soft_color()): kreseczki przez gwiazdy wzdluz osi dluzszej,
-# dlugosc ramion = eliptycznosc x PATTERN_WHISKER_SCALE x dluzszy bok obrazu (e = 0.1 -> 3 % boku)
-PATTERN_WHISKER_SCALE = 0.3
+# dlugosc ramion = eliptycznosc x PATTERN_WHISKER_SCALE x dluzszy bok obrazu (e = 0.1 -> 2 % boku). Kreseczki tylko
+# dla wzoru o sile >= PATTERN_MIN_STRENGTH (jak prog czerwonej eliptycznosci): test FFS mowi tylko, ze wzor nie jest
+# przypadkowy - przy 30-50 jasnych gwiazdach istotne jest juz wspolne wydluzenie ~0.05 (na prawie kazdej klatce)
+PATTERN_WHISKER_SCALE = 0.2
+PATTERN_MIN_STRENGTH = 0.15
 # przerwa na gwiazde w srodku kreseczki: promien = PATTERN_GAP_FWHM x FWHM gwiazdy, co najmniej PATTERN_GAP_MIN boku
 PATTERN_GAP_FWHM = 3.0
 PATTERN_GAP_MIN = 0.008
@@ -357,8 +360,25 @@ class FitsWindow(BaseWindow):
                                                      markerfacecolor="none", markeredgewidth=1.0, linestyle="")
         return [(name, n, fg) for name, (n, fg) in counts.items()]
 
+    def _pattern_strength(self):
+        """Sila wzoru katow (eliptycznosc wzoru): linear - wspolne wydluzenie psf_e_mean; radial / tangential -
+        S x srednia e gwiazd wzoru (okno shape, e > 0.05, jak w FFS psf_pattern). NaN - brak wzoru."""
+        st = self.ffs.stats["frame"]
+        pattern = st.get("psf_pattern")
+        if pattern == "linear":
+            return float(st.get("psf_e_mean", numpy.nan))
+        if pattern in ("radial", "tangential"):
+            e = numpy.asarray(getattr(self.ffs, "ellipticity", []), dtype=float)
+            sh = numpy.asarray(getattr(self.ffs, "shape", []), dtype=float)
+            n = min(len(e), len(sh))
+            with numpy.errstate(invalid="ignore"):
+                m = (e[:n] > 0.05) & (sh[:n] > 0.55) & (sh[:n] < 0.95)
+            return float(st["psf_pattern_s"] * numpy.mean(e[:n][m])) if m.any() else numpy.nan
+        return numpy.nan
+
     def _pattern_text(self):
-        """Linia panelu o wzorze katow gwiazd (FFS psf_pattern) albo None (brak statystyk pola)."""
+        """Linia panelu o wzorze katow gwiazd (FFS psf_pattern) albo None (brak statystyk pola). Wzor slabszy niz
+        PATTERN_MIN_STRENGTH (bez kreseczek) - szary z dopiskiem weak."""
         st = self.ffs.stats["frame"]
         pattern = st.get("psf_pattern")
         if pattern is None:
@@ -366,20 +386,23 @@ class FitsWindow(BaseWindow):
         if pattern == "linear":
             # kat z obrazu transponowanego (FFS_Worker): w obrazie 90 - theta, od osi x
             ang = (90 - numpy.degrees(st["psf_theta_mean"])) % 180
-            return f'PSF pattern:  <b>linear</b> e {st["psf_e_mean"]:.2f} @ {ang:.0f}&deg;'
-        if pattern in ("radial", "tangential"):
-            txt = (f'PSF pattern:  <b>{pattern}</b> S {st["psf_pattern_s"]:.2f} '
+            txt = f'<b>linear</b> e {st["psf_e_mean"]:.2f} @ {ang:.0f}&deg;'
+        elif pattern in ("radial", "tangential"):
+            txt = (f'<b>{pattern}</b> e {self._pattern_strength():.2f} '
                    f'(centre {st["psf_centre_y"]:.0f}, {st["psf_centre_x"]:.0f})')       # x <-> y: transpozycja
             if pattern == "tangential" and numpy.isfinite(st.get("psf_rot_deg", numpy.nan)):
                 txt += f' rot {st["psf_rot_deg"]:.3f}&deg;'
-            return txt
-        return "PSF pattern:  <i>none</i>"
+        else:
+            return "PSF pattern:  <i>none</i>"
+        if not self._pattern_strength() >= PATTERN_MIN_STRENGTH:
+            return f'PSF pattern:  <span style="color:{theme.hex("dim_fg")};">{txt} (weak)</span>'
+        return "PSF pattern:  " + txt
 
     def _draw_pattern(self):
         """Kreseczki wzoru katow przez gwiazdy uzyte do FWHM (okno shape) i znacznik srodka wzoru."""
         st = self.ffs.stats["frame"]
         pattern = st.get("psf_pattern")
-        if pattern not in ("linear", "radial", "tangential"):
+        if pattern not in ("linear", "radial", "tangential") or not self._pattern_strength() >= PATTERN_MIN_STRENGTH:
             return
         e = numpy.asarray(getattr(self.ffs, "ellipticity", []), dtype=float)
         t = numpy.asarray(getattr(self.ffs, "theta", []), dtype=float)

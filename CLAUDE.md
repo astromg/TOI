@@ -141,10 +141,11 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   rejected (> 0.95, < 0.55); square - flat top, diamond - sharp peak (cosmic / hot pixel in the star),
   hexagon - too small; the panel line "star shape" counts ok / suspect / rejected. Saturated stars (peak `ffs.adu` > saturation,
   not measured by FFS) - small red circles. `FFS_Worker` also runs `calc_star_field_stats` (mgorski_dev, ~0.1 s; errors
-  ignored): for a `psf_pattern` linear / radial / tangential, whiskers through the stars used for the FWHM along
-  the major axis, two arms of e x 0.3 x longer image side outside a gap for the star (3 x its FWHM, >= 0.8 % of the side) (`_draw_pattern`; theta is from the transposed image, so the
+  ignored): for a `psf_pattern` linear / radial / tangential with strength >= 0.15 (`_pattern_strength`:
+  common e, or S x mean e; the FFS test only says "not random", true on almost every frame), whiskers through the stars used for the FWHM along
+  the major axis, two arms of e x 0.2 x longer image side outside a gap for the star (3 x its FWHM, >= 0.8 % of the side) (`_draw_pattern`; theta is from the transposed image, so the
   direction in the image is (sin t, cos t) and the centre is (psf_centre_y, psf_centre_x)), a cross at the pattern
-  centre or an arrow at the frame edge pointing to it; panel line "PSF pattern" (`_pattern_text`). OFP targets: half-transparent circle
+  centre or an arrow at the frame edge pointing to it; panel line "PSF pattern" (`_pattern_text`, grey "(weak)" below 0.15). OFP targets: half-transparent circle
   size 14 (no names). Whiskers and targets use the muted colour of the colormap (`FITS_CMAPS` third item,
   `fits_soft_color()`: grey on viridis, dim grey on turbo, cyan on gray); pointing and spikes the overlay colour (gray: yellow, not red). ⚙ → FITS display → "Show PSF
   pattern" / "Show star shapes" / "Show saturated stars" (QSettings `fits_show_pattern`, `fits_show_star_shapes`,
