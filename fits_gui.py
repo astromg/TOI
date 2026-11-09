@@ -55,16 +55,24 @@ def fits_display_mode():
 # typy zdjec (IMAGETYP, downloader param image_type), dla ktorych liczymy FFS: OBJECT, SNAP, FOCUS
 FFS_IMAGE_TYPES = ("science", "snap", "focusing")
 
-# klasy shape gwiazd (CPE x FWHM^2) na obrazie: (od, do, kolor kolka, nazwa w panelu). Okno FFS do FWHM klatki to
-# 0.55-0.95 (calc_star_stats): normalny PSF 0.68-0.78, splaszczony szczyt 0.82-0.95 (1-2 kroki od focusu), ponizej
-# 0.55 pojedyncze piksele / paczki mocnego rozogniskowania, powyzej 0.95 kosmik / goracy piksel w gwiezdzie
-STAR_SHAPE_CLASSES = ((0.55, 0.82, "lime", "ok"), (0.82, 0.95, "orange", "flat"))
-STAR_SHAPE_BAD_COLOR = "red"
+# klasy shape gwiazd (CPE x FWHM^2) na obrazie: (od, do, kolor kolka, nazwa w panelu, kolor tekstu z motywu).
+# Normalny PSF 0.68-0.78; za duzy (> 0.82) - splaszczony szczyt (1-2 kroki od focusu), > 0.95 kosmik / goracy piksel
+# w gwiezdzie; za maly (< 0.55) - pojedyncze piksele, paczki mocnego rozogniskowania. Do FWHM klatki FFS bierze 0.55-0.95
+# (calc_star_stats). Czerwone kolka to gwiazdy nasycone (nie mierzone przez FFS, wiec bez shape).
+STAR_SHAPE_CLASSES = ((0.55, 0.82, "lime", "ok", "ok_fg"),
+                      (0.82, numpy.inf, "deepskyblue", "large", "change_fg"),
+                      (-numpy.inf, 0.55, "orange", "small", "warn2_fg"))
+SATURATED_STAR_COLOR = "red"
 
 
 def fits_show_trails(default=True):
     # linie satelitow z FFS na obrazie (menu ⚙ "FITS display", QSettings); default - toi.show_trails z configu
     return bool(QtCore.QSettings("OCA", "TOI").value("fits_show_trails", default, type=bool))
+
+
+def fits_show_saturated(default=True):
+    # czerwone kolka gwiazd nasyconych (menu ⚙ "FITS display", QSettings); default - toi.show_sat_stars z configu
+    return bool(QtCore.QSettings("OCA", "TOI").value("fits_show_saturated", default, type=bool))
 
 
 def fits_show_star_shapes():
@@ -149,6 +157,15 @@ class FitsWindow(BaseWindow):
                 self.update_fits_data()     # nakladki od nowa: z liniami albo bez
         except Exception as e:
             logger.warning(f'TOI FITS: show trails: {e!r}')
+
+    def set_show_saturated(self, on):
+        # zwykly slot (menu) - wyjatek nie moze wyjsc
+        try:
+            QtCore.QSettings("OCA", "TOI").setValue("fits_show_saturated", bool(on))
+            if self.image is not None and numpy.ndim(self.image) == 2:
+                self.update_fits_data()     # nakladki od nowa: z nasyconymi albo bez
+        except Exception as e:
+            logger.warning(f'TOI FITS: show saturated: {e!r}')
 
     def set_show_star_shapes(self, on):
         # zwykly slot (menu) - wyjatek nie moze wyjsc
@@ -290,8 +307,8 @@ class FitsWindow(BaseWindow):
 
 
     def _draw_star_shapes(self, draw=True):
-        """Kolka wokol gwiazd zmierzonych przez FFS, kolor wg shape (STAR_SHAPE_CLASSES, reszta czerwona);
-        draw=False - tylko policz. Zwraca liczby gwiazd w klasach [ok, flat, bad] albo None (brak pomiaru)."""
+        """Kolka wokol gwiazd zmierzonych przez FFS, kolor wg shape (STAR_SHAPE_CLASSES); draw=False - tylko policz.
+        Zwraca liczby gwiazd w klasach (ok, large, small) albo None (brak pomiaru)."""
         shape = getattr(self.ffs, "shape", None)
         coo = getattr(self.ffs, "coo", None)
         if shape is None or coo is None or len(shape) == 0:
@@ -299,16 +316,16 @@ class FitsWindow(BaseWindow):
         shape = numpy.asarray(shape, dtype=float)
         coo = numpy.asarray(coo).reshape(-1, 2)[:len(shape)]
         shape = shape[:len(coo)]
-        measured = numpy.isfinite(shape)
-        classes = [measured & (shape > lo) & (shape <= hi) for lo, hi, _, _ in STAR_SHAPE_CLASSES]
-        bad = measured & ~numpy.any(classes, axis=0)
-        colors = [c for _, _, c, _ in STAR_SHAPE_CLASSES] + [STAR_SHAPE_BAD_COLOR]
-        for m, color in zip(classes + [bad], colors):
-            if draw and m.any():
-                # FFS liczy na obrazie transponowanym (FFS_Worker): coo (wiersz, kolumna) = (x, y) obrazu
-                self._overlays += self.axes.plot(coo[m, 0], coo[m, 1], color=color, marker="o", markersize=9,
-                                                 markerfacecolor="none", markeredgewidth=1.0, linestyle="")
-        return [int(m.sum()) for m in classes + [bad]]
+        counts = []
+        with numpy.errstate(invalid="ignore"):          # NaN - niezmierzone (nasycone, zle piksele) - bez kolka
+            for lo, hi, color, _, _ in STAR_SHAPE_CLASSES:
+                m = (shape > lo) & (shape <= hi)
+                counts.append(int(m.sum()))
+                if draw and m.any():
+                    # FFS liczy na obrazie transponowanym (FFS_Worker): coo (wiersz, kolumna) = (x, y) obrazu
+                    self._overlays += self.axes.plot(coo[m, 0], coo[m, 1], color=color, marker="o", markersize=9,
+                                                     markerfacecolor="none", markeredgewidth=1.0, linestyle="")
+        return counts
 
     def update_fits_data(self):
         # wolane tez z ffs_done (zwykly slot) - wyjatek nie moze wyjsc
@@ -505,20 +522,22 @@ class FitsWindow(BaseWindow):
                     else:
                         txt = txt + f'stars used:  <b>{used}</b>/50 <br>'
                 star_classes = self._draw_star_shapes(draw=fits_show_star_shapes())
-                if star_classes:        # ile zmierzonych gwiazd w klasach shape (zielone / pomaranczowe / czerwone kolka)
-                    names = [n for _, _, _, n in STAR_SHAPE_CLASSES] + ["bad"]
-                    colors = [theme.hex("ok_fg"), theme.hex("warn2_fg"), red]    # tekst wg motywu, kolka - kolory obrazu
-                    parts = [f'<span style="color:{c};"><b>{k}</b></span> {nm}' for k, nm, c in zip(star_classes, names, colors)]
+                if star_classes:        # ile zmierzonych gwiazd w klasach shape (zielone / niebieskie / pomaranczowe kolka)
+                    parts = [f'<span style="color:{theme.hex(fg)};"><b>{k}</b></span> {nm}'      # tekst wg motywu
+                             for k, (_, _, _, nm, fg) in zip(star_classes, STAR_SHAPE_CLASSES)]
                     txt = txt + "star shape:  " + " / ".join(parts) + " <br>"
                 if n_spikes:
                     txt = txt + f'diffraction spikes:  <i>{n_spikes}</i> <br>'
                 txt = txt + "<br>"
 
                 if len(self.coo)>0:
-                    if len(self.sat_coo)>0 and self.parent.local_cfg["toi"]["show_sat_stars"]:
+                    if len(self.sat_coo)>0 and fits_show_saturated(self.parent.local_cfg["toi"].get("show_sat_stars", True)):
                         x,y = zip(*self.sat_coo)
-                        self._overlays += self.axes.plot(x, y, color="red", marker="o", markersize="5", markerfacecolor="none",linestyle="")
-                    txt = txt + f"detected/saturated stars:  <i>{len(self.coo)}</i>/<i>{len(self.sat_coo)}</i> <br>"
+                        self._overlays += self.axes.plot(x, y, color=SATURATED_STAR_COLOR, marker="o", markersize=9,
+                                                         markerfacecolor="none", markeredgewidth=1.0, linestyle="")
+                    n_sat = len(self.sat_coo)
+                    sat_txt = f'<span style="color:{red};"><b>{n_sat}</b></span>' if n_sat else f"<i>{n_sat}</i>"
+                    txt = txt + f"detected/saturated stars:  <i>{len(self.coo)}</i>/{sat_txt} <br>"
 
                 txt = txt + f'min/max ADU:  <i>{frame_min:.0f}</i>/<i>{frame_max:.0f}</i><br>'
                 txt = txt + f'mean/median ADU:  <i>{frame_mean:.0f}</i>/<i>{frame_median:.0f}</i> <br>'

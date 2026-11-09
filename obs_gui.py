@@ -17,7 +17,7 @@ from toi_lib import *
 from toi_theme import theme, TITLES
 from plan_gui import PLAN_LOG_LINES_CHOICES, plan_log_lines, set_plan_log_lines
 from fits_gui import FITS_DISPLAY_MODES, fits_display_mode, FITS_CMAPS, fits_cmap, fits_show_trails, \
-    fits_show_star_shapes
+    fits_show_star_shapes, fits_show_saturated
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +138,10 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         shapes.setCheckable(True)
         shapes.setChecked(fits_show_star_shapes())
         shapes.toggled.connect(lambda on: self.parent.fitsGui.set_show_star_shapes(on))
+        saturated = fits_menu.addAction("Show saturated stars")    # czerwone kolka gwiazd nasyconych
+        saturated.setCheckable(True)
+        saturated.setChecked(fits_show_saturated(self.parent.local_cfg["toi"].get("show_sat_stars", True)))
+        saturated.toggled.connect(lambda on: self.parent.fitsGui.set_show_saturated(on))
         cmap_menu = menu.addMenu("FITS colormap")      # mapa kolorow obrazu FITS
         group_cmap = QtGui.QActionGroup(cmap_menu)
         for name, (title, _) in FITS_CMAPS.items():

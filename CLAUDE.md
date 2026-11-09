@@ -137,9 +137,11 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   in `FFS_IMAGE_TYPES` = science / snap / focusing (OBJECT, SNAP, FOCUS); flat / zero / dark get no stars or stats (no
   downloader data -> FFS runs). The panel shows FWHM, ellipticity (red > 0.15), shape (not coloured) and "stars used"
   (cpe/ci were dropped). Measured stars get circles coloured by their own shape (`_draw_star_shapes`,
-  `STAR_SHAPE_CLASSES`): green 0.55-0.82 normal PSF, orange 0.82-0.95 flat top (slightly defocused), red outside the FFS
-  window (single pixels, donuts); the panel line "star shape" counts them. ⚙ → FITS display → "Show star shapes" switches the circles
-  (QSettings `fits_show_star_shapes`, default on), the counts stay. `calc_frame_fwhm` is called without `clip`: mgorski_dev takes for the frame FWHM only stars with
+  `STAR_SHAPE_CLASSES`): green 0.55-0.82 ok, blue > 0.82 too large (flat top, slightly defocused; > 0.95 cosmic),
+  orange < 0.55 too small (single pixels, donuts); the panel line "star shape" counts them. Red circles are saturated
+  stars (peak `ffs.adu` > saturation; FFS does not measure them, so they have no shape). ⚙ → FITS display → "Show star
+  shapes" / "Show saturated stars" switch the circles (QSettings `fits_show_star_shapes`, default on;
+  `fits_show_saturated`, first default `toi.show_sat_stars`), the counts stay. `calc_frame_fwhm` is called without `clip`: mgorski_dev takes for the frame FWHM only stars with
   0.55 < shape < 0.95 (fewer than 3 -> NaN, shown as "--", "stars used" says how many), master keeps its clipping.
 - `aux_gui.py` (`AuxWindow`) — one window with tabs, in order: Telescope (the active telescope's
   OCA manual pages fetched over HTTP from the intranet, `toi.oca_manual_url`: description `telescope_<tel>` on the
