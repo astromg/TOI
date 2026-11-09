@@ -104,10 +104,10 @@ SATURATED_STAR_COLOR = "red"
 SATURATED_STAR_SIZE = 7         # kolka gwiazd nasyconych (bylo 5 - za male)
 # linie z FFS (slady satelitow, promienie, przelania) jako polprzezroczyste pasy, nie cienkie linie - widoczne, a nie
 # zaslaniaja obrazu pod spodem: szerokosc = max(LINE_BAND_HW x half_width linii, LINE_BAND_MIN x dluzszy bok obrazu)
-LINE_BAND_HW = 6.0
-LINE_BAND_MIN = 0.012
-TRAIL_BAND_ALPHA = 0.22         # slady satelitow (czerwone)
-OTHER_BAND_ALPHA = 0.13         # promienie dyfrakcyjne, przelania
+LINE_BAND_HW = 5.0
+LINE_BAND_MIN = 0.009
+TRAIL_BAND_ALPHA = 0.4          # slady satelitow (czerwone)
+OTHER_BAND_ALPHA = 0.22         # promienie dyfrakcyjne, przelania
 OFP_TARGET_ALPHA = 0.85       # kolka obiektow OFP (targets); 0.45 bylo slabo widac na ciemnym tle (mediana/MAD)
 # wzor katow wydluzen gwiazd (FFS calc_star_field_stats, psf_pattern; kolor - fits_soft_color()): kreseczki przez gwiazdy wzdluz osi dluzszej,
 # dlugosc ramion = eliptycznosc x PATTERN_WHISKER_SCALE x dluzszy bok obrazu (e = 0.1 -> 2 % boku). Kreseczki tylko

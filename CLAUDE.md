@@ -133,7 +133,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   from `ffs.lines` (not `spike`, not `bleed` - charge bleeds, median brightness >= 0.8 x saturation, drawn thin like
   spikes with a "bleed trails: N" panel line; saturated bleeds come from `ffs.bleeds` (`mk_bleeds_mask`, saturated
   pixels never vote in find_lines) and are drawn as thin red lines with the saturated stars; find_stars keeps one
-  detection per saturated region; mgorski_dev keeps lines >= 120 px, >= 5 sigma (median) and >= 1 sigma (25th percentile) over
+  detection per saturated region; mgorski_dev keeps lines >= 200 px, >= 5 sigma (median) and >= 1 sigma (25th percentile) over
   their sides - dense fields are mostly clean; very bright saturated stars can still give a few) are drawn red with a WARNING in the stats panel, diffraction spikes thin; ⚙ → FITS
   display → "Show satellite trails" switches the drawing (QSettings `fits_show_trails`, `fits_show_trails()`; first
   default `toi.show_trails`, on), the warning stays. Menu checkboxes: connect `toggled` - a `lambda checked=False`
