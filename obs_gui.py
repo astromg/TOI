@@ -17,7 +17,7 @@ from toi_lib import *
 from toi_theme import theme, TITLES
 from plan_gui import PLAN_LOG_LINES_CHOICES, plan_log_lines, set_plan_log_lines
 from fits_gui import FITS_DISPLAY_MODES, fits_display_mode, FITS_CMAPS, fits_cmap, fits_show_trails, \
-    fits_show_star_shapes, fits_show_saturated
+    fits_show_star_shapes, fits_show_saturated, fits_show_pattern
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +134,11 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         trails.setCheckable(True)
         trails.setChecked(fits_show_trails(self.parent.local_cfg["toi"].get("show_trails", True)))
         trails.toggled.connect(lambda on: self.parent.fitsGui.set_show_trails(on))     # toggled podaje stan
-        shapes = fits_menu.addAction("Show star shapes")    # kolka gwiazd wg shape (licznik w panelu zostaje)
+        pattern = fits_menu.addAction("Show PSF pattern")    # kreseczki wzoru katow gwiazd i jego srodek
+        pattern.setCheckable(True)
+        pattern.setChecked(fits_show_pattern())
+        pattern.toggled.connect(lambda on: self.parent.fitsGui.set_show_pattern(on))
+        shapes = fits_menu.addAction("Show star shapes")    # markery shape: za duzy / za maly (licznik w panelu zostaje)
         shapes.setCheckable(True)
         shapes.setChecked(fits_show_star_shapes())
         shapes.toggled.connect(lambda on: self.parent.fitsGui.set_show_star_shapes(on))
@@ -144,7 +148,7 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         saturated.toggled.connect(lambda on: self.parent.fitsGui.set_show_saturated(on))
         cmap_menu = menu.addMenu("FITS colormap")      # mapa kolorow obrazu FITS
         group_cmap = QtGui.QActionGroup(cmap_menu)
-        for name, (title, _) in FITS_CMAPS.items():
+        for name, (title, *_) in FITS_CMAPS.items():
             action = cmap_menu.addAction(title, lambda _=False, name=name: self.parent.fitsGui.set_cmap(name))
             action.setCheckable(True)
             action.setChecked(name == fits_cmap())

@@ -136,12 +136,19 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   passed to `addAction` does not get the state in PyQt6. FFS runs only for `image_type` (downloader `tic.status.<tel>.download` = IMAGETYP)
   in `FFS_IMAGE_TYPES` = science / snap / focusing (OBJECT, SNAP, FOCUS); flat / zero / dark get no stars or stats (no
   downloader data -> FFS runs). The panel shows FWHM, ellipticity (red > 0.15), shape (not coloured) and "stars used"
-  (cpe/ci were dropped). Measured stars get circles coloured by their own shape (`_draw_star_shapes`,
-  `STAR_SHAPE_CLASSES`): green 0.55-0.82 ok, blue > 0.82 too large (flat top, slightly defocused; > 0.95 cosmic),
-  orange < 0.55 too small (single pixels, donuts); the panel line "star shape" counts them. Red circles are saturated
-  stars (peak `ffs.adu` > saturation; FFS does not measure them, so they have no shape). ⚙ → FITS display → "Show star
-  shapes" / "Show saturated stars" switch the circles (QSettings `fits_show_star_shapes`, default on;
-  `fits_show_saturated`, first default `toi.show_sat_stars`), the counts stay. `calc_frame_fwhm` is called without `clip`: mgorski_dev takes for the frame FWHM only stars with
+  (cpe/ci were dropped). Stars measured by FFS get markers by their own shape (`_draw_star_shapes`,
+  `STAR_SHAPE_CLASSES`): 0.55-0.82 ok - no marker; hollow orange = used for the FWHM but suspect (0.82-0.95), red =
+  rejected (> 0.95, < 0.55); square - flat top, diamond - sharp peak (cosmic / hot pixel in the star),
+  hexagon - too small; the panel line "star shape" counts ok / suspect / rejected. Saturated stars (peak `ffs.adu` > saturation,
+  not measured by FFS) - small red circles. `FFS_Worker` also runs `calc_star_field_stats` (mgorski_dev, ~0.1 s; errors
+  ignored): for a `psf_pattern` linear / radial / tangential, whiskers through the stars used for the FWHM along
+  the major axis, two arms of e x 0.3 x longer image side outside a gap for the star (3 x its FWHM, >= 0.8 % of the side) (`_draw_pattern`; theta is from the transposed image, so the
+  direction in the image is (sin t, cos t) and the centre is (psf_centre_y, psf_centre_x)), a cross at the pattern
+  centre or an arrow at the frame edge pointing to it; panel line "PSF pattern" (`_pattern_text`). OFP targets: half-transparent circle
+  size 14 (no names). Whiskers and targets use the muted colour of the colormap (`FITS_CMAPS` third item,
+  `fits_soft_color()`: grey on viridis, dim grey on turbo, cyan on gray); pointing and spikes the overlay colour (gray: yellow, not red). ⚙ → FITS display → "Show PSF
+  pattern" / "Show star shapes" / "Show saturated stars" (QSettings `fits_show_pattern`, `fits_show_star_shapes`,
+  default on; `fits_show_saturated`, first default `toi.show_sat_stars`); the panel lines stay. `calc_frame_fwhm` is called without `clip`: mgorski_dev takes for the frame FWHM only stars with
   0.55 < shape < 0.95 (fewer than 3 -> NaN, shown as "--", "stars used" says how many), master keeps its clipping.
 - `aux_gui.py` (`AuxWindow`) — one window with tabs, in order: Telescope (the active telescope's
   OCA manual pages fetched over HTTP from the intranet, `toi.oca_manual_url`: description `telescope_<tel>` on the
