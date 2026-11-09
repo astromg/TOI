@@ -129,11 +129,13 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   **transposed** image, so FFS x/y are swapped when drawing (stars: `x, y = zip(*coo)`; lines: x = `y0/y1`).
   `FFS(image, saturation=..., autobin=True)` (2k -> bin 2, 4k -> bin 3; falls back to `FFS(image)` with pyaraucaria
   master, which has no `autobin`). Saturation per telescope in `calc_ffs` (jk15 180000, others 45000). Satellite trails
-  from `ffs.lines` (not `spike`) are drawn red with a WARNING in the stats panel, diffraction spikes thin; ⚙ → FITS
+  from `ffs.lines` (not `spike`; mgorski_dev keeps lines >= 120 px and >= 5 sigma over their sides, so dense clusters
+  can still give a few and saturation bleed rows count as trails) are drawn red with a WARNING in the stats panel, diffraction spikes thin; ⚙ → FITS
   display → "Show satellite trails" switches the drawing (QSettings `fits_show_trails`, `fits_show_trails()`; first
   default `toi.show_trails`, on), the warning stays. Menu checkboxes: connect `toggled` - a `lambda checked=False`
   passed to `addAction` does not get the state in PyQt6. The panel shows FWHM, ellipticity, shape and "stars used"
-  (cpe/ci were dropped).
+  (cpe/ci were dropped). `calc_frame_fwhm` is called without `clip`: mgorski_dev takes for the frame FWHM only stars with
+  0.55 < shape < 0.95 (fewer than 3 -> NaN, shown as "--", "stars used" says how many), master keeps its clipping.
 - `aux_gui.py` (`AuxWindow`) — one window with tabs, in order: Telescope (the active telescope's
   OCA manual pages fetched over HTTP from the intranet, `toi.oca_manual_url`: description `telescope_<tel>` on the
   left, changelog `telescope_<tel>_changelog` on the right, in a splitter), Tasks (shown first; left: the daily checklist from `checklist.yaml`, items in the order of the

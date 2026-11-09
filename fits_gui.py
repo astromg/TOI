@@ -423,7 +423,9 @@ class FitsWindow(BaseWindow):
                 if n_trails:
                     txt = txt + f'<span style="color:{red};">WARNING</span>: satellite trail(s): <span style="color:{red};"><b>{n_trails}</b></span><br>'
 
-                if fwhm_arcsec:
+                if fwhm is None or not numpy.isfinite(fwhm):      # za malo gwiazd z dobrym shape
+                    txt = txt + f'FWHM:  <span style="color:{red};"><b>--</b></span> (too few good stars)'
+                elif fwhm_arcsec:
                     if fwhm_arcsec > 2.3:
                         txt = txt + f'FWHM:  <span style="color:{red};"><b>{fwhm:.1f}</b></span> px'
                         if fwhm_arcsec:
@@ -439,7 +441,7 @@ class FitsWindow(BaseWindow):
 
                 txt = txt + "<br>"
 
-                num = lambda v: "--" if v is None else f"{v:.2f}"     # FFS daje None przy malej liczbie gwiazd
+                num = lambda v: "--" if v is None or not numpy.isfinite(v) else f"{v:.2f}"   # None/NaN przy malej liczbie gwiazd
                 if ell is not None and ell > 0.1:
                     txt = txt + f'ellipse:  <span style="color:{red};"><b>{ell:.2f}</b></span> <br>'
                 else:
@@ -559,7 +561,8 @@ class FFS_Worker(QtCore.QObject):
             except TypeError:
                 self.ffs = FFS(self.image)
             self.ffs.saturation = self.saturation       # master: saturacja tylko jako atrybut
-            self.ffs.calc_frame_fwhm(threshold=10, fwhm=5, box=15, N_stars=50, clip=4)
+            # gwiazdy do FWHM klatki: mgorski_dev - okno shape 0.55-0.95 (< 3 dobrych -> NaN), master - clipping
+            self.ffs.calc_frame_fwhm(threshold=10, fwhm=5, box=15, N_stars=50)
             self.ffs.sky_gradient(n_segments=7)
         except Exception as e:
             logger.warning(f'TOI FITS: FFS failed: {e!r}')
