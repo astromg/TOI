@@ -29,8 +29,8 @@ DISPLAY_TARGET = 2048
 
 
 # mapy kolorow obrazu (menu ⚙ "FITS colormap", QSettings): wielobarwne z rownomiernie rosnaca jasnoscia jak viridis -
-# gradienty tla i slabe struktury widac wyrazniej niz na dwubarwnych; overlay - kolor nakladek (pointing, promienie
-# dyfrakcyjne), czytelny na danej mapie; soft - stonowany kolor (kolka obiektow OFP, kreseczki wzoru katow gwiazd), szary
+# gradienty tla i slabe struktury widac wyrazniej niz na dwubarwnych; overlay - kolor nakladek (promienie
+# dyfrakcyjne), czytelny na danej mapie; soft - stonowany kolor (kolka obiektow OFP, krzyzyk pointingu, kreseczki wzoru katow gwiazd), szary
 # na podstawowej mapie, na innych dobrany tak, by byl widoczny, ale nie dominowal
 FITS_CMAPS = {
     "viridis": ("Viridis (default)", "black", "lightgray"),
@@ -101,6 +101,13 @@ FFS_IMAGE_TYPES = ("science", "snap", "focusing")
 STAR_SHAPE_WINDOW = (0.55, 0.95)
 STAR_REJECTED_COLOR = "red"
 SATURATED_STAR_COLOR = "red"
+SATURATED_STAR_SIZE = 7         # kolka gwiazd nasyconych (bylo 5 - za male)
+# linie z FFS (slady satelitow, promienie, przelania) jako polprzezroczyste pasy, nie cienkie linie - widoczne, a nie
+# zaslaniaja obrazu pod spodem: szerokosc = max(LINE_BAND_HW x half_width linii, LINE_BAND_MIN x dluzszy bok obrazu)
+LINE_BAND_HW = 6.0
+LINE_BAND_MIN = 0.012
+TRAIL_BAND_ALPHA = 0.22         # slady satelitow (czerwone)
+OTHER_BAND_ALPHA = 0.13         # promienie dyfrakcyjne, przelania
 OFP_TARGET_ALPHA = 0.85       # kolka obiektow OFP (targets); 0.45 bylo slabo widac na ciemnym tle (mediana/MAD)
 # wzor katow wydluzen gwiazd (FFS calc_star_field_stats, psf_pattern; kolor - fits_soft_color()): kreseczki przez gwiazdy wzdluz osi dluzszej,
 # dlugosc ramion = eliptycznosc x PATTERN_WHISKER_SCALE x dluzszy bok obrazu (e = 0.1 -> 2 % boku). Kreseczki tylko
@@ -339,9 +346,11 @@ class FitsWindow(BaseWindow):
         if image_type and str(image_type).strip().lower() not in FFS_IMAGE_TYPES:
             return
 
+        # zb08 / wk06: koniec przetwornika ~64500 ADU, 45000 - zapas na nieliniowosc (OFP max_adu 49151);
+        # jk15: plateau nasycenia 155000-185000 zaleznie od klatki (pewnie rozne wzmacniacze), stad 150000 (2026-11-09)
         self.saturation = 45000
         if self.parent.active_tel == "jk15":
-            self.saturation = 180000
+            self.saturation = 150000
 
         thread = QtCore.QThread()
         worker = FFS_Worker(self.image, saturation=self.saturation, token=self._ffs_token)
@@ -416,6 +425,20 @@ class FitsWindow(BaseWindow):
         if abs(z) >= 0.7:       # kierunek tylko przy zgodnych katach - dlugie slady mierzone w kawalkach daja rozrzut
             txt += f' @ {(90 - numpy.degrees(0.5 * numpy.angle(z))) % 180:.0f}&deg;'     # obraz transponowany (FFS_Worker)
         return txt
+
+    def _band(self, x0, y0, x1, y1, width, color, alpha):
+        """Polprzezroczysty pas (prostokat) szerokosci width px wzdluz odcinka (x0, y0)-(x1, y1) obrazu."""
+        dx, dy = x1 - x0, y1 - y0
+        n = numpy.hypot(dx, dy)
+        if not n > 0:
+            return
+        ox, oy = -dy / n * width / 2, dx / n * width / 2
+        self._overlays += self.axes.fill([x0 + ox, x1 + ox, x1 - ox, x0 - ox], [y0 + oy, y1 + oy, y1 - oy, y0 - oy],
+                                         color=color, alpha=alpha, linewidth=0)
+
+    def _band_width(self, half_width=0.0):
+        h, w = numpy.shape(self.image)[:2]
+        return max(LINE_BAND_HW * float(half_width), LINE_BAND_MIN * max(h, w))
 
     def _pattern_mask(self, n):
         """Gwiazdy wzoru katow: maska z FFS (pattern_stars, calc_star_field_stats); bez niej (starszy FFS) jak tam:
@@ -614,8 +637,8 @@ class FitsWindow(BaseWindow):
                         if "saturation_max" in self.parent.fits_ofp_data['raw']['objects'][k].keys():
                             txt2 = txt2 + f"<i>{k}</i> max ADU: <b>{self.parent.fits_ofp_data['raw']['objects'][k]['saturation_max']:.0f}</b> <br>"
                 if self.pointing_x and self.in_image(self.pointing_x, self.pointing_y):
-                    overlay = FITS_CMAPS[fits_cmap()][1]
-                    self._overlays += self.axes.plot(self.pointing_x, self.pointing_y, "+", color=overlay, markersize=20)
+                    self._overlays += self.axes.plot(self.pointing_x, self.pointing_y, "+", color=fits_soft_color(),
+                                                     markersize=20, alpha=OFP_TARGET_ALPHA)     # jak kolka obiektow OFP
                 if len(self.ob_x)>0:
                     # polprzezroczyste kolka - nie dominuja obrazka (bez podpisow - przy polach standardow sie zlewaly)
                     self.objects = self.axes.plot(self.ob_x, self.ob_y, color=fits_soft_color(), marker="o",
@@ -661,20 +684,24 @@ class FitsWindow(BaseWindow):
                 # linie z FFS (pyaraucaria mgorski_dev; z mastera brak): slady (satelity) na czerwono
                 # z ostrzezeniem, promienie dyfrakcyjne nasyconych gwiazd cienko, bez ostrzezenia
                 lines = getattr(self.ffs, "lines", None)
-                n_trails = n_spikes = 0
+                n_trails = n_spikes = n_bleeds = 0
                 if lines is not None and len(lines):
                     spike = numpy.asarray(lines["spike"], dtype=bool) if "spike" in lines.colnames \
                         else numpy.zeros(len(lines), dtype=bool)
-                    n_trails, n_spikes = int((~spike).sum()), int(spike.sum())
+                    # przelania ladunku z nasyconych gwiazd (FFS classify_lines, mgorski_dev) - nie satelity
+                    bleed = numpy.asarray(lines["bleed"], dtype=bool) & ~spike if "bleed" in lines.colnames \
+                        else numpy.zeros(len(lines), dtype=bool)
+                    n_trails, n_spikes, n_bleeds = int((~spike & ~bleed).sum()), int(spike.sum()), int(bleed.sum())
                     if fits_show_trails(self.parent.local_cfg["toi"].get("show_trails", True)):
                         overlay = FITS_CMAPS[fits_cmap()][1]
-                        for row, is_spike in zip(lines, spike):
+                        for row, is_spike, is_bleed in zip(lines, spike, bleed):
                             # FFS liczy na obrazie transponowanym (FFS_Worker): x linii = wiersz obrazu
-                            xs, ys = [row["y0"], row["y1"]], [row["x0"], row["x1"]]
-                            if is_spike:
-                                self._overlays += self.axes.plot(xs, ys, color=overlay, lw=0.6, alpha=0.5)
+                            hw = row["half_width"] if "half_width" in lines.colnames else 3.0
+                            seg = (row["y0"], row["x0"], row["y1"], row["x1"])
+                            if is_spike or is_bleed:        # bez ostrzezenia, slabszy pas
+                                self._band(*seg, self._band_width(hw), overlay, OTHER_BAND_ALPHA)
                             else:
-                                self._overlays += self.axes.plot(xs, ys, color="red", lw=1.0, alpha=0.8)
+                                self._band(*seg, self._band_width(hw), "red", TRAIL_BAND_ALPHA)
                 if n_trails:
                     txt = txt + f'<span style="color:{red};">WARNING</span>: satellite trail(s): <span style="color:{red};"><b>{n_trails}</b></span><br>'
                 trailed = self._trailed_text()
@@ -723,12 +750,23 @@ class FitsWindow(BaseWindow):
                     txt = txt + f"star shape:  <i>{n_ok}</i> ok / {rej} rejected <br>"
                 if n_spikes:
                     txt = txt + f'diffraction spikes:  <i>{n_spikes}</i> <br>'
+                # przelania nasycone (FFS mk_bleeds_mask: z maski saturacji, find_lines ich nie widzi) - cienko, jak
+                # gwiazdy nasycone (przelacznik "Show saturated stars")
+                sat_bleeds = getattr(self.ffs, "bleeds", None)
+                if sat_bleeds is not None and len(sat_bleeds):
+                    n_bleeds += len(sat_bleeds)
+                    if fits_show_saturated(self.parent.local_cfg["toi"].get("show_sat_stars", True)):
+                        for row in sat_bleeds:      # FFS na obrazie transponowanym: (x, y) obrazu = (y, x) FFS
+                            self._band(row["y0"], row["x0"], row["y1"], row["x1"], self._band_width(row["width"] / 2),
+                                       SATURATED_STAR_COLOR, OTHER_BAND_ALPHA)
+                if n_bleeds:
+                    txt = txt + f'bleed trails:  <i>{n_bleeds}</i> <br>'
                 txt = txt + "<br>"
 
                 if len(self.coo)>0:
                     if len(self.sat_coo)>0 and fits_show_saturated(self.parent.local_cfg["toi"].get("show_sat_stars", True)):
                         x,y = zip(*self.sat_coo)
-                        self._overlays += self.axes.plot(x, y, color=SATURATED_STAR_COLOR, marker="o", markersize=5,
+                        self._overlays += self.axes.plot(x, y, color=SATURATED_STAR_COLOR, marker="o", markersize=SATURATED_STAR_SIZE,
                                                          markerfacecolor="none", markeredgewidth=1.0, linestyle="")
                     n_sat = len(self.sat_coo)
                     sat_txt = f'<span style="color:{red};"><b>{n_sat}</b></span>' if n_sat else f"<i>{n_sat}</i>"

@@ -1413,11 +1413,11 @@ class TPGWindow(BaseWindow):
             return {}
 
     def _night_monitor_gap_default(self):
-        # przerwa night monitora z configu tpg dla teleskopu (jak w tpg), domyslnie 15 min
+        # przerwa night monitora z configu tpg dla teleskopu (jak w tpg; tpg/config.yaml night_monitor_gap: 5), domyslnie 5 min
         try:
-            self.night_monitor_gap_e.setValue(int(self._tpg_cfg()[self.parent.parent.active_tel].get("night_monitor_gap", 15)))
+            self.night_monitor_gap_e.setValue(int(self._tpg_cfg()[self.parent.parent.active_tel].get("night_monitor_gap", 5)))
         except Exception:
-            self.night_monitor_gap_e.setValue(15)
+            self.night_monitor_gap_e.setValue(5)
 
     def _smart_skyflats_checkboxes(self):
         """Wieczorne skyflaty wlaczone, dopoki Slonce jest nad dolna granica sesji flatow (skyflat.hsun z configu tpg)

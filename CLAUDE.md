@@ -128,9 +128,13 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   separate `QThread` (`FFS_Worker`) so image analysis doesn't block the Qt main thread. The worker passes a
   **transposed** image, so FFS x/y are swapped when drawing (stars: `x, y = zip(*coo)`; lines: x = `y0/y1`).
   `FFS(image, saturation=..., autobin=True)` (2k -> bin 2, 4k -> bin 3; falls back to `FFS(image)` with pyaraucaria
-  master, which has no `autobin`). Saturation per telescope in `calc_ffs` (jk15 180000, others 45000). Satellite trails
-  from `ffs.lines` (not `spike`; mgorski_dev keeps lines >= 120 px and >= 5 sigma over their sides, so dense clusters
-  can still give a few and saturation bleed rows count as trails) are drawn red with a WARNING in the stats panel, diffraction spikes thin; ⚙ → FITS
+  master, which has no `autobin`). Saturation per telescope in `calc_ffs` (jk15 150000 - its saturation plateau is 155000-185000 depending on the
+  frame; others 45000 - ADC limit ~64500, margin for non-linearity). Satellite trails (half-transparent red bands, `_band`, `LINE_BAND_*`)
+  from `ffs.lines` (not `spike`, not `bleed` - charge bleeds, median brightness >= 0.8 x saturation, drawn thin like
+  spikes with a "bleed trails: N" panel line; saturated bleeds come from `ffs.bleeds` (`mk_bleeds_mask`, saturated
+  pixels never vote in find_lines) and are drawn as thin red lines with the saturated stars; find_stars keeps one
+  detection per saturated region; mgorski_dev keeps lines >= 120 px, >= 5 sigma (median) and >= 1 sigma (25th percentile) over
+  their sides - dense fields are mostly clean; very bright saturated stars can still give a few) are drawn red with a WARNING in the stats panel, diffraction spikes thin; ⚙ → FITS
   display → "Show satellite trails" switches the drawing (QSettings `fits_show_trails`, `fits_show_trails()`; first
   default `toi.show_trails`, on), the warning stays. Menu checkboxes: connect `toggled` - a `lambda checked=False`
   passed to `addAction` does not get the state in PyQt6. FFS runs only for `image_type` (downloader `tic.status.<tel>.download` = IMAGETYP)
@@ -140,7 +144,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   (cpe/ci were dropped). Stars measured by FFS but rejected from the frame FWHM (shape outside 0.55-0.95,
   `STAR_SHAPE_WINDOW`) get hollow red squares (`_draw_star_shapes`); all others no marker (orange "suspect" squares were
   dropped); the panel line "star shape" counts ok / rejected. Saturated stars (peak `ffs.adu` > saturation,
-  not measured by FFS) - small red circles. `FFS_Worker` also runs `calc_star_field_stats` (mgorski_dev, ~0.1 s; errors
+  not measured by FFS) - red circles (`SATURATED_STAR_SIZE` 7). `FFS_Worker` also runs `calc_star_field_stats` (mgorski_dev, ~0.1 s; errors
   ignored): for a `psf_pattern` linear / radial / tangential with strength >= 0.15 (`_pattern_strength`:
   common e, or S x mean e; the FFS test only says "not random", true on almost every frame), whiskers through the stars of the pattern (`ffs.pattern_stars`: shape > 0.2, e > 0.05 -
   not the FWHM window, which drops trailed stars) along the major axis, two arms of e x 0.2 x longer image side outside a gap for the star (3 x its FWHM, >= 0.8 % of the side) (`_draw_pattern`; theta is from the transposed image, so the
@@ -148,7 +152,8 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   centre or an arrow at the frame edge pointing to it; panel line "PSF pattern" (`_pattern_text`, grey "(weak)" below 0.15). A median star e >= 0.4 gives a red "WARNING: trailed stars"
   (`_trailed_text`, `TRAILED_E_MIN`): long trails are measured in pieces (FFS box +-15 px) and often give no pattern. OFP targets: circle size 14,
   alpha 0.85 (no names). Whiskers and targets use the muted colour of the colormap (`FITS_CMAPS` third item,
-  `fits_soft_color()`: grey on viridis, dim grey on turbo, cyan on gray); pointing and spikes the overlay colour (gray: yellow, not red). ⚙ → FITS display → "Show PSF
+  `fits_soft_color()`: grey on viridis, dim grey on turbo, cyan on gray); the pointing cross too (same colour and alpha as the targets);
+  spikes the overlay colour (gray: yellow, not red). ⚙ → FITS display → "Show PSF
   pattern" / "Show star shapes" / "Show saturated stars" (QSettings `fits_show_pattern`, `fits_show_star_shapes`,
   default on; `fits_show_saturated`, first default `toi.show_sat_stars`); the panel lines stay. `calc_frame_fwhm` is called without `clip`: mgorski_dev takes for the frame FWHM only stars with
   0.55 < shape < 0.95 (fewer than 3 -> NaN, shown as "--", "stars used" says how many), master keeps its clipping.
