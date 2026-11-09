@@ -52,9 +52,24 @@ def fits_display_mode():
     return mode if mode in FITS_DISPLAY_MODES else FITS_DISPLAY_DEFAULT
 
 
+# typy zdjec (IMAGETYP, downloader param image_type), dla ktorych liczymy FFS: OBJECT, SNAP, FOCUS
+FFS_IMAGE_TYPES = ("science", "snap", "focusing")
+
+# klasy shape gwiazd (CPE x FWHM^2) na obrazie: (od, do, kolor kolka, nazwa w panelu). Okno FFS do FWHM klatki to
+# 0.55-0.95 (calc_star_stats): normalny PSF 0.68-0.78, splaszczony szczyt 0.82-0.95 (1-2 kroki od focusu), ponizej
+# 0.55 pojedyncze piksele / paczki mocnego rozogniskowania, powyzej 0.95 kosmik / goracy piksel w gwiezdzie
+STAR_SHAPE_CLASSES = ((0.55, 0.82, "lime", "ok"), (0.82, 0.95, "orange", "flat"))
+STAR_SHAPE_BAD_COLOR = "red"
+
+
 def fits_show_trails(default=True):
     # linie satelitow z FFS na obrazie (menu ⚙ "FITS display", QSettings); default - toi.show_trails z configu
     return bool(QtCore.QSettings("OCA", "TOI").value("fits_show_trails", default, type=bool))
+
+
+def fits_show_star_shapes():
+    # kolka gwiazd w kolorach shape na obrazie (menu ⚙ "FITS display", QSettings); licznik w panelu zostaje
+    return bool(QtCore.QSettings("OCA", "TOI").value("fits_show_star_shapes", True, type=bool))
 
 
 def display_binning(shape, mode):
@@ -134,6 +149,15 @@ class FitsWindow(BaseWindow):
                 self.update_fits_data()     # nakladki od nowa: z liniami albo bez
         except Exception as e:
             logger.warning(f'TOI FITS: show trails: {e!r}')
+
+    def set_show_star_shapes(self, on):
+        # zwykly slot (menu) - wyjatek nie moze wyjsc
+        try:
+            QtCore.QSettings("OCA", "TOI").setValue("fits_show_star_shapes", bool(on))
+            if self.image is not None and numpy.ndim(self.image) == 2:
+                self.update_fits_data()     # nakladki od nowa: z kolkami albo bez
+        except Exception as e:
+            logger.warning(f'TOI FITS: show star shapes: {e!r}')
 
     def set_display_mode(self, mode):
         QtCore.QSettings("OCA", "TOI").setValue("fits_display", mode)
@@ -217,6 +241,12 @@ class FitsWindow(BaseWindow):
         self.ffs = None
         self._ffs_token += 1        # poprzednie zlecenie (jesli jeszcze liczy) - wynik do kosza
 
+        # statystyki gwiazd tylko dla OBJECT / SNAP / FOCUS (downloader image_type: science / snap / focusing);
+        # flat / zero / dark bez FFS; brak danych downloadera -> liczymy jak dotad
+        image_type = get_dic(self.parent.fits_downloader_data, "param", "image_type")
+        if image_type and str(image_type).strip().lower() not in FFS_IMAGE_TYPES:
+            return
+
         self.saturation = 45000
         if self.parent.active_tel == "jk15":
             self.saturation = 180000
@@ -258,6 +288,27 @@ class FitsWindow(BaseWindow):
         except Exception as e:
             logger.exception(f'TOI FITS: ffs result: {e}')
 
+
+    def _draw_star_shapes(self, draw=True):
+        """Kolka wokol gwiazd zmierzonych przez FFS, kolor wg shape (STAR_SHAPE_CLASSES, reszta czerwona);
+        draw=False - tylko policz. Zwraca liczby gwiazd w klasach [ok, flat, bad] albo None (brak pomiaru)."""
+        shape = getattr(self.ffs, "shape", None)
+        coo = getattr(self.ffs, "coo", None)
+        if shape is None or coo is None or len(shape) == 0:
+            return None
+        shape = numpy.asarray(shape, dtype=float)
+        coo = numpy.asarray(coo).reshape(-1, 2)[:len(shape)]
+        shape = shape[:len(coo)]
+        measured = numpy.isfinite(shape)
+        classes = [measured & (shape > lo) & (shape <= hi) for lo, hi, _, _ in STAR_SHAPE_CLASSES]
+        bad = measured & ~numpy.any(classes, axis=0)
+        colors = [c for _, _, c, _ in STAR_SHAPE_CLASSES] + [STAR_SHAPE_BAD_COLOR]
+        for m, color in zip(classes + [bad], colors):
+            if draw and m.any():
+                # FFS liczy na obrazie transponowanym (FFS_Worker): coo (wiersz, kolumna) = (x, y) obrazu
+                self._overlays += self.axes.plot(coo[m, 0], coo[m, 1], color=color, marker="o", markersize=9,
+                                                 markerfacecolor="none", markeredgewidth=1.0, linestyle="")
+        return [int(m.sum()) for m in classes + [bad]]
 
     def update_fits_data(self):
         # wolane tez z ffs_done (zwykly slot) - wyjatek nie moze wyjsc
@@ -442,7 +493,7 @@ class FitsWindow(BaseWindow):
                 txt = txt + "<br>"
 
                 num = lambda v: "--" if v is None or not numpy.isfinite(v) else f"{v:.2f}"   # None/NaN przy malej liczbie gwiazd
-                if ell is not None and ell > 0.1:
+                if ell is not None and ell > 0.15:     # mediany 0.08-0.14; > 0.15 - wydluzenie ze wspolnym kierunkiem
                     txt = txt + f'ellipse:  <span style="color:{red};"><b>{ell:.2f}</b></span> <br>'
                 else:
                     txt = txt + f'ellipse:  <b>{num(ell)}</b> <br>'
@@ -453,6 +504,12 @@ class FitsWindow(BaseWindow):
                         txt = txt + f'stars used:  <span style="color:{red};"><b>{used}</b></span>/50 <br>'
                     else:
                         txt = txt + f'stars used:  <b>{used}</b>/50 <br>'
+                star_classes = self._draw_star_shapes(draw=fits_show_star_shapes())
+                if star_classes:        # ile zmierzonych gwiazd w klasach shape (zielone / pomaranczowe / czerwone kolka)
+                    names = [n for _, _, _, n in STAR_SHAPE_CLASSES] + ["bad"]
+                    colors = [theme.hex("ok_fg"), theme.hex("warn2_fg"), red]    # tekst wg motywu, kolka - kolory obrazu
+                    parts = [f'<span style="color:{c};"><b>{k}</b></span> {nm}' for k, nm, c in zip(star_classes, names, colors)]
+                    txt = txt + "star shape:  " + " / ".join(parts) + " <br>"
                 if n_spikes:
                     txt = txt + f'diffraction spikes:  <i>{n_spikes}</i> <br>'
                 txt = txt + "<br>"

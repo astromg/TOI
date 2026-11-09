@@ -16,7 +16,8 @@ from claude_report import write_claude_report
 from toi_lib import *
 from toi_theme import theme, TITLES
 from plan_gui import PLAN_LOG_LINES_CHOICES, plan_log_lines, set_plan_log_lines
-from fits_gui import FITS_DISPLAY_MODES, fits_display_mode, FITS_CMAPS, fits_cmap, fits_show_trails
+from fits_gui import FITS_DISPLAY_MODES, fits_display_mode, FITS_CMAPS, fits_cmap, fits_show_trails, \
+    fits_show_star_shapes
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +134,10 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         trails.setCheckable(True)
         trails.setChecked(fits_show_trails(self.parent.local_cfg["toi"].get("show_trails", True)))
         trails.toggled.connect(lambda on: self.parent.fitsGui.set_show_trails(on))     # toggled podaje stan
+        shapes = fits_menu.addAction("Show star shapes")    # kolka gwiazd wg shape (licznik w panelu zostaje)
+        shapes.setCheckable(True)
+        shapes.setChecked(fits_show_star_shapes())
+        shapes.toggled.connect(lambda on: self.parent.fitsGui.set_show_star_shapes(on))
         cmap_menu = menu.addMenu("FITS colormap")      # mapa kolorow obrazu FITS
         group_cmap = QtGui.QActionGroup(cmap_menu)
         for name, (title, _) in FITS_CMAPS.items():
