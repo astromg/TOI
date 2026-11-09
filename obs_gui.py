@@ -16,7 +16,8 @@ from claude_report import write_claude_report
 from toi_lib import *
 from toi_theme import theme, TITLES
 from plan_gui import PLAN_LOG_LINES_CHOICES, plan_log_lines, set_plan_log_lines
-from fits_gui import FITS_DISPLAY_MODES, fits_display_mode, FITS_CMAPS, fits_cmap, fits_show_trails, \
+from fits_gui import FITS_DISPLAY_MODES, fits_display_mode, FITS_CMAPS, fits_cmap, FITS_SCALES, fits_scale, \
+    fits_show_trails, \
     fits_show_star_shapes, fits_show_saturated, fits_show_pattern
 
 logger = logging.getLogger(__name__)
@@ -153,6 +154,13 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             action.setCheckable(True)
             action.setChecked(name == fits_cmap())
             group_cmap.addAction(action)
+        scale_menu = menu.addMenu("FITS scale")        # kontrast obrazu FITS
+        group_scale = QtGui.QActionGroup(scale_menu)
+        for name, title in FITS_SCALES.items():
+            action = scale_menu.addAction(title, lambda _=False, name=name: self.parent.fitsGui.set_scale(name))
+            action.setCheckable(True)
+            action.setChecked(name == fits_scale())
+            group_scale.addAction(action)
         themes = menu.addMenu("Theme")
         group = QtGui.QActionGroup(themes)
         for name in TITLES:         # kolejnosc w menu: jasne, potem ciemne

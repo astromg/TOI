@@ -11,6 +11,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import logging
 import numpy
 from astropy.io import fits
+from astropy.stats import mad_std
+from astropy.visualization import ZScaleInterval
 from pyaraucaria.ffs import FFS
 from toi_lib import *
 from base_window import BaseWindow
@@ -42,6 +44,38 @@ FITS_CMAPS = {
 }
 FITS_CMAP_DEFAULT = "viridis"
 
+# kontrast obrazu (menu ⚙ "FITS scale", QSettings fits_scale), liniowo vmin-vmax z co 4. piksela. mad: mediana i mad_std
+# to samo tlo (odporne na gwiazdy), zakres niesymetryczny, bo gwiazdy sa tylko powyzej tla; std (dawne): jasne gwiazdy
+# podbijaja std - obraz plaski, slabe gwiazdy niewidoczne; zscale - jak DS9 / IRAF. Porownanie 2026-11-09: mad i zscale
+# podobne, mad z ciemniejszym tlem; median +- 1 mad za waskie (sam szum)
+FITS_SCALES = {
+    "mad": "Median -2 / +10 MAD (default)",
+    "zscale": "ZScale",
+    "std": "Mean +- std (old)",
+}
+FITS_SCALE_DEFAULT = "mad"
+
+
+def fits_scale():
+    name = str(QtCore.QSettings("OCA", "TOI").value("fits_scale", FITS_SCALE_DEFAULT))
+    return name if name in FITS_SCALES else FITS_SCALE_DEFAULT
+
+
+def image_limits(sample, mode):
+    """vmin, vmax obrazu dla trybu z FITS_SCALES (sample - np. co 4. piksel)."""
+    sample = numpy.asarray(sample, dtype=float)
+    sample = sample[numpy.isfinite(sample)]
+    if sample.size == 0:
+        return 0.0, 1.0
+    if mode == "zscale":
+        return tuple(float(v) for v in ZScaleInterval().get_limits(sample))
+    if mode == "mad":
+        med, sig = float(numpy.median(sample)), float(mad_std(sample))
+        if sig > 0:
+            return med - 2 * sig, med + 10 * sig
+    mean, std = float(numpy.mean(sample)), float(numpy.std(sample))     # std, a dla mad przy zerowym MAD
+    return mean - std, mean + std
+
 
 def fits_soft_color():
     # stonowany kolor nakladek dla biezacej mapy kolorow (kolka OFP, kreseczki wzoru katow)
@@ -61,24 +95,23 @@ def fits_display_mode():
 # typy zdjec (IMAGETYP, downloader param image_type), dla ktorych liczymy FFS: OBJECT, SNAP, FOCUS
 FFS_IMAGE_TYPES = ("science", "snap", "focusing")
 
-# klasy shape gwiazd (CPE x FWHM^2) na obrazie: (od, do, kolor, marker - None: bez znacznika, nazwa w panelu,
-# kolor tekstu z motywu). Kolor = czy gwiazda idzie do FWHM klatki (okno FFS 0.55-0.95, calc_star_stats): pomaranczowy -
-# liczona, ale podejrzana (0.82-0.95: splaszczony szczyt, 1-2 kroki od focusu), czerwony - odrzucona (> 0.95 kosmik /
-# goracy piksel w gwiezdzie, < 0.55 paczki mocnego rozogniskowania, slabe detekcje - centroid obok maksimum). Marker =
-# przyczyna: kwadrat - splaszczony szczyt, romb - ostry pik (kosmik), heksagon - za maly (nie osmiokat: przy tej
-# wielkosci jak kolko, a kolka to gwiazdy nasycone). Normalny PSF 0.68-0.78. Gwiazdy nasycone FFS nie mierzy (bez shape) - male czerwone kolka.
-STAR_SHAPE_CLASSES = ((0.55, 0.82, None, None, "ok", "ok_fg"),
-                      (0.82, 0.95, "orange", "s", "suspect", "warn2_fg"),
-                      (0.95, numpy.inf, "red", "D", "rejected", "bad_fg"),
-                      (-numpy.inf, 0.55, "red", "h", "rejected", "bad_fg"))
+# oznaczenia gwiazd zmierzonych przez FFS: czerwony pusty kwadrat - gwiazda odrzucona z FWHM klatki (shape poza oknem FFS
+# calc_star_stats 0.55-0.95: < 0.55 paczki, slabe detekcje; > 0.95 kosmik w gwiezdzie); pozostale bez znacznika (pomaranczowe
+# "podejrzane" - shape 0.82-0.95, e > 0.25 - zarzucone 2026-11-09). Nasycone - male czerwone kolka.
+STAR_SHAPE_WINDOW = (0.55, 0.95)
+STAR_REJECTED_COLOR = "red"
 SATURATED_STAR_COLOR = "red"
-OFP_TARGET_ALPHA = 0.45       # kolka obiektow OFP (targets) - polprzezroczyste
+OFP_TARGET_ALPHA = 0.85       # kolka obiektow OFP (targets); 0.45 bylo slabo widac na ciemnym tle (mediana/MAD)
 # wzor katow wydluzen gwiazd (FFS calc_star_field_stats, psf_pattern; kolor - fits_soft_color()): kreseczki przez gwiazdy wzdluz osi dluzszej,
 # dlugosc ramion = eliptycznosc x PATTERN_WHISKER_SCALE x dluzszy bok obrazu (e = 0.1 -> 2 % boku). Kreseczki tylko
 # dla wzoru o sile >= PATTERN_MIN_STRENGTH (jak prog czerwonej eliptycznosci): test FFS mowi tylko, ze wzor nie jest
 # przypadkowy - przy 30-50 jasnych gwiazdach istotne jest juz wspolne wydluzenie ~0.05 (na prawie kazdej klatce)
 PATTERN_WHISKER_SCALE = 0.2
 PATTERN_MIN_STRENGTH = 0.15
+# ostrzezenie o rozmazanych gwiazdach (slady: prowadzenie, skok montazu) - mediana eliptycznosci zmierzonych gwiazd
+# >= TRAILED_E_MIN. Dlugie slady (dluzsze niz wycinek pomiaru FFS, +-15 px) sa mierzone w kawalkach i wzor katow czesto
+# nie wychodzi (zb08 snap 2026-11-09: e 0.51, slady ~60-70 px, psf_pattern none) - to ostrzezenie i tak sie pojawi
+TRAILED_E_MIN = 0.4
 # przerwa na gwiazde w srodku kreseczki: promien = PATTERN_GAP_FWHM x FWHM gwiazdy, co najmniej PATTERN_GAP_MIN boku
 PATTERN_GAP_FWHM = 3.0
 PATTERN_GAP_MIN = 0.008
@@ -167,6 +200,16 @@ class FitsWindow(BaseWindow):
         if getattr(self, "_dirty", False):     # mkUI pokazuje okno, zanim __init__ ustawi _dirty
             self.redraw()
 
+    def set_scale(self, name):
+        # zwykly slot (menu) - wyjatek nie moze wyjsc
+        try:
+            QtCore.QSettings("OCA", "TOI").setValue("fits_scale", name)
+            if self.image is not None and numpy.ndim(self.image) == 2:
+                self.plot_image()
+                self.update_fits_data()     # plot_image czysci osie - nakladki od nowa
+        except Exception as e:
+            logger.warning(f'TOI FITS: scale: {e!r}')
+
     def set_cmap(self, name):
         QtCore.QSettings("OCA", "TOI").setValue("fits_cmap", name)
         if self.image is not None and numpy.ndim(self.image) == 2:
@@ -245,8 +288,7 @@ class FitsWindow(BaseWindow):
             # skala z co 4. piksela, mean i std raz (wczesniej po 2x z calego obrazu - kazde przelaczenie teleskopu
             # wczytuje ostatni obraz, py-spy 2026-11-05)
             sample = numpy.asarray(self.image)[::4, ::4] if numpy.ndim(self.image) == 2 else self.image
-            mean, std = numpy.mean(sample), numpy.std(sample)
-            vmin, vmax = mean - std, mean + std
+            vmin, vmax = image_limits(sample, fits_scale())       # kontrast wg ⚙ "FITS scale"
 
             display, f = self.display, self.display_factor
             if display is None or f <= 1:
@@ -340,40 +382,63 @@ class FitsWindow(BaseWindow):
 
 
     def _draw_star_shapes(self, draw=True):
-        """Puste markery gwiazd zmierzonych przez FFS wg shape (STAR_SHAPE_CLASSES; dobre bez znacznika); draw=False -
-        tylko policz. Zwraca [(nazwa, liczba, kolor tekstu z motywu)] w kolejnosci ok / suspect / rejected albo None."""
+        """Czerwone puste kwadraty gwiazd zmierzonych przez FFS, ale odrzuconych z FWHM klatki (shape poza
+        STAR_SHAPE_WINDOW); draw=False - tylko policz. Zwraca (uzyte, odrzucone) albo None (brak pomiaru)."""
         shape = getattr(self.ffs, "shape", None)
         coo = getattr(self.ffs, "coo", None)
         if shape is None or coo is None or len(shape) == 0:
             return None
-        shape = numpy.asarray(shape, dtype=float)
-        coo = numpy.asarray(coo).reshape(-1, 2)[:len(shape)]
-        shape = shape[:len(coo)]
-        counts = {}
-        with numpy.errstate(invalid="ignore"):          # NaN - niezmierzone (nasycone, zle piksele) - bez markera
-            for lo, hi, color, marker, name, fg in STAR_SHAPE_CLASSES:
-                m = (shape > lo) & (shape <= hi)
-                counts[name] = (counts.get(name, (0, fg))[0] + int(m.sum()), fg)
-                if draw and marker and m.any():
-                    # FFS liczy na obrazie transponowanym (FFS_Worker): coo (wiersz, kolumna) = (x, y) obrazu
-                    self._overlays += self.axes.plot(coo[m, 0], coo[m, 1], color=color, marker=marker, markersize=9,
-                                                     markerfacecolor="none", markeredgewidth=1.0, linestyle="")
-        return [(name, n, fg) for name, (n, fg) in counts.items()]
+        n = min(len(shape), len(coo))
+        shape = numpy.asarray(shape, dtype=float)[:n]
+        coo = numpy.asarray(coo).reshape(-1, 2)[:n]
+        with numpy.errstate(invalid="ignore"):          # NaN - niezmierzone (nasycone, zle piksele) - bez znacznika
+            measured = numpy.isfinite(shape)
+            rejected = measured & ((shape <= STAR_SHAPE_WINDOW[0]) | (shape >= STAR_SHAPE_WINDOW[1]))
+        if draw and rejected.any():
+            # FFS liczy na obrazie transponowanym (FFS_Worker): coo (wiersz, kolumna) = (x, y) obrazu
+            self._overlays += self.axes.plot(coo[rejected, 0], coo[rejected, 1], color=STAR_REJECTED_COLOR, marker="s",
+                                             markersize=9, markerfacecolor="none", markeredgewidth=1.0, linestyle="")
+        return int((measured & ~rejected).sum()), int(rejected.sum())
+
+    def _trailed_text(self):
+        """Ostrzezenie o rozmazanych gwiazdach (mediana e zmierzonych gwiazd >= TRAILED_E_MIN) albo None."""
+        e = numpy.asarray(getattr(self.ffs, "ellipticity", []), dtype=float)
+        t = numpy.asarray(getattr(self.ffs, "theta", []), dtype=float)
+        n = min(len(e), len(t))
+        m = numpy.isfinite(e[:n]) & numpy.isfinite(t[:n])
+        if m.sum() < 3 or numpy.median(e[:n][m]) < TRAILED_E_MIN:
+            return None
+        e, t = e[:n][m], t[:n][m]
+        z = numpy.sum(e * numpy.exp(2j * t)) / numpy.sum(e)        # wspolny kierunek (okres pi), |z| - zgodnosc katow
+        red = theme.hex("bad_fg")
+        txt = (f'<span style="color:{red};">WARNING</span>: trailed stars: e <span style="color:{red};"><b>'
+               f'{numpy.median(e):.2f}</b></span>')
+        if abs(z) >= 0.7:       # kierunek tylko przy zgodnych katach - dlugie slady mierzone w kawalkach daja rozrzut
+            txt += f' @ {(90 - numpy.degrees(0.5 * numpy.angle(z))) % 180:.0f}&deg;'     # obraz transponowany (FFS_Worker)
+        return txt
+
+    def _pattern_mask(self, n):
+        """Gwiazdy wzoru katow: maska z FFS (pattern_stars, calc_star_field_stats); bez niej (starszy FFS) jak tam:
+        shape > 0.2 i e > 0.05 (okno FWHM 0.55-0.95 odrzucaloby gwiazdy rozmazane, o ktore tu chodzi)."""
+        mask = getattr(self.ffs, "pattern_stars", None)
+        if mask is not None and len(mask) >= n:
+            return numpy.asarray(mask[:n], dtype=bool)
+        e = numpy.asarray(self.ffs.ellipticity, dtype=float)[:n]
+        sh = numpy.asarray(self.ffs.shape, dtype=float)[:n]
+        with numpy.errstate(invalid="ignore"):
+            return numpy.isfinite(e) & (e > 0.05) & (sh > 0.2)
 
     def _pattern_strength(self):
         """Sila wzoru katow (eliptycznosc wzoru): linear - wspolne wydluzenie psf_e_mean; radial / tangential -
-        S x srednia e gwiazd wzoru (okno shape, e > 0.05, jak w FFS psf_pattern). NaN - brak wzoru."""
+        S x srednia e gwiazd wzoru (_pattern_mask). NaN - brak wzoru."""
         st = self.ffs.stats["frame"]
         pattern = st.get("psf_pattern")
         if pattern == "linear":
             return float(st.get("psf_e_mean", numpy.nan))
         if pattern in ("radial", "tangential"):
             e = numpy.asarray(getattr(self.ffs, "ellipticity", []), dtype=float)
-            sh = numpy.asarray(getattr(self.ffs, "shape", []), dtype=float)
-            n = min(len(e), len(sh))
-            with numpy.errstate(invalid="ignore"):
-                m = (e[:n] > 0.05) & (sh[:n] > 0.55) & (sh[:n] < 0.95)
-            return float(st["psf_pattern_s"] * numpy.mean(e[:n][m])) if m.any() else numpy.nan
+            m = self._pattern_mask(len(e))
+            return float(st["psf_pattern_s"] * numpy.mean(e[m])) if m.any() else numpy.nan
         return numpy.nan
 
     def _pattern_text(self):
@@ -399,7 +464,7 @@ class FitsWindow(BaseWindow):
         return "PSF pattern:  " + txt
 
     def _draw_pattern(self):
-        """Kreseczki wzoru katow przez gwiazdy uzyte do FWHM (okno shape) i znacznik srodka wzoru."""
+        """Kreseczki wzoru katow przez gwiazdy wzoru (_pattern_mask) i znacznik srodka wzoru."""
         st = self.ffs.stats["frame"]
         pattern = st.get("psf_pattern")
         if pattern not in ("linear", "radial", "tangential") or not self._pattern_strength() >= PATTERN_MIN_STRENGTH:
@@ -412,8 +477,7 @@ class FitsWindow(BaseWindow):
             return
         coo = numpy.asarray(self.ffs.coo).reshape(-1, 2)[:n].astype(float)
         e, t, sh = e[:n], t[:n], sh[:n]
-        with numpy.errstate(invalid="ignore"):
-            m = numpy.isfinite(e) & numpy.isfinite(t) & (sh > 0.55) & (sh < 0.95)
+        m = self._pattern_mask(n) & numpy.isfinite(e) & numpy.isfinite(t)
         if not m.any():
             return
         h, w = numpy.shape(self.image)[:2]
@@ -555,7 +619,7 @@ class FitsWindow(BaseWindow):
                 if len(self.ob_x)>0:
                     # polprzezroczyste kolka - nie dominuja obrazka (bez podpisow - przy polach standardow sie zlewaly)
                     self.objects = self.axes.plot(self.ob_x, self.ob_y, color=fits_soft_color(), marker="o",
-                                                  markersize=14, markerfacecolor="none", markeredgewidth=1.2,
+                                                  markersize=14, markerfacecolor="none", markeredgewidth=1.5,
                                                   alpha=OFP_TARGET_ALPHA, linestyle="")
                     self._overlays += self.objects
 
@@ -613,6 +677,9 @@ class FitsWindow(BaseWindow):
                                 self._overlays += self.axes.plot(xs, ys, color="red", lw=1.0, alpha=0.8)
                 if n_trails:
                     txt = txt + f'<span style="color:{red};">WARNING</span>: satellite trail(s): <span style="color:{red};"><b>{n_trails}</b></span><br>'
+                trailed = self._trailed_text()
+                if trailed:
+                    txt = txt + trailed + "<br>"
 
                 if fwhm is None or not numpy.isfinite(fwhm):      # za malo gwiazd z dobrym shape
                     txt = txt + f'FWHM:  <span style="color:{red};"><b>--</b></span> (too few good stars)'
@@ -650,10 +717,10 @@ class FitsWindow(BaseWindow):
                     txt = txt + pattern_txt + " <br>"
                     if fits_show_pattern():
                         self._draw_pattern()
-                if star_classes:        # ile zmierzonych gwiazd: ok (bez znacznika) / suspect (pomaranczowe) / rejected (czerwone)
-                    parts = [f'<span style="color:{theme.hex(fg)};"><b>{k}</b></span> {nm}'      # tekst wg motywu
-                             for nm, k, fg in star_classes]
-                    txt = txt + "star shape:  " + " / ".join(parts) + " <br>"
+                if star_classes:        # zmierzone: w oknie shape / odrzucone (czerwone kwadraty)
+                    n_ok, n_rej = star_classes
+                    rej = f'<span style="color:{red};"><b>{n_rej}</b></span>' if n_rej else f"<i>{n_rej}</i>"
+                    txt = txt + f"star shape:  <i>{n_ok}</i> ok / {rej} rejected <br>"
                 if n_spikes:
                     txt = txt + f'diffraction spikes:  <i>{n_spikes}</i> <br>'
                 txt = txt + "<br>"
