@@ -510,6 +510,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         c = "ok_fg"
                     if label == "CLOUDS WARNING":          # allsky_overwatch, kolory jak pole Clouds
                         c = "warn2_fg"
+                    if label in ("OPERATIONS START", "OPERATIONS END"):     # weather_overwatch: Slonce +5 / -18
+                        c = "change_fg"
                     if label in ("FWHM WARNING", "ZERO POINT WARNING"):
                         try:        # alarm seeingu / zero pointu - zakladka Conditions z tym wykresem na wierzch
                             if not data.get("test"):        # test dzwieku z okna PING - bez przelaczania zakladki
