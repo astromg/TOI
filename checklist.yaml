@@ -6,21 +6,24 @@
 checklist:
   - id: messages
     text: Check new messages
-    hint: OCA-phone charged, WhatsApp and Slack (hourly), OCA gmail - follow new observing instructions
+    hint: OCA-phone charged, WhatsApp and Slack, OCA gmail - follow new observing instructions
   - id: monitoring
     text: Check disk space, OCAM and CCTV
     hint: disk space on http://dashboard.oca.lan:3000 (above 85% report to oca-operations and mail mkicia@camk.edu.pl, mkalusz@camk.edu.pl); big OCAM on zora, small OCAM on aux (poetry run ocam --env aux), CCTV website
-  - id: plans
-    scope: telescope
-    text: Generate plan with TPG (or load requested)
-    hint: CNTAC night - the plan from gmail, otherwise TPG. Standards, expected eclipses, periodic objects; SKYFLAT added
   - id: open
     scope: telescope
     text: Open dome, ventilators ON (Sun +5°)
     hint: check the weather first (clouds, wind, humidity, rain) - if bad, close and wait; dome ventilators and mirror fans ON
+  - id: plans
+    scope: telescope
+    text: Generate plan with TPG (or load requested)
+    hint: CNTAC night - the plan from REQUESTS, otherwise TPG. Standards, expected eclipses, periodic objects; SKYFLAT added
+  - id: model_focus
+    scope: telescope
+    text: Set focus from the model
   - id: covers_focus
     scope: telescope
-    text: Open mirror covers, set focus from the model
+    text: Open mirror covers
   - id: blinds_evening
     text: Close the blinds in the control room
   - id: calibrations
@@ -41,8 +44,12 @@ checklist:
     hint: compare the result with the focus model
   - id: close
     scope: telescope
-    text: Close the telescope (Engage Safety Cutoff)
-    hint: mirror covers, dome, park (jk15 - close the mirror, then the dome, then park); check it is parked
+    text: Close the telescope
+    hint: shutdown or close mirror covers, close dome, park, ; check it is parked
+  - id: safety_switch
+    scope: telescope
+    text: Engage Safety Cutoff
+    hint: don't even ask why we have this
   - id: morning
     text: Blinds in the morning, night report
     hint: open the blackout shade, lower the semi-transparent one (sun on the window frame bends and unseals it); night report in Cerro Armazones Calendar, tab 'comments'
