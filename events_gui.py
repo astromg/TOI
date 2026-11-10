@@ -45,6 +45,7 @@ LOCAL_TZ = zoneinfo.ZoneInfo("America/Santiago")
 SITE = {"lat": -24.598616, "lon": -70.201266, "elevation": 2800}     # jak conditions_overwatch (site)
 SUN_ALTS = (5, 0, -1, -6, -12, -16, -18)          # przyciski przy pokretle (jak NEXT EVENTS w oca_monitor)
 MINUTES = (5, 10, 30, 60)
+DEFAULT_SOUND_TEXT = "default (gong)"     # event bez dzwieku: overwatch gra default_sound ze swojego configu
 KINDS = ("Sun", "In minutes", "UT time", "Date & time", "Observers", "Manual")
 
 
@@ -138,7 +139,7 @@ class EventsTab(QWidget):
 
     def fill_files(self):
         sound, picture = self.sound_c.currentData(), self.picture_c.currentData()
-        for combo, first, files in ((self.sound_c, "default (gong)", list_files(self.sounds_dir(), SOUND_EXT)),
+        for combo, first, files in ((self.sound_c, DEFAULT_SOUND_TEXT, list_files(self.sounds_dir(), SOUND_EXT)),
                                     (self.picture_c, "none", list_files(self.pictures_dir(), PICTURE_EXT))):
             combo.blockSignals(True)
             combo.clear()
@@ -159,11 +160,10 @@ class EventsTab(QWidget):
         combo.setCurrentIndex(max(i, 0))
 
     def play_sound(self):
-        name = self.sound_c.currentData()
-        path = os.path.join(self.sounds_dir(), name) if name else None
-        if not path or not os.path.isfile(path):
-            self.set_status("default gong - the file is in oca_monitor, not here" if not name else f"no {name}",
-                            ok=False)
+        name = self.sound_c.currentData() or "gong.wav"     # default: gong, jesli lezy we wspolnym katalogu
+        path = os.path.join(self.sounds_dir(), name)
+        if not os.path.isfile(path):
+            self.set_status(f"no {name} in {self.sounds_dir()}", ok=False)
             return
         try:
             subprocess.Popen(["aplay", "-q", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -300,13 +300,16 @@ class EventsTab(QWidget):
                 except ValueError:
                     pass
             values = (utc(t).strftime("%m-%d %H:%M") if t else ("observers" if nxt == "next" else nxt or "--"),
-                      describe(ev), ev.get("info", ""), ev.get("sound") or "", ev.get("picture") or "",
+                      describe(ev), ev.get("info", ""), ev.get("sound") or DEFAULT_SOUND_TEXT, ev.get("picture") or "",
                       ev.get("by") or "")
             for c, v in enumerate(values):
                 item = QTableWidgetItem(str(v))
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 if c == 0 and t:
                     item.setToolTip(when_text(t))
+                if c == 3 and not ev.get("sound"):      # bez wyboru: overwatch gra swoj default_sound
+                    item.setForeground(theme.qcolor("muted_fg"))
+                    item.setToolTip("no sound chosen: conditions_overwatch plays its default_sound (gong)")
                 if c == 1:
                     item.setToolTip(f"when: {ev.get('when')}")
                     if ev.get("secret"):
