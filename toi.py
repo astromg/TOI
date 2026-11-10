@@ -25,6 +25,11 @@ import yaml
 from pathlib import Path
 from typing import Optional, Dict, Union, Any, Tuple
 import qasync as qs
+from astropy.utils import iers
+# astropy: tablica IERS z pakietu astropy-iers-data (odswieza ja poetry update), bez pobierania z datacenter.iers.org -
+# pierwsze AltAz (ctc -> pyaraucaria) czekalo na nie ~35 s w watku GUI przy starcie; dokladnosc UT1 bez znaczenia dla TOI
+iers.conf.auto_download = False
+iers.conf.auto_max_age = None       # bez tego przy wylaczonym pobieraniu ValueError: predykcje starsze niz 30 dni
 from ctc import CycleTimeCalc
 
 from PyQtX import QtWidgets, QtGui

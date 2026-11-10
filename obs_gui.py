@@ -1192,8 +1192,6 @@ class ObserversWindow(QWidget):
         # tryb admina zakladki Events: widac i mozna dodawac sekretne eventy (niespodzianki); tylko to stanowisko
         # i ta sesja, nic nie jest publikowane (inaczej sekrety odslonilyby sie na wszystkich TOI)
         self.admin_c = QCheckBox("Admin")
-        self.admin_c.setToolTip("Events tab: secret events (surprises) are listed and can be added. This station and "
-                                "session only, nothing is published; off again after a TOI restart.")
         self.admin_c.toggled.connect(self.parent.set_events_admin)
         grid.addWidget(self.admin_c, w, 0, 1, 2)
         w = w + 1
