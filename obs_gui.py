@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class HoldMarker(QLabel):
-    """Kropka karencji ograniczenia pogodowego (weather_overwatch) przy prawej krawedzi pola: kolor poziomu
+    """Kropka karencji ograniczenia pogodowego (conditions_overwatch) przy prawej krawedzi pola: kolor poziomu
     oficjalnego i minuty do jego spadku. Nakladka na pole - uklad siatki sie nie zmienia, tekst pola odsuwa sie w lewo"""
 
     def __init__(self, field):
@@ -738,14 +738,15 @@ class MainForm(QWidget):
             "downloaderStatus": "OFP downloader of the active telescope, asked every 4 s (alive RPC).",
             "ofpStatus": "OFP pipeline of the active telescope, asked every 4 s (alive RPC).",
             "flatOwStatus": "flat_overwatch, asked every 4 s (alive RPC). Grey: no subject in toi_config.yaml.",
-            "weatherOwStatus": "weather_overwatch, asked every 4 s (alive RPC). Grey: no subject in toi_config.yaml.",
+            "conditionsOwStatus": "conditions_overwatch (weather, sky, system and water alarms, events), asked every 4 s "
+                                  "(alive RPC). Grey: no subject in toi_config.yaml.",
             "allskyOwStatus": "allsky_overwatch (clouds from the allsky camera), asked every 4 s (alive RPC). Grey: no subject in toi_config.yaml.",
             "temp": "Davis weather station. Red below -1 °C.",
             "hummidity": f"Davis weather station. Red above {self.parent.cfg_humidity_limit} % or rain.",
             "wind": "Davis weather station.",
             "windDir": "Davis weather station.",
-            "fwhm": "Seeing at zenith from weather_overwatch.",
-            "zeropoint": "Photometric zero point from weather_overwatch.",
+            "fwhm": "Seeing at zenith from conditions_overwatch.",
+            "zeropoint": "Photometric zero point from conditions_overwatch.",
             "clouds": "Clouds from the allsky camera (allsky_overwatch).",
             "date": "UT date.",
             "ut": "Universal Time.",
@@ -772,14 +773,14 @@ class MainForm(QWidget):
         self.downloaderStatus_l = QLabel("\u2665 FITS DWL")
         self.ofpStatus_l = QLabel("\u2665 OFP")
         self.flatOwStatus_l = QLabel("\u2665 FLAT OW")
-        self.weatherOwStatus_l = QLabel("\u2665 WEATHER OW")
+        self.conditionsOwStatus_l = QLabel("\u2665 COND OW")
         self.allskyOwStatus_l = QLabel("\u2665 ALLSKY OW")
         self.ticStatus2_l.setText("\u2665 TIC")
         self.natsStatus_l.setText("\u2665 NATS")
         status_box = QHBoxLayout()
         status_box.setSpacing(12)
         lamps = (self.ticStatus2_l, self.natsStatus_l, self.followerStatus_l, self.downloaderStatus_l,
-                 self.ofpStatus_l, self.flatOwStatus_l, self.weatherOwStatus_l, self.allskyOwStatus_l)
+                 self.ofpStatus_l, self.flatOwStatus_l, self.conditionsOwStatus_l, self.allskyOwStatus_l)
         self.lamps = lamps
         for lamp in lamps:
             status_box.addWidget(lamp)
@@ -994,8 +995,8 @@ class SoundTestWindow(QWidget):
         ("WEATHER ALERT", "alert", "close everything: wind on all telescopes, humidity, temperature, rain, overcast"),
         ("WEATHER LEVEL DOWN", "level down", "a weather restriction dropped (after the hold time)"),
         ("SYSTEM ALERT", "facility alarm", "equipment at risk: battery SOC, server / battery / electric room temperature"),
-        ("OPERATIONS START", "gong", "Sun below +5 deg in the evening: start of operations"),
-        ("OBSERVATIONS END", "gong", "Sun above -18 deg in the morning: end of observations"),
+        ("EVENT", "gong", "a time signal from conditions_overwatch (Sun +5 / -18, ut, ...; the Events tab), "
+                          "may have its own sound"),
     )
 
     def __init__(self, parent):
@@ -1127,6 +1128,14 @@ class ObserversWindow(QWidget):
         self.local_c.setToolTip("For this session only, e.g. for tests from elsewhere: nothing is published, "
                                 "the other TOIs keep their observers.")
         grid.addWidget(self.local_c, w, 0, 1, 2)
+        w = w + 1
+        # tryb admina zakladki Events: widac i mozna dodawac sekretne eventy (niespodzianki); tylko to stanowisko
+        # i ta sesja, nic nie jest publikowane (inaczej sekrety odslonilyby sie na wszystkich TOI)
+        self.admin_c = QCheckBox("Admin (this TOI only): show secret events")
+        self.admin_c.setToolTip("Events tab: secret events (surprises) are listed and can be added. This station and "
+                                "session only, nothing is published; off again after a TOI restart.")
+        self.admin_c.toggled.connect(self.parent.set_events_admin)
+        grid.addWidget(self.admin_c, w, 0, 1, 2)
         w = w + 1
         # w przyszlosci tu tez zadania dla obserwatorow (zakladka Tasks)
         self.ok_p = QPushButton("OK")

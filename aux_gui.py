@@ -16,6 +16,9 @@ Tabs, in this order:
 - ``Plan Runner`` — :class:`PlanrunnerTab`, what the plan runner says.
 - ``Conditions`` — :class:`ConditionsTab`, night plots of all telescopes; a combo chooses what (FWHM, zero point;
   more weather telemetry later).
+- ``Events`` — :class:`events_gui.EventsTab`, time signals of conditions_overwatch (Sun +5 / -18, ut, sec,
+  observers); anybody can add or remove;
+- ``Pictures`` — :class:`PicturesTab`; an EVENT with a picture brings it up.
 
 ``TOI`` keeps its old names for the tabs (``focusGui``, ``flatGui``, ``guiderGui``, ``planrunnerGui``,
 ``conditionsGui``), so the
@@ -51,6 +54,7 @@ from PyQtX.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFrame, QG
                              QTableWidgetItem, QTabWidget, QTextBrowser, QTextEdit, QVBoxLayout, QWidget)
 
 from base_window import BaseWindow
+from events_gui import EventsTab
 from optics_view import SchematicView
 from toi_theme import theme, TITLES
 
@@ -86,7 +90,7 @@ class AuxWindow(BaseWindow):
     ALERT_PLOTS = {"FWHM WARNING": "FWHM", "ZERO POINT WARNING": "Zero point"}
 
     def alert_received(self, label):
-        """weather_overwatch alert (seeing / zero point): bring up Conditions with the matching plot."""
+        """conditions_overwatch alert (seeing / zero point): bring up Conditions with the matching plot."""
         plot = self.ALERT_PLOTS.get(label)
         if plot:
             self.conditions.plot_s.setCurrentText(plot)     # zmiana wyboru sama przerysowuje
@@ -133,6 +137,7 @@ class AuxWindow(BaseWindow):
         self.planrunner = PlanrunnerTab(self.parent)
         self.conditions = ConditionsTab(self.parent)
         self.pictures = PicturesTab(self.parent)
+        self.events = EventsTab(self.parent)
         self.tabs.addTab(self.telescope, "Telescope")
         self.tabs.addTab(self.tasks, "Tasks")
         self.tabs.addTab(self.optics, "Optical path")
@@ -141,6 +146,7 @@ class AuxWindow(BaseWindow):
         self.tabs.addTab(self.guider, "Guider")
         self.tabs.addTab(self.planrunner, "Plan Runner")
         self.tabs.addTab(self.conditions, "Conditions")
+        self.tabs.addTab(self.events, "Events")
         self.tabs.addTab(self.pictures, "Pictures")
         self.tabs.currentChanged.connect(self.tab_changed)
         self.tabs.setCurrentWidget(self.tasks)      # na start zadania dla obserwatora
@@ -1261,7 +1267,7 @@ class ConditionsTab(QWidget):
     FWHM_TOP = (3.0, 6.0)       # arcsec - gora skali FWHM; wyzszy punkt tej nocy podnosi ja, najwyzej do drugiej
     ZP_RANGE = (-0.3, 0.08)     # mag - domyslna skala zero pointu; punkty tej nocy spoza niej ja poszerzaja,
     ZP_RANGE_MAX = (-0.6, 0.2)  # najwyzej do tych granic - dalsze punkty rysujemy na krawedzi jako trojkaty
-    ZP_ZONES = (-0.1, -0.2)     # ostrzezenie / alarm, gdy weather_overwatch jeszcze nie przyslal progow
+    ZP_ZONES = (-0.1, -0.2)     # ostrzezenie / alarm, gdy conditions_overwatch jeszcze nie przyslal progow
 
     def __init__(self, parent):
         super(ConditionsTab, self).__init__()

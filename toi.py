@@ -46,6 +46,7 @@ from base_async_widget import BaseAsyncWidget, MetaAsyncWidgetQtWidget
 from instrument_gui import InstrumentGui
 from mnt_gui import MntGui
 from sky_gui import SkyGui
+from events_gui import AlertsWindow
 from obs_gui import ObsGui, ObserversWindow, SoundTestWindow
 from fits_gui import read_fits_image, fits_display_mode
 from toi_subjects import subject, toi_publisher, history_reader, MESSAGES_READ, FLAT_OVERWATCH_ITEMS
@@ -117,6 +118,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.fitsGui = FitsWindow(self)
         self.observersGui = ObserversWindow(self)
         self.soundTestGui = SoundTestWindow(self)
+        self.alertsGui = AlertsWindow(self)         # alerty conditions_overwatch do potwierdzenia (events_gui)
+        self.events_admin = False       # okno obserwatorow, pole Admin: sekretne eventy w zakladce Events
         # wszystkie okna sa juz zbudowane - wchodza jako panele do okna obserwacji
         self.obsGui.dock_panels()
 
@@ -143,6 +146,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if subject and (kind in self.CONDITION_FIELDS or kind == "weather_level"):
                 self.add_background_task(self.nats_condition_reader(kind, subject))
         self.add_background_task(self.reader_ocm_messages())
+        self.add_background_task(self.nats_events_reader())     # conditions_overwatch: eventy i alerty
+        self.add_background_task(self.nats_alerts_reader())
 
         for t in self.oca_tel_state.keys():   # statusy wszystkich teleskopow
 
@@ -506,12 +511,17 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         c = "warn_fg"
                     if label in ("WEATHER ALERT", "SYSTEM ALERT", "CLOUDS ALERT"):     # SYSTEM ALERT: bateria, serwerownia
                         c = "bad_fg"
-                    if label == "WEATHER LEVEL DOWN":      # weather_overwatch: ograniczenia pogodowe spadaja
+                    if label == "WEATHER LEVEL DOWN":      # conditions_overwatch: ograniczenia pogodowe spadaja
                         c = "ok_fg"
                     if label == "CLOUDS WARNING":          # allsky_overwatch, kolory jak pole Clouds
                         c = "warn2_fg"
-                    if label in ("OPERATIONS START", "OBSERVATIONS END"):     # weather_overwatch: Slonce +5 / -18
+                    if label == "EVENT":        # conditions_overwatch: Slonce +5 / -18, ut, ... (events_gui)
                         c = "change_fg"
+                        if data.get("picture") and not data.get("test"):
+                            self.show_event_picture(data["picture"], data.get("info", ""))
+                    if label == "SYSTEM ALERT" and str(data.get("info", "")).startswith("REMINDER") \
+                            and not data.get("test"):
+                        self.alertsGui.update_alerts(self.alertsGui.alerts, pop=True)     # przy zapisie obserwatorow
                     if label in ("FWHM WARNING", "ZERO POINT WARNING"):
                         try:        # alarm seeingu / zero pointu - zakladka Conditions z tym wykresem na wierzch
                             if not data.get("test"):        # test dzwieku z okna PING - bez przelaczania zakladki
@@ -539,6 +549,58 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION: {e}')
 
+    # ---- conditions_overwatch: eventy (zakladka Events) i alerty z potwierdzaniem (okno), events_gui.py
+    def events_cfg(self):
+        return self.local_cfg["toi"].get("events") or {}
+
+    async def events_rpc(self, data):
+        """RPC do conditions_overwatch (add / remove / ack / list) -> odpowiedz (dict); wyjatek przy timeoucie"""
+        subject = self.events_cfg().get("rpc", "rpc.overwatch.oca.conditions_overwatch.events")
+        resp, meta = await request(subject, data=data, timeout=5)
+        return resp or {}
+
+    async def nats_events_reader(self):
+        try:
+            r = get_reader(self.events_cfg().get("list", "status.overwatch.oca.self.events"), deliver_policy='last')
+            async for data, meta in r:
+                try:
+                    self.auxGui.events.update_list(data.get("events"))
+                except Exception as e:     # jedna zla wiadomosc nie konczy czytnika na stale
+                    logger.warning(f'TOI reader nats_events_reader: bad message skipped: {e!r}')
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION nats_events_reader: {e}')
+
+    async def nats_alerts_reader(self):
+        seen = None         # id alertow juz pokazanych; pierwszy odczyt po starcie TOI tez wyskakuje
+        try:
+            r = get_reader(self.events_cfg().get("alerts", "status.overwatch.oca.self.alerts"), deliver_policy='last')
+            async for data, meta in r:
+                try:
+                    alerts = data.get("alerts") or []
+                    ids = {a.get("id") for a in alerts}
+                    self.alertsGui.update_alerts(alerts, pop=bool(ids - (seen or set())))
+                    seen = ids
+                except Exception as e:
+                    logger.warning(f'TOI reader nats_alerts_reader: bad message skipped: {e!r}')
+        except (asyncio.CancelledError, asyncio.TimeoutError):
+            raise
+        except Exception as e:
+            logger.warning(f'EXCEPTION nats_alerts_reader: {e}')
+
+    def set_events_admin(self, on):
+        """Okno obserwatorow, pole Admin: zakladka Events pokazuje sekretne eventy (tylko to stanowisko i sesja)"""
+        self.events_admin = bool(on)
+        self.auxGui.events.set_admin(self.events_admin)
+
+    def show_event_picture(self, name, info):
+        """Obrazek eventu w zakladce Pictures (sama nazwa pliku z toi.events.pictures_dir)"""
+        name = os.path.basename(str(name))
+        path = os.path.join(self.events_cfg().get("pictures_dir", "/data/misc/oca_overwatch/pictures"), name)
+        asyncio.ensure_future(self.auxGui.pictures.show_file(path, info, f"No picture {name}"))
+        self.auxGui.show_tab(self.auxGui.pictures)
+
     # NATS weather
     async def nats_weather_loop(self):
         try:
@@ -560,14 +622,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         except Exception as e:
             logger.warning(f'EXCEPTION 102: {e}')
 
-    # seeing i zero point obserwatorium z weather_overwatch (toi.conditions_subjects): mediana punktow wszystkich
+    # seeing i zero point obserwatorium z conditions_overwatch (toi.conditions_subjects): mediana punktow wszystkich
     # teleskopow z ostatnich window_min minut, z progami per teleskop. Pole w oknie obserwacji, format, kierunek
     # (+1 gorzej, gdy rosnie; -1 gdy maleje) i opis
     CONDITION_FIELDS = {
         "seeing": ("fwhm_e", '{:.1f} ["]', +1, "frames",
-                   "Seeing at zenith, weather_overwatch: median of science frames of all telescopes"),
+                   "Seeing at zenith, conditions_overwatch: median of science frames of all telescopes"),
         "zero_point": ("zeropoint_e", "{:+.2f} [mag]", -1, "points",
-                       "Photometric zero point, weather_overwatch: median of zero_monitor of all telescopes"),
+                       "Photometric zero point, conditions_overwatch: median of zero_monitor of all telescopes"),
         "clouds": ("clouds_e", None, 0, "frames", "Clouds from the allsky camera, allsky_overwatch"),   # update_clouds_field
     }
 
@@ -663,7 +725,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         field.setToolTip(tip)
 
 
-    # karencja ograniczen pogodowych (weather_overwatch, toi.conditions_subjects.weather_level; stan publikowany przy
+    # karencja ograniczen pogodowych (conditions_overwatch, toi.conditions_subjects.weather_level; stan publikowany przy
     # zmianie): poziom oficjalny spada dopiero po weather_hold minutach lepszych warunkow. Tlo pol zostaje wg biezacych
     # wartosci, a kropka przy polu ma kolor poziomu oficjalnego i minuty do najblizszego spadku - tylko gdy oficjalny
     # jest wyzszy niz biezacy. Wind: teleskopy zamkniete (2), Direction: z zakazem celowania (>= 1), skala kolorow
@@ -695,7 +757,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
         def show(name, keys, color, describe):
             first = min(until[k] for k in keys)
-            tip = "Weather restriction still in force (weather_overwatch hold time):\n" + "\n".join(
+            tip = "Weather restriction still in force (conditions_overwatch hold time):\n" + "\n".join(
                 f"{describe(k)} until {until[k]:%H:%M} UT" for k in sorted(keys, key=lambda k: until[k]))
             markers[name].show_hold(color, max(1, math.ceil((first - now).total_seconds() / 60)), tip)
 
@@ -824,7 +886,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                  (f.downloaderStatus_l, lambda: self.lamp_ofp("download")),
                  (f.ofpStatus_l, lambda: self.lamp_ofp("pipeline")),
                  (f.flatOwStatus_l, lambda: self.lamp_alive("flat_overwatch")),
-                 (f.weatherOwStatus_l, lambda: self.lamp_alive("weather_overwatch")),
+                 (f.conditionsOwStatus_l, lambda: self.lamp_alive("conditions_overwatch")),
                  (f.allskyOwStatus_l, lambda: self.lamp_alive("allsky_overwatch"))]
         pending = {}
         i = 0

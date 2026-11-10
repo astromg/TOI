@@ -33,10 +33,10 @@ toi:
   # empty: the lamp stays grey
   alive_subjects:
     flat_overwatch: rpc.overwatch.oca.flat_overwatch.alive
-    weather_overwatch: rpc.overwatch.oca.weather_overwatch.alive
+    conditions_overwatch: rpc.overwatch.oca.conditions_overwatch.alive    # was weather_overwatch until 2026-11-10
     allsky_overwatch: rpc.overwatch.oca.allsky_overwatch.alive
 
-  # site seeing / photometric zero point from weather_overwatch, sky state from allsky_overwatch (obs window fields);
+  # site seeing / photometric zero point from conditions_overwatch, sky state from allsky_overwatch (obs window fields);
   # missing: the field stays "--"
   conditions_subjects:
     seeing: status.overwatch.oca.self.seeing          # NATS RFC since 2026-11-10 (was tic.status.ocm.weather_overwatch.*,
@@ -45,6 +45,15 @@ toi:
     # weather restrictions (official levels with the hold time): a dot with minutes next to Wind / Direction /
     # Humidity / Temp / Clouds while a restriction is still held although the current value is better
     weather_level: status.overwatch.oca.self.weather_level
+
+  # conditions_overwatch (2026-11-10): events (Aux tab Events, events_gui.py) and alerts to acknowledge (pop-up window);
+  # sounds / pictures to choose from - the same folders the overwatch and the oca_monitor that plays the sounds see
+  events:
+    list: status.overwatch.oca.self.events
+    alerts: status.overwatch.oca.self.alerts
+    rpc: rpc.overwatch.oca.conditions_overwatch.events
+    sounds_dir: /data/misc/oca_overwatch/sounds
+    pictures_dir: /data/misc/oca_overwatch/pictures
 
 
 wk06:
