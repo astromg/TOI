@@ -915,8 +915,8 @@ class MainForm(QWidget):
         self.msg_e = QTextEdit()
         self.msg_e.setReadOnly(True)
         self.msg_e.setStyleSheet(theme.field_style())
-        grid.addWidget(self.msg_e, w, 0, 4, 4)     # 4. wiersz pusty po prawej - miejsce na kolejne pola
-        grid.setRowStretch(w + 3, 1)                # zapas wysokosci okna idzie do logu
+        grid.addWidget(self.msg_e, w, 0, 6, 4)     # po prawej: czas, Slonce, (odstep), Event + licznik, wiadomosc eventu
+        grid.setRowStretch(w + 5, 1)                # zapas wysokosci okna idzie do logu
 
         # czas obok logu, w miejscu po przyciskach okien - uklad jak dawniej na gorze
         grid.addWidget(self.date_l, w, 4)
@@ -936,10 +936,11 @@ class MainForm(QWidget):
         self.sun_e.setStyleSheet(theme.field_style())
         grid.addWidget(self.sun_l, w + 2, 4)
         grid.addWidget(self.sun_e, w + 2, 5)
-        # najblizszy event conditions_overwatch (zakladka Events) i odliczanie (update_next_event, co sekunde);
-        # wiersz w + 3 ma zapas wysokosci (log) - pola przy gornej krawedzi
+        # najblizszy event conditions_overwatch (zakladka Events): wiersz pod Sun pusty (odstep), nizej Event i licznik,
+        # pod nimi wiadomosc na cala szerokosc (update_next_event, co sekunde); wiersz w + 5 ma zapas wysokosci (log) -
+        # pole przy gornej krawedzi
         top = Qt.AlignmentFlag.AlignTop
-        self.event_l = QLabel("Event:")
+        self.event_l = QLabel("Next Event:")
         self.event_l.setAlignment(Qt.AlignCenter)
         self.event_e = QLineEdit("--")
         self.event_e.setReadOnly(True)
@@ -948,14 +949,14 @@ class MainForm(QWidget):
         self.countdown_e.setAlignment(Qt.AlignCenter)
         self.countdown_e.setReadOnly(True)
         self.countdown_e.setStyleSheet(theme.field_style())
-        grid.addWidget(self.event_l, w + 3, 4, top)
-        grid.addWidget(self.event_e, w + 3, 5, 1, 2, top)
-        grid.addWidget(self.countdown_e, w + 3, 7, top)
+        grid.addWidget(self.event_l, w + 4, 4, 1, 2)        # dluzsza etykieta - dwie kolumny, nie poszerza Date/JD/Sun
+        grid.addWidget(self.countdown_e, w + 4, 6, 1, 2)
+        grid.addWidget(self.event_e, w + 5, 4, 1, 4, top)
         self.event_timer = QTimer(self)
         self.event_timer.timeout.connect(self.update_next_event)
         self.event_timer.start(1000)
 
-        w = w + 4
+        w = w + 6
 
         self.line_l = QFrame()
         self.line_l.setFrameShape(QFrame.HLine)
