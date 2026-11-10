@@ -978,7 +978,7 @@ class MainForm(QWidget):
 
 class SoundTestWindow(QWidget):
     """PING and a test of every alarm sound of oca_monitor (pages/message.py LABEL_SOUNDS), opened by the PING
-    button. PING is the original one (every TOI and overwatch answers). The others go out on tic.status.ocm.messages
+    button. PING is the original one (every TOI and overwatch answers). The others go out on the operator messages (toi_subjects "messages")
     with "test": true and a TEST text: they sound on every oca_monitor and show in every TOI, change no overwatch
     state (the overwatches react only to PING), and readers that count alarms (Halina, reports) should skip them.
     Not modal, like ObserversWindow."""
@@ -995,7 +995,7 @@ class SoundTestWindow(QWidget):
         ("WEATHER LEVEL DOWN", "level down", "a weather restriction dropped (after the hold time)"),
         ("SYSTEM ALERT", "facility alarm", "equipment at risk: battery SOC, server / battery / electric room temperature"),
         ("OPERATIONS START", "gong", "Sun below +5 deg in the evening: start of operations"),
-        ("OPERATIONS END", "gong", "Sun above -18 deg in the morning: end of the astronomical night"),
+        ("OBSERVATIONS END", "gong", "Sun above -18 deg in the morning: end of observations"),
     )
 
     def __init__(self, parent):

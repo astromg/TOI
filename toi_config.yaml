@@ -9,7 +9,7 @@ toi:
   show_sat_stars: True
 
   # Flat Log window: last sky flats (evening/morning) and science per filter, published by flat_overwatch
-  flat_overwatch_subject: "tic.status.{tel}.flat_overwatch.{item}"   # after the NATS RFC: "data.overwatch.{tel}.camera.{item}"
+  flat_overwatch_subject: "data.overwatch.{tel}.camera.{item}"   # {item}: last_flat_evening ... (toi_subjects FLAT_OVERWATCH_ITEMS); since 2026-11-10
   flat_fresh_h: 20        # flat younger than this -> green
   flat_old_days: 10       # flat older than this -> orange; red if the filter was used within this time and had no flats in it
   master_fresh_days:      # last master zero / dark younger than this -> green
@@ -39,9 +39,9 @@ toi:
   # site seeing / photometric zero point from weather_overwatch, sky state from allsky_overwatch (obs window fields);
   # missing: the field stays "--"
   conditions_subjects:
-    seeing: tic.status.ocm.weather_overwatch.seeing
-    zero_point: tic.status.ocm.weather_overwatch.zero_point
-    clouds: tic.status.ocm.allsky_overwatch.clouds
+    seeing: status.overwatch.oca.self.seeing          # NATS RFC since 2026-11-10 (was tic.status.ocm.weather_overwatch.*,
+    zero_point: status.overwatch.oca.self.zero_point  # tic.status.ocm.allsky_overwatch.clouds)
+    clouds: data.overwatch.oca.allsky.clouds
     # weather restrictions (official levels with the hold time): a dot with minutes next to Wind / Direction /
     # Humidity / Temp / Clouds while a restriction is still held although the current value is better
     weather_level: status.overwatch.oca.self.weather_level

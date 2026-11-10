@@ -82,7 +82,7 @@ class AuxWindow(BaseWindow):
         if tab:
             self.show_tab(getattr(self, tab))
 
-    # etykieta komunikatu z tic.status.ocm.messages -> wykres w zakladce Conditions, ktory sie podnosi
+    # etykieta komunikatu operatora (toi_subjects MESSAGES_READ) -> wykres w zakladce Conditions, ktory sie podnosi
     ALERT_PLOTS = {"FWHM WARNING": "FWHM", "ZERO POINT WARNING": "Zero point"}
 
     def alert_received(self, label):

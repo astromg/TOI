@@ -48,7 +48,7 @@ from mnt_gui import MntGui
 from sky_gui import SkyGui
 from obs_gui import ObsGui, ObserversWindow, SoundTestWindow
 from fits_gui import read_fits_image, fits_display_mode
-from toi_subjects import subject, toi_publisher, history_reader
+from toi_subjects import subject, toi_publisher, history_reader, MESSAGES_READ, FLAT_OVERWATCH_ITEMS
 from toi_theme import theme
 from optics_model import OpticsModel
 from plan_gui import PlanGui
@@ -496,7 +496,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     async def reader_ocm_messages(self):
         try:
-            r = get_reader(f'tic.status.ocm.messages', deliver_policy='new')
+            r = get_reader(MESSAGES_READ, deliver_policy='new')     # wszyscy nadawcy, toi_subjects
             async for data, meta in r:
                 try:
                     label = data["label"]
@@ -510,7 +510,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                         c = "ok_fg"
                     if label == "CLOUDS WARNING":          # allsky_overwatch, kolory jak pole Clouds
                         c = "warn2_fg"
-                    if label in ("OPERATIONS START", "OPERATIONS END"):     # weather_overwatch: Slonce +5 / -18
+                    if label in ("OPERATIONS START", "OBSERVATIONS END"):     # weather_overwatch: Slonce +5 / -18
                         c = "change_fg"
                     if label in ("FWHM WARNING", "ZERO POINT WARNING"):
                         try:        # alarm seeingu / zero pointu - zakladka Conditions z tym wykresem na wierzch
@@ -1442,8 +1442,8 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # i ostatni master zero / dark, {"all": {"last": ISO|None}}
         try:
             tel = self.active_tel
-            template = self.local_cfg["toi"].get("flat_overwatch_subject", "tic.status.{tel}.flat_overwatch.{item}")
-            r = get_reader(template.format(tel=tel, item=item), deliver_policy='last')
+            template = self.local_cfg["toi"].get("flat_overwatch_subject", "data.overwatch.{tel}.camera.{item}")
+            r = get_reader(template.format(tel=tel, item=FLAT_OVERWATCH_ITEMS[item]), deliver_policy='last')
             async for data, meta in r:
                 try:
                     self.flatGui.update_flat_overwatch(tel, item, data)
@@ -4240,8 +4240,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             data["label"] = label
             if test:
                 data["test"] = True
-            self.publisher_ocm_message = get_publisher(f'tic.status.ocm.messages')
-            await self.publisher_ocm_message.publish(data=data, timeout=10)
+            await toi_publisher("messages").publish(data=data, timeout=10)     # nowy temat i stary (Halina)
         except Exception as e:
             logger.warning(f'EXCEPTION send_ocm_message: {e}')
 

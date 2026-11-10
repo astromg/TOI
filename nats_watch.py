@@ -90,7 +90,7 @@ class main_app():
     async def test_wk06(self):
         try:
             time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=4)  # do konfiguracji
-            reader = get_reader('tic.status.wk06.toi.focus_record', deliver_policy='by_start_time',opt_start_time=time)
+            reader = get_reader('data.toi.wk06.camera.focus_log', deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in reader:
                 tmp = data
                 print("wk06: ", tmp)
@@ -103,7 +103,7 @@ class main_app():
     async def test_zb08(self):
         try:
             time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=4)  # do konfiguracji
-            reader = get_reader('tic.status.zb08.toi.focus_record', deliver_policy='by_start_time',opt_start_time=time)
+            reader = get_reader('data.toi.zb08.camera.focus_log', deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in reader:
                 tmp = data
                 print("zb08: ", tmp)
@@ -116,7 +116,7 @@ class main_app():
     async def test_jk15(self):
         try:
             time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=4)  # do konfiguracji
-            reader = get_reader('tic.status.jk15.toi.focus_record', deliver_policy='by_start_time',opt_start_time=time)
+            reader = get_reader('data.toi.jk15.camera.focus_log', deliver_policy='by_start_time',opt_start_time=time)
             async for data, meta in reader:
                 tmp = data
                 print("jk15: ", tmp)
