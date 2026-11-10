@@ -6,6 +6,8 @@ Tabs, in this order:
   description on the left, changelog on the right;
 - ``Tasks`` — :class:`TasksTab`, shown first: the daily checklist (``checklist.yaml``, ticks shared over NATS) on the
   left, observation requests of the active telescope on the right (``requests.json`` of ocm-plans);
+- ``Events`` — :class:`events_gui.EventsTab`, after Tasks: time signals of conditions_overwatch (Sun +5 / -18, ut, sec,
+  observers); anybody can add or remove;
 - ``Optical path`` — :class:`optics_view.SchematicView` of the active telescope; hidden when the telescope
   publishes no optical graph;
 - ``Calibration`` — :class:`CalibrationTab`, one page per kind of instrument; follows the tab chosen in the
@@ -16,8 +18,6 @@ Tabs, in this order:
 - ``Plan Runner`` — :class:`PlanrunnerTab`, what the plan runner says.
 - ``Conditions`` — :class:`ConditionsTab`, night plots of all telescopes; a combo chooses what (FWHM, zero point;
   more weather telemetry later).
-- ``Events`` — :class:`events_gui.EventsTab`, time signals of conditions_overwatch (Sun +5 / -18, ut, sec,
-  observers); anybody can add or remove;
 - ``Pictures`` — :class:`PicturesTab`; an EVENT with a picture brings it up.
 
 ``TOI`` keeps its old names for the tabs (``focusGui``, ``flatGui``, ``guiderGui``, ``planrunnerGui``,
@@ -140,13 +140,13 @@ class AuxWindow(BaseWindow):
         self.events = EventsTab(self.parent)
         self.tabs.addTab(self.telescope, "Telescope")
         self.tabs.addTab(self.tasks, "Tasks")
+        self.tabs.addTab(self.events, "Events")
         self.tabs.addTab(self.optics, "Optical path")
         self.tabs.addTab(self.calibration, "Calibration")
         self.tabs.addTab(self.focus, "Focus")
         self.tabs.addTab(self.guider, "Guider")
         self.tabs.addTab(self.planrunner, "Plan Runner")
         self.tabs.addTab(self.conditions, "Conditions")
-        self.tabs.addTab(self.events, "Events")
         self.tabs.addTab(self.pictures, "Pictures")
         self.tabs.currentChanged.connect(self.tab_changed)
         self.tabs.setCurrentWidget(self.tasks)      # na start zadania dla obserwatora

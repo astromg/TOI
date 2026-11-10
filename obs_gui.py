@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
+import datetime
 import logging
 import os.path
+import time
 import qasync as qs
 from PyQtX import QtCore, QtGui
 from PyQtX.QtCore import Qt, QSettings, QTimer
@@ -15,6 +17,7 @@ from base_window import BaseWindow
 from claude_report import write_claude_report
 from toi_lib import *
 from toi_theme import theme, TITLES
+from events_gui import describe, when_text
 from plan_gui import PLAN_LOG_LINES_CHOICES, plan_log_lines, set_plan_log_lines
 from fits_gui import FITS_DISPLAY_MODES, fits_display_mode, FITS_CMAPS, fits_cmap, FITS_SCALES, fits_scale, \
     fits_show_trails, \
@@ -933,6 +936,24 @@ class MainForm(QWidget):
         self.sun_e.setStyleSheet(theme.field_style())
         grid.addWidget(self.sun_l, w + 2, 4)
         grid.addWidget(self.sun_e, w + 2, 5)
+        # najblizszy event conditions_overwatch (zakladka Events) i odliczanie (update_next_event, co sekunde);
+        # wiersz w + 3 ma zapas wysokosci (log) - pola przy gornej krawedzi
+        top = Qt.AlignmentFlag.AlignTop
+        self.event_l = QLabel("Event:")
+        self.event_l.setAlignment(Qt.AlignCenter)
+        self.event_e = QLineEdit("--")
+        self.event_e.setReadOnly(True)
+        self.event_e.setStyleSheet(theme.field_style())
+        self.countdown_e = QLineEdit("--")
+        self.countdown_e.setAlignment(Qt.AlignCenter)
+        self.countdown_e.setReadOnly(True)
+        self.countdown_e.setStyleSheet(theme.field_style())
+        grid.addWidget(self.event_l, w + 3, 4, top)
+        grid.addWidget(self.event_e, w + 3, 5, 1, 2, top)
+        grid.addWidget(self.countdown_e, w + 3, 7, top)
+        self.event_timer = QTimer(self)
+        self.event_timer.timeout.connect(self.update_next_event)
+        self.event_timer.start(1000)
 
         w = w + 4
 
@@ -965,6 +986,44 @@ class MainForm(QWidget):
         grid.setSpacing(5)
 
         self.setLayout(grid)
+
+    EVENT_SOON = 5 * 60     # s - ponizej: tlo change_bg (niebieskie w kazdym motywie)
+
+    def update_next_event(self):
+        """Pole Event: najblizszy event z czasem (Slonce, ut, sec) z listy zakladki Events i odliczanie. Sekretne tylko
+        w trybie admina - odliczanie zdradziloby niespodzianke. Zwykly slot (QTimer) - wyjatek nie moze wyjsc"""
+        try:
+            tab = self.parent.auxGui.events
+            now, best = time.time(), None
+            for ev in tab.all_rows:
+                if ev.get("secret") and not tab.admin:
+                    continue
+                nxt = ev.get("next") or ""
+                if "T" not in nxt:          # obserwatorzy: data albo "next", bez godziny
+                    continue
+                t = datetime.datetime.fromisoformat(nxt).timestamp()
+                if t >= now - 60 and (best is None or t < best[0]):      # minuta po czasie - jeszcze pokazany
+                    best = (t, ev)
+            if best is None:
+                text, count, soon, tip = "--", "--", False, "No timed event (Aux, Events tab)"
+            else:
+                t, ev = best
+                s = max(0, int(t - now))
+                text = f'{datetime.datetime.fromtimestamp(t, datetime.timezone.utc):%H:%M} UT  {ev.get("info", "")}'
+                count = f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}"
+                soon = t - now <= self.EVENT_SOON
+                tip = f'{when_text(t)}\n{describe(ev)}\n{ev.get("info", "")}'
+            self.event_e.setText(text)
+            self.countdown_e.setText(count)
+            style = theme.field_style("change_bg" if soon else "field_bg")
+            for e in (self.event_e, self.countdown_e):
+                if e.styleSheet() != style:
+                    e.setStyleSheet(style)
+                e.setToolTip(tip)
+        except AttributeError:      # Aux jeszcze nie zbudowany
+            pass
+        except Exception as e:
+            logger.warning(f'TOI update_next_event: {e!r}')
 
     async def on_start_app(self):
         await self.run_background_tasks()

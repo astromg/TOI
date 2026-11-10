@@ -165,7 +165,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   need control of the active telescope, observatory items of any; otherwise the usual "U don't have control" warning); ticks shared over NATS `status.toi.oca.self.checklist` and reset with the observers at `toi.observers_reset_ut`
   — `TOI.set_checklist_item` / `checklist_done`; right: observation requests of the active telescope from ocm-plans `requests.json` (`toi.requests_json`, NFS,
   read in a thread every 2 min if its mtime changed; open ones, "closed (30 d)" adds the rest; double click → the GitHub
-  issue, "Data (OCADB)" → `ocadb_url`; TOI writes nothing back — status is changed on the GitHub board)), Optical path (`SchematicView`, hidden when the
+  issue, "Data (OCADB)" → `ocadb_url`; TOI writes nothing back — status is changed on the GitHub board)), Events (`events_gui.EventsTab`, conditions_overwatch time signals: generator left, active events right; Sun / minutes / UT time / date / observers, `repeat`, secret events in admin mode - observers window), Optical path (`SchematicView`, hidden when the
   telescope has no optical graph), Calibration, Focus, Guider (layout template only, guider does not work),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes, drawn like oca_monitor - points plus a smoothed trend;
   drawn only while the tab is shown, refreshed every 30 s when new points came, `TOI.conditions_plot_loop`).
