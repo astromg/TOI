@@ -543,7 +543,7 @@ class EventsTab(QWidget):
         # ----- lewa: generator -----
         left = QWidget()
         lv = QVBoxLayout(left)
-        kinds = QHBoxLayout()
+        kinds = QGridLayout()           # dwa rzedy po trzy - generator waski
         self.kind_g = QButtonGroup(self)
         self.kind_s = QStackedWidget()
         for i, (name, page) in enumerate(zip(KINDS, (self.mk_sun(), self.mk_minutes(), self.mk_time(),
@@ -551,7 +551,7 @@ class EventsTab(QWidget):
             b = QPushButton(name.replace("&", "&&"))       # & w Qt to skrot klawiszowy
             b.setCheckable(True)
             self.kind_g.addButton(b, i)
-            kinds.addWidget(b)
+            kinds.addWidget(b, i // 3, i % 3)
             self.kind_s.addWidget(page)
         self.kind_g.idClicked.connect(lambda i: (self.kind_s.setCurrentIndex(i), self.refresh()))
         lv.addLayout(kinds)
@@ -638,6 +638,7 @@ class EventsTab(QWidget):
         split.addWidget(right)
         split.setStretchFactor(0, 0)
         split.setStretchFactor(1, 1)
+        split.setSizes([360, 800])
         layout = QVBoxLayout(self)
         layout.addWidget(split)
 
