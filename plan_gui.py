@@ -656,7 +656,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                           self.parent.mntGui.updateNextRaDec()
                           if "name" in self.parent.plan[self.parent.active_tel][self.i]["ob"].keys():
                               self.parent.mntGui.target_e.setText(self.plan[self.i]["ob"]["name"])
-                              self.parent.mntGui.target_e.setStyleSheet("background-color: white; color: black;")
+                              theme.paint(self.parent.mntGui.target_e, bg="input_bg")
                       if "name" in self.parent.plan[self.parent.active_tel][self.i]["ob"].keys():
                           self.parent.instGui.ccd_tab.inst_object_e.setText(self.plan[self.i]["ob"]["name"])
                       if "seq" in self.parent.plan[self.parent.active_tel][self.i]["ob"].keys():
@@ -1181,42 +1181,42 @@ class TPG_Worker(QtCore.QObject):
                     raise FileNotFoundError(f"no night monitor master file {p.master_file}")
                 self.update_signal.emit(f"night monitor: {p.master_file}")
             p.init_ctc()
-            self.update_signal.emit("TPG init <span style='color: green;'>\u2714</span>")
+            self.update_signal.emit(f"TPG init <span style='color: {theme.hex('ok_fg')};'>\u2714</span>")
             p.LoadObjects()
-            self.update_signal.emit("objects loaded <span style='color: green;'>\u2714</span>")
+            self.update_signal.emit(f"objects loaded <span style='color: {theme.hex('ok_fg')};'>\u2714</span>")
             p.MakeTime()
             p.ObjectMask()
-            self.update_signal.emit("making timeline <span style='color: green;'>\u2714</span>")
-            self.update_signal.emit(f"plan start: <span style='color: green; font-weight: bold;'> {p.start_time}  </span>")
+            self.update_signal.emit(f"making timeline <span style='color: {theme.hex('ok_fg')};'>\u2714</span>")
+            self.update_signal.emit(f"plan start: <span style='color: {theme.hex('ok_fg')}; font-weight: bold;'> {p.start_time}  </span>")
             p.CalcObject()
-            self.update_signal.emit("calculating visibilities <span style='color: green;'>\u2714</span>")
+            self.update_signal.emit(f"calculating visibilities <span style='color: {theme.hex('ok_fg')};'>\u2714</span>")
             p.MaskVisibility()
-            self.update_signal.emit("masking visibility <span style='color: green;'>\u2714</span>")
+            self.update_signal.emit(f"masking visibility <span style='color: {theme.hex('ok_fg')};'>\u2714</span>")
             p.MaskMoon()
-            self.update_signal.emit("masking moon <span style='color: green;'>\u2714</span>")
+            self.update_signal.emit(f"masking moon <span style='color: {theme.hex('ok_fg')};'>\u2714</span>")
             p.MaskWind()
-            self.update_signal.emit("masking wind <span style='color: green;'>\u2714</span>")
+            self.update_signal.emit(f"masking wind <span style='color: {theme.hex('ok_fg')};'>\u2714</span>")
             p.MaskCycle()
-            self.update_signal.emit("masking cycle <span style='color: green;'>\u2714</span>")
+            self.update_signal.emit(f"masking cycle <span style='color: {theme.hex('ok_fg')};'>\u2714</span>")
             p.MaskStartEnd()
             p.MaskTwilight()
-            self.update_signal.emit("masking tim and twilight <span style='color: green;'>\u2714</span>")
+            self.update_signal.emit(f"masking tim and twilight <span style='color: {theme.hex('ok_fg')};'>\u2714</span>")
             p.MaskPhaseStartEnd()
             p.MaskPhase()
-            self.update_signal.emit("masking phase <span style='color: green;'>\u2714</span>")
+            self.update_signal.emit(f"masking phase <span style='color: {theme.hex('ok_fg')};'>\u2714</span>")
             p.Waga()
             p.RandomizeList()
             self.update_signal.emit(f"seed: {p.seed}")
             p.allocate()
-            self.update_signal.emit("allocating objects <span style='color: green;'>\u2714</span>")
+            self.update_signal.emit(f"allocating objects <span style='color: {theme.hex('ok_fg')};'>\u2714</span>")
             p.export()
             # wynik sfs dla kazdej sesji: wstawiony SKYFLAT albo dlaczego nie
             for session, info in getattr(p, "skyflat_info", {}).items():
-                color = "green" if info["line"] else "orange"
+                color = theme.hex("ok_fg" if info["line"] else "warn2_fg")
                 self.update_signal.emit(f"<span style='color: {color};'>{info['note']}</span>")
             if hasattr(p, "SavePlan"):
                 p.SavePlan()
-            self.update_signal.emit("<span style='color: green; font-weight: bold;'>\u2714 DONE \u2714</span>")
+            self.update_signal.emit(f"<span style='color: {theme.hex('ok_fg')}; font-weight: bold;'>\u2714 DONE \u2714</span>")
             self.plan_ready_signal.emit(p.plan)
             self.done_signal.emit()
 
@@ -1308,7 +1308,7 @@ class TPGWindow(BaseWindow):
         {"evening"|"morning": {filtr: dni od ostatnich flatow tej sesji | None}}."""
         records = self.parent.parent.flatGui.flat_records.get(tel, {})
         if not records:
-            self.info_e.append("<span style='color: orange;'>no flat history from flat_overwatch, SKYFLAT filters in group order</span>")
+            self.info_e.append(f"<span style='color: {theme.hex('warn2_fg')};'>no flat history from flat_overwatch, SKYFLAT filters in group order</span>")
         now = datetime.datetime.now(datetime.timezone.utc)
         history = {}
         for session in ("evening", "morning"):
@@ -1328,7 +1328,7 @@ class TPGWindow(BaseWindow):
         self.info_e.append(txt)
 
     def show_error(self, txt):
-        self.info_e.append(f"<span style='color: red; font-weight: bold;'>✘ {txt}</span>")
+        self.info_e.append(f"<span style='color: {theme.hex('bad_fg')}; font-weight: bold;'>✘ {txt}</span>")
 
     def get_plan(self, plan):
         # zwykly slot Qt (sygnal z watku TPG) - wyjatek stad zamknalby cale TOI
@@ -1526,7 +1526,7 @@ class TPGWindow(BaseWindow):
 
         self.info_e = QTextEdit("")
         self.info_e.setReadOnly(True)
-        self.info_e.setStyleSheet("background-color: rgb(235,235,235);")
+        theme.paint(self.info_e, fg="field_fg", bg="field_bg")     # motyw; zmiana motywu przemalowuje sama
 
         grid.addWidget(self.ut_e, 0, 0, 1, 2)
         grid.addWidget(self.sunset_c, 1, 0)
@@ -2051,6 +2051,26 @@ def ob_value(prop, val):
     return val
 
 
+def ob_cell(item, bg):
+    """Komorka tabeli Edit OB / Add OB: tlo (klucz motywu albo QColor) i tekst czytelny na nim - samo tlo dawalo
+    w ciemnych motywach jasny tekst z palety na jasnym tle"""
+    if isinstance(bg, str):     # klucz motywu: tekst motywu (dim zostaje przygaszony)
+        color = theme.qcolor(bg)
+        fg = theme.qcolor("field_fg") if bg in ("field_bg", "input_bg") else theme._css_to_qcolor(theme.bg_text())
+    else:
+        color = bg
+        fg = theme._css_to_qcolor(theme.text_on(color))
+    item.setBackground(color)
+    item.setForeground(fg)
+
+
+def ob_valid_color(ok):
+    """Wynik walidacji pola: w motywie day dawne jasne kolory, w pozostalych ok_bg / warn2_bg"""
+    if theme.name == "day":
+        return QColor(217, 239, 217) if ok else QColor(255, 180, 80)
+    return "ok_bg" if ok else "warn2_bg"
+
+
 class EditWindow(QWidget):
     def __init__(self, parent):
         super().__init__()
@@ -2171,7 +2191,7 @@ class EditWindow(QWidget):
 
             # parameter
             item0 = QTableWidgetItem(key)
-            item0.setBackground(QColor(235, 235, 235))
+            ob_cell(item0, "field_bg")
             item0.setFlags(item0.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
             item0.setData(QtCore.Qt.ItemDataRole.UserRole, key)
             item0.setToolTip(self.tooltip_for(key))
@@ -2187,7 +2207,7 @@ class EditWindow(QWidget):
 
             # example
             item2 = QTableWidgetItem(self.example_for(key))
-            item2.setBackground(QColor(235, 235, 235))
+            ob_cell(item2, "field_bg")
             item2.setFlags(item2.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
             self.tab_t.setItem(r, 2, item2)
 
@@ -2197,9 +2217,9 @@ class EditWindow(QWidget):
 
     def block_changed(self):
         if not self.initial_load:
-            self.block_e.setStyleSheet("background-color: white; color: black;")
+            theme.paint(self.block_e, fg="text", bg="input_bg")
             self.status_l.setText("\u2699 OB changed")
-            self.status_l.setStyleSheet("color: blue; font-weight: normal;")
+            theme.paint(self.status_l, fg="change_fg", extra="font-weight: normal;")
 
         if self.updating:
             return
@@ -2235,7 +2255,7 @@ class EditWindow(QWidget):
 
     def table_changed(self):
         self.status_l.setText("\u2699 OB changed")
-        self.status_l.setStyleSheet("color: blue; font-weight: normal;")
+        theme.paint(self.status_l, fg="change_fg", extra="font-weight: normal;")
 
         if self.updating:
             return
@@ -2244,7 +2264,7 @@ class EditWindow(QWidget):
         for r in range(self.tab_t.rowCount()):
             it = self.tab_t.item(r, 1)
             if it:
-                it.setBackground(QColor("white"))
+                ob_cell(it, "input_bg")
 
 
     def refresh_block(self):
@@ -2272,7 +2292,7 @@ class EditWindow(QWidget):
         for r in range(self.tab_t.rowCount()):
             it = self.tab_t.item(r, 1)
             if it:
-                it.setBackground(QColor("white"))
+                ob_cell(it, "input_bg")
 
         # apply colors
         for key, state in result["result"].items():
@@ -2280,21 +2300,21 @@ class EditWindow(QWidget):
                 continue
 
             r = row_map[key]
-            color = QColor(217, 239, 217) if state is True else QColor(255, 180, 80)
+            color = ob_valid_color(state is True)
 
             it = self.tab_t.item(r, 1)
             if it:
-                it.setBackground(color)
+                ob_cell(it, color)
 
         self.tab_t.blockSignals(False)
         self.updating = False
 
         if result["valid"]:
             self.status_l.setText("✅ Valid OB ")
-            self.status_l.setStyleSheet("color: green; font-weight: bold;")
+            theme.paint(self.status_l, fg="ok_fg", extra="font-weight: bold;")
         else:
             self.status_l.setText("❌ Validation errors")
-            self.status_l.setStyleSheet("color: orange; font-weight: bold;")
+            theme.paint(self.status_l, fg="warn2_fg", extra="font-weight: bold;")
 
         return result["valid"]
 
@@ -2328,7 +2348,7 @@ class EditWindow(QWidget):
 
         self.tab_t.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)  # zaznaczenie całego wiersza
         self.tab_t.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.tab_t.setStyleSheet("selection-background-color: rgb(200,220,255); selection-color: black; ")
+        self.tab_t.setStyleSheet(f"selection-background-color: {theme.c('selection_bg')}; selection-color: {theme.c('text')}; ")
         self.tab_t.verticalHeader().hide()
 
         self.tab_t.itemChanged.connect(self.table_changed)
@@ -2484,7 +2504,7 @@ class AddWindow(QWidget):
 
             # parameter
             item0 = QTableWidgetItem(key)
-            item0.setBackground(QColor(235, 235, 235))
+            ob_cell(item0, "field_bg")
             item0.setFlags(item0.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
             item0.setData(QtCore.Qt.ItemDataRole.UserRole, key)
             item0.setToolTip(self.tooltip_for(key))
@@ -2500,7 +2520,7 @@ class AddWindow(QWidget):
 
             # example
             item2 = QTableWidgetItem(self.example_for(key))
-            item2.setBackground(QColor(235, 235, 235))
+            ob_cell(item2, "field_bg")
             item2.setFlags(item2.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
             self.tab_t.setItem(r, 2, item2)
 
@@ -2510,7 +2530,7 @@ class AddWindow(QWidget):
     def block_changed(self):
         if not self.initial_load:
             self.status_l.setText("\u2699 OB changed")
-            self.status_l.setStyleSheet("color: blue; font-weight: normal;")
+            theme.paint(self.status_l, fg="change_fg", extra="font-weight: normal;")
 
         if self.updating:
             return
@@ -2546,7 +2566,7 @@ class AddWindow(QWidget):
 
     def table_changed(self):
         self.status_l.setText("\u2699 OB changed")
-        self.status_l.setStyleSheet("color: blue; font-weight: normal;")
+        theme.paint(self.status_l, fg="change_fg", extra="font-weight: normal;")
 
         if self.updating:
             return
@@ -2555,7 +2575,7 @@ class AddWindow(QWidget):
         for r in range(self.tab_t.rowCount()):
             it = self.tab_t.item(r, 1)
             if it:
-                it.setBackground(QColor("white"))
+                ob_cell(it, "input_bg")
 
     def refresh_block(self):
         self.updating = True
@@ -2580,7 +2600,7 @@ class AddWindow(QWidget):
         for r in range(self.tab_t.rowCount()):
             it = self.tab_t.item(r, 1)
             if it:
-                it.setBackground(QColor("white"))
+                ob_cell(it, "input_bg")
 
         # apply colors
         for key, state in result["result"].items():
@@ -2588,21 +2608,21 @@ class AddWindow(QWidget):
                 continue
 
             r = row_map[key]
-            color = QColor(217, 239, 217) if state is True else QColor(255, 180, 80)
+            color = ob_valid_color(state is True)
 
             it = self.tab_t.item(r, 1)
             if it:
-                it.setBackground(color)
+                ob_cell(it, color)
 
         self.tab_t.blockSignals(False)
         self.updating = False
 
         if result["valid"]:
             self.status_l.setText("✅ Valid OB ")
-            self.status_l.setStyleSheet("color: green; font-weight: bold;")
+            theme.paint(self.status_l, fg="ok_fg", extra="font-weight: bold;")
         else:
             self.status_l.setText("❌ Validation errors")
-            self.status_l.setStyleSheet("color: orange; font-weight: bold;")
+            theme.paint(self.status_l, fg="warn2_fg", extra="font-weight: bold;")
 
         return result["valid"]
     def mkUI(self):
@@ -2611,7 +2631,7 @@ class AddWindow(QWidget):
         r = 0
         # block line
         self.block_e = QLineEdit()
-        self.block_e.setStyleSheet("background-color: skyblue; color: black;")
+        self.block_e.setStyleSheet(f"background-color: {theme.c('change_bg')}; color: {theme.bg_text()};")
 
         if self.parent.parent.catalog_file:
             self.catalog = readCatalog(self.parent.parent.catalog_file)
@@ -2644,7 +2664,7 @@ class AddWindow(QWidget):
 
         self.tab_t.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)  # zaznaczenie całego wiersza
         self.tab_t.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.tab_t.setStyleSheet("selection-background-color: rgb(200,220,255); selection-color: black; ")
+        self.tab_t.setStyleSheet(f"selection-background-color: {theme.c('selection_bg')}; selection-color: {theme.c('text')}; ")
         self.tab_t.verticalHeader().hide()
 
         self.tab_t.itemChanged.connect(self.table_changed)

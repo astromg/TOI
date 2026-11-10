@@ -47,6 +47,8 @@ SUN_ALTS = (5, 0, -1, -6, -12, -16, -18)          # przyciski przy pokretle (jak
 MINUTES = (5, 10, 30, 60)
 DEFAULT_SOUND_TEXT = "default (gong)"     # event bez dzwieku: overwatch gra default_sound ze swojego configu
 KINDS = ("Sun", "In minutes", "UT time", "Date & time", "Observers", "Manual")
+# kolejnosc przyciskow rodzaju (dwa rzedy po trzy); KINDS zostaje - jego indeksy to strony generatora
+KIND_BUTTONS = ("In minutes", "UT time", "Date & time", "Sun", "Observers", "Manual")
 
 
 def list_files(path, ext):
@@ -554,7 +556,8 @@ class EventsTab(QWidget):
             b = QPushButton(name.replace("&", "&&"))       # & w Qt to skrot klawiszowy
             b.setCheckable(True)
             self.kind_g.addButton(b, i)
-            kinds.addWidget(b, i // 3, i % 3)
+            pos = KIND_BUTTONS.index(name)
+            kinds.addWidget(b, pos // 3, pos % 3)
             self.kind_s.addWidget(page)
         self.kind_g.idClicked.connect(lambda i: (self.kind_s.setCurrentIndex(i), self.refresh()))
         lv.addLayout(kinds)

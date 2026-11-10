@@ -21,6 +21,8 @@ from PyQtX import QtGui
 from PyQtX.QtCore import QSettings
 from PyQtX.QtWidgets import QApplication, QStyleFactory
 
+# kontrast tekstu poprawiony 2026-11-10 (>= ~3.5:1 na tle okna i pol; dim celowo ciemniejszy): pomarancze/zolcie
+# day i paper ciemniejsze, czerwienie night/nord/dim jasniejsze, dim_fg night/dim, zaznaczenie nord
 THEMES = {
     # dotychczasowe kolory TOI
     "day": {
@@ -32,18 +34,18 @@ THEMES = {
         "selection_bg": "rgb(138,176,219)",
         "ok_bg": "rgb(150, 220, 150)", "ok_fg": "rgb(0, 150, 0)", "ok_beat_fg": "rgb(0, 80, 0)",
         "bad_bg": "red", "bad_fg": "rgb(190, 0, 0)",
-        "warn_bg": "rgb(255, 220, 0)", "warn_fg": "rgb(170, 140, 0)",
-        "warn2_bg": "rgb(255, 140, 0)", "warn2_fg": "rgb(255, 140, 0)",
+        "warn_bg": "rgb(255, 220, 0)", "warn_fg": "rgb(134, 111, 0)",
+        "warn2_bg": "rgb(255, 140, 0)", "warn2_fg": "rgb(186, 102, 0)",
         "change_bg": "rgb(190, 220, 255)", "change_fg": "rgb(0, 90, 200)",
         "idle_fg": "black",
         # tabela teleskopow: dawne kolory (inny kod niz reszta - ruch pomaranczowy, nie niebieski), patrz tab_* nizej
-        "tab_ok": "rgb(0, 150, 0)", "tab_moving": "rgb(255, 160, 0)", "tab_error": "rgb(150, 0, 0)",
+        "tab_ok": "rgb(0, 150, 0)", "tab_moving": "rgb(173, 109, 0)", "tab_error": "rgb(150, 0, 0)",
         # okno Mount: pola do wpisywania, tlo w ruchu, napis w ruchu (SLEWING - dawny pomaranczowy, zostaje)
         "input_bg": "white", "input_edit_bg": "rgb(234, 245, 249)", "moving_bg": "rgb(136, 142, 228)",
         "moving_fg": "rgb(204, 82, 0)", "warn_soft_bg": "rgb(240, 232, 151)",
         # okno Plan: wiersz zaznaczony / poprzednio zaznaczony, przygaszony tekst logu (cudze, planrunner)
         "row_sel_bg": "rgb(125, 195, 227)", "row_prev_bg": "rgb(230, 236, 240)", "dim_fg": "rgb(128, 128, 128)",
-        "tab_icon_ok": "darkgreen", "tab_icon_bad": "red", "tab_icon_warn": "darkorange", "tab_icon_warn2": "orange",
+        "tab_icon_ok": "darkgreen", "tab_icon_bad": "red", "tab_icon_warn": "rgb(186, 102, 0)", "tab_icon_warn2": "rgb(186, 120, 0)",
     },
     # ciemny i przygaszony, zeby nie oslepiac w nocy; znaczenie kolorow bez zmian (czerwony = zle)
     "night": {
@@ -54,16 +56,16 @@ THEMES = {
         "muted_fg": "rgb(80, 80, 80)",
         "selection_bg": "rgb(60, 70, 95)",
         "ok_bg": "rgb(30, 90, 30)", "ok_fg": "rgb(70, 150, 70)", "ok_beat_fg": "rgb(140, 220, 140)",
-        "bad_bg": "rgb(120, 25, 25)", "bad_fg": "rgb(190, 60, 60)",
+        "bad_bg": "rgb(120, 25, 25)", "bad_fg": "rgb(209, 108, 108)",
         "warn_bg": "rgb(110, 95, 20)", "warn_fg": "rgb(190, 165, 50)",
         "warn2_bg": "rgb(120, 65, 15)", "warn2_fg": "rgb(200, 120, 40)",
         "change_bg": "rgb(35, 60, 105)", "change_fg": "rgb(100, 140, 210)",
         "idle_fg": "rgb(170, 170, 160)",
-        "tab_ok": "rgb(70, 150, 70)", "tab_moving": "rgb(200, 130, 40)", "tab_error": "rgb(190, 60, 60)",
+        "tab_ok": "rgb(70, 150, 70)", "tab_moving": "rgb(200, 130, 40)", "tab_error": "rgb(209, 108, 108)",
         "input_bg": "rgb(62, 62, 66)", "input_edit_bg": "rgb(50, 62, 72)", "moving_bg": "rgb(50, 55, 110)",
         "moving_fg": "rgb(200, 120, 50)", "warn_soft_bg": "rgb(95, 88, 35)",
-        "row_sel_bg": "rgb(55, 75, 105)", "row_prev_bg": "rgb(42, 46, 54)", "dim_fg": "rgb(110, 110, 105)",
-        "tab_icon_ok": "rgb(70, 150, 70)", "tab_icon_bad": "rgb(190, 60, 60)", "tab_icon_warn": "rgb(190, 110, 30)",
+        "row_sel_bg": "rgb(55, 75, 105)", "row_prev_bg": "rgb(42, 46, 54)", "dim_fg": "rgb(122, 122, 116)",
+        "tab_icon_ok": "rgb(70, 150, 70)", "tab_icon_bad": "rgb(209, 108, 108)", "tab_icon_warn": "rgb(190, 110, 30)",
         "tab_icon_warn2": "rgb(200, 140, 50)",
     },
     # cosmic: granat i fiolet mglawicy, tekst jak swiatlo gwiazd; zorza / czerwony olbrzym / Slonce / goraca gwiazda
@@ -94,18 +96,18 @@ THEMES = {
         "field_bg": "rgb(59, 66, 82)",
         "field_fg": "rgb(216, 222, 233)",
         "muted_fg": "rgb(97, 110, 136)",
-        "selection_bg": "rgb(94, 129, 172)",
+        "selection_bg": "rgb(81, 115, 157)",
         "ok_bg": "rgb(84, 110, 74)", "ok_fg": "rgb(163, 190, 140)", "ok_beat_fg": "rgb(200, 230, 180)",
-        "bad_bg": "rgb(130, 60, 68)", "bad_fg": "rgb(191, 97, 106)",
+        "bad_bg": "rgb(130, 60, 68)", "bad_fg": "rgb(209, 141, 147)",
         "warn_bg": "rgb(140, 118, 72)", "warn_fg": "rgb(235, 203, 139)",
         "warn2_bg": "rgb(138, 86, 70)", "warn2_fg": "rgb(208, 135, 112)",
         "change_bg": "rgb(70, 96, 126)", "change_fg": "rgb(129, 161, 193)",
         "idle_fg": "rgb(216, 222, 233)",
-        "tab_ok": "rgb(163, 190, 140)", "tab_moving": "rgb(208, 135, 112)", "tab_error": "rgb(191, 97, 106)",
+        "tab_ok": "rgb(163, 190, 140)", "tab_moving": "rgb(208, 135, 112)", "tab_error": "rgb(209, 141, 147)",
         "input_bg": "rgb(67, 76, 94)", "input_edit_bg": "rgb(67, 76, 94)", "moving_bg": "rgb(76, 86, 140)",
         "moving_fg": "rgb(208, 135, 112)", "warn_soft_bg": "rgb(140, 118, 72)",
-        "row_sel_bg": "rgb(94, 129, 172)", "row_prev_bg": "rgb(52, 58, 72)", "dim_fg": "rgb(140, 150, 170)",
-        "tab_icon_ok": "rgb(163, 190, 140)", "tab_icon_bad": "rgb(191, 97, 106)", "tab_icon_warn": "rgb(208, 135, 112)",
+        "row_sel_bg": "rgb(81, 115, 157)", "row_prev_bg": "rgb(52, 58, 72)", "dim_fg": "rgb(140, 150, 170)",
+        "tab_icon_ok": "rgb(163, 190, 140)", "tab_icon_bad": "rgb(209, 141, 147)", "tab_icon_warn": "rgb(208, 135, 112)",
         "tab_icon_warn2": "rgb(235, 203, 139)",
     },
     # dim: noc dla adaptacji wzroku - ciemniej niz night, wszystko przygaszone, kolory zostaja
@@ -117,16 +119,16 @@ THEMES = {
         "muted_fg": "rgb(55, 55, 55)",
         "selection_bg": "rgb(40, 44, 60)",
         "ok_bg": "rgb(22, 50, 22)", "ok_fg": "rgb(60, 120, 60)", "ok_beat_fg": "rgb(110, 170, 110)",
-        "bad_bg": "rgb(70, 20, 20)", "bad_fg": "rgb(150, 50, 50)",
+        "bad_bg": "rgb(70, 20, 20)", "bad_fg": "rgb(184, 61, 61)",
         "warn_bg": "rgb(65, 55, 18)", "warn_fg": "rgb(150, 130, 50)",
         "warn2_bg": "rgb(70, 40, 14)", "warn2_fg": "rgb(160, 95, 40)",
         "change_bg": "rgb(22, 36, 66)", "change_fg": "rgb(70, 100, 160)",
         "idle_fg": "rgb(115, 112, 105)",
-        "tab_ok": "rgb(60, 120, 60)", "tab_moving": "rgb(160, 95, 40)", "tab_error": "rgb(150, 50, 50)",
+        "tab_ok": "rgb(60, 120, 60)", "tab_moving": "rgb(160, 95, 40)", "tab_error": "rgb(184, 61, 61)",
         "input_bg": "rgb(26, 26, 28)", "input_edit_bg": "rgb(26, 26, 28)", "moving_bg": "rgb(30, 30, 70)",
         "moving_fg": "rgb(160, 95, 40)", "warn_soft_bg": "rgb(65, 55, 18)",
-        "row_sel_bg": "rgb(40, 44, 60)", "row_prev_bg": "rgb(18, 18, 22)", "dim_fg": "rgb(80, 78, 74)",
-        "tab_icon_ok": "rgb(60, 120, 60)", "tab_icon_bad": "rgb(150, 50, 50)", "tab_icon_warn": "rgb(160, 95, 40)",
+        "row_sel_bg": "rgb(40, 44, 60)", "row_prev_bg": "rgb(18, 18, 22)", "dim_fg": "rgb(96, 93, 89)",
+        "tab_icon_ok": "rgb(60, 120, 60)", "tab_icon_bad": "rgb(184, 61, 61)", "tab_icon_warn": "rgb(160, 95, 40)",
         "tab_icon_warn2": "rgb(150, 130, 50)",
     },
     # paper: dzien - cieply kremowy papier, lagodniejszy dla oczu niz biel; kolory w stylu Material
@@ -140,14 +142,14 @@ THEMES = {
         "ok_bg": "rgb(200, 230, 201)", "ok_fg": "rgb(46, 125, 50)", "ok_beat_fg": "rgb(20, 80, 25)",
         "bad_bg": "rgb(255, 180, 185)", "bad_fg": "rgb(198, 40, 40)",
         "warn_bg": "rgb(255, 236, 150)", "warn_fg": "rgb(160, 120, 0)",
-        "warn2_bg": "rgb(255, 205, 150)", "warn2_fg": "rgb(230, 119, 0)",
+        "warn2_bg": "rgb(255, 205, 150)", "warn2_fg": "rgb(184, 95, 0)",
         "change_bg": "rgb(200, 222, 250)", "change_fg": "rgb(21, 101, 192)",
         "idle_fg": "rgb(43, 43, 43)",
-        "tab_ok": "rgb(46, 125, 50)", "tab_moving": "rgb(230, 119, 0)", "tab_error": "rgb(198, 40, 40)",
+        "tab_ok": "rgb(46, 125, 50)", "tab_moving": "rgb(184, 95, 0)", "tab_error": "rgb(198, 40, 40)",
         "input_bg": "rgb(253, 251, 246)", "input_edit_bg": "rgb(253, 251, 246)", "moving_bg": "rgb(170, 180, 240)",
-        "moving_fg": "rgb(230, 119, 0)", "warn_soft_bg": "rgb(255, 236, 150)",
+        "moving_fg": "rgb(184, 95, 0)", "warn_soft_bg": "rgb(255, 236, 150)",
         "row_sel_bg": "rgb(190, 210, 232)", "row_prev_bg": "rgb(232, 226, 214)", "dim_fg": "rgb(120, 114, 104)",
-        "tab_icon_ok": "rgb(46, 125, 50)", "tab_icon_bad": "rgb(198, 40, 40)", "tab_icon_warn": "rgb(230, 119, 0)",
+        "tab_icon_ok": "rgb(46, 125, 50)", "tab_icon_bad": "rgb(198, 40, 40)", "tab_icon_warn": "rgb(184, 95, 0)",
         "tab_icon_warn2": "rgb(160, 120, 0)",
     },
     # clear sky: dzien - chlodna, czysta biel z niebieskawym odcieniem, wyrazne akcenty
