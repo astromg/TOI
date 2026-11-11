@@ -179,8 +179,10 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   `FrameView.zoom`, the view has NoAnchor); below it slider + entry for exposure (log) / gain / search radius (sent
   when the slider is released or the field is left / Enter, no Apply) and the diagnostics; right column: fibre
   close-up, drift plots, journal. Manual pulses: "Pulse…" opens the Mount pulse window (`mnt_gui.PulseWindow`) in
-  guider mode (image px via `GuiderTab.pulse`; its combo switches back to mount RA/Dec arcsec); manual pulses only
-  in MONITOR, one at a time, autorepeat ignored; red banner when guiding pulls the
+  guider mode (image px via `GuiderTab.pulse`, step from the list or typed 0.5-200 px; its combo switches back to mount RA/Dec arcsec); manual pulses only
+  in MONITOR. The Mount window GUIDING switch shows the real guider state (GUIDE = on, MONITOR / OFF = off; grey
+  without a guider) and switched on runs `GuiderTab._auto_guide` (OFF -> MONITOR, Find star if none held, GUIDE;
+  on failure a warning and the switch falls back), off = MONITOR, one at a time, autorepeat ignored; red banner when guiding pulls the
   star > 20 px; corrections > 1 s in the journal; Focus line vs `toi.guider_focus` (jk15 21950) and FOCUS ADJUST;
   no state for 10 s while running -> "stale"; interface in the vault note "Guider service - NATS interface"),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes, drawn like oca_monitor - points plus a smoothed trend;

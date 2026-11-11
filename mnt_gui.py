@@ -13,7 +13,7 @@ from PyQtX.QtWidgets import QCompleter, QWidget, QLabel, QCheckBox, QLineEdit, Q
 from pyaraucaria.coordinates import *
 from qasync import QEventLoop
 
-from PyQtX import QtCore
+from PyQtX import QtCore, QtGui
 
 from base_async_widget import MetaAsyncWidgetQtWidget, BaseAsyncWidget
 from toi_lib import *
@@ -344,6 +344,9 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.guiding_c.setChecked(False)
         self.guiding_c.setLayoutDirection(Qt.RightToLeft)
         theme.paint(self.guiding_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOnGrey.png)}::indicator:unchecked {image: url(ICONS/SwitchOffGrey.png)}")
+        # stan i automat: guider_gui.GuiderTab (sync_mount_switch / mount_switch) - guider aktywnego teleskopu
+        self.guiding_c.setEnabled(False)
+        self.guiding_c.clicked.connect(lambda checked: self.parent.guiderGui.mount_switch(checked))
 
         w = w + 1
         self.grid.addWidget(self.target_l, w, 1)
@@ -840,9 +843,19 @@ class PulseWindow(BaseWindow):
             b.setEnabled(ok)
         self.guider_state_l.setText(why)
         if g is not None:
-            self.step_s.blockSignals(True)
-            self.step_s.setCurrentIndex(g.pulse_step_index)
-            self.step_s.blockSignals(False)
+            if not self.step_s.lineEdit().hasFocus():
+                self.step_s.blockSignals(True)
+                self.step_s.setEditText(f"{g.pulse_step:g}")
+                self.step_s.blockSignals(False)
+
+    def _step_typed(self, text):
+        g = self._guider()
+        try:
+            px = float(text)
+        except (TypeError, ValueError):
+            px = None
+        if g is not None and px is not None:
+            g.set_pulse_px(px)
 
     def _arrow(self, mount_slot, sx, sy):
         if self.mode == "guider":
@@ -925,25 +938,36 @@ class PulseWindow(BaseWindow):
         grid.addWidget(self.mount_w, w, 0, 1, 5)
 
         # --- tryb Guider: krok w px obrazu guidera ---
-        from guider_gui import PULSE_STEPS
+        from guider_gui import PULSE_MAX_PX, PULSE_MIN_PX, PULSE_STEPS
         gg = QGridLayout()
         gg.setContentsMargins(0, 0, 0, 0)
-        self.step_s = QComboBox()
+        self.step_s = QComboBox()       # lista albo wpisana liczba px
+        self.step_s.setEditable(True)
+        self.step_s.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         for s in PULSE_STEPS:
-            self.step_s.addItem(f"{s} px")
-        self.step_s.activated.connect(lambda i: self._guider() and self._guider().set_pulse_step(i))
-        self.step_s.setToolTip("step in guider image pixels (keys 1-7 on the guider frame)")
+            self.step_s.addItem(f"{s:g}")
+        self.step_s.lineEdit().setValidator(QtGui.QDoubleValidator(PULSE_MIN_PX, PULSE_MAX_PX, 1))
+        self.step_s.textActivated.connect(self._step_typed)
+        self.step_s.lineEdit().editingFinished.connect(lambda: self._step_typed(self.step_s.currentText()))
+        self.step_s.setMaximumWidth(80)
+        self.step_s.setToolTip(f"step in guider image pixels: choose or type ({PULSE_MIN_PX:g}-{PULSE_MAX_PX:g});\n"
+                               "keys 1-7 on the guider frame choose from the list")
         gg.addWidget(QLabel("Step:"), 0, 0)
         gg.addWidget(self.step_s, 0, 1)
+        gg.addWidget(QLabel("px"), 0, 2)
         self.guider_state_l = QLabel("")
-        gg.addWidget(self.guider_state_l, 0, 2)
-        note = QLabel("The guider moves the telescope so that its image shifts by the step.\n"
-                      "Only in guider MONITOR, one pulse at a time (arrow keys on the guider frame too).")
+        gg.addWidget(self.guider_state_l, 0, 3)
+        note = QLabel("Shifts the guider image by the step. Only in guider MONITOR, one pulse at a time; "
+                      "arrow keys on the guider frame do the same.")
+        note.setWordWrap(True)          # okno tej samej szerokosci co w trybie montazu
         theme.paint(note, fg="dim_fg")
-        gg.addWidget(note, 1, 0, 1, 3)
-        gg.setColumnStretch(2, 1)
+        gg.addWidget(note, 1, 0, 1, 4)
+        gg.setColumnStretch(3, 1)
         self.guider_w = QWidget()
         self.guider_w.setLayout(gg)
+        width = self.mount_w.sizeHint().width()       # zawiniety opis: wysokosc dla tej szerokosci, inaczej sie utnie
+        self.guider_w.setFixedWidth(width)
+        note.setMinimumHeight(note.heightForWidth(width) + 2)
         w = w + 1
         grid.addWidget(self.guider_w, w, 0, 1, 5)
 

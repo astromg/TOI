@@ -50,6 +50,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_DIMENSIONS = (1936, 1216)       # guider_beso; the thumbnail payload says the real size
 DRIFT_WINDOW_S = 300                    # dryf na wykresie i RMS: ostatnie 5 min (jak web UI)
 PULSE_STEPS = [1, 5, 10, 30, 60, 100, 200]  # px obrazu (klawisze 1-7 na obrazie); 200 px ~ limit impulsu serwisu 5 s
+PULSE_MIN_PX, PULSE_MAX_PX = 0.5, 200.0     # wpisany krok: ponizej 1 px serwis moze impuls pominac, powyzej ~200 przytnie
 PULSE_WAIT_MAX = 6.0    # s - impuls reczny bez odpowiedzi blokuje pad najwyzej tyle (limit impulsu serwisu 5 s)
 PULSE_SETTLE_S = 0.3    # s po koncu impulsow, zanim pad znow dziala
 MOVE_CHUNK_PX = 150     # Move to fiber w MONITOR: kroki po tyle px na os (pod limitem impulsu ~195 px)
@@ -66,6 +67,13 @@ FOCUS_TOLERANCE = 300
 FIBER_MOVED_PX = 1.0        # pozycja wlokna dalej od konfiguracji - pokazujemy o ile
 PULL_WARN_PX = 20.0         # guiding ciagnie gwiazde dalej do hold pointu - ostrzezenie (2026-11-10: zjazd ~400 px)
 MODE_COLORS = {"off": None, "monitoring": "change_bg", "guiding": "ok_bg"}
+# przelacznik GUIDING w oknie Mount (automat): ile czekamy na kolejne kroki
+AUTO_MODE_S = 10        # s na potwierdzenie zmiany trybu przez serwis
+AUTO_FIND_S = 20        # s na znalezienie gwiazdy (kilka klatek przy dluzszej ekspozycji)
+SWITCH_ON = "QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}" \
+            "::indicator:unchecked {image: url(ICONS/SwitchOff.png)}"
+SWITCH_GREY = "QCheckBox::indicator:checked {image: url(ICONS/SwitchOnGrey.png)}" \
+              "::indicator:unchecked {image: url(ICONS/SwitchOffGrey.png)}"
 # kolory bez znaczenia ok/zle (czerwony = zle w TOI): serie dryfu i znacznik operatora
 DRIFT_X_COLOR = "#a070d0"
 DRIFT_Y_COLOR = "#40b0c0"
@@ -514,8 +522,9 @@ class GuiderTab(QWidget):
         self.state_time = None
         self.frame_time = None
         self.pulse_until = 0.0          # time.time(), do kiedy trwa ostatni impuls reczny - wtedy nie wysylamy nowego
-        self.pulse_step_index = PULSE_STEPS.index(10)       # krok impulsu guidera (okno Pulse, klawisze 1-7)
+        self.pulse_step = 10.0          # krok impulsu guidera [px obrazu] (okno Pulse - lista albo wpisany, klawisze 1-7)
         self.moving = False             # Move to fiber w MONITOR (seria impulsow) trwa
+        self.auto_task = None           # automat przelacznika GUIDING z okna Mount
         self.drift = deque()            # (t, dx, dy) wzgledem drift_ref
         self.drift_ref = None
         self.prev_state = None
@@ -566,6 +575,7 @@ class GuiderTab(QWidget):
                 self.frame_v.set_message("waiting for the guider state…")
         self.show_service()
         self._enable()
+        self.sync_mount_switch()
 
     def show_service(self):
         info = self.info
@@ -658,6 +668,7 @@ class GuiderTab(QWidget):
         self._show_diagnostics(state)
         self._show_pull(state)
         self._enable()
+        self.sync_mount_switch()
 
     def show_frame(self, data, dims=None):
         """JPEG (bytes) of the latest guider frame; ``dims`` = sensor size from the thumbnail message."""
@@ -733,6 +744,82 @@ class GuiderTab(QWidget):
             why = result.get("reason") or result.get("error") or result.get("message") or result.get("status")
             self.add_journal(f"{cmd} refused: {why}", "warning")
         return reply
+
+    # --- przelacznik GUIDING w oknie Mount ---
+
+    def auto_running(self):
+        return self.auto_task is not None and not self.auto_task.done()
+
+    def sync_mount_switch(self):
+        """GUIDING switch of the Mount window = the guider of the active telescope is in GUIDE (MONITOR / OFF = off);
+        grey and disabled without a guider; on while the automat is starting it."""
+        c = getattr(getattr(self.parent, "mntGui", None), "guiding_c", None)
+        if c is None:
+            return
+        have = self.info is not None and self.state is not None
+        guiding = bool(have and self.state.get("mode") == "guiding")
+        c.blockSignals(True)
+        c.setChecked(guiding or self.auto_running())
+        c.blockSignals(False)
+        c.setEnabled(have)
+        c.setText("GUIDING (starting…): " if self.auto_running() else "GUIDING: ")
+        theme.paint(c, extra=SWITCH_ON if have else SWITCH_GREY)
+        c.setToolTip("guider is in GUIDE" if guiding else
+                     "on: the guider starts, finds a star near the fiber and guides on it (Aux → Guider)" if have
+                     else "no guider for this telescope")
+
+    def mount_switch(self, on):
+        """The operator clicked GUIDING in the Mount window."""
+        if on:
+            if not self.auto_running() and self._may_command():
+                self.auto_task = asyncio.ensure_future(self._auto_guide())
+        else:
+            if self.auto_running():
+                self.auto_task.cancel()
+                self.add_journal("auto guide stopped by the operator", "warning")
+            if (self.state or {}).get("mode") == "guiding":
+                self.command("set_mode", mode="monitoring")
+        self.sync_mount_switch()
+
+    async def _wait_state(self, ok, timeout):
+        """wait for a guider state with ``ok(state)``; True / False after ``timeout`` s"""
+        end = time.time() + timeout
+        while time.time() < end:
+            if self.state and ok(self.state):
+                return True
+            await asyncio.sleep(0.2)
+        return False
+
+    async def _auto_guide(self):
+        """Mount window GUIDING on: OFF -> MONITOR, find a star if none is held, GUIDE. Any failure: a warning with
+        the reason, the guider stays where it got (MONITOR at most), the switch shows the real state."""
+        def fail(why):
+            self.add_journal(f"auto guide: {why}", "warning")
+            self.parent.WarningWindow(f"GUIDING not started: {why}")
+        try:
+            self.add_journal("→ auto guide (Mount window GUIDING)", "sent")
+            s = self.state or {}
+            if s.get("mode") == "off":
+                if await self._call("set_mode", {"mode": "monitoring"}) is None:
+                    return fail("the guider did not answer")
+                if not await self._wait_state(lambda st: st.get("mode") == "monitoring", AUTO_MODE_S):
+                    return fail("the guider did not switch to MONITOR")
+            s = self.state or {}
+            if s.get("method") != "fiber" and not s.get("acquired"):
+                if await self._call("acquire", {}) is None:
+                    return fail("the guider did not answer")
+                if not await self._wait_state(lambda st: st.get("acquired"), AUTO_FIND_S):
+                    return fail(f"no star found near the {self.fiber_word()} in {AUTO_FIND_S} s "
+                                f"(focus? exposure? search radius?)")
+            if await self._call("set_mode", {"mode": "guiding"}) is None:
+                return fail("the guider did not answer")
+            if not await self._wait_state(lambda st: st.get("mode") == "guiding", AUTO_MODE_S):
+                return fail("the guider did not switch to GUIDE")
+            star = _xy((self.state or {}).get("acquired_pos"))
+            self.add_journal("auto guide: guiding" + (f" on the star at {_pt(star)}" if star else ""))
+        finally:
+            self.auto_task = None
+            self.sync_mount_switch()
 
     def set_mode(self, mode):
         if self.state and self.state.get("mode") == mode:
@@ -876,7 +963,7 @@ class GuiderTab(QWidget):
             return
         if time.time() < self.pulse_until or self.moving:
             return      # poprzedni impuls jeszcze trwa - pad jest wtedy wylaczony, to tylko klawisze
-        step = PULSE_STEPS[self.pulse_step_index]
+        step = self.pulse_step
         self.pulse_until = time.time() + PULSE_WAIT_MAX     # do odpowiedzi; odpowiedz poda prawdziwy czas
         if self.command("pulse_pixels", done=self._pulse_done, dx_px=sx * step, dy_px=sy * step):
             self._enable()
@@ -895,7 +982,12 @@ class GuiderTab(QWidget):
     # --- impulsy reczne (okno Pulse z okna Mount, tryb guider) ---
 
     def set_pulse_step(self, i):
-        self.pulse_step_index = max(0, min(len(PULSE_STEPS) - 1, int(i)))
+        """keys 1-7 on the frame: step from the list"""
+        self.set_pulse_px(PULSE_STEPS[max(0, min(len(PULSE_STEPS) - 1, int(i)))])
+
+    def set_pulse_px(self, px):
+        """step in image pixels (the Pulse window: list or typed), PULSE_MIN_PX..PULSE_MAX_PX"""
+        self.pulse_step = max(PULSE_MIN_PX, min(PULSE_MAX_PX, float(px)))
         self._sync_pulse_window()
 
     def pulse_ready(self):
