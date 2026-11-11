@@ -266,6 +266,72 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
 
 
+    MOON_DIST_DEFAULT = 40      # deg - gdy config tpg nie podaje moon_dist
+
+    def status_tip(self, i, symbol):
+        """Podpowiedz znaku stanu w kolumnie 0 (znaki Unicode ustawiane w update_table; wygrywa ostatni)"""
+        row = self.plan[i]
+        ob, meta = row.get("ob", {}), row.get("meta", {})
+        limits = getattr(self.parent, "cfg_alt_limits", {}) or {}
+        if symbol == "\u26A0":
+            if meta.get("skip_alt"):
+                return "skipped: too low at the planned start"
+            return (f"low: {meta.get('plan_alt', '?')}\u00b0 at the planned start "
+                    f"(below {limits.get('low', '?')}\u00b0, minimum {limits.get('min', '?')}\u00b0)")
+        if symbol == "\u29D6":
+            how = ", ".join(f"{k}={ob[k]}" for k in ("ut", "sunset", "sunrise", "sec") if k in ob)
+            return f"WAIT {how} - the plan waits here".replace("WAIT  -", "WAIT -")
+        return {
+            "\u2B23": "STOP - the plan stops here",
+            "\u266A": "BELL - a sound for the operator",
+            "\u2699": "not a valid OB - the plan skips it (Edit shows what is wrong)",
+            "\u23ED": "skipped by the operator (Skip)",
+            "\u2713": "done - in the log of executed OBs",
+            "\u2192": "next - the plan starts here (Next)",
+            "\u21BB": "running now",
+        }.get(symbol, "")
+
+    def moon_limit(self, row):
+        """Najmniejsza odleglosc od Ksiezyca jak w TPG (MaskMoon): min_moon_dist OB, inaczej moon_dist teleskopu
+        z configu tpg (czytany raz)"""
+        ob = row.get("ob", {})
+        if ob.get("min_moon_dist") is not None:
+            try:
+                return float(ob["min_moon_dist"])
+            except (TypeError, ValueError):
+                pass
+        if not hasattr(self, "_moon_limits"):
+            self._moon_limits = {}
+        tel = self.parent.active_tel
+        if tel not in self._moon_limits:
+            try:
+                self._moon_limits[tel] = float(tpg_load_config()[tel]["moon_dist"])
+            except Exception as e:
+                logger.warning(f'TOI plan: moon_dist of {tel} not read from the tpg config, {self.MOON_DIST_DEFAULT}: {e}')
+                self._moon_limits[tel] = float(self.MOON_DIST_DEFAULT)
+        return self._moon_limits[tel]
+
+    def moon_sep_deg(self, row):
+        """Odleglosc obiektu OB od Ksiezyca [deg] w planowanym starcie (meta plan_ut) albo None (bez wspolrzednych,
+        bez czasu startu)"""
+        ob, meta = row.get("ob", {}), row.get("meta", {})
+        if "ra" not in ob or "dec" not in ob or "plan_ut" not in meta:
+            return None
+        try:
+            obs = ephem.Observer()
+            obs.lat = self.parent.oca_site.lat
+            obs.lon = self.parent.oca_site.lon
+            obs.elevation = self.parent.oca_site.elevation
+            obs.date = parse_plan_ut_str(str(meta["plan_ut"]))
+            target = ephem.FixedBody()
+            target._ra = ephem.hours(ob["ra"])
+            target._dec = ephem.degrees(ob["dec"])
+            target.compute(obs)
+            moon = ephem.Moon(obs)
+            return float(ephem.separation((target.ra, target.dec), (moon.ra, moon.dec))) * 180.0 / ephem.pi
+        except (ValueError, TypeError):
+            return None
+
     def update_table(self):
         self.plan_t.clearContents()
         self.plan_t.setRowCount(0)
@@ -429,6 +495,25 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                             txt.setForeground(theme.qcolor("ok_fg"))
                             self.plan_t.setItem(i,0,txt)
 
+                         # Ksiezyc za blisko (limit TPG): czerwona ikonka obok znaku stanu w kolumnie 0 - w kazdym
+                         # trybie kolumny 3, bo obserwator przestawiajacy OB nie musi patrzec na "Moon dist"
+                         ahead = i >= self.next_i or (i >= self.current_i and self.current_i > -1)   # jak kolor Alt
+                         moon_sep = self.moon_sep_deg(self.plan[i]) if ahead else None
+                         moon_limit = self.moon_limit(self.plan[i])
+                         moon_close = moon_sep is not None and moon_sep < moon_limit
+                         item = self.plan_t.item(i, 0)
+                         tips = [self.status_tip(i, item.text())] if item is not None else []
+                         if moon_close:
+                             if item is None:
+                                 item = QTableWidgetItem("")
+                                 self.plan_t.setItem(i, 0, item)
+                             item.setIcon(ToiIcon("icon_moon", theme.hex("bad_fg")))
+                             tips.append(f"Moon {moon_sep:.0f}\u00b0 from the target at its planned start - closer "
+                                         f"than the TPG limit {moon_limit:.0f}\u00b0")
+                         tips = [t for t in tips if t]
+                         if item is not None and tips:
+                             item.setToolTip("\n".join(tips))
+
                          # 1 KOLUMNA
                          txt = ""
                          if "plan_ut" in self.plan[i]["meta"].keys() and (
@@ -492,28 +577,12 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                                  txt = f' {st / 60.:.1f} [m]' if isinstance(st, (int, float)) else " -- "
                                  txt=QTableWidgetItem(txt)
                          elif self.state_ut == 3:
-
-                             if "ra" in self.plan[i]["ob"].keys() and "plan_ut" in self.plan[i]["meta"].keys():
-                                 ra = self.plan[i]["ob"]["ra"]
-                                 dec = self.plan[i]["ob"]["dec"]
-                                 obs = ephem.Observer()
-                                 obs.lat = self.parent.oca_site.lat
-                                 obs.lon = self.parent.oca_site.lon
-                                 obs.elevation = self.parent.oca_site.elevation
-                                 obs.date = parse_plan_ut_str(str(self.plan[i]["meta"]["plan_ut"]))
-
-                                 target = ephem.FixedBody()
-                                 target._ra = ephem.hours(ra)
-                                 target._dec = ephem.degrees(dec)
-                                 target.compute(obs)
-
-                                 moon = ephem.Moon(obs)
-
-                                 sep = ephem.separation((target.ra, target.dec), (moon.ra, moon.dec))
-                                 sep_deg = float(sep) * 180.0 / ephem.pi
-                                 txt = f'{sep_deg:.0f} [deg]'
+                             if moon_sep is not None:
+                                 txt = f'{moon_sep:.0f} [deg]'
 
                          txt = QTableWidgetItem(txt)
+                         if self.state_ut == 3 and moon_close:
+                             txt.setForeground(theme.qcolor("bad_fg"))
                          self.plan_t.setItem(i,3,txt)
 
                          # 4 KOLUMNA
