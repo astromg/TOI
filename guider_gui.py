@@ -70,6 +70,7 @@ MODE_COLORS = {"off": None, "monitoring": "change_bg", "guiding": "ok_bg"}
 DRIFT_X_COLOR = "#a070d0"
 DRIFT_Y_COLOR = "#40b0c0"
 MARK_COLOR = "#e040e0"
+SEARCH_COLOR = "#d0d0d0"        # kolo szukania: jasne, zeby bylo widac na ciemnym kadrze
 HELP = ("Left click: star to guide on · Right click: mark a point · Wheel: zoom at the cursor · Middle drag: pan · "
         "0: fit · Arrows: pulse (MONITOR) · F: find star · Esc: clear mark")
 
@@ -144,7 +145,7 @@ class GuiderScene(QGraphicsScene):
     # --- nakladka ---
 
     @staticmethod
-    def _pen(color, width=1.5, style=Qt.PenStyle.SolidLine, alpha=255):
+    def _pen(color, width=1.5, style=Qt.PenStyle.SolidLine, alpha=255):  # color: klucz motywu albo "#rrggbb"
         color = QColor(color) if color.startswith("#") else theme.qcolor(color)
         color.setAlpha(alpha)
         pen = QPen(color, width, style)
@@ -199,7 +200,7 @@ class GuiderScene(QGraphicsScene):
         # kolo szukania gwiazd: klikniecia i Find star tylko w nim
         search_r = state.get("wide_search_radius_px")
         if fiber and search_r and method != "fiber":
-            self._circle(fiber, float(search_r), self._pen("dim_fg", 1, Qt.PenStyle.DashLine, 160))
+            self._circle(fiber, float(search_r), self._pen(SEARCH_COLOR, 1.5, Qt.PenStyle.DashLine, 220))
 
         # kandydaci z detekcji (klawisz D)
         if self.show_candidates and method != "fiber":
@@ -257,7 +258,7 @@ class FrameView(QGraphicsView):
         self.tab = tab
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.NoAnchor)     # zoom: wheelEvent sam trzyma punkt
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -290,19 +291,27 @@ class FrameView(QGraphicsView):
     def fit(self):
         self.zoomed = False
         self.fitInView(self.scene().frame_rect, Qt.AspectRatioMode.KeepAspectRatio)
+        self.centerOn(self.scene().frame_rect.center())
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         if not self.zoomed:
             self.fit()
 
-    def zoom(self, factor):
-        # nie mniej niz caly kadr: dalej oddalac nie ma po co
+    def zoom(self, factor, at=None):
+        """Zoom by ``factor`` keeping the scene point under the viewport position ``at`` (None - the middle) where it
+        is; not further out than the whole frame."""
         if factor < 1 and self.transform().m11() * factor < self._fit_scale():
             self.fit()
             return
+        at = self.viewport().rect().center() if at is None else at
+        before = self.mapToScene(at)
         self.zoomed = True
         self.scale(factor, factor)
+        after = self.mapToScene(at)
+        # przesuwamy tak, zeby punkt sceny spod kursora wrocil pod kursor
+        center = self.mapToScene(self.viewport().rect().center())
+        self.centerOn(center - (after - before))
 
     def _fit_scale(self):
         r = self.scene().frame_rect
@@ -310,7 +319,7 @@ class FrameView(QGraphicsView):
         return min(vp.width() / r.width(), vp.height() / r.height())
 
     def wheelEvent(self, event):
-        self.zoom(1.25 if event.angleDelta().y() > 0 else 0.8)
+        self.zoom(1.25 if event.angleDelta().y() > 0 else 0.8, event.position().toPoint())
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.MiddleButton:
@@ -341,7 +350,7 @@ class FrameView(QGraphicsView):
             if not event.isAutoRepeat():    # przytrzymany klawisz nie sypie impulsami (2026-11-10: 5 w sekundzie)
                 self.tab.pulse(*arrows[key])
         elif key in steps:
-            self.tab.step_s.setCurrentIndex(steps[key])
+            self.tab.set_pulse_step(steps[key])
         elif key == Qt.Key.Key_F:
             self.tab.find_star()
         elif key == Qt.Key.Key_D:
@@ -391,10 +400,11 @@ class CloseUpView(QGraphicsView):
 
 class SliderEntry(QWidget):
     """Name | slider | entry field, linked; ``to_value(i)`` / ``to_index(v)`` map slider steps to the value (log for
-    exposure). Nothing is sent from here: Apply (or Enter in the field) sends what differs from the guider
-    (:meth:`dirty`). A value from the guider (:meth:`show`) does not overwrite what the operator is setting."""
+    exposure). ``send(value)`` when the operator settles: slider released, Enter or leaving the field - only if the
+    value differs from the guider's (:meth:`dirty`). A value from the guider (:meth:`show`) does not overwrite what
+    the operator is setting."""
 
-    def __init__(self, name, steps, to_value, to_index, entry, on_enter, tip=""):
+    def __init__(self, name, steps, to_value, to_index, entry, send, tip=""):
         super().__init__()
         self.to_value, self.to_index = to_value, to_index
         self.guider = None              # wartosc z serwisu
@@ -406,7 +416,9 @@ class SliderEntry(QWidget):
         self.name_l = QLabel(name)
         self.slider.valueChanged.connect(self._from_slider)
         self.entry.valueChanged.connect(self._from_entry)
-        self.entry.lineEdit().returnPressed.connect(on_enter)
+        self.send = send
+        self.entry.editingFinished.connect(self._settled)
+        self.slider.sliderReleased.connect(self._settled)
         lay = QHBoxLayout()
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(4)
@@ -436,7 +448,12 @@ class SliderEntry(QWidget):
         self.changed()
 
     def changed(self):
-        """set by the tab: repaint Apply"""
+        """the value in the widgets changed (operator or guider)"""
+        theme.paint(self.entry, bg="input_edit_bg" if self.dirty() else None)
+
+    def _settled(self):
+        if self.dirty():
+            self.send(self.value())
 
     def show(self, value):
         """value published by the guider; kept in the widgets unless the operator has changed them"""
@@ -497,6 +514,7 @@ class GuiderTab(QWidget):
         self.state_time = None
         self.frame_time = None
         self.pulse_until = 0.0          # time.time(), do kiedy trwa ostatni impuls reczny - wtedy nie wysylamy nowego
+        self.pulse_step_index = PULSE_STEPS.index(10)       # krok impulsu guidera (okno Pulse, klawisze 1-7)
         self.moving = False             # Move to fiber w MONITOR (seria impulsow) trwa
         self.drift = deque()            # (t, dx, dy) wzgledem drift_ref
         self.drift_ref = None
@@ -858,7 +876,7 @@ class GuiderTab(QWidget):
             return
         if time.time() < self.pulse_until or self.moving:
             return      # poprzedni impuls jeszcze trwa - pad jest wtedy wylaczony, to tylko klawisze
-        step = PULSE_STEPS[self.step_s.currentIndex()]
+        step = PULSE_STEPS[self.pulse_step_index]
         self.pulse_until = time.time() + PULSE_WAIT_MAX     # do odpowiedzi; odpowiedz poda prawdziwy czas
         if self.command("pulse_pixels", done=self._pulse_done, dx_px=sx * step, dy_px=sy * step):
             self._enable()
@@ -871,21 +889,35 @@ class GuiderTab(QWidget):
         self._enable()
         QTimer.singleShot(int(max(0.0, self.pulse_until - time.time()) * 1000) + 50, self._enable)
 
-    def apply_camera(self):
-        """Apply / Enter: send exposure, gain, search radius that differ from the guider's."""
-        patch = {}
-        for key, w, conv in (("exp_time", self.exp_s, float), ("gain", self.gain_s, int),
-                             ("wide_search_radius_px", self.search_s, int)):
-            if w.dirty():
-                patch[key] = conv(w.value())
-        if patch:
-            self.command("set_state", patch=patch)
+    def _patch(self, key, value):
+        self.command("set_state", patch={key: value})
 
-    def camera_changed(self):
-        dirty = any(w.dirty() for w in (self.exp_s, self.gain_s, self.search_s))
-        theme.paint(self.apply_b, bg="change_bg" if dirty else None, extra="font-weight: bold;" if dirty else "")
-        self.apply_b.setToolTip("send the changed values to the guider (also Enter in a field)" if dirty
-                                else "nothing changed")
+    # --- impulsy reczne (okno Pulse z okna Mount, tryb guider) ---
+
+    def set_pulse_step(self, i):
+        self.pulse_step_index = max(0, min(len(PULSE_STEPS) - 1, int(i)))
+        self._sync_pulse_window()
+
+    def pulse_ready(self):
+        """(can a guider pulse go now, why not) - for the Pulse window"""
+        s = self.state or {}
+        if self.info is None or self.state is None:
+            return False, "no guider"
+        if s.get("mode") != "monitoring":
+            return False, "guider not in MONITOR"
+        if self.moving or time.time() < self.pulse_until:
+            return False, "pulse running…"
+        return True, "ready"
+
+    def open_pulses(self):
+        mnt = getattr(self.parent, "mntGui", None)
+        if mnt is not None:
+            mnt.pulse("guider")
+
+    def _sync_pulse_window(self):
+        window = getattr(getattr(self.parent, "mntGui", None), "pulse_window", None)
+        if window is not None and window.isVisible():
+            window.update_guider()
 
     # --- wyswietlanie ---
 
@@ -895,11 +927,9 @@ class GuiderTab(QWidget):
         mode = s.get("mode")
         single = have and s.get("method") != "fiber"
         for w in (self.off_b, self.mon_b, self.guide_b, self.method_s, self.exp_s, self.gain_s, self.search_s,
-                  self.apply_b, self.step_s, self.fiber_config_b):
+                  self.fiber_config_b):
             w.setEnabled(have)
-        idle = time.time() >= self.pulse_until and not self.moving
-        for w in self.pad:      # impulsy reczne tylko w monitoringu i nie w trakcie poprzedniego
-            w.setEnabled(bool(have and mode == "monitoring" and idle))
+        self._sync_pulse_window()   # strzalki okna Pulse w trybie guider: tylko MONITOR, jeden impuls naraz
         self.find_b.setEnabled(bool(single and mode == "monitoring"))
         mark = self.scene.mark
         star = s.get("acquired")
@@ -1167,25 +1197,26 @@ class GuiderTab(QWidget):
         font.setPointSizeF(font.pointSizeF() * 0.9)
         self.help_l.setFont(font)
 
-        # kamera: suwak + pole, Apply
+        # kamera: suwak + pole (wysylane po puszczeniu suwaka / Enter / wyjsciu z pola)
         exp_n = 100
         exp_v, exp_i = _log_slider(*EXP_RANGE, exp_n)
         exp_e = QDoubleSpinBox()
         exp_e.setRange(0.001, 30)
         exp_e.setDecimals(3)
         exp_e.setSuffix(" s")
-        self.exp_s = SliderEntry("Exp", exp_n, exp_v, exp_i, exp_e, self.apply_camera,
+        self.exp_s = SliderEntry("Exp", exp_n, exp_v, exp_i, exp_e, lambda v: self._patch("exp_time", float(v)),
                                  "exposure of the guider camera (slider: log scale)")
         gain_n, gain_v, gain_i = _lin_slider(*GAIN_RANGE, 10)
         gain_e = QSpinBox()
         gain_e.setRange(0, 1000)
-        self.gain_s = SliderEntry("Gain", gain_n, gain_v, gain_i, gain_e, self.apply_camera,
+        self.gain_s = SliderEntry("Gain", gain_n, gain_v, gain_i, gain_e, lambda v: self._patch("gain", int(v)),
                                   "gain of the guider camera")
         search_n, search_v, search_i = _lin_slider(*SEARCH_RANGE, 10)
         search_e = QSpinBox()
         search_e.setRange(10, 3000)
         search_e.setSuffix(" px")
-        self.search_s = SliderEntry("Search", search_n, search_v, search_i, search_e, self.apply_camera,
+        self.search_s = SliderEntry("Search", search_n, search_v, search_i, search_e,
+                                    lambda v: self._patch("wide_search_radius_px", int(v)),
                                     "search circle around the fiber (dashed): stars can be selected and found only\n"
                                     "inside it; smaller in a crowded field, larger to reach a star")
         names_w = max(w.name_l.sizeHint().width() for w in (self.exp_s, self.gain_s, self.search_s))
@@ -1195,54 +1226,60 @@ class GuiderTab(QWidget):
         for w in (self.exp_s, self.gain_s, self.search_s):
             w.name_l.setFixedWidth(names_w)
             w.entry.setFixedWidth(entry_w)
-            w.changed = self.camera_changed
             cam.addWidget(w)
-        self.apply_b = QPushButton("Apply")
-        self.apply_b.clicked.connect(self.apply_camera)
-        apply_row = QHBoxLayout()
-        apply_row.addStretch(1)
-        apply_row.addWidget(self.apply_b)
-        cam.addLayout(apply_row)
-
-        # impulsy + kandydaci
-        up_b, down_b, left_b, right_b = (QPushButton(t) for t in ("↑", "↓", "←", "→"))
-        up_b.clicked.connect(lambda: self.pulse(0, -1))
-        down_b.clicked.connect(lambda: self.pulse(0, 1))
-        left_b.clicked.connect(lambda: self.pulse(-1, 0))
-        right_b.clicked.connect(lambda: self.pulse(1, 0))
-        self.pad = (up_b, down_b, left_b, right_b)
-        for b in self.pad:
-            b.setFixedWidth(34)
-            b.setToolTip("MONITOR: moves the telescope so that the image shifts by the step (arrow keys on the frame);\n"
-                         "one pulse at a time - the pad is grey while a pulse runs")
-        self.step_s = QComboBox()
-        for s in PULSE_STEPS:
-            self.step_s.addItem(f"{s} px")
-        self.step_s.setToolTip("pulse step (keys 1-7 on the frame)")
-        pad = QGridLayout()
-        pad.setSpacing(2)
-        pad.addWidget(QLabel("Pulse"), 0, 0, 1, 3, Qt.AlignmentFlag.AlignLeft)
-        pad.addWidget(up_b, 1, 1, Qt.AlignmentFlag.AlignHCenter)
-        pad.addWidget(left_b, 2, 0)
-        pad.addWidget(self.step_s, 2, 1)
-        pad.addWidget(right_b, 2, 2)
-        pad.addWidget(down_b, 3, 1, Qt.AlignmentFlag.AlignHCenter)
+        self.pulse_b = QPushButton("Pulse…")
+        self.pulse_b.setToolTip("manual pulses: opens the Pulse window in guider mode (image pixels);\n"
+                                "arrow keys on the frame do the same")
+        self.pulse_b.clicked.connect(self.open_pulses)
         self.candidates_b = QPushButton("Candidates")
         self.candidates_b.setCheckable(True)
-        self.candidates_b.setToolTip("show all stars the detector found in this frame (D)")
+        self.candidates_b.setToolTip("small squares on every star the detector found in this frame - which stars "
+                                     "it sees\n(to choose a guide star or check the detection) (D)")
         self.candidates_b.toggled.connect(self._candidates)
-        pad.addWidget(self.candidates_b, 3, 3)
-        pad.setColumnStretch(3, 1)
+        buttons = QHBoxLayout()
+        buttons.addWidget(self.pulse_b)
+        buttons.addWidget(self.candidates_b)
+        buttons.addStretch(1)
+        cam.addLayout(buttons)
+
+        # diagnostyka obok parametrow
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(6)
+        grid.setVerticalSpacing(1)
+        self.diag = {}
+        self.diag_names = {}
+        cells = [("star", "Star held:"), ("fwhm", "FWHM:"), ("exp", "Exposure:"), ("delta", "Last Δ:"),
+                 ("hold", "Hold point:"), ("hole", "Measured:"), ("fiber", "Fiber:"), ("mark", "Mark:"),
+                 ("focus", "Focus:")]
+        wide = ("fiber", "mark", "focus")     # dluzsze teksty: caly wiersz
+        r = c = 0
+        for key, name in cells:
+            self.diag_names[key] = QLabel(name)
+            self.diag[key] = QLabel("—")
+            if key in wide:
+                if c:
+                    r, c = r + 1, 0
+                grid.addWidget(self.diag_names[key], r, 0)
+                grid.addWidget(self.diag[key], r, 1, 1, 3)
+                r += 1
+                continue
+            grid.addWidget(self.diag_names[key], r, 2 * c)
+            grid.addWidget(self.diag[key], r, 2 * c + 1)
+            r, c = (r + 1, 0) if c else (r, 1)
+        self.diag_names["hold"].setToolTip("where guiding keeps the star")
+        self.diag_names["hole"].setToolTip("the fiber hole as the guider measures it in the image")
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(3, 1)
 
         controls = QHBoxLayout()
         controls.setContentsMargins(0, 0, 0, 0)
         controls.setSpacing(12)
-        controls.addLayout(cam, 3)
+        controls.addLayout(cam, 1)
         line = QFrame()
         line.setFrameShape(QFrame.Shape.VLine)
         line.setFrameShadow(QFrame.Shadow.Sunken)
         controls.addWidget(line)
-        controls.addLayout(pad, 2)
+        controls.addLayout(grid, 1)
         self.controls_w = QWidget()
         self.controls_w.setLayout(controls)
         self.controls_w.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
@@ -1288,36 +1325,6 @@ class GuiderTab(QWidget):
         rms_row.addWidget(self.rms_l, 1)
         rms_row.addWidget(clear_b)
         col.addLayout(rms_row)
-        col.addWidget(self._hline())
-
-        grid = QGridLayout()
-        grid.setHorizontalSpacing(6)
-        grid.setVerticalSpacing(1)
-        self.diag = {}
-        self.diag_names = {}
-        cells = [("star", "Star held:"), ("fwhm", "FWHM:"), ("exp", "Exposure:"), ("delta", "Last Δ:"),
-                 ("hold", "Hold point:"), ("hole", "Measured:"), ("fiber", "Fiber:"), ("mark", "Mark:"),
-                 ("focus", "Focus:")]
-        wide = ("fiber", "mark", "focus")     # dluzsze teksty: caly wiersz
-        r = c = 0
-        for key, name in cells:
-            self.diag_names[key] = QLabel(name)
-            self.diag[key] = QLabel("—")
-            if key in wide:
-                if c:
-                    r, c = r + 1, 0
-                grid.addWidget(self.diag_names[key], r, 0)
-                grid.addWidget(self.diag[key], r, 1, 1, 3)
-                r += 1
-                continue
-            grid.addWidget(self.diag_names[key], r, 2 * c)
-            grid.addWidget(self.diag[key], r, 2 * c + 1)
-            r, c = (r + 1, 0) if c else (r, 1)
-        self.diag_names["hold"].setToolTip("where guiding keeps the star")
-        self.diag_names["hole"].setToolTip("the fiber hole as the guider measures it in the image")
-        grid.setColumnStretch(1, 1)
-        grid.setColumnStretch(3, 1)
-        col.addLayout(grid)
         col.addWidget(self._hline())
 
         self.journal_e = QTextEdit()

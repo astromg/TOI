@@ -175,9 +175,12 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   a mark only; Move to fiber (GUIDE: `drop_to_reticle`, MONITOR: manual pulses in 150 px chunks, star or mark), Find
   star (MONITOR, `acquire`), Calibrate fiber = mark / Fiber: measured (`refine_reticle`) / Fiber: config; "center"
   instead of "fiber" when the guider measures no fibre hole; service words reticle / anchor shown as fiber / hold
-  point. Frame height follows the image aspect; below it slider + entry for exposure (log) / gain / search radius
-  (sent by Apply or Enter, Apply blue when something differs) and the pulse pad; right column: fibre close-up, drift
-  plots, diagnostics, journal; manual pulses only in MONITOR, one at a time, autorepeat ignored; red banner when guiding pulls the
+  point. Frame height follows the image aspect (zoom keeps the pixel under the cursor - computed in
+  `FrameView.zoom`, the view has NoAnchor); below it slider + entry for exposure (log) / gain / search radius (sent
+  when the slider is released or the field is left / Enter, no Apply) and the diagnostics; right column: fibre
+  close-up, drift plots, journal. Manual pulses: "Pulse…" opens the Mount pulse window (`mnt_gui.PulseWindow`) in
+  guider mode (image px via `GuiderTab.pulse`; its combo switches back to mount RA/Dec arcsec); manual pulses only
+  in MONITOR, one at a time, autorepeat ignored; red banner when guiding pulls the
   star > 20 px; corrections > 1 s in the journal; Focus line vs `toi.guider_focus` (jk15 21950) and FOCUS ADJUST;
   no state for 10 s while running -> "stale"; interface in the vault note "Guider service - NATS interface"),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes, drawn like oca_monitor - points plus a smoothed trend;

@@ -180,12 +180,14 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         theme.paint(self.nextDec_e, bg="field_bg")
         self.updateNextRaDec()
 
-    def pulse(self):
+    def pulse(self, mode="mount"):
+        """Pulse window: ``mode`` mount (from here) or guider (from the Guider tab), switchable in the window"""
         try:
+            self.pulse_window.set_mode(mode)
             self.pulse_window.show()
             self.pulse_window.raise_()
         except AttributeError:
-            self.pulse_window = PulseWindow(self.parent)
+            self.pulse_window = PulseWindow(self.parent, mode)
 
     # =================== OKNO GLOWNE ====================================
     def updateUI(self):
@@ -356,7 +358,7 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telPark_p.clicked.connect(self.parent.park_mount)
 
         self.telPulse_p = QPushButton('PULSE')
-        self.telPulse_p.clicked.connect(self.pulse)
+        self.telPulse_p.clicked.connect(lambda: self.pulse("mount"))
 
         self.mntStop_p = QPushButton('STOP')
         self.mntStop_p.clicked.connect(self.parent.abort_slew)
@@ -794,43 +796,99 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         super().closeEvent(event)
 
 class PulseWindow(BaseWindow):
-    def __init__(self, parent):
+    """Manual pulses, two ways (combo at the top):
+    - Mount: RA / Dec by the given arcsec straight to the mount (``TOI.pulse_up`` …), with the sums - as always;
+    - Guider image: the guider service moves the telescope so that the guider image shifts by the step in pixels
+      (``GuiderTab.pulse``: only in guider MONITOR, one pulse at a time; the guider converts px to pulses).
+    Opened from the Mount window in Mount mode, from the Guider tab (Pulse…) in Guider mode."""
+
+    MODES = [("mount", "Mount: RA / Dec [arcsec]"), ("guider", "Guider image [px]")]
+
+    def __init__(self, parent, mode="mount"):
         super(PulseWindow, self).__init__()
         self.parent = parent
+        self.mode = "mount"
         self.mkUI()
         self.sumDec_e.setText(str(self.parent.pulseDec))
         self.sumRa_e.setText(str(self.parent.pulseRa))
+        self.set_mode(mode)
+
+    def set_mode(self, mode):
+        self.mode = mode if mode in dict(self.MODES) else "mount"
+        self.mode_s.setCurrentIndex([m for m, _ in self.MODES].index(self.mode))
+        self.mount_w.setVisible(self.mode == "mount")
+        self.guider_w.setVisible(self.mode == "guider")
+        tips = {"mount": ("Dec +", "Dec -", "RA +", "RA -"),
+                "guider": ("image up", "image down", "image left", "image right")}[self.mode]
+        for b, tip in zip((self.up_p, self.down_p, self.left_p, self.right_p), tips):
+            b.setToolTip(tip)
+        self.update_guider()
+        self.adjustSize()
+
+    def _guider(self):
+        return getattr(self.parent, "guiderGui", None)
+
+    def update_guider(self):
+        """Guider mode: arrows only when the guider can take a pulse now (MONITOR, no pulse running), and why not."""
+        if self.mode != "guider":
+            for b in (self.up_p, self.down_p, self.left_p, self.right_p):
+                b.setEnabled(True)
+            return
+        g = self._guider()
+        ok, why = g.pulse_ready() if g is not None else (False, "no guider")
+        for b in (self.up_p, self.down_p, self.left_p, self.right_p):
+            b.setEnabled(ok)
+        self.guider_state_l.setText(why)
+        if g is not None:
+            self.step_s.blockSignals(True)
+            self.step_s.setCurrentIndex(g.pulse_step_index)
+            self.step_s.blockSignals(False)
+
+    def _arrow(self, mount_slot, sx, sy):
+        if self.mode == "guider":
+            g = self._guider()
+            if g is not None:
+                g.pulse(sx, sy)
+        else:
+            mount_slot()
+
     def mkUI(self):
         self.setWindowTitle("Pulse movements")
 
         grid = QGridLayout()
+        w = 0
+        self.mode_s = QComboBox()
+        for _, name in self.MODES:
+            self.mode_s.addItem(name)
+        self.mode_s.activated.connect(lambda i: self.set_mode(self.MODES[i][0]))
+        grid.addWidget(QLabel("Move:"), w, 0)
+        grid.addWidget(self.mode_s, w, 1, 1, 4)
 
-
-        w = 1
         w = w + 1
-        self.up_p = QPushButton('\u2191')
-        self.up_p.clicked.connect(self.parent.pulse_up)
-        grid.addWidget(self.up_p, w, 2,)
-
+        self.up_p = QPushButton('↑')
+        self.up_p.clicked.connect(lambda: self._arrow(self.parent.pulse_up, 0, -1))
+        grid.addWidget(self.up_p, w, 2)
         w = w + 1
-        self.left_p = QPushButton('\u2190')
-        self.left_p.clicked.connect(self.parent.pulse_left)
-        self.right_p = QPushButton('\u2192')
-        self.right_p.clicked.connect(self.parent.pulse_right)
+        self.left_p = QPushButton('←')
+        self.left_p.clicked.connect(lambda: self._arrow(self.parent.pulse_left, -1, 0))
+        self.right_p = QPushButton('→')
+        self.right_p.clicked.connect(lambda: self._arrow(self.parent.pulse_right, 1, 0))
         grid.addWidget(self.left_p, w, 1)
         grid.addWidget(self.right_p, w, 3)
-
         w = w + 1
-        self.down_p = QPushButton('\u2193')
-        self.down_p.clicked.connect(self.parent.pulse_down)
+        self.down_p = QPushButton('↓')
+        self.down_p.clicked.connect(lambda: self._arrow(self.parent.pulse_down, 0, 1))
         grid.addWidget(self.down_p, w, 2)
 
+        w = w + 1
         self.line2_l = QFrame()
         self.line2_l.setFrameShape(QFrame.HLine)
         self.line2_l.setFrameShadow(QFrame.Raised)
-        w = w + 1
-        grid.addWidget(self.line2_l,w,0,1,5)
+        grid.addWidget(self.line2_l, w, 0, 1, 5)
 
+        # --- tryb Mount: kroki RA / Dec w arcsec i sumy ---
+        mg = QGridLayout()
+        mg.setContentsMargins(0, 0, 0, 0)
         self.pulseRa_l = QLabel("Ra PULSE:")
         self.pulseRa_e = QLineEdit()
         self.pulseRa_e.setText("5")
@@ -841,15 +899,11 @@ class PulseWindow(BaseWindow):
         theme.paint(self.sumRa_e, bg="field_bg")
         self.sumRa_e.setMaximumWidth(50)
         self.unitsRa_l = QLabel("[arc sec]")
-
-        w = w + 1
-        grid.addWidget(self.pulseRa_l, w, 0)
-        grid.addWidget(self.pulseRa_e, w, 1)
-        grid.addWidget(self.sumRa_l, w, 2)
-        grid.addWidget(self.sumRa_e, w, 3)
-        grid.addWidget(self.unitsRa_l, w, 4)
-
-
+        mg.addWidget(self.pulseRa_l, 0, 0)
+        mg.addWidget(self.pulseRa_e, 0, 1)
+        mg.addWidget(self.sumRa_l, 0, 2)
+        mg.addWidget(self.sumRa_e, 0, 3)
+        mg.addWidget(self.unitsRa_l, 0, 4)
         self.pulseDec_l = QLabel("Dec PULSE:")
         self.pulseDec_e = QLineEdit()
         self.pulseDec_e.setText("5")
@@ -860,13 +914,38 @@ class PulseWindow(BaseWindow):
         theme.paint(self.sumDec_e, bg="field_bg")
         self.sumDec_e.setMaximumWidth(50)
         self.unitsDec_l = QLabel("[arc sec]")
-
+        mg.addWidget(self.pulseDec_l, 1, 0)
+        mg.addWidget(self.pulseDec_e, 1, 1)
+        mg.addWidget(self.sumDec_l, 1, 2)
+        mg.addWidget(self.sumDec_e, 1, 3)
+        mg.addWidget(self.unitsDec_l, 1, 4)
+        self.mount_w = QWidget()
+        self.mount_w.setLayout(mg)
         w = w + 1
-        grid.addWidget(self.pulseDec_l, w, 0)
-        grid.addWidget(self.pulseDec_e, w, 1)
-        grid.addWidget(self.sumDec_l, w, 2)
-        grid.addWidget(self.sumDec_e, w, 3)
-        grid.addWidget(self.unitsDec_l, w, 4)
+        grid.addWidget(self.mount_w, w, 0, 1, 5)
+
+        # --- tryb Guider: krok w px obrazu guidera ---
+        from guider_gui import PULSE_STEPS
+        gg = QGridLayout()
+        gg.setContentsMargins(0, 0, 0, 0)
+        self.step_s = QComboBox()
+        for s in PULSE_STEPS:
+            self.step_s.addItem(f"{s} px")
+        self.step_s.activated.connect(lambda i: self._guider() and self._guider().set_pulse_step(i))
+        self.step_s.setToolTip("step in guider image pixels (keys 1-7 on the guider frame)")
+        gg.addWidget(QLabel("Step:"), 0, 0)
+        gg.addWidget(self.step_s, 0, 1)
+        self.guider_state_l = QLabel("")
+        gg.addWidget(self.guider_state_l, 0, 2)
+        note = QLabel("The guider moves the telescope so that its image shifts by the step.\n"
+                      "Only in guider MONITOR, one pulse at a time (arrow keys on the guider frame too).")
+        theme.paint(note, fg="dim_fg")
+        gg.addWidget(note, 1, 0, 1, 3)
+        gg.setColumnStretch(2, 1)
+        self.guider_w = QWidget()
+        self.guider_w.setLayout(gg)
+        w = w + 1
+        grid.addWidget(self.guider_w, w, 0, 1, 5)
 
         self.line3_l = QFrame()
         self.line3_l.setFrameShape(QFrame.HLine)
@@ -875,23 +954,18 @@ class PulseWindow(BaseWindow):
         grid.addWidget(self.line3_l, w, 0, 1, 5)
 
         w = w + 1
-
         self.rot_l = QLabel("ROTATOR:")
         self.rotminus_p = QPushButton('-')
         self.rotminus_p.clicked.connect(self.parent.rotator_minus)
-
         self.rotstep_e = QLineEdit()
         self.rotstep_e.setText("5")
         self.rotstep_e.setMaximumWidth(70)
         self.rotplus_p = QPushButton('+')
         self.rotplus_p.clicked.connect(self.parent.rotator_plus)
-
-
         grid.addWidget(self.rot_l, w, 0)
         grid.addWidget(self.rotminus_p, w, 1)
         grid.addWidget(self.rotstep_e, w, 2)
         grid.addWidget(self.rotplus_p, w, 3)
-
 
         w = w + 1
         self.line4_l = QFrame()
@@ -902,8 +976,7 @@ class PulseWindow(BaseWindow):
         w = w + 1
         self.close_p = QPushButton("Close")
         self.close_p.clicked.connect(lambda: self.close())
-        grid.addWidget(self.close_p, w, 3,1,2)
-
+        grid.addWidget(self.close_p, w, 3, 1, 2)
 
         self.setLayout(grid)
         self.show()
