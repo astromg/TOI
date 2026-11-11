@@ -30,7 +30,8 @@ from matplotlib.figure import Figure
 from PyQtX.QtCore import QRectF, Qt, QTimer
 from PyQtX.QtGui import QBrush, QColor, QFont, QPainter, QPen, QPixmap
 from PyQtX.QtWidgets import (QComboBox, QDoubleSpinBox, QFrame, QGraphicsScene, QGraphicsView, QGridLayout,
-                             QHBoxLayout, QLabel, QPushButton, QSizePolicy, QSpinBox, QTextEdit, QVBoxLayout, QWidget)
+                             QHBoxLayout, QLabel, QMessageBox, QPushButton, QSizePolicy, QSpinBox, QTextEdit, QVBoxLayout,
+                             QWidget)
 
 from toi_theme import theme
 
@@ -40,6 +41,8 @@ DEFAULT_DIMENSIONS = (1936, 1216)       # guider_beso; the thumbnail payload say
 DRIFT_WINDOW_S = 300                    # dryf na wykresie i RMS: ostatnie 5 min (jak web UI)
 EXP_PRESETS = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0]
 PULSE_STEPS = [1, 5, 10, 30]            # px obrazu (klawisze 1-4 w podgladzie)
+PULSE_WAIT_MAX = 6.0    # s - impuls reczny bez odpowiedzi blokuje pad najwyzej tyle (limit impulsu serwisu 5 s)
+PULSE_SETTLE_S = 0.3    # s po koncu impulsow, zanim pad znow dziala
 METHODS = [("single_star", "single star"), ("fiber", "fiber")]
 MODES = ["off", "monitoring", "guiding"]
 # ostrosc teleskopu dla instrumentu guidera (BESO: oca-manual beso.md "Focusing"; nadpisuje toi.guider_focus) i
@@ -47,6 +50,8 @@ MODES = ["off", "monitoring", "guiding"]
 GUIDER_FOCUS = {"jk15": 21950}
 FOCUS_TOLERANCE = 300
 RETICLE_MOVED_PX = 1.0      # reticle dalej od skalibrowanej pozycji - pokazujemy o ile
+RETICLE_CONFIRM_PX = 20.0   # prawy klik dalej od skalibrowanego wlokna - pytamy (2026-11-10: dwa razy reticle uciekl)
+PULL_WARN_PX = 20.0         # guiding ciagnie gwiazde dalej do kotwicy - ostrzezenie (2026-11-10: zjazd ~400 px)
 MODE_COLORS = {"off": None, "monitoring": "change_bg", "guiding": "ok_bg"}
 # kolory dryfu: bez znaczenia ok/zle (czerwony = zle w TOI), tylko dwie odroznialne serie
 DRIFT_X_COLOR = "#a070d0"
@@ -280,7 +285,8 @@ class FrameView(QGraphicsView):
         arrows = {Qt.Key.Key_Up: (0, -1), Qt.Key.Key_Down: (0, 1), Qt.Key.Key_Left: (-1, 0), Qt.Key.Key_Right: (1, 0)}
         steps = {Qt.Key.Key_1: 0, Qt.Key.Key_2: 1, Qt.Key.Key_3: 2, Qt.Key.Key_4: 3}
         if key in arrows:
-            self.tab.pulse(*arrows[key])
+            if not event.isAutoRepeat():    # przytrzymany klawisz nie sypie impulsami (2026-11-10: 5 w sekundzie)
+                self.tab.pulse(*arrows[key])
         elif key in steps:
             self.tab.step_s.setCurrentIndex(steps[key])
         elif key == Qt.Key.Key_R:
@@ -344,6 +350,7 @@ class GuiderTab(QWidget):
         self.state = None
         self.state_time = None
         self.frame_time = None
+        self.pulse_until = 0.0          # time.time(), do kiedy trwa ostatni impuls reczny - wtedy nie wysylamy nowego
         self.drift = deque()            # (t, dx, dy) wzgledem drift_ref
         self.drift_ref = None
         self.prev_state = None
@@ -469,6 +476,7 @@ class GuiderTab(QWidget):
         self._update_drift(state)
         self._show_controls(state)
         self._show_diagnostics(state)
+        self._show_pull(state)
         self._enable()
 
     def show_frame(self, data, dims=None):
@@ -497,24 +505,33 @@ class GuiderTab(QWidget):
 
     # --- komendy ---
 
-    def command(self, cmd, **data):
-        """Send command ``cmd`` to the guider of the shown telescope, if TOI has control of it."""
+    def command(self, cmd, done=None, **data):
+        """Send command ``cmd`` to the guider of the shown telescope, if TOI has control of it; ``done(reply)``
+        (reply None - no reply) is called when it comes. Returns True when sent."""
         if self.info is None:
-            return
+            return False
         if not self.parent.tel_acces.get(self.tel):
             self.parent.WarningWindow("WARNING: U don't have control")
-            return
+            return False
         if self.rpc is None:
             self.add_journal(f"not sent (guider NATS not connected yet): {cmd} {data or ''}", "warning")
-            return
+            return False
         self.add_journal(f"→ {cmd} {data or ''}", "sent")
-        asyncio.ensure_future(self._send(cmd, data))
+        asyncio.ensure_future(self._send(cmd, data, done))
+        return True
 
-    async def _send(self, cmd, data):
+    async def _send(self, cmd, data, done=None):
         try:
             reply = await self.rpc(cmd, data)
         except Exception as e:      # noqa: BLE001 - odpowiedz operatorowi, nie wyjatek z Qt
             self.add_journal(f"{cmd}: no reply ({e})", "error")
+            reply = None
+        if done is not None:
+            try:
+                done(reply)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"GuiderTab: {cmd} reply handler: {e!r}")
+        if reply is None:
             return
         result = reply.get("result") if isinstance(reply, dict) else None
         if isinstance(reply, dict) and reply.get("status") != "ok":
@@ -545,8 +562,19 @@ class GuiderTab(QWidget):
         self.command("lock_at", x=round(x, 1), y=round(y, 1))
 
     def click_reticle(self, x, y):
-        if self.state:
-            self.command("acquire_at", x=round(x, 1), y=round(y, 1))
+        if not self.state:
+            return
+        home = _xy(self.state.get("central_point_default"))
+        far = math.dist((x, y), home) if home else 0.0
+        if far > RETICLE_CONFIRM_PX:
+            answer = QMessageBox.question(
+                self, "Move reticle",
+                f"The reticle marks the fibre entrance.\nMove it {far:.0f} px away from the calibrated fibre "
+                f"position ({home[0]:.1f}, {home[1]:.1f})?\n\nDrop → reticle would then put the star there, "
+                f"not into the fibre.")
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        self.command("acquire_at", x=round(x, 1), y=round(y, 1))
 
     def reacquire(self):
         self.command("acquire")
@@ -563,8 +591,31 @@ class GuiderTab(QWidget):
             self.command("acquire_at", x=home[0], y=home[1])
 
     def pulse(self, sx, sy):
+        if (self.state or {}).get("mode") != "monitoring":
+            # w guiding serwis po recznym impulsie kasuje kotwice i bierze nowa z pierwszej detekcji (zjazd 2026-11-10)
+            self.add_journal("manual pulses only in MONITOR (in GUIDE the guider would pick a new anchor)", "warning")
+            return
+        if time.time() < self.pulse_until:
+            return      # poprzedni impuls jeszcze trwa - pad jest wtedy wylaczony, to tylko klawisze
         step = PULSE_STEPS[self.step_s.currentIndex()]
-        self.command("pulse_pixels", dx_px=sx * step, dy_px=sy * step)
+        self.pulse_until = time.time() + PULSE_WAIT_MAX     # do odpowiedzi; odpowiedz poda prawdziwy czas
+        if self.command("pulse_pixels", done=self._pulse_done, dx_px=sx * step, dy_px=sy * step):
+            self._enable()
+        else:
+            self.pulse_until = 0.0
+
+    def _pulse_done(self, reply):
+        """Reply to a manual pulse: block the pad for the time of the pulses (sent one after another) + settle."""
+        total = 0.0
+        result = reply.get("result") if isinstance(reply, dict) else None
+        for p in (result or {}).get("pulses") or []:
+            try:
+                total += float(p.get("duration_ms") or 0) / 1000
+            except (TypeError, ValueError, AttributeError):
+                pass
+        self.pulse_until = time.time() + total + PULSE_SETTLE_S if reply is not None else 0.0
+        self._enable()
+        QTimer.singleShot(int(max(0.0, self.pulse_until - time.time()) * 1000) + 50, self._enable)
 
     def apply_camera(self):
         s = self.state or {}
@@ -585,13 +636,32 @@ class GuiderTab(QWidget):
         s = self.state
         have = self.info is not None and s is not None
         for w in (self.off_b, self.mon_b, self.guide_b, self.method_s, self.reacquire_b, self.home_b,
-                  self.apply_b, self.exp_s, self.gain_s, self.wide_s, self.step_s, *self.pad):
+                  self.apply_b, self.exp_s, self.gain_s, self.wide_s, self.step_s):
             w.setEnabled(have)
+        idle = time.time() >= self.pulse_until
+        for w in self.pad:      # impulsy reczne tylko w monitoringu i nie w trakcie poprzedniego
+            w.setEnabled(bool(have and s.get("mode") == "monitoring" and idle))
         single = have and s.get("method") != "fiber"
         self.drop_b.setEnabled(bool(single and s.get("mode") == "guiding" and s.get("acquired")))
         self.reacquire_b.setEnabled(bool(single))
         hole = (s or {}).get("hole_candidate") or {}
         self.refine_b.setEnabled(bool(have and hole.get("refinable")))
+
+    def _show_pull(self, s):
+        """Guiding drags the star far to the anchor (wrong anchor after a pulse / re-acquire): red banner over the
+        frame and MONITOR highlighted - it stops the pulses."""
+        star = _xy(s.get("acquired_pos")) if s.get("acquired") else None
+        anchor = _xy(s.get("guide_anchor"))
+        pull = math.dist(star, anchor) if s.get("mode") == "guiding" and star and anchor else 0.0
+        if pull > PULL_WARN_PX:
+            home = _xy(s.get("central_point_default"))
+            where = f" (anchor {math.dist(anchor, home):.0f} px from the fibre)" if home else ""
+            self.pull_l.setText(f"Guider is pulling the star {pull:.0f} px to the anchor{where} - MONITOR stops it")
+            theme.paint(self.pull_l, bg="bad_bg", extra="font-weight: bold; padding: 2px;")
+            self.pull_l.show()
+            theme.paint(self.mon_b, bg="warn_bg", extra="font-weight: bold;")
+        else:
+            self.pull_l.hide()
 
     def _show_controls(self, s):
         mode = s.get("mode")
@@ -926,8 +996,16 @@ class GuiderTab(QWidget):
         col_w.setLayout(col)
         col_w.setFixedWidth(self.COLUMN)
 
+        self.pull_l = QLabel("")
+        self.pull_l.setWordWrap(True)
+        self.pull_l.hide()
+        frame_box = QVBoxLayout()
+        frame_box.setContentsMargins(0, 0, 0, 0)
+        frame_box.setSpacing(2)
+        frame_box.addWidget(self.pull_l)
+        frame_box.addWidget(self.frame_v, 1)
         top = QHBoxLayout()
-        top.addWidget(self.frame_v, 1)
+        top.addLayout(frame_box, 1)
         top.addWidget(col_w)
 
         # dziennik: niski pasek na dole

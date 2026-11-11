@@ -24,6 +24,7 @@ STATUS_SUBJECT = "svc.status.guiding_svc.guider.>"
 THUMBS_URL = "http://192.168.7.45:8090/thumbs"         # thumbnail_svc.server na services01
 THUMBS_ROOT = "/storage/poweruser/thumbs/guider"        # jego katalog /thumbs
 RPC_TIMEOUT = 5         # s
+BIG_PULSE_MS = 1000     # korekta guidingu dluzsza - ostrzezenie w dzienniku zakladki
 JOURNAL_HISTORY = datetime.timedelta(minutes=15)    # dziennik po przelaczeniu: z ostatnich 15 min
 HTTP_TIMEOUT = 5        # s
 # zdarzenia, ktore idzie pokazac w dzienniku (reszta i tak ma swoja linie w journalu serwisu)
@@ -130,6 +131,9 @@ class GuiderLink:
     async def events_reader(self, subject):
         def handle(data, meta):
             event = data.get("event")
+            if event == "enforcer_pulse":
+                self._big_pulse(data)
+                return
             if event in SHOWN_EVENTS:
                 payload = data.get("payload") or {}
                 if event == "mode_changed":
@@ -138,6 +142,20 @@ class GuiderLink:
                     text = f"{event} {payload or ''}"
                 self.tab.add_journal(text, SHOWN_EVENTS[event], data.get("ts"))
         await self._read("events", get_reader(subject, deliver_policy="new"), handle)
+
+    def _big_pulse(self, data):
+        """A guiding correction over BIG_PULSE_MS or clipped at the limit: a warning in the journal (normal ones are
+        tens of ms and stay out)."""
+        p = data.get("payload") or {}
+        n, e = float(p.get("n_dur_ms") or 0), float(p.get("e_dur_ms") or 0)
+        if max(n, e) < BIG_PULSE_MS and not (p.get("n_clipped") or p.get("e_clipped")):
+            return
+        dirs = {0: "N", 1: "S", 2: "E", 3: "W"}
+        parts = [f"{dirs.get(p.get(k), '?')} {v:.0f} ms" for k, v in (("n_dir", n), ("e_dir", e)) if v >= 1]
+        clipped = " (clipped)" if p.get("n_clipped") or p.get("e_clipped") else ""
+        err = f"{float(p.get('dx_px') or 0):.0f} × {float(p.get('dy_px') or 0):.0f} px"
+        self.tab.add_journal(f"large guider pulse {', '.join(parts)}{clipped} for an error of {err}", "warning",
+                             data.get("ts"))
 
     async def thumbnail_reader(self, subject):
         def handle(data, meta):

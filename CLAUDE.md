@@ -173,7 +173,10 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   through `GuiderTab.command()` (needs control of the telescope; the service itself checks nothing) as RPC; no state
   for 10 s while running -> "stale"; Focus line warns when the telescope focus is not the guider instrument's
   (`toi.guider_focus`, default jk15 21950 = BESO) or FOCUS ADJUST is on; Reticle line shows a move from the calibrated
-  home; journal starts with the last 15 min; interface in the vault note "Guider service - NATS interface"),
+  home; journal starts with the last 15 min. Safety after the 2026-11-10 runaway (a manual pulse in GUIDE made the
+  service take a wrong anchor and drag the telescope ~400 px): manual pulses only in MONITOR, one at a time (pad blocked for the pulse time from the reply, key autorepeat ignored), a red banner when guiding
+  pulls the star > 20 px to the anchor, corrections > 1 s / clipped in the journal, right click > 20 px from the
+  calibrated fibre asks first; interface in the vault note "Guider service - NATS interface"),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes, drawn like oca_monitor - points plus a smoothed trend;
   drawn only while the tab is shown, refreshed every 30 s when new points came, `TOI.conditions_plot_loop`).
   Pictures (`PicturesTab`, entertainment: `show_file(path, title)` shows any picture; today the picture of the current
