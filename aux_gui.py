@@ -1126,8 +1126,7 @@ class ConditionsTab(QWidget):
     MEDIAN_SIZE = 5             # punktow - mediana przed Gaussem: pojedynczy zly punkt (np. ZP -2.9) nie ciagnie linii
     MAX_GAP = 0.5 / 24          # d - przerwa dluzsza dzieli krzywa na odcinki
     MIN_SEGMENT = 4             # krotszych odcinkow nie wygladzamy, zostaja same punkty
-    FILTER_EDGE = {"B": "blue", "V": "green", "Ic": "red", "u": "purple", "g": "teal", "r": "orangered",
-                   "i": "darkred", "z": "black"}      # obwodka punktu zero pointu wg filtra, inne szare
+    HOVER_PX = 8                # podpowiedz punktu (teleskop, filtr, czas, wartosc) w tylu pikselach od kursora
     FWHM_TOP = (3.0, 6.0)       # arcsec - gora skali FWHM; wyzszy punkt tej nocy podnosi ja, najwyzej do drugiej
     ZP_RANGE = (-0.3, 0.08)     # mag - domyslna skala zero pointu; punkty tej nocy spoza niej ja poszerzaja,
     ZP_RANGE_MAX = (-0.6, 0.2)  # najwyzej do tych granic - dalsze punkty rysujemy na krawedzi jako trojkaty
@@ -1138,6 +1137,7 @@ class ConditionsTab(QWidget):
         self.parent = parent
         self.mkUI()
         self.drawn_count = None     # ile punktow bylo przy ostatnim rysowaniu
+        self.points = []            # (x, y, opis) punktow tej nocy - podpowiedz pod myszka
 
     def data_count(self):
         return sum(len(v) for v in self.parent.fits_ffs_data.values()) + \
@@ -1158,7 +1158,16 @@ class ConditionsTab(QWidget):
         plot = self.plot_s.currentText()
         self.drawn_count = self.data_count()
         self.ax.clear()
+        self.points = []
         theme.style_figure(self.fig, [self.ax])
+        self.hover = self.ax.annotate("", xy=(0, 0), xytext=(10, 10), textcoords="offset points", fontsize=9,
+                                      color=theme.hex("field_fg"), zorder=10,
+                                      bbox=dict(boxstyle="round", fc=theme.hex("field_bg"), alpha=0.95))
+        self.hover.set_visible(False)
+        # podswietlenie punktu pod myszka: pierscien w kolorze tekstu motywu
+        self.hover_mark, = self.ax.plot([], [], marker="o", markersize=13, markerfacecolor="none",
+                                        markeredgecolor=theme.hex("text"), markeredgewidth=1.8, linestyle="",
+                                        zorder=9, visible=False)
         if self.parent.jd:
             try:
                 if plot == "FWHM":
@@ -1185,6 +1194,36 @@ class ConditionsTab(QWidget):
             out_x.extend(sx)
             out_y.extend(gaussian_filter1d(median_filter(sy, size=self.MEDIAN_SIZE, mode="nearest"), sigma=self.SMOOTH_SIGMA))
         return out_x, out_y
+
+    def on_hover(self, event):
+        """podpowiedz najblizszego punktu tej nocy (w pikselach ekranu, do HOVER_PX)"""
+        hover = getattr(self, "hover", None)
+        if hover is None:
+            return
+        best, best_d = None, self.HOVER_PX
+        if event.inaxes is self.ax and self.points:
+            xy = self.ax.transData.transform(numpy.array([(p[0], p[1]) for p in self.points]))
+            d = numpy.hypot(xy[:, 0] - event.x, xy[:, 1] - event.y)
+            i = int(numpy.argmin(d))
+            if d[i] < best_d:
+                best = self.points[i]
+        if best is None:
+            if hover.get_visible():
+                hover.set_visible(False)
+                self.hover_mark.set_visible(False)
+                self.canvas.draw_idle()
+            return
+        hover.xy = (best[0], best[1])
+        hover.set_text(best[2])
+        hover.set_visible(True)
+        self.hover_mark.set_data([best[0]], [best[1]])
+        self.hover_mark.set_visible(True)
+        self.canvas.draw_idle()
+
+    @staticmethod
+    def ut(jd):
+        """HH:MM UT z JD"""
+        return str(ephem.Date(jd - 2415020)).split()[1][:5]
 
     def last_text(self, value, color, tel, filt, when):
         # ostatni pomiar w rogu: wartosc (kolor wg strefy) i skad jest - teleskop, filtr, czas UT
@@ -1229,6 +1268,9 @@ class ConditionsTab(QWidget):
                     if 0 < f < 10:
                         jd.append(float(h["JD"]))
                         fwhm.append(f)
+                        if jd[-1] >= x0:
+                            self.points.append((jd[-1], f, f'{t}  {h.get("FILTER", "")}  {self.ut(jd[-1])} UT\n'
+                                                           f'{h.get("OBJECT", "")}\nFWHM {f:.2f}"'))
                         if jd[-1] >= x0 and (latest is None or jd[-1] > latest[0]):
                             latest = (jd[-1], t, h.get("FILTER", ""), f)
                 except (ValueError, TypeError, KeyError):
@@ -1247,13 +1289,15 @@ class ConditionsTab(QWidget):
         self.night_axis(x0, x1, "FWHM [arcsec]")
         self.ax.set_ylim(0, top)
         if latest:
-            self.last_text(f'{latest[3]:.2f}"', "black", latest[1], latest[2], ephem.Date(latest[0] - 2415020))
+            self.last_text(f'{latest[3]:.2f}"', theme.hex("text"), latest[1], latest[2], ephem.Date(latest[0] - 2415020))
         self.ax.legend(loc="upper right", fontsize=8, facecolor=theme.hex("window") if theme.c("window") else "white",
                            labelcolor=theme.hex("text"))
 
     def plot_zero_point(self):
         # fits_photo_z0_data: {tel: [{'filter', 'zero_value', 'oca_jd', 'mode'}, ...]}; jak oca_monitor: strefy w tle,
-        # punkty teleskopow (obwodka - filtr), jedna wygladzona krzywa ze wszystkich teleskopow i jej ostatnia wartosc
+        # punkty teleskopow (filtr, czas i wartosc w podpowiedzi pod myszka; kolorowe obwodki filtrow usuniete
+        # 2026-11-11 - czerwona mylila sie z "zle"), jedna wygladzona krzywa ze wszystkich teleskopow i jej ostatnia
+        # wartosc
         tim_ranges = self.parent.time_ranges()
         today = get_oca_jd(datetime_to_julian(tim_ranges['today']))
         yesterday = get_oca_jd(datetime_to_julian(tim_ranges['yesterday']))
@@ -1279,9 +1323,11 @@ class ConditionsTab(QWidget):
                     if key in seen or not numpy.isfinite(v):
                         continue
                     seen.add(key)
-                    row = (p["oca_jd"] - numpy.floor(p["oca_jd"]), v, self.FILTER_EDGE.get(p["filter"], "gray"))
+                    row = (p["oca_jd"] - numpy.floor(p["oca_jd"]), v)
                     if p["oca_jd"] >= today:
                         td.append(row)
+                        self.points.append((row[0], v, f'{t}  {p["filter"]}  {self.ut(p["oca_jd"] + 2460000)} UT\n'
+                                                        f'zero point {v:+.3f} mag'))
                         if latest is None or p["oca_jd"] > latest[0]:
                             latest = (p["oca_jd"], t, p["filter"], v)
                     elif p["oca_jd"] >= yesterday:
@@ -1290,8 +1336,8 @@ class ConditionsTab(QWidget):
                     pass
             for rows, alpha, label in ((yd, 0.1, None), (td, 0.6, t)):
                 if rows:
-                    x, y, edge = zip(*rows)
-                    self.ax.scatter(x, y, c=color, edgecolors=edge, linewidths=1, s=22, alpha=alpha, label=label)
+                    x, y = zip(*rows)
+                    self.ax.scatter(x, y, c=color, linewidths=0, s=22, alpha=alpha, label=label)
             all_x += [r[0] for r in td]
             all_y += [r[1] for r in td]
 
@@ -1335,6 +1381,7 @@ class ConditionsTab(QWidget):
         self.fig = Figure((1, 1), linewidth=1, dpi=100)
         self.canvas = FigureCanvas(self.fig)
         self.ax = self.fig.add_subplot(111)
+        self.canvas.mpl_connect("motion_notify_event", self.on_hover)
 
         grid.addWidget(self.canvas, w, 0, 1, 6)
 
