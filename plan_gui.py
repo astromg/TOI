@@ -1654,7 +1654,7 @@ class PhaseWindow(BaseWindow):
                     mk = flag == 2
                     x = jd[mk]
                     y = mag[mk]
-                    self.axes.plot(x, y, ".k", alpha = 0.3)
+                    self.axes.plot(x, y, ".", color=theme.hex("text"), alpha = 0.3)     # czarne znikalyby na ciemnym
 
                 else:
                     x = jd
@@ -1668,6 +1668,7 @@ class PhaseWindow(BaseWindow):
         except (FileNotFoundError,ValueError) as e:
             print(f"Phase Window Error: {e}")
 
+        theme.style_figure(self.fig, (self.axes,))     # tlo i osie wg motywu (day - biale jak dotad)
         self.canvas.draw()
         self.show()
 
@@ -1717,6 +1718,10 @@ class PlotWindow(BaseWindow):
     # kolor wg obiektu (powtorzony obiekt ma ten sam kolor); bez czerwieni - STOP i WAIT sa czerwone
     PALETTE = ["tab:blue", "tab:orange", "tab:green", "tab:purple", "tab:brown", "tab:pink", "tab:olive",
                "tab:cyan", "navy", "darkgoldenrod", "teal", "indigo"]
+    # ciemne motywy: te same odcienie, ale bez kolorow, ktore na ciemnym tle znikaja (navy, indigo, brown...)
+    PALETTE_DARK = ["#5aa0e6", "#f0a040", "#5cc05c", "#b08ce0", "#d09060", "#f08cc8", "#c8c850",
+                    "#40d0e0", "#8fa8ff", "#e0c050", "#40c0b0", "#c080ff"]
+    HOVER_PX = 25           # podpowiedz: najblizsza krzywa slotu w tylu pikselach ekranu (x i y)
     LABEL_GAP = 0.008       # najmniejszy odstep podpisow nad wykresem (czesc szerokosci osi) - gestsze tylko po najechaniu
 
     def __init__(self, parent):
@@ -1741,7 +1746,14 @@ class PlotWindow(BaseWindow):
             self.axes.text(0.5, 0.5, f"cannot draw the plan: {e}", ha="center", va="center", transform=self.axes.transAxes)
             self.canvas.draw_idle()
 
+    def _colors(self):
+        """kolory wykresu wg motywu: (paleta obiektow, tekst, zaznaczony OB i jego przezroczystosc)"""
+        palette = self.PALETTE_DARK if theme.dark else self.PALETTE
+        # zaznaczony OB: kolor zaznaczonego wiersza tabeli planu; na ciemnym tle mocniej, inaczej go nie widac
+        return palette, theme.hex("text"), theme.hex("row_sel_bg"), (0.6 if theme.dark else 0.4)
+
     def _refresh(self):
+        palette, text_color, sel_color, sel_alpha = self._colors()
 
         self.oca = ephem.Observer()
         self.oca.date = ephem.now()
@@ -1784,7 +1796,7 @@ class PlotWindow(BaseWindow):
             colors = {}             # nazwa obiektu -> kolor
             self.night = {}         # nazwa obiektu -> (ra, dec, styl, kolor) - do bladej krzywej calej nocy
             self.night_lines = {}   # nazwa obiektu -> linia calej nocy (rysowana dopiero, gdy potrzebna)
-            self.segments = []      # (t0, t1, opis, nazwa obiektu|None) slotow OB - dla podpowiedzi pod myszka
+            self.segments = []      # (t0, t1, opis, nazwa obiektu|None, (czasy, wysokosci)|None) slotow OB - podpowiedz pod myszka
             labels = []             # (t0, t1, nazwa, kolor, fontsize) - podpisy nad wykresem
             events = []             # (t, tekst) - STOP, BELL, WAIT, ZERO... - podpisy przy dolnej krawedzi
             x_span = (self.t_end - self.t0) + ephem.hour
@@ -1858,7 +1870,8 @@ class PlotWindow(BaseWindow):
                                     self.axes.fill_betweenx([0, 2], self.t, self.t + ephem.second * slotTime, color="grey", alpha=0.5)
                                     events.append((self.t, command))
                                     self.segments.append((self.t, self.t + ephem.second * slotTime,
-                                                          f"{command}\nstart {str(ephem.Date(self.t)).split()[1][:5]} UT, {slotTime / 60:.0f} min", None))
+                                                          f"{command}\nstart {str(ephem.Date(self.t)).split()[1][:5]} UT, {slotTime / 60:.0f} min", None,
+                                                          None))
 
                                 if "ra" in self.parent.plan[i]["ob"].keys():
                                     ra = self.parent.plan[i]["ob"]["ra"]
@@ -1867,7 +1880,7 @@ class PlotWindow(BaseWindow):
                                     standard = "standard" in self.parent.plan[i]["block"]
                                     style = "--" if standard else "-"
                                     if name not in colors:
-                                        colors[name] = self.PALETTE[len(colors) % len(self.PALETTE)]
+                                        colors[name] = palette[len(colors) % len(palette)]
                                         self.night[name] = (ra, dec, style, colors[name])
                                     color = colors[name]
                                     # cala noc blado tylko dla zaznaczonego OB (reszta pod myszka albo "All night
@@ -1875,13 +1888,15 @@ class PlotWindow(BaseWindow):
                                     if i == self.parent.i:
                                         self.night_line(name).set_visible(True)
                                     t_tab, alt_tab = self.altitudes(ra, dec, self.t, self.t + ephem.second * slotTime, 10 * ephem.second)
-                                    if i == self.parent.i:
-                                        self.axes.axvspan(min(t_tab), max(t_tab), color="grey", alpha=0.15)
+                                    if i == self.parent.i:      # zaznaczony w tabeli planu - jego kolor wyboru
+                                        self.axes.axvspan(min(t_tab), max(t_tab), color=sel_color, alpha=sel_alpha,
+                                                          zorder=0)
                                     self.axes.plot(t_tab, alt_tab, style, color=color, linewidth=3)
                                     labels.append((self.t, self.t + ephem.second * slotTime, name, color, fontsize))
                                     self.segments.append((self.t, self.t + ephem.second * slotTime,
                                                           f"{name}\nstart {str(ephem.Date(self.t)).split()[1][:5]} UT, "
-                                                          f"{slotTime / 60:.0f} min\nalt {alt_tab[0]:.0f}\u00b0 \u2192 {alt_tab[-1]:.0f}\u00b0", name))
+                                                          f"{slotTime / 60:.0f} min\nalt {alt_tab[0]:.0f}\u00b0 \u2192 {alt_tab[-1]:.0f}\u00b0", name,
+                                                          (t_tab, alt_tab)))
 
                             self.t = self.t + ephem.second * slotTime
 
@@ -1893,7 +1908,7 @@ class PlotWindow(BaseWindow):
                 else:
                     groups.append((t, [txt]))
             for t, txts in groups:
-                self.axes.text(t, 3, " \u00b7 ".join(txts), rotation=90, fontsize=8)
+                self.axes.text(t, 3, " \u00b7 ".join(txts), rotation=90, fontsize=8, color=text_color)
 
             # podpisy nad wykresem - kazdy OB ma nazwe (brak bylby mylacy): na poczatku slotu, a gdy tam ciasno - w
             # pierwszym wolnym miejscu w obrebie slotu; gdy i tam nie ma miejsca, na poczatku slotu (nachodza - widac,
@@ -1917,7 +1932,7 @@ class PlotWindow(BaseWindow):
             self.axes.fill_betweenx([0, 90], self.t_end_dusk, self.t_end, color="yellow", alpha=0.1)
             self.axes.axvline(x=self.t_now, color="green")
             txt = str(self.t_now).split()[1].split(":")[0] + ":" + str(self.t_now).split()[1].split(":")[1]
-            self.axes.text(self.t_now, 82, f"{txt}", rotation=90, fontsize=fontsize)
+            self.axes.text(self.t_now, 82, f"{txt}", rotation=90, fontsize=fontsize, color=text_color)
 
             xtics = [self.t0, self.t0_dusk, self.t_end_dusk, self.t_end]
             t =  ephem.Date(self.t0_dusk+30*ephem.minute)
@@ -1933,6 +1948,9 @@ class PlotWindow(BaseWindow):
             self.axes.set_yticklabels(["0 deg", "35 deg", "80 deg", "90 deg"])
 
             self.fig.subplots_adjust(bottom=0.12,top=0.8,left=0.08,right=0.98)
+            theme.style_figure(self.fig, (self.axes,))     # tlo i osie wg motywu (day - biale jak dotad)
+            self.hover.get_bbox_patch().set_facecolor(theme.hex("field_bg"))
+            self.hover.set_color(theme.hex("field_fg"))
 
             self.canvas.draw()
             self.show()
@@ -1974,14 +1992,31 @@ class PlotWindow(BaseWindow):
             if show or name in self.night_lines:
                 self.night_line(name).set_visible(show)
 
+    def hovered_segment(self, event):
+        """slot pod myszka: najblizsza (w pikselach ekranu, x i y) krzywa slotu z obiektem, do HOVER_PX; gdy zadnej
+        nie ma blisko - pasek bez wspolrzednych (ZERO, DARK...) pod kursorem w czasie"""
+        best, best_d = None, self.HOVER_PX
+        for seg in getattr(self, "segments", []):
+            curve = seg[4]
+            if not curve:
+                continue
+            pts = self.axes.transData.transform(numpy.column_stack(curve))
+            d = float(numpy.min(numpy.hypot(pts[:, 0] - event.x, pts[:, 1] - event.y)))
+            if d < best_d:
+                best, best_d = seg, d
+        if best is None and event.xdata is not None:
+            for seg in getattr(self, "segments", []):
+                if seg[4] is None and seg[0] <= event.xdata <= seg[1]:
+                    return seg
+        return best
+
     def on_hover(self, event):
         # podpowiedz z nazwa, startem, dlugoscia i wysokoscia slotu pod myszka, i krzywa calej nocy tego obiektu
         text, name = None, None
         if event.inaxes is self.axes and event.xdata is not None:
-            for t0, t1, txt, obj in getattr(self, "segments", []):
-                if t0 <= event.xdata <= t1:
-                    text, name = txt, obj
-                    break
+            seg = self.hovered_segment(event)
+            if seg is not None:
+                text, name = seg[2], seg[3]
         if name != getattr(self, "hovered", None):
             self.hovered = name
             self.show_night(name)
