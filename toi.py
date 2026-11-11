@@ -52,6 +52,7 @@ from instrument_gui import InstrumentGui
 from mnt_gui import MntGui
 from sky_gui import SkyGui
 from events_gui import AlertsWindow
+from guider_client import GuiderLink
 from obs_gui import ObsGui, ObserversWindow, SoundTestWindow
 from fits_gui import read_fits_image, fits_display_mode
 from toi_subjects import subject, toi_publisher, history_reader, MESSAGES_READ, FLAT_OVERWATCH_ITEMS
@@ -115,6 +116,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.focusGui = self.auxGui.focus
         self.flatGui = self.auxGui.calibration.camera
         self.guiderGui = self.auxGui.guider
+        self.guider_link = GuiderLink(self, self.guiderGui)     # guider_client: NATS serwisu guidera -> zakladka
         self.planrunnerGui = self.auxGui.planrunner
         self.conditionsGui = self.auxGui.conditions
 
@@ -153,6 +155,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.add_background_task(self.reader_ocm_messages())
         self.add_background_task(self.nats_events_reader())     # conditions_overwatch: eventy i alerty
         self.add_background_task(self.nats_alerts_reader())
+        self.add_background_task(self.guider_link.discovery_reader())    # serwisy guidera (dzis jk15 BESO)
 
         for t in self.oca_tel_state.keys():   # statusy wszystkich teleskopow
 

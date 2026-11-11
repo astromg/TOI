@@ -167,8 +167,13 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   read in a thread every 2 min if its mtime changed; open ones, "closed (30 d)" adds the rest; double click → the GitHub
   issue, "Data (OCADB)" → `ocadb_url`; TOI writes nothing back — status is changed on the GitHub board)), Events (`events_gui.EventsTab`, conditions_overwatch time signals: generator left, active events right; Sun / minutes / UT time / date / observers, `repeat`, secret events in admin mode - observers window), Optical path (`SchematicView`, hidden when the
   telescope has no optical graph), Calibration, Focus, Guider (`guider_gui.GuiderTab`, client of the ocabox-tcs guider service - today jk15 BESO;
-  window done 2026-11-10, NATS not wired yet: fed by `set_guiders` / `show_state` / `show_frame` / `add_journal`,
-  commands through `command()` -> `self.rpc`, which TOI sets; interface in the vault note "Guider service - NATS interface"),
+  `guider_client.GuiderLink` (`TOI.guider_link`) finds the services on `svc.status.guiding_svc.guider.>`, reads state /
+  events / journal / `frame.thumbnail.ready` of the active telescope's guider, fetches the JPEG over HTTP only while the
+  tab is visible (`toi.guider_thumbs_url` / `toi.guider_thumbs_root`, defaults services01:8090/thumbs); commands go
+  through `GuiderTab.command()` (needs control of the telescope; the service itself checks nothing) as RPC; no state
+  for 10 s while running -> "stale"; Focus line warns when the telescope focus is not the guider instrument's
+  (`toi.guider_focus`, default jk15 21950 = BESO) or FOCUS ADJUST is on; Reticle line shows a move from the calibrated
+  home; journal starts with the last 15 min; interface in the vault note "Guider service - NATS interface"),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes, drawn like oca_monitor - points plus a smoothed trend;
   drawn only while the tab is shown, refreshed every 30 s when new points came, `TOI.conditions_plot_loop`).
   Pictures (`PicturesTab`, entertainment: `show_file(path, title)` shows any picture; today the picture of the current

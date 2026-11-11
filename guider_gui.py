@@ -27,7 +27,7 @@ from collections import deque
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
-from PyQtX.QtCore import QRectF, Qt
+from PyQtX.QtCore import QRectF, Qt, QTimer
 from PyQtX.QtGui import QBrush, QColor, QFont, QPainter, QPen, QPixmap
 from PyQtX.QtWidgets import (QComboBox, QDoubleSpinBox, QFrame, QGraphicsScene, QGraphicsView, QGridLayout,
                              QHBoxLayout, QLabel, QPushButton, QSizePolicy, QSpinBox, QTextEdit, QVBoxLayout, QWidget)
@@ -42,6 +42,11 @@ EXP_PRESETS = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0]
 PULSE_STEPS = [1, 5, 10, 30]            # px obrazu (klawisze 1-4 w podgladzie)
 METHODS = [("single_star", "single star"), ("fiber", "fiber")]
 MODES = ["off", "monitoring", "guiding"]
+# ostrosc teleskopu dla instrumentu guidera (BESO: oca-manual beso.md "Focusing"; nadpisuje toi.guider_focus) i
+# tolerancja - dalej i guider wlaczony = ostrzezenie (przy ostrosci Andora kamera BESO widzi sam szum, 2026-11-10)
+GUIDER_FOCUS = {"jk15": 21950}
+FOCUS_TOLERANCE = 300
+RETICLE_MOVED_PX = 1.0      # reticle dalej od skalibrowanej pozycji - pokazujemy o ile
 MODE_COLORS = {"off": None, "monitoring": "change_bg", "guiding": "ok_bg"}
 # kolory dryfu: bez znaczenia ok/zle (czerwony = zle w TOI), tylko dwie odroznialne serie
 DRIFT_X_COLOR = "#a070d0"
@@ -143,7 +148,9 @@ class GuiderScene(QGraphicsScene):
         method = state.get("method")
         mode = state.get("mode")
         reticle = _xy(state.get("central_point"))
-        fiber_r = float((state.get("method_params") or {}).get("fiber_radius_px") or 5.0)
+        # promien otworu: z parametrow metody fiber, inaczej z detektora otworu (single star go nie ma)
+        fiber_r = float((state.get("method_params") or {}).get("fiber_radius_px")
+                        or (state.get("hole_detect") or {}).get("radius_px") or 5.0)
 
         # szerokie szukanie: klikniecia i ponowne lapanie tylko w tym kole
         wide_r = state.get("wide_search_radius_px")
@@ -330,7 +337,8 @@ class GuiderTab(QWidget):
     def __init__(self, parent):
         super().__init__()
         self.parent = parent
-        self.rpc = None                 # coroutine function (cmd, data) -> reply; ustawia TOI
+        self.rpc = None                 # coroutine function (cmd, data) -> reply; ustawia GuiderLink
+        self.link = None                # guider_client.GuiderLink - czyta NATS dla pokazywanego teleskopu
         self.guiders = {}               # tel -> info z discovery
         self.tel = None                 # teleskop, ktorego guidera pokazujemy (aktywny)
         self.state = None
@@ -340,6 +348,9 @@ class GuiderTab(QWidget):
         self.drift_ref = None
         self.prev_state = None
         self.mkUI()
+        self.stale_timer = QTimer(self)
+        self.stale_timer.timeout.connect(self.check_stale)
+        self.stale_timer.start(2000)
         theme.on_change(self.apply_theme)
         self.apply_theme()
         self.updateUI()
@@ -363,6 +374,8 @@ class GuiderTab(QWidget):
             self.scene.clear_frame()
             self.clear_drift()
             self.journal_e.clear()
+        if self.link is not None:
+            self.link.follow(tel)
         self.updateUI()
 
     def updateUI(self):
@@ -376,7 +389,8 @@ class GuiderTab(QWidget):
         else:
             cam = (info.get("pipelines") or [{}])[0].get("camera_id", "")
             self.title_l.setText(f"{tel} · {cam}")
-            self.frame_v.set_message("" if self.state else "waiting for the guider state…")
+            if not self.state:
+                self.frame_v.set_message("waiting for the guider state…")
         self.show_service()
         self._enable()
 
@@ -387,16 +401,69 @@ class GuiderTab(QWidget):
             self.service_l.setText("")
             theme.paint(self.service_l)
             return
-        key = {"ok": "ok_bg", "idle": None, "degraded": "warn_bg", "failed": "bad_bg",
+        key = {"ok": "ok_bg", "busy": "ok_bg", "idle": None, "degraded": "warn_bg", "failed": "bad_bg",
                "stopped": "bad_bg"}.get(str(status).lower(), "warn_bg")
         self.service_l.setText(f" {status or '?'} ")
         theme.paint(self.service_l, bg=key)
+
+    STALE_S = 10        # s bez stanu przy wlaczonym guiderze = cos nie tak (serwis, NATS)
+
+    def guider_focus(self):
+        cfg = (getattr(self.parent, "local_cfg", None) or {}).get("toi", {}).get("guider_focus") or {}
+        value = cfg.get(self.tel, GUIDER_FOCUS.get(self.tel))
+        return float(value) if value is not None else None
+
+    def show_focus(self):
+        """Telescope focus vs the focus of the guider's instrument, and FOCUS ADJUST (it would move the focus back
+        to the main camera model); red only while the guider is running."""
+        w = self.diag["focus"]
+        pos = getattr(self.parent, "focus_value", None)
+        want = self.guider_focus()
+        adjust = bool((getattr(self.parent, "toi_switch_status", {}).get(self.tel) or {}).get("focus_adjust"))
+        running = bool(self.state and self.state.get("mode") in ("monitoring", "guiding"))
+        if self.info is None or pos is None:
+            w.setText("—")
+            theme.paint(w)
+            return
+        txt = f"{float(pos):.0f}"
+        bad = False
+        tips = []
+        if want is not None and abs(float(pos) - want) > FOCUS_TOLERANCE:
+            txt += f" ≠ {want:.0f}"
+            bad = True
+            tips.append(f"the guider's instrument needs focus ~{want:.0f}; stars may be invisible")
+        if adjust:
+            txt += "  FOCUS ADJUST on"
+            bad = True
+            tips.append("FOCUS ADJUST is on - it moves the focus to the main camera model; switch it off")
+        w.setText(txt)
+        if not tips:
+            tips.append(f"telescope focus (guider instrument ~{want:.0f})" if want is not None else "telescope focus")
+        w.setToolTip("\n".join(tips))
+        theme.paint(w, fg=("bad_fg" if running else "warn_fg") if bad else None)
+
+    def check_stale(self):
+        """Every 2 s: focus check; a running guider (monitoring / guiding) publishes its state every frame, none
+        for STALE_S means the service or the link is down - say so instead of showing an old picture as current."""
+        self.show_focus()
+        s = self.state
+        if not s or self.info is None or s.get("mode") == "off" or self.state_time is None:
+            return
+        age = time.time() - self.state_time
+        if age > self.STALE_S:
+            self.frame_v.set_message(f"no guider state for {age:.0f} s")
+            self.service_l.setText(f" stale {age:.0f} s ")
+            theme.paint(self.service_l, bg="bad_bg")
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.draw_drift()       # w tle stan przychodzi, ale wykres rysujemy tylko widoczny
 
     def show_state(self, state):
         """New ``PipelineState`` of the guider of the shown telescope."""
         self.prev_state, self.state = self.state, state
         self.state_time = time.time()
-        self.frame_v.set_message("")
+        self.frame_v.set_message("guider OFF" if state.get("mode") == "off" else "")
         self.scene.draw_state(state)
         self.closeup_v.follow(_xy(state.get("central_point")))
         self._update_drift(state)
@@ -417,10 +484,15 @@ class GuiderTab(QWidget):
         if not self.frame_v.zoomed:
             self.frame_v.fit()
 
-    def add_journal(self, text, level="info"):
-        key = {"warning": "warn_fg", "error": "bad_fg", "critical": "bad_fg"}.get(str(level).lower())
+    def add_journal(self, text, level="info", ts=None):
+        """A line in the journal; ``level`` info / warning / error / sent (our command, dimmed), ``ts`` serverish
+        UTC array of the message (None - now)."""
+        key = {"warning": "warn_fg", "error": "bad_fg", "critical": "bad_fg", "sent": "dim_fg"}.get(str(level).lower())
         color = theme.hex(key) if key else theme.hex("field_fg")
-        t = time.strftime("%H:%M:%S", time.gmtime())
+        try:
+            t = "{:02d}:{:02d}:{:02d}".format(*ts[3:6])
+        except (TypeError, ValueError, IndexError):
+            t = time.strftime("%H:%M:%S", time.gmtime())
         self.journal_e.append(f'<span style="color:{color}">{t} {text}</span>')
 
     # --- komendy ---
@@ -435,6 +507,7 @@ class GuiderTab(QWidget):
         if self.rpc is None:
             self.add_journal(f"not sent (guider NATS not connected yet): {cmd} {data or ''}", "warning")
             return
+        self.add_journal(f"→ {cmd} {data or ''}", "sent")
         asyncio.ensure_future(self._send(cmd, data))
 
     async def _send(self, cmd, data):
@@ -566,7 +639,14 @@ class GuiderTab(QWidget):
         exp = s.get("current_exp_time") or s.get("exp_time")
         self.diag["exp"].setText(_num(exp, "{:g} s") + (" (auto)" if s.get("current_exp_time") else ""))
         r = _xy(s.get("central_point"))
-        self.diag["reticle"].setText(f"{r[0]:.1f}, {r[1]:.1f}" if r else "—")
+        home = _xy(s.get("central_point_default"))
+        moved = math.dist(r, home) if r and home else 0.0
+        self.diag["reticle"].setText((f"{r[0]:.1f}, {r[1]:.1f}" if r else "—")
+                                     + (f"   moved {moved:.1f} px from home" if moved > RETICLE_MOVED_PX else ""))
+        self.diag["reticle"].setToolTip(f"reticle moved {moved:.1f} px from the calibrated position "
+                                        f"{home[0]:.1f}, {home[1]:.1f} (Reticle home brings it back)"
+                                        if moved > RETICLE_MOVED_PX else "reticle at the calibrated position")
+        theme.paint(self.diag["reticle"], fg="warn_fg" if moved > RETICLE_MOVED_PX else None)
         a = _xy(s.get("guide_anchor"))
         self.diag["anchor"].setText(f"{a[0]:.1f}, {a[1]:.1f}" if a else "—")
         self.diag["delta"].setText(f"{_num(s.get('last_correction_dx_px'))}, {_num(s.get('last_correction_dy_px'))}")
@@ -598,7 +678,8 @@ class GuiderTab(QWidget):
             self.drift.append((now, star[0] - self.drift_ref[0], star[1] - self.drift_ref[1]))
         while self.drift and now - self.drift[0][0] > DRIFT_WINDOW_S:
             self.drift.popleft()
-        self.draw_drift()
+        if self.isVisible():
+            self.draw_drift()
 
     def draw_drift(self):
         ax, ax2 = self.drift_ax, self.scatter_ax
@@ -749,15 +830,24 @@ class GuiderTab(QWidget):
         grid.setVerticalSpacing(2)
         self.diag = {}
         cells = [("acquired", "Acquired"), ("adu", "ADU"), ("fwhm", "FWHM"), ("phase", "Phase"),
-                 ("exp", "Exp"), ("delta", "Last Δ"), ("reticle", "Reticle"), ("anchor", "Anchor"),
-                 ("hole", "Hole")]
-        for i, (key, name) in enumerate(cells):
-            r, c = divmod(i, 2)
+                 ("exp", "Exp"), ("delta", "Last Δ"), ("anchor", "Anchor"), ("hole", "Hole"),
+                 ("reticle", "Reticle"), ("focus", "Focus")]
+        wide = ("reticle", "focus")         # dluzsze teksty: caly wiersz
+        r = c = 0
+        for key, name in cells:
             name_l = QLabel(name + ":")
             theme.paint(name_l, fg="dim_fg")
             self.diag[key] = QLabel("—")
+            if key in wide:
+                if c:
+                    r, c = r + 1, 0
+                grid.addWidget(name_l, r, 0)
+                grid.addWidget(self.diag[key], r, 1, 1, 3)
+                r += 1
+                continue
             grid.addWidget(name_l, r, 2 * c)
             grid.addWidget(self.diag[key], r, 2 * c + 1)
+            r, c = (r + 1, 0) if c else (r, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnStretch(3, 1)
         col.addLayout(grid)
@@ -780,9 +870,10 @@ class GuiderTab(QWidget):
         self.wide_s = QSpinBox()
         self.wide_s.setRange(0, 2000)
         self.wide_s.setSuffix(" px")
-        self.wide_s.setToolTip("wide-search radius: stars can be selected and re-acquired only inside this circle")
+        self.wide_s.setToolTip("search radius (wide search): stars can be selected and re-acquired only inside\n"
+                               "this circle (the dashed circle around the reticle)")
         self.apply_b = QPushButton("Apply")
-        self.apply_b.setToolTip("send the changed exposure / gain / wide-search radius to the guider")
+        self.apply_b.setToolTip("send the changed exposure / gain / search radius to the guider")
         self.apply_b.clicked.connect(self.apply_camera)
         cam = QGridLayout()
         cam.setHorizontalSpacing(4)
@@ -792,7 +883,7 @@ class GuiderTab(QWidget):
         cam.addWidget(self.exp_p, 0, 2)
         cam.addWidget(QLabel("Gain"), 0, 3)
         cam.addWidget(self.gain_s, 0, 4)
-        cam.addWidget(QLabel("Wide r"), 1, 0)
+        cam.addWidget(QLabel("Search r"), 1, 0)
         cam.addWidget(self.wide_s, 1, 1)
         cam.addWidget(self.apply_b, 1, 3, 1, 2)
         col.addLayout(cam)
