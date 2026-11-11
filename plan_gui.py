@@ -276,6 +276,12 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         if symbol == "\u26A0":
             if meta.get("skip_alt"):
                 return "skipped: too low at the planned start"
+            try:
+                if float(meta.get("plan_alt")) > float(limits.get("max")):
+                    return (f"too high: {meta.get('plan_alt')}\u00b0 at the planned start "
+                            f"(above {limits.get('max')}\u00b0) - only a warning, the OB is not skipped")
+            except (TypeError, ValueError):
+                pass
             return (f"low: {meta.get('plan_alt', '?')}\u00b0 at the planned start "
                     f"(below {limits.get('low', '?')}\u00b0, minimum {limits.get('min', '?')}\u00b0)")
         if symbol == "\u29D6":
@@ -419,13 +425,16 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
                          if "plan_alt" in self.plan[i]["meta"].keys():
                              alt = float(self.plan[i]["meta"]["plan_alt"])
-                             if alt < self.parent.cfg_alt_limits["low"] :
+                             # za nisko - pomaranczowy, za wysoko (powyzej max_alt) - czerwony; tylko ostrzezenie,
+                             # OB nie jest pomijany (ustalone 2026-11-11)
+                             high = alt > self.parent.cfg_alt_limits["max"]
+                             if alt < self.parent.cfg_alt_limits["low"] or high:
                                  font = QtGui.QFont()
                                  font.setPointSize(15)
                                  txt = QTableWidgetItem("\u26A0") # ostrzezenie
                                  txt.setFont(font)
                                  txt.setTextAlignment(QtCore.Qt.AlignCenter)
-                                 txt.setForeground(theme.qcolor("warn2_fg"))
+                                 txt.setForeground(theme.qcolor("bad_fg" if high else "warn2_fg"))
                                  self.plan_t.setItem(i, 0, txt)
 
                          if "skip_alt" in self.plan[i]["meta"].keys():

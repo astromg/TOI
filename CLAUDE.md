@@ -121,7 +121,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   reads `self.instGui.ccd_tab.<setting>`.
 - `plan_gui.py` (`PlanGui`, huge file, ~2000+ lines) — observation plan/queue manager: load/edit/reorder
   observing blocks (OBs), talks to `tpg` (`TelescopePlanGenerator`) and `ctc` (`CycleTimeCalc`, cycle-time
-  estimation) external libraries, and to `pyaraucaria.obs_plan.obs_plan_parser`/`ob_validator` for parsing. Moon: an OB still ahead whose target at its planned start (`plan_ut`) is closer to the Moon than the TPG limit (`min_moon_dist` of the OB, else `moon_dist` of the telescope in the tpg config) gets a red Moon icon (`Icons/icon_moon.svg`) in column 0 in every mode, and red "Moon dist" in column 3 (`PlanGui.moon_sep_deg` / `moon_limit`); parsing
+  estimation) external libraries, and to `pyaraucaria.obs_plan.obs_plan_parser`/`ob_validator` for parsing. Moon: an OB still ahead whose target at its planned start (`plan_ut`) is closer to the Moon than the TPG limit (`min_moon_dist` of the OB, else `moon_dist` of the telescope in the tpg config) gets a red Moon icon (`Icons/icon_moon.svg`) in column 0 in every mode, and red "Moon dist" in column 3 (`PlanGui.moon_sep_deg` / `moon_limit`). Altitude: column 0 ⚠ orange below `low_alt`, red above `max_alt` - only warnings, TOI does not skip by altitude since 2026-04 (planrunner checks only `min_alt`); every column-0 symbol has a tooltip (`PlanGui.status_tip`); parsing
   and validating OB definitions (see `Plans/*.txt` for the plan file format).
 - `sky_gui.py` (`SkyGui`, `SkyView`) — sky-position radar/visualization of telescope pointing.
 - `fits_gui.py` (`FitsWindow`, `FFS_Worker`) — FITS viewer; runs `pyaraucaria.ffs` star-detection stats in a
