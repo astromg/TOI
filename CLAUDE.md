@@ -208,7 +208,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   last object in any filter (`draw_master_table`),
   kept per telescope in `flat_records`; the TPG window's "Evening SKYFLATS" / "Morning SKYFLATS" switches (passed to tpg as
   `skyflats=[sessions]`; evening defaults off once the Sun is below the lower `skyflat.hsun` of the tpg config,
-  `TPGWindow._smart_skyflats_checkboxes`) turn those records into the
+  `TPGWindow._smart_skyflats_checkboxes`; the TPG window opens without control, Generate needs it; "SKYFLATS only" runs only tpg `Initiate` / `MakeTime` / `export` - empty night, so the flat session makros with their WAITs and the start / end makros, `TPG_Worker.run_flats_only`) turn those records into the
   `flat_history` passed to tpg (`TPGWindow._flat_history`). Autofocus fits use `pyaraucaria.focus`. In the Focus tab Recalculate only computes; SET
   (`focus_set_result`) moves the focuser. Autofocus uses a camera (`FocusTab.set_camera`, from the instrument
   window's camera tabs) and its filters from `TOI.instrument_filters` (today the telescope's wheel).

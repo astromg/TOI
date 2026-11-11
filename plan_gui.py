@@ -179,23 +179,19 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             self.phase_window.show()
             self.phase_window.raise_()
 
-    @plan_action()
+    @plan_action(control=False)     # okno bez kontroli; kontrola dopiero przy generowaniu (TPGWindow.add)
     def run_tpg(self):
         if not self.parent.active_tel:
             return
-        if self.parent.tel_acces[self.parent.active_tel]:
-            old = getattr(self, "tpg_window", None)
-            if old is not None and old.generating():
-                # nowe okno usunieloby stare z dzialajacym watkiem TPG - to zamyka cale TOI
-                old.show()
-                old.raise_()
-                old.activateWindow()
-                return
-            self.tpg_window = TPGWindow(self)
-            self.tpg_window._smart_sunset_checkbox()
-        else:
-            txt="WARNING: U don't have control"
-            self.parent.WarningWindow(txt)
+        old = getattr(self, "tpg_window", None)
+        if old is not None and old.generating():
+            # nowe okno usunieloby stare z dzialajacym watkiem TPG - to zamyka cale TOI
+            old.show()
+            old.raise_()
+            old.activateWindow()
+            return
+        self.tpg_window = TPGWindow(self)
+        self.tpg_window._smart_sunset_checkbox()
 
     @plan_action(row=True)
     def pocisniecie_copy(self):
@@ -1185,9 +1181,10 @@ class TPG_Worker(QtCore.QObject):
     error_signal = QtCore.pyqtSignal(str)
 
     def __init__(self, tel, dt, wind=None, uobi_done=None,fwhm=None, tag=None, night_monitor=False,
-                 night_monitor_gap=None, skyflats=(), flat_history=None, now=None):
+                 night_monitor_gap=None, skyflats=(), flat_history=None, now=None, flats_only=False):
 
         super().__init__()
+        self.flats_only = flats_only
         self.tel = tel
         self.dt = dt
         self.wind = wind
@@ -1200,8 +1197,32 @@ class TPG_Worker(QtCore.QObject):
         self.flat_history = flat_history
         self.now = now
 
+    def run_flats_only(self):
+        """Sam plan flatow: z tpg tylko czas nocy i export - bez obiektow (pusty przydzial nocy) export daje
+        WAIT do startu nocy, makra sesji flatow (wieczorne / poranne, z ich WAIT sunset / sunrise) i makra
+        startu / konca planu. tpg sam odmawia przy braku obiektow (Waga), wiec omijamy LoadObjects ... allocate."""
+        p = tpg(self.tel, self.dt, wind=self.wind, skyflats=self.skyflats, flat_history=self.flat_history, now=self.now)
+        p.Initiate()
+        p.MakeTime()
+        self.update_signal.emit(f"SKYFLATS only (no objects) <span style='color: {theme.hex('ok_fg')};'>\u2714</span>")
+        p.export()
+        for session, info in getattr(p, "skyflat_info", {}).items():
+            color = theme.hex("ok_fg" if info["line"] else "warn2_fg")
+            self.update_signal.emit(f"<span style='color: {color};'>{info['note']}</span>")
+        if not any(info["line"] for info in getattr(p, "skyflat_info", {}).values()):
+            self.error_signal.emit("no SKYFLAT in the plan (sessions over or no field) - nothing inserted")
+            return
+        if hasattr(p, "SavePlan"):
+            p.SavePlan()
+        self.update_signal.emit(f"<span style='color: {theme.hex('ok_fg')}; font-weight: bold;'>\u2714 DONE \u2714</span>")
+        self.plan_ready_signal.emit(p.plan)
+
     def run(self):
         try:
+            if self.flats_only:
+                self.run_flats_only()
+                self.done_signal.emit()
+                return
             p = tpg(self.tel,self.dt,wind=self.wind,fwhm=self.fwhm,tag=self.tag,done_uobi=self.uobi_done,night_monitor=self.night_monitor,
                     night_monitor_gap=self.night_monitor_gap,
                     skyflats=self.skyflats,flat_history=self.flat_history,now=self.now)
@@ -1284,12 +1305,25 @@ class TPGWindow(BaseWindow):
 
     def generation_done(self):
         self.add_p.setEnabled(True)
-        self.add_p.setText('Generate Plan')
+        self.flats_only_changed()
+
+    def flats_only_changed(self):
+        """Only SKYFLATS: bez obiektow - ich ustawienia (FWHM, tag, night monitor, bez powtorzen) nie maja znaczenia;
+        wiatr zostaje (sfs wybiera pole flatow z dala od niego)"""
+        only = self.flats_only_c.isChecked()
+        for w in (self.fwhm_c, self.fwhm_e, self.tag_c, self.tag_e, self.night_monitor_c, self.repeat_c):
+            w.setEnabled(not only)
+        self.night_monitor_gap_e.setEnabled(not only and self.night_monitor_c.isChecked())
+        if not self.generating():
+            self.add_p.setText('Generate SKYFLATS' if only else 'Generate Plan')
 
     def add(self):
         if self.generating():       # drugie klikniecie w trakcie: nowy watek nadpisalby dzialajacy (zamyka TOI)
             return
         tel = self.parent.parent.active_tel
+        if not tel or not self.parent.parent.tel_acces.get(tel):     # okno otwiera kazdy, plan wstawia ten z kontrola
+            self.parent.parent.WarningWindow("WARNING: U don't have control")
+            return
 
         dt = self.ut_e.text().split()
 
@@ -1313,11 +1347,16 @@ class TPGWindow(BaseWindow):
 
         # tpg dostaje liste sesji: osobno wieczorne i poranne
         skyflats = [s for s, c in (("evening", self.evening_flats_c), ("morning", self.morning_flats_c)) if c.isChecked()]
+        flats_only = self.flats_only_c.isChecked()
+        if flats_only and not skyflats:
+            self.show_error("SKYFLATS only: switch on Evening and/or Morning SKYFLATS")
+            return
         flat_history = self._flat_history(tel) if skyflats else None
 
         self.thread = QtCore.QThread()
         self.worker = TPG_Worker(tel=tel,dt=dt,wind=wind,uobi_done=uobi_done,fwhm=fwhm,tag=tag,night_monitor=night_monitor,
-                                 night_monitor_gap=night_monitor_gap,skyflats=skyflats,flat_history=flat_history,now=self.parent.parent.ut)
+                                 night_monitor_gap=night_monitor_gap,skyflats=skyflats,flat_history=flat_history,now=self.parent.parent.ut,
+                                 flats_only=flats_only)
 
         self.worker.moveToThread(self.thread)
 
@@ -1551,6 +1590,17 @@ class TPGWindow(BaseWindow):
         self.night_monitor_gap_e.setEnabled(False)
         self.night_monitor_c.toggled.connect(self.night_monitor_gap_e.setEnabled)
 
+        # sam plan flatow (wieczorne / poranne wg przelacznikow wyzej), bez obiektow
+        self.flats_only_c = QCheckBox("SKYFLATS only")
+        self.flats_only_c.setChecked(False)
+        self.flats_only_c.setStyleSheet(
+            "QCheckBox::indicator:checked {image: url(./Icons/SwitchOn.png)}"
+            "QCheckBox::indicator:unchecked {image: url(./Icons/SwitchOff.png)}"
+        )
+        self.flats_only_c.setToolTip("a plan with only the sky flat sessions chosen above (with their WAIT / ZERO "
+                                     "makros) and the start / end makros - no objects")
+        self.flats_only_c.toggled.connect(self.flats_only_changed)
+
         self.add_p = QPushButton('Generate Plan')
         self.add_p.clicked.connect(self.add)
 
@@ -1565,6 +1615,7 @@ class TPGWindow(BaseWindow):
         grid.addWidget(self.sunset_c, 1, 0)
         grid.addWidget(self.evening_flats_c, 1, 1)
         grid.addWidget(self.morning_flats_c, 2, 1)
+        grid.addWidget(self.flats_only_c, 2, 0)
 
         grid.addWidget(self.wind_c, 3, 0)
         grid.addWidget(self.wind_e, 3, 1)
