@@ -70,8 +70,9 @@ MODE_COLORS = {"off": None, "monitoring": "change_bg", "guiding": "ok_bg"}
 # przelacznik GUIDING w oknie Mount (automat): ile czekamy na kolejne kroki
 AUTO_MODE_S = 10        # s na potwierdzenie zmiany trybu przez serwis
 AUTO_FIND_S = 20        # s na znalezienie gwiazdy (kilka klatek przy dluzszej ekspozycji)
+# guiding wylaczony to nie blad: szary, nie czerwony
 SWITCH_ON = "QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}" \
-            "::indicator:unchecked {image: url(ICONS/SwitchOff.png)}"
+            "::indicator:unchecked {image: url(ICONS/SwitchOffGrey.png)}"
 SWITCH_GREY = "QCheckBox::indicator:checked {image: url(ICONS/SwitchOnGrey.png)}" \
               "::indicator:unchecked {image: url(ICONS/SwitchOffGrey.png)}"
 # kolory bez znaczenia ok/zle (czerwony = zle w TOI): serie dryfu i znacznik operatora
