@@ -1292,10 +1292,6 @@ class ReportWindow(BaseWindow):
                    # filter wheel
                    "filter",
                    "filter_list",
-                   # guider
-                   "prev_guider_coo",
-                   "prev_guider_adu",
-                   "guider_failed",
                    # dome
                    "dome_shutterstatus",
                    "dome_az",

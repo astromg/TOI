@@ -1132,13 +1132,9 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # FFS obrazu poprzedniego teleskopu: bez czekania (wait() stawial GUI do konca liczenia), wynik do kosza
         self.fitsGui.cancel_ffs()
 
-
-        # to sa zmienne dla guidera
+        # sumy recznych impulsow z okna Mount (pulse_window) - od zera dla nowego teleskopu
         self.pulseRa = 0
         self.pulseDec = 0
-        self.guider_passive_dx = []
-        self.guider_passive_dy = []
-        self.guider_failed = 1
 
         self.flat_record={}
         self.flat_record["go"] = False
@@ -3404,8 +3400,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             theme.paint(self.mntGui.mntAlt_e, bg="moving_bg")
             theme.paint(self.mntGui.mntRa_e, bg="moving_bg")
             theme.paint(self.mntGui.mntDec_e, bg="moving_bg")
-            self.guider_passive_dx=[]
-            self.guider_passive_dy=[]
         else:
             theme.paint(self.mntGui.mntAz_e, bg="field_bg")
             theme.paint(self.mntGui.mntAlt_e, bg="field_bg")
@@ -4372,14 +4366,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 # ############ INNE ##############################
 
-    # STAGE 2
-    # to nie bedzie na razie obslugiwane
-    def GuiderPassiveOnOff(self):
-        if self.guiderGui.guiderCameraOn_c.isChecked():
-            self.guider_failed = 1
-            self.guider_passive_dx = []
-            self.guider_passive_dy = []
-
     def wind_limits(self, tel):
         # (observation_stop, pointing) w m/s dla teleskopu z obs_limits; brak w configu -> globalne cfg_wind_limit*
         def _limit(key, default):
@@ -4796,11 +4782,6 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             logger.warning(f'TOI: checklist.yaml not read: {e}')
             self.checklist = []
         self.inst_tab_switch = None
-
-        # guider
-        self.prev_guider_coo = []
-        self.prev_guider_adu = []
-        self.guider_failed = 1
 
         # dome
         self.dome_shutterstatus="--"
