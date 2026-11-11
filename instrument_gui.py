@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import logging
 import qasync as qs
 from PyQtX.QtCore import Qt
 from PyQtX.QtWidgets import QWidget, QLabel,QCheckBox, QRadioButton, QLineEdit, QTabWidget, QPushButton, QGridLayout, QComboBox, QProgressBar
@@ -242,6 +243,16 @@ class GenericCamera(InstrumentTab):
               theme.paint(self.inst_Dit_e, bg="field_bg")
               theme.paint(self.inst_Seq_e, bg="input_bg")
 
+      @staticmethod
+      def _click_select(widget, event, select):
+          """mousePressEvent pola N / EXP / Sequence (wirtualna Qt - wyjatek stad zamknalby TOI): wybor wiersza, potem
+          zwykla obsluga klikniecia QLineEdit"""
+          try:
+              select(event)
+          except Exception as e:
+              logging.getLogger(__name__).warning(f'TOI instrument: field select: {e!r}')
+          QLineEdit.mousePressEvent(widget, event)
+
       def Select1(self,tmp):
           self.Select1_r.setChecked(True)
           self.inst_Seq_e.setText("")
@@ -284,8 +295,10 @@ class GenericCamera(InstrumentTab):
           self.Select1_r = QRadioButton("")
           self.Select1_r.setChecked(True)
           self.Select1_r.toggled.connect(self.Select)
-          self.inst_Ndit_e.mousePressEvent = self.Select1  # connect
-          self.inst_Dit_e.mousePressEvent = self.Select1   # connect
+          # klikniecie w pole wybiera wiersz (radio) i dalej dziala jak zwykle (kursor w tekscie) - samo podmienione
+          # mousePressEvent zjadalo klikniecie i nie dalo sie ustawic kursora
+          self.inst_Ndit_e.mousePressEvent = lambda e, w=self.inst_Ndit_e: self._click_select(w, e, self.Select1)
+          self.inst_Dit_e.mousePressEvent = lambda e, w=self.inst_Dit_e: self._click_select(w, e, self.Select1)
 
           grid.addWidget(self.inst_Ndit_l, w,0)
           grid.addWidget(self.inst_Ndit_e, w,1)
@@ -299,7 +312,7 @@ class GenericCamera(InstrumentTab):
           theme.paint(self.inst_Seq_e, bg="field_bg")
           self.Select2_r = QRadioButton("")
           self.Select2_r.toggled.connect(self.Select)
-          self.inst_Seq_e.mousePressEvent = self.Select2   # connect
+          self.inst_Seq_e.mousePressEvent = lambda e, w=self.inst_Seq_e: self._click_select(w, e, self.Select2)
 
           grid.addWidget(self.inst_Seq_l, w,0)
           grid.addWidget(self.inst_Seq_e, w,1,1,3)

@@ -2797,33 +2797,44 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 await self.update_log(f'OBJECT NAME required', "WARNING", self.active_tel)
                 theme.paint(self.instGui.ccd_tab.inst_object_e, bg="warn2_bg")
 
-            exp=self.instGui.ccd_tab.inst_Dit_e.text()
-            ndit=self.instGui.ccd_tab.inst_Ndit_e.text()
-            # Sprawdzanie formatu czasu etc.
-            try:
-                exp=float(exp)
-                if exp>=0:
-                    ok_exp=True
-                    theme.paint(self.instGui.ccd_tab.inst_Dit_e, bg="input_bg")
-            except Exception:
-                ok_exp=False
-                await self.update_log(f'wrong EXP format', "WARNING", self.active_tel)
-                theme.paint(self.instGui.ccd_tab.inst_Dit_e, bg="warn2_bg")
-            try:
-                if len(ndit)==0:
-                    self.instGui.ccd_tab.inst_Ndit_e.setText("1")
-                    ndit=1
-                ndit=int(ndit)
-                if ndit>0:
-                    ok_ndit=True
-                    theme.paint(self.instGui.ccd_tab.inst_Ndit_e, bg="input_bg")
-            except Exception:
-                ok_exp=False
-                await self.update_log(f'wrong N format', "WARNING", self.active_tel)
-                theme.paint(self.instGui.ccd_tab.inst_Ndit_e, bg="warn2_bg")
-            if ok_exp and ok_ndit:
-                seq = "1/"+str(self.curent_filter)+"/"+str(exp)
-                ok_seq = True
+            # SNAP jak EXPOSE: N + EXP TIME albo Sequence (radio) - dawniej zawsze EXP TIME i seq=1/..., pole Sequence
+            # bylo ignorowane, a N tez (zgloszenie)
+            if self.instGui.ccd_tab.Select2_r.isChecked():
+                seq = self.instGui.ccd_tab.inst_Seq_e.text().strip()
+                ok_seq, err = seq_verification(seq, self.filter_list)
+                if not ok_seq:
+                    await self.update_log(f'wrong SEQ format {err} ', "WARNING", self.active_tel)
+                    theme.paint(self.instGui.ccd_tab.inst_Seq_e, bg="warn2_bg")
+                else:
+                    theme.paint(self.instGui.ccd_tab.inst_Seq_e, bg="input_bg")
+            else:
+                exp=self.instGui.ccd_tab.inst_Dit_e.text()
+                ndit=self.instGui.ccd_tab.inst_Ndit_e.text()
+                # Sprawdzanie formatu czasu etc.
+                try:
+                    exp=float(exp)
+                    if exp>=0:
+                        ok_exp=True
+                        theme.paint(self.instGui.ccd_tab.inst_Dit_e, bg="input_bg")
+                except Exception:
+                    ok_exp=False
+                    await self.update_log(f'wrong EXP TIME format', "WARNING", self.active_tel)
+                    theme.paint(self.instGui.ccd_tab.inst_Dit_e, bg="warn2_bg")
+                try:
+                    if len(ndit)==0:
+                        self.instGui.ccd_tab.inst_Ndit_e.setText("1")
+                        ndit=1
+                    ndit=int(ndit)
+                    if ndit>0:
+                        ok_ndit=True
+                        theme.paint(self.instGui.ccd_tab.inst_Ndit_e, bg="input_bg")
+                except Exception:
+                    ok_exp=False
+                    await self.update_log(f'wrong N format', "WARNING", self.active_tel)
+                    theme.paint(self.instGui.ccd_tab.inst_Ndit_e, bg="warn2_bg")
+                if ok_exp and ok_ndit:
+                    seq = str(ndit)+"/"+str(self.curent_filter)+"/"+str(exp)
+                    ok_seq = True
 
             if ok_name and ok_seq:
                 uobi = str(uuid.uuid4())[:8]
