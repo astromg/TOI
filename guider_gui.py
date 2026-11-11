@@ -30,8 +30,7 @@ from matplotlib.figure import Figure
 from PyQtX.QtCore import QRectF, Qt
 from PyQtX.QtGui import QBrush, QColor, QFont, QPainter, QPen, QPixmap
 from PyQtX.QtWidgets import (QComboBox, QDoubleSpinBox, QFrame, QGraphicsScene, QGraphicsView, QGridLayout,
-                             QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QSpinBox, QSplitter,
-                             QTextEdit, QVBoxLayout, QWidget)
+                             QHBoxLayout, QLabel, QPushButton, QSizePolicy, QSpinBox, QTextEdit, QVBoxLayout, QWidget)
 
 from toi_theme import theme
 
@@ -185,10 +184,7 @@ class GuiderScene(QGraphicsScene):
         # gwiazda trzymana w tej klatce + linia do celu
         star = _xy(state.get("acquired_pos"))
         if star and state.get("acquired"):
-            self._circle(star, 10, self._pen("ok_fg", 2))
-            adu = state.get("acquired_adu")
-            if adu is not None:
-                self._label((star[0] + 12, star[1] - 24), f"{float(adu):.0f} ADU", "ok_fg")
+            self._circle(star, 10, self._pen("ok_fg", 2))      # ADU - w diagnostyce obok
             target = anchor if anchor else reticle
             if mode == "guiding" and target and math.dist(star, target) > 0.5:
                 self._line(star, target, self._pen("ok_fg", 1))
@@ -309,7 +305,6 @@ class CloseUpView(QGraphicsView):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setInteractive(False)
         self.setBackgroundBrush(QBrush(QColor(0, 0, 0)))
-        self.setFixedSize(180, 180)
         self.center = None
 
     def follow(self, xy):
@@ -613,47 +608,53 @@ class GuiderTab(QWidget):
         t = [p[0] - now for p in self.drift]
         dx = [p[1] for p in self.drift]
         dy = [p[2] for p in self.drift]
-        ax.axhline(0, color=theme.hex("dim_fg"), lw=0.5)
-        ax.plot(t, dx, color=DRIFT_X_COLOR, lw=1, label="x")
-        ax.plot(t, dy, color=DRIFT_Y_COLOR, lw=1, label="y")
         lim = max([5.0] + [abs(v) * 1.1 for v in dx + dy])
+        dim, text = theme.hex("dim_fg"), theme.hex("text")
+        # przebieg w czasie: x i y, wspolna skala z rozrzutem
+        ax.axhline(0, color=dim, lw=0.5)
+        ax.plot(t, dx, color=DRIFT_X_COLOR, lw=1)
+        ax.plot(t, dy, color=DRIFT_Y_COLOR, lw=1)
         ax.set_ylim(-lim, lim)
         ax.set_xlim(-DRIFT_WINDOW_S, 0)
-        ax.set_ylabel("drift [px]", fontsize=7)
-        ax.set_xlabel("s", fontsize=7)
-        ax.tick_params(labelsize=7)
-        ax.legend(loc="upper left", fontsize=7, frameon=False, ncol=2, labelcolor=theme.hex("text"))
-        ax2.axhline(0, color=theme.hex("dim_fg"), lw=0.5)
-        ax2.axvline(0, color=theme.hex("dim_fg"), lw=0.5)
+        ax.set_xticks([-300, -240, -180, -120, -60, 0], ["-5 min", "-4", "-3", "-2", "-1", "0"])
+        ax.tick_params(labelsize=7, pad=1)
+        ax.text(0.01, 0.97, "x", color=DRIFT_X_COLOR, transform=ax.transAxes, va="top", fontsize=8)
+        ax.text(0.05, 0.97, "y", color=DRIFT_Y_COLOR, transform=ax.transAxes, va="top", fontsize=8)
+        # rozrzut x-y (os y obrazu w dol, jak na podgladzie)
+        ax2.axhline(0, color=dim, lw=0.5)
+        ax2.axvline(0, color=dim, lw=0.5)
         if dx:
-            ax2.plot(dx, dy, ".", color=theme.hex("dim_fg"), ms=3, alpha=0.5)
-            ax2.plot(dx[-1:], dy[-1:], "o", color=theme.hex("text"), ms=4)
+            ax2.plot(dx, dy, ".", color=dim, ms=3, alpha=0.5)
+            ax2.plot(dx[-1:], dy[-1:], "o", color=text, ms=4)
         ax2.set_xlim(-lim, lim)
-        ax2.set_ylim(lim, -lim)         # os y obrazu w dol, jak na podgladzie
+        ax2.set_ylim(lim, -lim)
         ax2.set_aspect("equal")
-        ax2.yaxis.tick_right()
-        ax2.tick_params(labelsize=7)
-        theme.style_figure(self.drift_fig, (ax, ax2))
+        ax2.tick_params(labelsize=7, pad=1)
+        theme.style_figure(self.drift_fig, (ax,))
+        theme.style_figure(self.scatter_fig, (ax2,))
         self.drift_canvas.draw_idle()
+        self.scatter_canvas.draw_idle()
 
         if len(dx) > 1:
             rx = math.sqrt(sum(v * v for v in dx) / len(dx))
             ry = math.sqrt(sum(v * v for v in dy) / len(dy))
-            self.rms_l.setText(f"RMS  x {rx:.2f}   y {ry:.2f}   total {math.hypot(rx, ry):.2f} px   (n={len(dx)})")
+            self.rms_l.setText(f"RMS [px]  x {rx:.2f}  y {ry:.2f}  total {math.hypot(rx, ry):.2f}")
         else:
-            self.rms_l.setText("RMS  —")
+            self.rms_l.setText("RMS [px]  —")
 
     # --- motyw i uklad ---
 
     def apply_theme(self):
         theme.paint(self.journal_e, bg="field_bg")
-        theme.paint(self.help_l, fg="dim_fg")
         self.scene.draw_state(self.state)
         self.show_service()
         if self.state:
             self._show_controls(self.state)
             self._show_diagnostics(self.state)
         self.draw_drift()
+
+    SIDE = 170          # zblizenie reticle i rozrzut: dwa kwadraty tej samej wielkosci
+    COLUMN = 2 * SIDE + 6
 
     def mkUI(self):
         # pasek: teleskop/kamera, status serwisu, tryb, metoda, cel
@@ -703,57 +704,75 @@ class GuiderTab(QWidget):
         self.scene = GuiderScene()
         self.frame_v = FrameView(self.scene, self)
         self.frame_v.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.frame_v.setToolTip("left click: lock star · right click: move reticle · wheel: zoom · middle drag: pan\n"
+                                "keys: arrows pulse, 1-4 step, R re-acquire, D candidates, H reticle home, 0 fit")
 
-        # srodek: dryf, RMS, dziennik
-        self.drift_fig = Figure((3.0, 1.6), dpi=100)
+        # prawa kolumna, stala szerokosc
+        col = QVBoxLayout()
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(4)
+
+        # zblizenie reticle | rozrzut dryfu - dwa rowne kwadraty
+        self.closeup_v = CloseUpView(self.scene)
+        self.closeup_v.setFixedSize(self.SIDE, self.SIDE)
+        self.closeup_v.setToolTip("close-up of the reticle (fibre entrance); dashed ring = measured entrance")
+        self.scatter_fig = Figure(dpi=100)
+        self.scatter_canvas = FigureCanvas(self.scatter_fig)
+        self.scatter_canvas.setFixedSize(self.SIDE, self.SIDE)
+        self.scatter_ax = self.scatter_fig.add_axes([0.17, 0.12, 0.8, 0.8])
+        self.scatter_canvas.setToolTip("drift x-y of the last 5 min; big dot = latest")
+        squares = QHBoxLayout()
+        squares.setSpacing(6)
+        squares.addWidget(self.closeup_v)
+        squares.addWidget(self.scatter_canvas)
+        col.addLayout(squares)
+
+        # dryf w czasie: cala szerokosc kolumny
+        self.drift_fig = Figure(dpi=100)
         self.drift_canvas = FigureCanvas(self.drift_fig)
-        self.drift_ax = self.drift_fig.add_axes([0.13, 0.15, 0.52, 0.8])
-        self.scatter_ax = self.drift_fig.add_axes([0.68, 0.15, 0.22, 0.8])
-        self.rms_l = QLabel("RMS  —")
-        self.journal_e = QTextEdit()
-        self.journal_e.setReadOnly(True)
-        clear_b = QPushButton("clear drift")
-        clear_b.clicked.connect(self.clear_drift)
-        mid = QVBoxLayout()
-        mid.setContentsMargins(0, 0, 0, 0)
-        mid.addWidget(self.drift_canvas, 2)
+        self.drift_canvas.setFixedSize(self.COLUMN, 110)
+        self.drift_ax = self.drift_fig.add_axes([0.08, 0.2, 0.9, 0.76])
+        col.addWidget(self.drift_canvas)
         rms_row = QHBoxLayout()
+        self.rms_l = QLabel("RMS [px]  —")
+        clear_b = QPushButton("clear")
+        clear_b.setToolTip("clear the drift plots")
+        clear_b.clicked.connect(self.clear_drift)
         rms_row.addWidget(self.rms_l, 1)
         rms_row.addWidget(clear_b)
-        mid.addLayout(rms_row)
-        mid.addWidget(QLabel("Journal:"))
-        mid.addWidget(self.journal_e, 3)
-        mid_w = QWidget()
-        mid_w.setLayout(mid)
+        col.addLayout(rms_row)
+        col.addWidget(self._hline())
 
-        # prawa kolumna: zblizenie reticle, diagnostyka, kamera, impulsy
-        right = QVBoxLayout()
-        right.setContentsMargins(0, 0, 0, 0)
-        self.closeup_v = CloseUpView(self.scene)
-        self.closeup_v.setToolTip("close-up of the reticle (fibre entrance); dashed ring = measured entrance")
-        right.addWidget(self.closeup_v, 0, Qt.AlignmentFlag.AlignHCenter)
-
+        # diagnostyka: dwie pary nazwa-wartosc w wierszu
         grid = QGridLayout()
+        grid.setHorizontalSpacing(6)
+        grid.setVerticalSpacing(2)
         self.diag = {}
-        rows = [("acquired", "Acquired:"), ("adu", "Star ADU:"), ("fwhm", "FWHM:"), ("phase", "Phase:"),
-                ("exp", "Exposure:"), ("reticle", "Reticle:"), ("anchor", "Anchor:"), ("delta", "Last Δ [px]:"),
-                ("hole", "Measured hole:")]
-        for i, (key, name) in enumerate(rows):
-            grid.addWidget(QLabel(name), i, 0)
+        cells = [("acquired", "Acquired"), ("adu", "ADU"), ("fwhm", "FWHM"), ("phase", "Phase"),
+                 ("exp", "Exp"), ("delta", "Last Δ"), ("reticle", "Reticle"), ("anchor", "Anchor"),
+                 ("hole", "Hole")]
+        for i, (key, name) in enumerate(cells):
+            r, c = divmod(i, 2)
+            name_l = QLabel(name + ":")
+            theme.paint(name_l, fg="dim_fg")
             self.diag[key] = QLabel("—")
-            grid.addWidget(self.diag[key], i, 1)
-        right.addLayout(grid)
-        right.addWidget(self._hline())
+            grid.addWidget(name_l, r, 2 * c)
+            grid.addWidget(self.diag[key], r, 2 * c + 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(3, 1)
+        col.addLayout(grid)
+        col.addWidget(self._hline())
 
-        cam = QGridLayout()
+        # kamera: Exp + presety | Gain | Wide r | Apply
         self.exp_s = QDoubleSpinBox()
         self.exp_s.setRange(0.001, 30)
         self.exp_s.setDecimals(3)
         self.exp_s.setSuffix(" s")
         self.exp_p = QComboBox()
-        self.exp_p.addItem("presets")
+        self.exp_p.addItem("▾")
         for p in EXP_PRESETS:
             self.exp_p.addItem(f"{p:g} s", p)
+        self.exp_p.setToolTip("exposure presets")
         self.exp_p.activated.connect(self._preset)
         self.gain_s = QSpinBox()
         self.gain_s.setRange(-1, 1000)
@@ -763,19 +782,23 @@ class GuiderTab(QWidget):
         self.wide_s.setSuffix(" px")
         self.wide_s.setToolTip("wide-search radius: stars can be selected and re-acquired only inside this circle")
         self.apply_b = QPushButton("Apply")
+        self.apply_b.setToolTip("send the changed exposure / gain / wide-search radius to the guider")
         self.apply_b.clicked.connect(self.apply_camera)
-        cam.addWidget(QLabel("Exp:"), 0, 0)
+        cam = QGridLayout()
+        cam.setHorizontalSpacing(4)
+        cam.setVerticalSpacing(2)
+        cam.addWidget(QLabel("Exp"), 0, 0)
         cam.addWidget(self.exp_s, 0, 1)
         cam.addWidget(self.exp_p, 0, 2)
-        cam.addWidget(QLabel("Gain:"), 1, 0)
-        cam.addWidget(self.gain_s, 1, 1)
-        cam.addWidget(QLabel("Wide r:"), 2, 0)
-        cam.addWidget(self.wide_s, 2, 1)
-        cam.addWidget(self.apply_b, 2, 2)
-        right.addLayout(cam)
-        right.addWidget(self._hline())
+        cam.addWidget(QLabel("Gain"), 0, 3)
+        cam.addWidget(self.gain_s, 0, 4)
+        cam.addWidget(QLabel("Wide r"), 1, 0)
+        cam.addWidget(self.wide_s, 1, 1)
+        cam.addWidget(self.apply_b, 1, 3, 1, 2)
+        col.addLayout(cam)
+        col.addWidget(self._hline())
 
-        pad = QGridLayout()
+        # impulsy guidera (piksele obrazu) + kandydaci
         up_b, down_b, left_b, right_b = (QPushButton(t) for t in ("↑", "↓", "←", "→"))
         up_b.clicked.connect(lambda: self.pulse(0, -1))
         down_b.clicked.connect(lambda: self.pulse(0, 1))
@@ -783,48 +806,50 @@ class GuiderTab(QWidget):
         right_b.clicked.connect(lambda: self.pulse(1, 0))
         self.pad = (up_b, down_b, left_b, right_b)
         for b in self.pad:
-            b.setFixedWidth(36)
-            b.setToolTip("manual pulse: moves the star in the image by the step (arrow keys on the frame)")
+            b.setFixedWidth(32)
+            b.setToolTip("guider pulse: moves the star in the guider image by the step (arrow keys on the frame);\n"
+                         "the guider converts pixels to pulses and keeps the lock - unlike the Mount pulse window")
         self.step_s = QComboBox()
         for s in PULSE_STEPS:
             self.step_s.addItem(f"{s} px")
         self.step_s.setToolTip("pulse step (keys 1-4 on the frame)")
-        pad.addWidget(QLabel("Pulse:"), 0, 0)
-        pad.addWidget(up_b, 0, 2)
-        pad.addWidget(left_b, 1, 1)
-        pad.addWidget(self.step_s, 1, 2)
-        pad.addWidget(right_b, 1, 3)
-        pad.addWidget(down_b, 2, 2)
-        right.addLayout(pad)
+        pad = QGridLayout()
+        pad.setSpacing(2)
+        pad.addWidget(up_b, 0, 1, Qt.AlignmentFlag.AlignHCenter)
+        pad.addWidget(left_b, 1, 0)
+        pad.addWidget(self.step_s, 1, 1)
+        pad.addWidget(right_b, 1, 2)
+        pad.addWidget(down_b, 2, 1, Qt.AlignmentFlag.AlignHCenter)
         self.candidates_b = QPushButton("Candidates")
         self.candidates_b.setCheckable(True)
         self.candidates_b.setToolTip("show all stars the detector found in this frame (D)")
         self.candidates_b.toggled.connect(self._candidates)
-        right.addWidget(self.candidates_b)
-        self.help_l = QLabel("left click: lock star · right click: move reticle\n"
-                             "wheel: zoom · middle drag: pan · 0: fit")
-        right.addWidget(self.help_l)
-        right.addStretch(1)
-        right_w = QWidget()
-        right_w.setLayout(right)
-        scroll = QScrollArea()
-        scroll.setWidget(right_w)
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setMinimumWidth(right_w.sizeHint().width() + 20)
+        pad_row = QHBoxLayout()
+        pad_row.addWidget(QLabel("Pulse"))
+        pad_row.addLayout(pad)
+        pad_row.addStretch(1)
+        pad_row.addWidget(self.candidates_b, 0, Qt.AlignmentFlag.AlignBottom)
+        col.addLayout(pad_row)
+        col.addStretch(1)
+        col_w = QWidget()
+        col_w.setLayout(col)
+        col_w.setFixedWidth(self.COLUMN)
 
-        split = QSplitter(Qt.Orientation.Horizontal)
-        split.addWidget(self.frame_v)
-        split.addWidget(mid_w)
-        split.addWidget(scroll)
-        split.setStretchFactor(0, 3)
-        split.setStretchFactor(1, 2)
-        split.setStretchFactor(2, 0)
+        top = QHBoxLayout()
+        top.addWidget(self.frame_v, 1)
+        top.addWidget(col_w)
+
+        # dziennik: niski pasek na dole
+        self.journal_e = QTextEdit()
+        self.journal_e.setReadOnly(True)
+        self.journal_e.setFixedHeight(3 * self.journal_e.fontMetrics().lineSpacing() + 12)
+        self.journal_e.setToolTip("guider events and journal, and replies to commands")
 
         layout = QVBoxLayout()
+        layout.setSpacing(4)
         layout.addLayout(bar)
-        layout.addWidget(split, 1)
+        layout.addLayout(top, 1)
+        layout.addWidget(self.journal_e)
         self.setLayout(layout)
 
     @staticmethod
