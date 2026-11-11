@@ -363,21 +363,21 @@ class SkyView(QWidget):
         except:
             pass
         self.mount = []
-        # montaz: w spoczynku czerwony, sledzi zielony, w ruchu pomaranczowy; otwarte lustro - srodek jasny
+        # montaz: w spoczynku czerwony, sledzi zielony, w ruchu pomaranczowy; otwarte lustro (pokrywa 3 = Open) -
+        # przezroczysty srodek (sama grubsza obwodka, "widac niebo"), zamkniete - wypelnione
         color = self.c("bad_fg")
         if self.parent.mount_tracking:
             color = self.c("ok_fg")
         if self.parent.mount_slewing:
             color = self.c("tab_moving")
-        facecolor = color
-        if self.parent.cover_status == 3:
-            facecolor = self.c("text") if theme.dark else "white"
+        is_open = self.parent.cover_status == 3
+        facecolor = "none" if is_open else color
         if self.parent.mount_alt is not None and self.parent.mount_az is not None:
             alt = 90 - self.parent.mount_alt
             az = self.parent.mount_az
             az = az * 2 * 3.14 / 360.
             self.mount = self.axes.plot(az, alt, color=color, marker="o", markersize="10", markerfacecolor=facecolor,
-                                        alpha=0.7)
+                                        markeredgewidth=2.5 if is_open else 1, alpha=0.9 if is_open else 0.7)
 
             self.redraw()
 

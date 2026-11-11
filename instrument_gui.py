@@ -444,12 +444,16 @@ class GenericCamera(InstrumentTab):
               widget.setEnabled(False)
               widget.setToolTip("Not used yet.")
 
-          # podpowiedz: ktora wartosc gain / read mode jest domyslna; inna podswietla pole na zolto
+          # podpowiedz: ktora wartosc gain / read mode jest domyslna; inna podswietla pole na zolto. Wybor (Set) startuje
+          # od wartosci domyslnych z konfiguracji kamery, nie od pierwszej pozycji listy (zgloszenie 2025-08)
           for key, widgets in (("gain", (self.inst_gain_e, self.inst_setGain_e)),
                                ("rm", (self.inst_read_e, self.inst_setRead_e))):
               if self.defaults[key]:
                   for widget in widgets:
                       widget.setToolTip(f"Default: {self.defaults[key]}. Yellow: the camera is set otherwise.")
+          for combo, key in ((self.inst_setGain_e, "gain"), (self.inst_setRead_e, "rm"), (self.inst_Bin_s, "bin")):
+              if self.defaults[key] and combo.findText(self.defaults[key]) >= 0:
+                  combo.setCurrentText(self.defaults[key])
 
           # bez binningu / subrastra pola zostaja (TOI czyta z nich ustawienia ekspozycji), tylko ich nie widac
           if not self.show_binning:

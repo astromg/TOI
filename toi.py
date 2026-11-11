@@ -32,7 +32,7 @@ iers.conf.auto_download = False
 iers.conf.auto_max_age = None       # bez tego przy wylaczonym pobieraniu ValueError: predykcje starsze niz 30 dni
 from ctc import CycleTimeCalc
 
-from PyQtX import QtWidgets, QtGui
+from PyQtX import QtCore, QtWidgets, QtGui
 
 
 from obcom.comunication.base_client_api import BaseClientAPI
@@ -2990,6 +2990,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             await self.ccd.aput_binx(int(x))
             await self.ccd.aput_biny(int(y))
             await self.update_log(f'setting bin xy {x} {y}', "TOI RESPONDER", self.active_tel)
+            self.ccd_fields_settle_later()
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
@@ -3000,10 +3001,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.tel_acces[self.active_tel]:
             i = self.instGui.ccd_tab.inst_setGain_e.currentIndex()
             gain = self.instGui.ccd_tab.gain_ids[i]
-            if int(self.ccd_gain) != int(gain):
+            if self.ccd_gain is None or int(self.ccd_gain) != int(gain):
                 theme.paint(self.instGui.ccd_tab.inst_gain_e, bg="moving_bg")
             await self.ccd.aput_gain(int(gain))
             await self.update_log(f'setting gain {gain}', "TOI RESPONDER", self.active_tel)
+            self.ccd_fields_settle_later()
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
@@ -3014,10 +3016,13 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.tel_acces[self.active_tel]:
            i = int(self.instGui.ccd_tab.inst_setRead_e.currentIndex())
            rm = self.instGui.ccd_tab.rm_ids[i]
+           # fiolet PRZED wyslaniem: potwierdzenie kamery (ccd_rm_update) potrafi przyjsc przed koncem aput i logu -
+           # malowany po nim zostawal na stale (zgloszenie "fioletowe pola", 2025-08)
+           if self.ccd_readoutmode is None or int(self.ccd_readoutmode) != int(rm):
+               theme.paint(self.instGui.ccd_tab.inst_read_e, bg="moving_bg")
            await self.ccd.aput_readoutmode(rm)
            await self.update_log(f'setting read mode {rm}', "TOI RESPONDER", self.active_tel)
-           if int(self.ccd_readoutmode) != int(rm):
-               theme.paint(self.instGui.ccd_tab.inst_read_e, bg="moving_bg")
+           self.ccd_fields_settle_later()
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
@@ -3078,18 +3083,40 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 theme.paint(self.instGui.ccd_tab.inst_ccdTemp_e, fg="ok_fg", bg="field_bg")
 
 
+    CCD_SETTLE_MS = 5000    # po tylu ms od Set pola kamery wracaja do koloru wg faktycznej wartosci (fiolet nie zostaje)
+
+    def ccd_fields_settle_later(self):
+        """Fiolet (moving_bg) = wyslane, czekamy na kamere. Gdy potwierdzenie nie przyjdzie (kamera odrzucila albo
+        wartosc juz byla taka), po CCD_SETTLE_MS pola i tak dostaja kolor wg tego, co kamera ma naprawde."""
+        QtCore.QTimer.singleShot(self.CCD_SETTLE_MS, self.paint_ccd_fields)
+
+    def paint_ccd_fields(self):
+        """Gain / read mode / bin kamery: tekst i tlo wg wartosci z kamery - szare domyslna, zolte inna"""
+        cam = self.instGui.ccd_tab
+        try:
+            if self.ccd_gain is not None:
+                txt = cam.gain_names[cam.gain_ids.index(str(int(self.ccd_gain)))]
+                cam.inst_gain_e.setText(txt)
+                theme.paint(cam.inst_gain_e, bg="field_bg" if cam.defaults["gain"] in (None, txt) else "warn_soft_bg")
+        except Exception:
+            pass
+        if self.ccd_readoutmode is not None:
+            rm_id = str(int(self.ccd_readoutmode))
+            if rm_id in cam.rm_ids:
+                txt = cam.rm_names[cam.rm_ids.index(rm_id)]
+            else:       # tryb spoza konfiguracji kamery - numer i zolte tlo
+                txt = f"#{rm_id}"
+            cam.inst_read_e.setText(txt)
+            ok = cam.defaults["rm"] in (None, txt) and not txt.startswith("#")
+            theme.paint(cam.inst_read_e, bg="field_bg" if ok else "warn_soft_bg")
+        if self.ccd_binx and self.ccd_biny:
+            txt = f"{self.ccd_binx}x{self.ccd_biny}"
+            cam.inst_Bin_e.setText(txt)
+            theme.paint(cam.inst_Bin_e, bg="field_bg" if txt == cam.defaults["bin"] else "warn_soft_bg")
+
     async def ccd_gain_update(self, event):
         self.ccd_gain = await self.delivered(event, self.ccd.aget_gain)     # dawniej pobierany dwa razy
-        if self.ccd_gain != None:
-            try:
-                i = int(self.ccd_gain)
-                cam = self.instGui.ccd_tab
-                txt = cam.gain_names[cam.gain_ids.index(str(i))]
-                cam.inst_gain_e.setText(txt)
-                if cam.defaults["gain"] in (None, txt):
-                    theme.paint(self.instGui.ccd_tab.inst_gain_e, bg="field_bg")
-                else: theme.paint(self.instGui.ccd_tab.inst_gain_e, bg="warn_soft_bg")
-            except Exception: pass
+        self.paint_ccd_fields()
         self.telescope_switch_status["gain"] = True
 
     def readout_mode(self, tel):
@@ -3102,20 +3129,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.ccd_readoutmode = await self.delivered(event, self.ccd.aget_readoutmode)
         if self.ccd_readoutmode is not None:
             self.readoutmode_tel[self.component_tel] = int(self.ccd_readoutmode)
-        # READ MODES
-
-        if self.ccd_readoutmode != None:
-            cam = self.instGui.ccd_tab
-            rm_id = str(int(self.ccd_readoutmode))
-            if rm_id in cam.rm_ids:
-                txt = cam.rm_names[cam.rm_ids.index(rm_id)]
-            else:       # tryb spoza konfiguracji kamery - numer i zolte tlo
-                txt = f"#{rm_id}"
-                logger.warning(f'TOI: read mode {rm_id} of {self.component_tel} not in the camera configuration')
-            cam.inst_read_e.setText(txt)
-            if cam.defaults["rm"] in (None, txt) and not txt.startswith("#"):
-                theme.paint(self.instGui.ccd_tab.inst_read_e, bg="field_bg")
-            else: theme.paint(self.instGui.ccd_tab.inst_read_e, bg="warn_soft_bg")
+            if str(int(self.ccd_readoutmode)) not in self.instGui.ccd_tab.rm_ids:
+                logger.warning(f'TOI: read mode {int(self.ccd_readoutmode)} of {self.component_tel} '
+                               f'not in the camera configuration')
+        self.paint_ccd_fields()
         self.telescope_switch_status["rm"] = True
 
 
@@ -3128,12 +3145,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         await self.ccd_bin_update()
 
     async def ccd_bin_update(self):
-        if self.ccd_binx and self.ccd_biny:
-            txt=f"{self.ccd_binx}x{self.ccd_biny}"
-            self.instGui.ccd_tab.inst_Bin_e.setText(txt)
-            if txt == self.instGui.ccd_tab.defaults["bin"]:
-                theme.paint(self.instGui.ccd_tab.inst_Bin_e, bg="field_bg")
-            else: theme.paint(self.instGui.ccd_tab.inst_Bin_e, bg="warn_soft_bg")
+        self.paint_ccd_fields()
 
     async def ccd_update(self, event):
         self.ccd_state = await self.delivered(event, self.ccd.aget_camerastate)
