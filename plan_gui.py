@@ -1882,19 +1882,19 @@ class PlotWindow(BaseWindow):
 
                             if "sec" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
-                                events.append((self.t, f"WAIT sec={int(slotTime):.0f}s"))
+                                events.append((self.t + ephem.second * slotTime / 2, f"WAIT sec={int(slotTime):.0f}s"))
 
                             elif "ut" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
-                                events.append((self.t, f'WAIT ut={self.parent.plan[i]["ob"]["ut"]}'))
+                                events.append((self.t + ephem.second * slotTime / 2, f'WAIT ut={self.parent.plan[i]["ob"]["ut"]}'))
 
                             elif "sunset" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
-                                events.append((self.t, f'WAIT sunset={self.parent.plan[i]["ob"]["sunset"]}'))
+                                events.append((self.t + ephem.second * slotTime / 2, f'WAIT sunset={self.parent.plan[i]["ob"]["sunset"]}'))
 
                             elif "sunrise" in self.parent.plan[i]["ob"].keys():
                                 self.axes.fill_betweenx([0, 2], self.t, self.t+ephem.second*slotTime, color="r", alpha=0.5)
-                                events.append((self.t, f'WAIT sunrise={self.parent.plan[i]["ob"]["sunrise"]}'))
+                                events.append((self.t + ephem.second * slotTime / 2, f'WAIT sunrise={self.parent.plan[i]["ob"]["sunrise"]}'))
 
 
                             else:
@@ -1939,6 +1939,7 @@ class PlotWindow(BaseWindow):
 
             # zdarzenia w tym samym miejscu (np. BELL, ZERO, BELL, WAIT rano - BELL i WAIT nie zajmuja czasu) jeden podpis
             groups = []
+            events.sort(key=lambda e: e[0])     # podpis WAIT na srodku pola moze wypasc za pozniejszym zdarzeniem
             for t, txt in events:
                 if groups and (t - groups[-1][0]) / x_span < self.LABEL_GAP:
                     groups[-1][1].append(txt)
@@ -1963,8 +1964,10 @@ class PlotWindow(BaseWindow):
 
             self.axes.set_ylim(0, 90)
             self.axes.set_xlim(self.t0-0.5*ephem.hour,self.t_end+0.5*ephem.hour)
-            self.axes.fill_betweenx([0, 35], self.t0_dusk, self.t_end_dusk, color="grey", alpha=0.1)
-            self.axes.fill_betweenx([80, 90], self.t0_dusk, self.t_end_dusk, color="grey", alpha=0.1)
+            # ponizej 35 i powyzej 80 stopni - wyrazniej niz zmierzch (na ciemnym tle jasniejszy odcien)
+            band = ("white", 0.09) if theme.dark else ("grey", 0.22)
+            self.axes.fill_betweenx([0, 35], self.t0_dusk, self.t_end_dusk, color=band[0], alpha=band[1], zorder=0)
+            self.axes.fill_betweenx([80, 90], self.t0_dusk, self.t_end_dusk, color=band[0], alpha=band[1], zorder=0)
             self.axes.fill_betweenx([0, 90], self.t0, self.t0_dusk, color="yellow", alpha=0.1)
             self.axes.fill_betweenx([0, 90], self.t_end_dusk, self.t_end, color="yellow", alpha=0.1)
             self.axes.axvline(x=self.t_now, color="green")

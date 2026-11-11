@@ -146,7 +146,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   dropped); the panel line "star shape" counts ok / rejected. Saturated stars (peak `ffs.adu` > saturation,
   not measured by FFS) - red circles (`SATURATED_STAR_SIZE` 7). `FFS_Worker` also runs `calc_star_field_stats` (mgorski_dev, ~0.1 s; errors
   ignored): for a `psf_pattern` linear / radial / tangential with strength >= 0.15 (`_pattern_strength`:
-  common e, or S x mean e; the FFS test only says "not random", true on almost every frame), whiskers through the stars of the pattern (`ffs.pattern_stars`: shape > 0.2, e > 0.05 -
+  common e, or S x mean e; the FFS test only says "not random", true on almost every frame), whiskers through the stars of the pattern (red for a star with e >= 0.15 `WHISKER_RED_E`, else the muted colour; with no / a weak pattern but the ellipticity warning (median > `ELLIP_WARN` 0.15) only the red ones, no centre; `ffs.pattern_stars`: shape > 0.2, e > 0.05 -
   not the FWHM window, which drops trailed stars) along the major axis, two arms of e x 0.2 x longer image side outside a gap for the star (3 x its FWHM, >= 0.8 % of the side) (`_draw_pattern`; theta is from the transposed image, so the
   direction in the image is (sin t, cos t) and the centre is (psf_centre_y, psf_centre_x)), a cross at the pattern
   centre or an arrow at the frame edge pointing to it; panel line "PSF pattern" (`_pattern_text`, grey "(weak)" below 0.15). A median star e >= 0.4 gives a red "WARNING: trailed stars"

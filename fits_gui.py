@@ -115,6 +115,8 @@ OFP_TARGET_ALPHA = 0.85       # kolka obiektow OFP (targets); 0.45 bylo slabo wi
 # przypadkowy - przy 30-50 jasnych gwiazdach istotne jest juz wspolne wydluzenie ~0.05 (na prawie kazdej klatce)
 PATTERN_WHISKER_SCALE = 0.2
 PATTERN_MIN_STRENGTH = 0.15
+ELLIP_WARN = 0.15           # mediana eliptycznosci klatki > tyle - czerwona w panelu (i kreseczki, patrz _draw_pattern)
+WHISKER_RED_E = 0.15        # kreseczka gwiazdy o e >= tyle - czerwona (jak eliptycznosc w panelu), reszta w kolorze miekkim
 # ostrzezenie o rozmazanych gwiazdach (slady: prowadzenie, skok montazu) - mediana eliptycznosci zmierzonych gwiazd
 # >= TRAILED_E_MIN. Dlugie slady (dluzsze niz wycinek pomiaru FFS, +-15 px) sa mierzone w kawalkach i wzor katow czesto
 # nie wychodzi (zb08 snap 2026-11-09: e 0.51, slady ~60-70 px, psf_pattern none) - to ostrzezenie i tak sie pojawi
@@ -487,10 +489,15 @@ class FitsWindow(BaseWindow):
         return "PSF pattern:  " + txt
 
     def _draw_pattern(self):
-        """Kreseczki wzoru katow przez gwiazdy wzoru (_pattern_mask) i znacznik srodka wzoru."""
+        """Kreseczki wzoru katow przez gwiazdy wzoru (_pattern_mask) i znacznik srodka wzoru. Bez wzoru (none albo
+        slaby), ale z ostrzezeniem o eliptycznosci (mediana > ELLIP_WARN) - czerwone kreseczki tylko gwiazd
+        wydluzonych (e >= WHISKER_RED_E), bez srodka: przy ostrzezeniu zawsze widac, ktore i w ktora strone."""
         st = self.ffs.stats["frame"]
         pattern = st.get("psf_pattern")
-        if pattern not in ("linear", "radial", "tangential") or not self._pattern_strength() >= PATTERN_MIN_STRENGTH:
+        strong = pattern in ("linear", "radial", "tangential") and self._pattern_strength() >= PATTERN_MIN_STRENGTH
+        ell = st.get("ellipticity")
+        warn = ell is not None and numpy.isfinite(ell) and ell > ELLIP_WARN
+        if not strong and not warn:
             return
         e = numpy.asarray(getattr(self.ffs, "ellipticity", []), dtype=float)
         t = numpy.asarray(getattr(self.ffs, "theta", []), dtype=float)
@@ -501,6 +508,9 @@ class FitsWindow(BaseWindow):
         coo = numpy.asarray(self.ffs.coo).reshape(-1, 2)[:n].astype(float)
         e, t, sh = e[:n], t[:n], sh[:n]
         m = self._pattern_mask(n) & numpy.isfinite(e) & numpy.isfinite(t)
+        if not strong:
+            with numpy.errstate(invalid="ignore"):
+                m &= e >= WHISKER_RED_E         # samo ostrzezenie: tylko gwiazdy wyraznie wydluzone
         if not m.any():
             return
         h, w = numpy.shape(self.image)[:2]
@@ -513,11 +523,15 @@ class FitsWindow(BaseWindow):
         X, Y = coo[m, 0], coo[m, 1]
         nan = numpy.full_like(X, numpy.nan)
         a, b = gap, gap + arm                                       # dwa ramiona od przerwy na zewnatrz
-        xs = numpy.column_stack([X - b * ux, X - a * ux, nan, X + a * ux, X + b * ux, nan]).ravel()
-        ys = numpy.column_stack([Y - b * uy, Y - a * uy, nan, Y + a * uy, Y + b * uy, nan]).ravel()
+        xs = numpy.column_stack([X - b * ux, X - a * ux, nan, X + a * ux, X + b * ux, nan])
+        ys = numpy.column_stack([Y - b * uy, Y - a * uy, nan, Y + a * uy, Y + b * uy, nan])
         color = fits_soft_color()
-        self._overlays += self.axes.plot(xs, ys, color=color, lw=1.2, alpha=0.9)
-        if pattern in ("radial", "tangential"):
+        # gwiazdy wyraznie wydluzone (e >= WHISKER_RED_E, jak czerwona eliptycznosc w panelu) na czerwono, reszta szara
+        red = e[m] >= WHISKER_RED_E
+        for sel, col in ((~red, color), (red, theme.hex("bad_fg"))):
+            if sel.any():
+                self._overlays += self.axes.plot(xs[sel].ravel(), ys[sel].ravel(), color=col, lw=1.2, alpha=0.9)
+        if strong and pattern in ("radial", "tangential"):
             cx, cy = st["psf_centre_y"], st["psf_centre_x"]          # x <-> y: transpozycja
             if not (numpy.isfinite(cx) and numpy.isfinite(cy)):
                 return
@@ -727,7 +741,7 @@ class FitsWindow(BaseWindow):
                 txt = txt + "<br>"
 
                 num = lambda v: "--" if v is None or not numpy.isfinite(v) else f"{v:.2f}"   # None/NaN przy malej liczbie gwiazd
-                if ell is not None and ell > 0.15:     # mediany 0.08-0.14; > 0.15 - wydluzenie ze wspolnym kierunkiem
+                if ell is not None and ell > ELLIP_WARN:     # mediany 0.08-0.14; > 0.15 - wydluzone gwiazdy
                     txt = txt + f'ellipse:  <span style="color:{red};"><b>{ell:.2f}</b></span> <br>'
                 else:
                     txt = txt + f'ellipse:  <b>{num(ell)}</b> <br>'
@@ -742,8 +756,8 @@ class FitsWindow(BaseWindow):
                 pattern_txt = self._pattern_text()
                 if pattern_txt:
                     txt = txt + pattern_txt + " <br>"
-                    if fits_show_pattern():
-                        self._draw_pattern()
+                if fits_show_pattern():     # takze bez statystyk pola: czerwone kreseczki przy ostrzezeniu
+                    self._draw_pattern()
                 if star_classes:        # zmierzone: w oknie shape / odrzucone (czerwone kwadraty)
                     n_ok, n_rej = star_classes
                     rej = f'<span style="color:{red};"><b>{n_rej}</b></span>' if n_rej else f"<i>{n_rej}</i>"
