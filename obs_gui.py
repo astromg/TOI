@@ -18,7 +18,8 @@ from claude_report import write_claude_report
 from toi_lib import *
 from toi_theme import theme, TITLES
 from events_gui import describe, when_text
-from plan_gui import PLAN_LOG_LINES_CHOICES, plan_log_lines, set_plan_log_lines
+from plan_gui import (PLAN_DONE_CHOICES, PLAN_LOG_LINES_CHOICES, plan_done_range, plan_log_lines, set_plan_done_range,
+                      set_plan_log_lines)
 from fits_gui import FITS_DISPLAY_MODES, fits_display_mode, FITS_CMAPS, fits_cmap, FITS_SCALES, fits_scale, \
     fits_show_trails, \
     fits_show_star_shapes, fits_show_saturated, fits_show_pattern
@@ -126,6 +127,13 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             action.setCheckable(True)
             action.setChecked(n == plan_log_lines())
             group_lines.addAction(action)
+        done_log = menu.addMenu("Plan done log")      # od kiedy log wykonanych OB pod planem (od zachodu, 1/12/24 h)
+        group_done = QtGui.QActionGroup(done_log)
+        for key, title in PLAN_DONE_CHOICES.items():
+            action = done_log.addAction(title, lambda _=False, key=key: set_plan_done_range(key, self.parent))
+            action.setCheckable(True)
+            action.setChecked(key == plan_done_range())
+            group_done.addAction(action)
         fits_menu = menu.addMenu("FITS display")      # pelna rozdzielczosc albo zbinowany podglad (szybszy)
         group_fits = QtGui.QActionGroup(fits_menu)
         for mode, title in FITS_DISPLAY_MODES.items():

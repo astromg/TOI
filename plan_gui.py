@@ -87,6 +87,38 @@ def set_plan_log_lines(n, plan_gui=None):
         plan_gui.info_e.document().setMaximumBlockCount(int(n))
 
 
+# log wykonanych OB (tabela pod planem): od kiedy czytac plan_log (menu ⚙ "Plan done log", QSettings). Wiadomosc na
+# OB, strumien trzyma 30 dni - 24 h to kilkadziesiat wiadomosci, wczytywanych raz przy zmianie teleskopu
+PLAN_DONE_CHOICES = {"night": "Since sunset", "1h": "Last hour", "12h": "Last 12 h", "24h": "Last 24 h"}
+PLAN_DONE_DEFAULT = "night"
+
+
+def plan_done_range():
+    value = str(QtCore.QSettings("OCA", "TOI").value("plan_done_range", PLAN_DONE_DEFAULT))
+    return value if value in PLAN_DONE_CHOICES else PLAN_DONE_DEFAULT
+
+
+def set_plan_done_range(key, toi=None):
+    QtCore.QSettings("OCA", "TOI").setValue("plan_done_range", key)
+    if toi is not None:
+        toi.reload_plan_log()
+
+
+def plan_done_start(observatory, now=None):
+    """UTC datetime od ktorej czytamy plan_log: ostatni zachod Slonca (w dzien - zachod przed ostatnia noca),
+    albo 1 / 12 / 24 h wstecz"""
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    key = plan_done_range()
+    if key != "night":
+        return now - datetime.timedelta(hours={"1h": 1, "12h": 12, "24h": 24}[key])
+    obs = ephem.Observer()
+    obs.lat, obs.lon, obs.elevation = observatory[0], observatory[1], float(observatory[2])
+    obs.date = ephem.Date(now)
+    obs.horizon = "0"
+    sunset = obs.previous_setting(ephem.Sun(), use_center=True).datetime()
+    return sunset.replace(tzinfo=datetime.timezone.utc)
+
+
 class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     LOG_FLUSH_MS = 300
 
@@ -571,6 +603,7 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
     def update_log_table(self):
           if len(self.parent.ob_log)==0:
               self.log_t.clearContents()
+              self.log_t.setRowCount(0)     # po zmianie zakresu (menu) albo teleskopu - bez pustych wierszy
           else:
              # {'object_name': 'CR_Ser', 'uobi': 0, 'telescope': 'zb08', 'status': 'done', 'command_dict': {'command_name': 'OBJECT', 'args': ['CR_Ser', '18:10:02.13', '-13:32:45.5'], 'kwargs': {'seq': '2/B/12,2/V/3,2/Ic/1.8,2/g/7,2/r/1.5,2/i/1.4,2/z/5'}}, 'time': {'start_dt': '2024-09-20T01:11:08', 'end_dt': '2024-09-20T01:15:12', 'start_jd': 2460573.5494035487, 'end_jd': 2460573.5522267423, 'length_s': 243.923917}}
              self.log_t.clearContents()
@@ -1688,7 +1721,10 @@ class PhaseWindow(BaseWindow):
         self.fig = Figure((2.0, 2.0), linewidth=-1, dpi=100)
         self.canvas = FigureCanvas(self.fig)
         self.axes = self.fig.add_subplot(111)
-        grid.addWidget(self.file_s, 0, 0)
+        # Filter: [wybor] ......... Phase - wybor filtra nie rozciaga sie na cala szerokosc
+        grid.addWidget(QLabel("Filter:"), 0, 0)
+        grid.addWidget(self.file_s, 0, 1)
+        grid.addWidget(QWidget(), 0, 2)
         grid.addWidget(self.phase_c, 0, 3)
         grid.addWidget(self.canvas,1,0,4,4)
 
@@ -1699,11 +1735,12 @@ class PhaseWindow(BaseWindow):
         self.close_p.clicked.connect(lambda: self.close())
         grid.addWidget(self.close_p, 6, 3)
 
-        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(0, 0)
         grid.setColumnStretch(1, 0)
-        grid.setRowStretch(0, 1)
-        grid.setRowStretch(1, 0)
-        grid.setRowStretch(2, 0)
+        grid.setColumnStretch(2, 1)     # pusty widget bierze reszte szerokosci
+        grid.setColumnStretch(3, 0)
+        grid.setRowStretch(0, 0)
+        grid.setRowStretch(1, 1)        # wykres
 
         self.setLayout(grid)
 

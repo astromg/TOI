@@ -58,7 +58,7 @@ from fits_gui import read_fits_image, fits_display_mode
 from toi_subjects import subject, toi_publisher, history_reader, MESSAGES_READ, FLAT_OVERWATCH_ITEMS
 from toi_theme import theme
 from optics_model import OpticsModel
-from plan_gui import PlanGui
+from plan_gui import PlanGui, plan_done_start
 from fits_gui import FitsWindow
 from aux_gui import AuxWindow
 
@@ -1435,8 +1435,26 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
 
     async def nats_toi_plan_log_reader(self):
+        """log wykonanych OB aktywnego teleskopu (tabela pod planem): od plan_done_start (menu ⚙ "Plan done log" -
+        od zachodu, 1 / 12 / 24 h); zmiana zakresu (reload_plan_log) czyta od nowa"""
+        while True:
+            self.plan_log_restart = asyncio.Event()
+            self.ob_log = []
+            self.planGui.update_log_table()
+            task = asyncio.ensure_future(self._plan_log_read())
+            try:
+                await self.plan_log_restart.wait()
+            finally:
+                task.cancel()
+
+    def reload_plan_log(self):
+        restart = getattr(self, "plan_log_restart", None)
+        if restart is not None:
+            restart.set()
+
+    async def _plan_log_read(self):
         try:
-            time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1)
+            time = plan_done_start(self.observatory)
             reader = history_reader("plan_log", self.active_tel, time)     # najpierw historia starego tematu - bez luki
             async for data, meta in reader:
                 try:
