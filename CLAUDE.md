@@ -169,14 +169,16 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   telescope has no optical graph), Calibration, Focus, Guider (`guider_gui.GuiderTab`, client of the ocabox-tcs guider service - today jk15 BESO;
   `guider_client.GuiderLink` (`TOI.guider_link`) finds the services on `svc.status.guiding_svc.guider.>`, reads state /
   events / journal / `frame.thumbnail.ready` of the active telescope's guider, fetches the JPEG over HTTP only while the
-  tab is visible (`toi.guider_thumbs_url` / `toi.guider_thumbs_root`, defaults services01:8090/thumbs); commands go
-  through `GuiderTab.command()` (needs control of the telescope; the service itself checks nothing) as RPC; no state
-  for 10 s while running -> "stale"; Focus line warns when the telescope focus is not the guider instrument's
-  (`toi.guider_focus`, default jk15 21950 = BESO) or FOCUS ADJUST is on; Reticle line shows a move from the calibrated
-  home; journal starts with the last 15 min. Safety after the 2026-11-10 runaway (a manual pulse in GUIDE made the
-  service take a wrong anchor and drag the telescope ~400 px): manual pulses only in MONITOR, one at a time (pad blocked for the pulse time from the reply, key autorepeat ignored), a red banner when guiding
-  pulls the star > 20 px to the anchor, corrections > 1 s / clipped in the journal, right click > 20 px from the
-  calibrated fibre asks first; interface in the vault note "Guider service - NATS interface"),
+  tab is visible (`toi.guider_thumbs_url` / `toi.guider_thumbs_root`); commands through `GuiderTab.command()` (needs
+  control of the telescope; the service itself checks nothing) as RPC. Operator model (2026-11-11): left click = star
+  to guide on (MONITOR only - `lock_at` in GUIDE makes the service drag the old star to the new one), right click =
+  a mark only; Move to fiber (GUIDE: `drop_to_reticle`, MONITOR: manual pulses in 150 px chunks, star or mark), Find
+  star (MONITOR, `acquire`), Calibrate fiber = mark / Fiber: measured (`refine_reticle`) / Fiber: config; "center"
+  instead of "fiber" when the guider measures no fibre hole; service words reticle / anchor shown as fiber / hold
+  point. Frame height follows the image aspect, drift plots and journal below; sliders for exposure (log), gain,
+  search radius; manual pulses only in MONITOR, one at a time, autorepeat ignored; red banner when guiding pulls the
+  star > 20 px; corrections > 1 s in the journal; Focus line vs `toi.guider_focus` (jk15 21950) and FOCUS ADJUST;
+  no state for 10 s while running -> "stale"; interface in the vault note "Guider service - NATS interface"),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes, drawn like oca_monitor - points plus a smoothed trend;
   drawn only while the tab is shown, refreshed every 30 s when new points came, `TOI.conditions_plot_loop`).
   Pictures (`PicturesTab`, entertainment: `show_file(path, title)` shows any picture; today the picture of the current
