@@ -39,8 +39,9 @@ from matplotlib.figure import Figure
 
 from PyQtX.QtCore import QRectF, Qt, QTimer
 from PyQtX.QtGui import QBrush, QColor, QFont, QPainter, QPen, QPixmap
-from PyQtX.QtWidgets import (QComboBox, QFrame, QGraphicsScene, QGraphicsView, QGridLayout, QHBoxLayout, QLabel,
-                             QMessageBox, QPushButton, QSizePolicy, QSlider, QTextEdit, QVBoxLayout, QWidget)
+from PyQtX.QtWidgets import (QComboBox, QDoubleSpinBox, QFrame, QGraphicsScene, QGraphicsView, QGridLayout,
+                             QHBoxLayout, QLabel, QMessageBox, QPushButton, QSizePolicy, QSlider, QSpinBox, QTextEdit,
+                             QVBoxLayout, QWidget)
 
 from toi_theme import theme
 
@@ -56,7 +57,6 @@ MOVE_SETTLE_S = 1.0     # s miedzy krokami (montaz sie uspokaja, guider widzi no
 EXP_RANGE = (0.05, 10.0)        # s, suwak logarytmiczny
 GAIN_RANGE = (0, 500)
 SEARCH_RANGE = (50, 1000)       # px
-SLIDER_SEND_MS = 600            # zmiana suwaka klawiatura/kolkiem idzie do serwisu po tylu ms spokoju
 METHODS = [("single_star", "single star"), ("fiber", "fiber")]
 MODES = ["off", "monitoring", "guiding"]
 # ostrosc teleskopu dla instrumentu guidera (BESO: oca-manual beso.md "Focusing"; nadpisuje toi.guider_focus) i
@@ -389,56 +389,71 @@ class CloseUpView(QGraphicsView):
         self._place()
 
 
-class ValueSlider(QWidget):
-    """Name | slider | value. ``to_value(i)`` / ``to_index(v)`` map slider steps to the value (log for exposure);
-    ``changed(value)`` is called when the operator settles on a value (release, or SLIDER_SEND_MS after a keyboard /
-    wheel change); a value coming from the guider (:meth:`show`) never calls it and is not shown while dragging."""
+class SliderEntry(QWidget):
+    """Name | slider | entry field, linked; ``to_value(i)`` / ``to_index(v)`` map slider steps to the value (log for
+    exposure). Nothing is sent from here: Apply (or Enter in the field) sends what differs from the guider
+    (:meth:`dirty`). A value from the guider (:meth:`show`) does not overwrite what the operator is setting."""
 
-    def __init__(self, name, steps, to_value, to_index, fmt, changed, tip=""):
+    def __init__(self, name, steps, to_value, to_index, entry, on_enter, tip=""):
         super().__init__()
-        self.to_value, self.to_index, self.fmt, self.changed = to_value, to_index, fmt, changed
+        self.to_value, self.to_index = to_value, to_index
+        self.guider = None              # wartosc z serwisu
         self.slider = QSlider(Qt.Orientation.Horizontal)
         self.slider.setRange(0, steps)
-        self.slider.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.slider.setMinimumWidth(80)
+        self.entry = entry
+        self.entry.setKeyboardTracking(False)
         self.name_l = QLabel(name)
-        self.value_l = QLabel("—")
-        self.value_l.setMinimumWidth(52)
-        self.value_l.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.timer = QTimer(self)
-        self.timer.setSingleShot(True)
-        self.timer.timeout.connect(self._send)
-        self.slider.valueChanged.connect(self._moved)
-        self.slider.sliderReleased.connect(self._send)
+        self.slider.valueChanged.connect(self._from_slider)
+        self.entry.valueChanged.connect(self._from_entry)
+        self.entry.lineEdit().returnPressed.connect(on_enter)
         lay = QHBoxLayout()
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(4)
         lay.addWidget(self.name_l)
         lay.addWidget(self.slider, 1)
-        lay.addWidget(self.value_l)
+        lay.addWidget(self.entry)
         self.setLayout(lay)
-        for w in (self.name_l, self.slider, self.value_l):
+        for w in (self.name_l, self.slider, self.entry):
             w.setToolTip(tip)
 
     def value(self):
-        return self.to_value(self.slider.value())
+        return self.entry.value()
 
-    def _moved(self, i):
-        self.value_l.setText(self.fmt(self.to_value(i)))
-        if not self.slider.isSliderDown():
-            self.timer.start(SLIDER_SEND_MS)
+    def dirty(self):
+        return self.guider is not None and abs(float(self.value()) - float(self.guider)) > 1e-9
 
-    def _send(self):
-        self.timer.stop()
-        self.changed(self.value())
+    def _from_slider(self, i):
+        self.entry.blockSignals(True)
+        self.entry.setValue(self.to_value(i))
+        self.entry.blockSignals(False)
+        self.changed()
+
+    def _from_entry(self, v):
+        self.slider.blockSignals(True)
+        self.slider.setValue(self.to_index(v))
+        self.slider.blockSignals(False)
+        self.changed()
+
+    def changed(self):
+        """set by the tab: repaint Apply"""
 
     def show(self, value):
-        """value published by the guider"""
-        if value is None or self.slider.isSliderDown() or self.timer.isActive():
+        """value published by the guider; kept in the widgets unless the operator has changed them"""
+        if value is None:
             return
-        self.slider.blockSignals(True)
+        was_dirty = self.dirty()
+        self.guider = value
+        if was_dirty or self.slider.isSliderDown() or self.entry.hasFocus():
+            self.changed()
+            return
+        for w in (self.slider, self.entry):
+            w.blockSignals(True)
+        self.entry.setValue(value)
         self.slider.setValue(self.to_index(value))
-        self.slider.blockSignals(False)
-        self.value_l.setText(self.fmt(value))
+        for w in (self.slider, self.entry):
+            w.blockSignals(False)
+        self.changed()
 
 
 def _log_slider(lo, hi, steps):
@@ -468,10 +483,8 @@ class GuiderTab(QWidget):
     """Guider of the active telescope: frame with overlays, drift, controls. See the module docstring."""
 
     STALE_S = 10        # s bez stanu przy wlaczonym guiderze = cos nie tak (serwis, NATS)
-    COLUMN = 270        # prawa kolumna
-    CLOSEUP = 200
-    PLOTS_H = 120       # wykresy dryfu pod obrazem
-    JOURNAL_MIN_LINES = 3
+    SIDE = 170          # zblizenie wlokna i rozrzut dryfu: dwa kwadraty
+    COLUMN = 2 * SIDE + 6   # prawa kolumna
 
     def __init__(self, parent):
         super().__init__()
@@ -605,14 +618,12 @@ class GuiderTab(QWidget):
         QTimer.singleShot(0, self._fit_frame_height)
 
     def _fit_frame_height(self):
-        """The frame gets the height of the image at the column width (no black bars above and below); what is left
-        below goes to the drift plots and the journal (at least JOURNAL_MIN_LINES lines)."""
+        """The frame gets the height of the image at the column width (no black bars above and below); the rest of
+        the left column goes to the controls below it."""
         w, h = self.scene.dims
         width = self.frame_v.width()
-        journal_min = self.JOURNAL_MIN_LINES * self.journal_e.fontMetrics().lineSpacing() + 12
-        free = self.left_w.height() - self.PLOTS_H - journal_min - self.help_l.sizeHint().height() \
-            - self.rms_l.sizeHint().height() - 5 * self.left_lay.spacing() \
-            - (self.pull_l.sizeHint().height() if self.pull_l.isVisible() else 0)
+        free = self.left_w.height() - self.controls_w.sizeHint().height() - self.help_l.sizeHint().height() \
+            - 3 * self.left_lay.spacing() - (self.pull_l.sizeHint().height() if self.pull_l.isVisible() else 0)
         height = max(self.frame_v.minimumHeight(), min(round(width * h / w), free))
         if height != self.frame_v.height():
             self.frame_v.setFixedHeight(height)
@@ -860,15 +871,21 @@ class GuiderTab(QWidget):
         self._enable()
         QTimer.singleShot(int(max(0.0, self.pulse_until - time.time()) * 1000) + 50, self._enable)
 
-    def _patch(self, key, value):
-        """A slider settled: send the value if it differs from the guider's."""
-        current = (self.state or {}).get(key)
-        try:
-            if current is not None and abs(float(current) - float(value)) < 1e-9:
-                return
-        except (TypeError, ValueError):
-            pass
-        self.command("set_state", patch={key: value})
+    def apply_camera(self):
+        """Apply / Enter: send exposure, gain, search radius that differ from the guider's."""
+        patch = {}
+        for key, w, conv in (("exp_time", self.exp_s, float), ("gain", self.gain_s, int),
+                             ("wide_search_radius_px", self.search_s, int)):
+            if w.dirty():
+                patch[key] = conv(w.value())
+        if patch:
+            self.command("set_state", patch=patch)
+
+    def camera_changed(self):
+        dirty = any(w.dirty() for w in (self.exp_s, self.gain_s, self.search_s))
+        theme.paint(self.apply_b, bg="change_bg" if dirty else None, extra="font-weight: bold;" if dirty else "")
+        self.apply_b.setToolTip("send the changed values to the guider (also Enter in a field)" if dirty
+                                else "nothing changed")
 
     # --- wyswietlanie ---
 
@@ -878,7 +895,7 @@ class GuiderTab(QWidget):
         mode = s.get("mode")
         single = have and s.get("method") != "fiber"
         for w in (self.off_b, self.mon_b, self.guide_b, self.method_s, self.exp_s, self.gain_s, self.search_s,
-                  self.step_s, self.fiber_config_b):
+                  self.apply_b, self.step_s, self.fiber_config_b):
             w.setEnabled(have)
         idle = time.time() >= self.pulse_until and not self.moving
         for w in self.pad:      # impulsy reczne tylko w monitoringu i nie w trakcie poprzedniego
@@ -966,7 +983,8 @@ class GuiderTab(QWidget):
         self.diag["fwhm"].setText(_num(s.get("fwhm_recent")))
         exp = s.get("current_exp_time") or s.get("exp_time")
         self.diag["exp"].setText(_num(exp, "{:g} s") + (" (auto)" if s.get("current_exp_time") else ""))
-        self.diag["delta"].setText(f"{_num(s.get('last_correction_dx_px'))}, {_num(s.get('last_correction_dy_px'))}")
+        ddx, ddy = s.get("last_correction_dx_px"), s.get("last_correction_dy_px")
+        self.diag["delta"].setText(f"{_num(ddx)}, {_num(ddy)} px" if ddx is not None or ddy is not None else "—")
         self.diag["hold"].setText(_pt(_xy(s.get("guide_anchor"))))
         fiber = _xy(s.get("central_point"))
         config = _xy(s.get("central_point_default"))
@@ -976,11 +994,12 @@ class GuiderTab(QWidget):
                                       if moved > FIBER_MOVED_PX else "at the configured position")
         theme.paint(self.diag["fiber"], fg="warn_fg" if moved > FIBER_MOVED_PX else None)
         hole = s.get("hole_candidate") or {}
-        self.diag["hole"].setText(f"{_num(hole.get('offset_px'))} px off, snr {_num(hole.get('snr'), '{:.0f}')}"
-                                  if hole else "—")
+        self.diag["hole"].setText(f"{_num(hole.get('offset_px'))} px off" if hole else "—")
+        self.diag["hole"].setToolTip(f"measured hole {_num(hole.get('offset_px'))} px from the {self.fiber_word()} "
+                                     f"position, snr {_num(hole.get('snr'), '{:.0f}')}" if hole else
+                                     "no measurement of the hole")
         word = self.fiber_word().capitalize()
         self.diag_names["fiber"].setText(f"{word}:")
-        self.diag_names["hole"].setText(f"Measured {self.fiber_word()}:")
         self._show_mark()
 
     def _show_mark(self):
@@ -1135,7 +1154,7 @@ class GuiderTab(QWidget):
         for w in (self.calibrate_b, self.fiber_measured_b, self.fiber_config_b):
             bar2.addWidget(w)
 
-        # --- lewa kolumna: obraz (wysokosc wg proporcji), pod nim wykresy dryfu i dziennik ---
+        # --- lewa kolumna: obraz (wysokosc wg proporcji), pod nim pomoc i sterowanie ---
         self.scene = GuiderScene()
         self.frame_v = FrameView(self.scene, self)
         self.frame_v.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -1148,90 +1167,44 @@ class GuiderTab(QWidget):
         font.setPointSizeF(font.pointSizeF() * 0.9)
         self.help_l.setFont(font)
 
-        self.drift_fig = Figure(dpi=100)
-        self.drift_canvas = FigureCanvas(self.drift_fig)
-        self.drift_canvas.setFixedHeight(self.PLOTS_H)
-        self.drift_canvas.setMinimumWidth(150)
-        self.drift_ax = self.drift_fig.add_axes([0.07, 0.18, 0.91, 0.78])
-        self.scatter_fig = Figure(dpi=100)
-        self.scatter_canvas = FigureCanvas(self.scatter_fig)
-        self.scatter_canvas.setFixedSize(self.PLOTS_H, self.PLOTS_H)
-        self.scatter_ax = self.scatter_fig.add_axes([0.2, 0.15, 0.76, 0.8])
-        self.scatter_canvas.setToolTip("drift x-y of the last 5 min; big dot = latest")
-        plots = QHBoxLayout()
-        plots.setSpacing(4)
-        plots.addWidget(self.drift_canvas, 1)
-        plots.addWidget(self.scatter_canvas)
-        rms_row = QHBoxLayout()
-        self.rms_l = QLabel("Drift RMS [px]:  —")
-        clear_b = QPushButton("clear")
-        clear_b.setToolTip("clear the drift plots")
-        clear_b.clicked.connect(self.clear_drift)
-        rms_row.addWidget(self.rms_l, 1)
-        rms_row.addWidget(clear_b)
-        self.journal_e = QTextEdit()
-        self.journal_e.setReadOnly(True)
-        self.journal_e.setMinimumHeight(self.JOURNAL_MIN_LINES * self.journal_e.fontMetrics().lineSpacing() + 12)
-        self.journal_e.setToolTip("guider events and journal, and the commands sent from here")
-
-        self.left_lay = QVBoxLayout()
-        self.left_lay.setContentsMargins(0, 0, 0, 0)
-        self.left_lay.setSpacing(3)
-        self.left_lay.addWidget(self.pull_l)
-        self.left_lay.addWidget(self.frame_v)
-        self.left_lay.addWidget(self.help_l)
-        self.left_lay.addLayout(plots)
-        self.left_lay.addLayout(rms_row)
-        self.left_lay.addWidget(self.journal_e, 1)
-        self.left_w = QWidget()
-        self.left_w.setLayout(self.left_lay)
-
-        # --- prawa kolumna: zblizenie wlokna, diagnostyka, suwaki, impulsy ---
-        col = QVBoxLayout()
-        col.setContentsMargins(0, 0, 0, 0)
-        col.setSpacing(4)
-        self.closeup_v = CloseUpView(self.scene)
-        self.closeup_v.setFixedSize(self.CLOSEUP, self.CLOSEUP)
-        self.closeup_v.setToolTip("close-up of the fiber; dashed ring = the hole as the guider measures it")
-        col.addWidget(self.closeup_v, 0, Qt.AlignmentFlag.AlignHCenter)
-
-        grid = QGridLayout()
-        grid.setHorizontalSpacing(6)
-        grid.setVerticalSpacing(1)
-        self.diag = {}
-        self.diag_names = {}
-        rows = [("star", "Star held:"), ("fwhm", "FWHM:"), ("exp", "Exposure:"), ("delta", "Last Δ [px]:"),
-                ("hold", "Hold point:"), ("fiber", "Fiber:"), ("hole", "Measured fiber:"), ("mark", "Mark:"),
-                ("focus", "Focus:")]
-        for r, (key, name) in enumerate(rows):
-            self.diag_names[key] = QLabel(name)
-            self.diag[key] = QLabel("—")
-            grid.addWidget(self.diag_names[key], r, 0)
-            grid.addWidget(self.diag[key], r, 1)
-        self.diag_names["hold"].setToolTip("where guiding keeps the star")
-        grid.setColumnStretch(1, 1)
-        col.addLayout(grid)
-        col.addWidget(self._hline())
-
+        # kamera: suwak + pole, Apply
         exp_n = 100
         exp_v, exp_i = _log_slider(*EXP_RANGE, exp_n)
-        self.exp_s = ValueSlider("Exp", exp_n, exp_v, exp_i, lambda v: f"{v:g} s",
-                                 lambda v: self._patch("exp_time", v),
-                                 "exposure of the guider camera (log scale); sent when you let go")
+        exp_e = QDoubleSpinBox()
+        exp_e.setRange(0.001, 30)
+        exp_e.setDecimals(3)
+        exp_e.setSuffix(" s")
+        self.exp_s = SliderEntry("Exp", exp_n, exp_v, exp_i, exp_e, self.apply_camera,
+                                 "exposure of the guider camera (slider: log scale)")
         gain_n, gain_v, gain_i = _lin_slider(*GAIN_RANGE, 10)
-        self.gain_s = ValueSlider("Gain", gain_n, gain_v, gain_i, lambda v: f"{v:.0f}",
-                                  lambda v: self._patch("gain", int(v)), "gain of the guider camera")
+        gain_e = QSpinBox()
+        gain_e.setRange(0, 1000)
+        self.gain_s = SliderEntry("Gain", gain_n, gain_v, gain_i, gain_e, self.apply_camera,
+                                  "gain of the guider camera")
         search_n, search_v, search_i = _lin_slider(*SEARCH_RANGE, 10)
-        self.search_s = ValueSlider("Search", search_n, search_v, search_i, lambda v: f"{v:.0f} px",
-                                    lambda v: self._patch("wide_search_radius_px", int(v)),
-                                    "search circle around the fiber (dashed): stars can be selected and found\n"
-                                    "only inside it; smaller in a crowded field, larger to reach a star")
-        names_w = max(s.name_l.sizeHint().width() for s in (self.exp_s, self.gain_s, self.search_s))
-        for s in (self.exp_s, self.gain_s, self.search_s):
-            s.name_l.setFixedWidth(names_w)
-            col.addWidget(s)
-        col.addWidget(self._hline())
+        search_e = QSpinBox()
+        search_e.setRange(10, 3000)
+        search_e.setSuffix(" px")
+        self.search_s = SliderEntry("Search", search_n, search_v, search_i, search_e, self.apply_camera,
+                                    "search circle around the fiber (dashed): stars can be selected and found only\n"
+                                    "inside it; smaller in a crowded field, larger to reach a star")
+        names_w = max(w.name_l.sizeHint().width() for w in (self.exp_s, self.gain_s, self.search_s))
+        entry_w = max(w.entry.sizeHint().width() for w in (self.exp_s, self.gain_s, self.search_s))
+        cam = QVBoxLayout()
+        cam.setSpacing(2)
+        for w in (self.exp_s, self.gain_s, self.search_s):
+            w.name_l.setFixedWidth(names_w)
+            w.entry.setFixedWidth(entry_w)
+            w.changed = self.camera_changed
+            cam.addWidget(w)
+        self.apply_b = QPushButton("Apply")
+        self.apply_b.clicked.connect(self.apply_camera)
+        apply_row = QHBoxLayout()
+        apply_row.addStretch(1)
+        apply_row.addWidget(self.apply_b)
+        cam.addLayout(apply_row)
 
+        # impulsy + kandydaci
         up_b, down_b, left_b, right_b = (QPushButton(t) for t in ("↑", "↓", "←", "→"))
         up_b.clicked.connect(lambda: self.pulse(0, -1))
         down_b.clicked.connect(lambda: self.pulse(0, 1))
@@ -1239,7 +1212,7 @@ class GuiderTab(QWidget):
         right_b.clicked.connect(lambda: self.pulse(1, 0))
         self.pad = (up_b, down_b, left_b, right_b)
         for b in self.pad:
-            b.setFixedWidth(32)
+            b.setFixedWidth(34)
             b.setToolTip("MONITOR: moves the telescope so that the image shifts by the step (arrow keys on the frame);\n"
                          "one pulse at a time - the pad is grey while a pulse runs")
         self.step_s = QComboBox()
@@ -1248,22 +1221,109 @@ class GuiderTab(QWidget):
         self.step_s.setToolTip("pulse step (keys 1-7 on the frame)")
         pad = QGridLayout()
         pad.setSpacing(2)
-        pad.addWidget(up_b, 0, 1, Qt.AlignmentFlag.AlignHCenter)
-        pad.addWidget(left_b, 1, 0)
-        pad.addWidget(self.step_s, 1, 1)
-        pad.addWidget(right_b, 1, 2)
-        pad.addWidget(down_b, 2, 1, Qt.AlignmentFlag.AlignHCenter)
+        pad.addWidget(QLabel("Pulse"), 0, 0, 1, 3, Qt.AlignmentFlag.AlignLeft)
+        pad.addWidget(up_b, 1, 1, Qt.AlignmentFlag.AlignHCenter)
+        pad.addWidget(left_b, 2, 0)
+        pad.addWidget(self.step_s, 2, 1)
+        pad.addWidget(right_b, 2, 2)
+        pad.addWidget(down_b, 3, 1, Qt.AlignmentFlag.AlignHCenter)
         self.candidates_b = QPushButton("Candidates")
         self.candidates_b.setCheckable(True)
         self.candidates_b.setToolTip("show all stars the detector found in this frame (D)")
         self.candidates_b.toggled.connect(self._candidates)
-        pad_row = QHBoxLayout()
-        pad_row.addWidget(QLabel("Pulse"))
-        pad_row.addLayout(pad)
-        pad_row.addStretch(1)
-        pad_row.addWidget(self.candidates_b, 0, Qt.AlignmentFlag.AlignBottom)
-        col.addLayout(pad_row)
-        col.addStretch(1)
+        pad.addWidget(self.candidates_b, 3, 3)
+        pad.setColumnStretch(3, 1)
+
+        controls = QHBoxLayout()
+        controls.setContentsMargins(0, 0, 0, 0)
+        controls.setSpacing(12)
+        controls.addLayout(cam, 3)
+        line = QFrame()
+        line.setFrameShape(QFrame.Shape.VLine)
+        line.setFrameShadow(QFrame.Shadow.Sunken)
+        controls.addWidget(line)
+        controls.addLayout(pad, 2)
+        self.controls_w = QWidget()
+        self.controls_w.setLayout(controls)
+        self.controls_w.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+
+        self.left_lay = QVBoxLayout()
+        self.left_lay.setContentsMargins(0, 0, 0, 0)
+        self.left_lay.setSpacing(3)
+        self.left_lay.addWidget(self.pull_l)
+        self.left_lay.addWidget(self.frame_v)
+        self.left_lay.addWidget(self.help_l)
+        self.left_lay.addWidget(self.controls_w)
+        self.left_lay.addStretch(1)
+        self.left_w = QWidget()
+        self.left_w.setLayout(self.left_lay)
+
+        # --- prawa kolumna: zblizenie | rozrzut, dryf w czasie, diagnostyka, dziennik ---
+        col = QVBoxLayout()
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(4)
+        self.closeup_v = CloseUpView(self.scene)
+        self.closeup_v.setFixedSize(self.SIDE, self.SIDE)
+        self.closeup_v.setToolTip("close-up of the fiber; dashed ring = the hole as the guider measures it")
+        self.scatter_fig = Figure(dpi=100)
+        self.scatter_canvas = FigureCanvas(self.scatter_fig)
+        self.scatter_canvas.setFixedSize(self.SIDE, self.SIDE)
+        self.scatter_ax = self.scatter_fig.add_axes([0.17, 0.12, 0.8, 0.8])
+        self.scatter_canvas.setToolTip("drift x-y of the last 5 min; big dot = latest")
+        squares = QHBoxLayout()
+        squares.setSpacing(6)
+        squares.addWidget(self.closeup_v)
+        squares.addWidget(self.scatter_canvas)
+        col.addLayout(squares)
+        self.drift_fig = Figure(dpi=100)
+        self.drift_canvas = FigureCanvas(self.drift_fig)
+        self.drift_canvas.setFixedSize(self.COLUMN, 110)
+        self.drift_ax = self.drift_fig.add_axes([0.1, 0.2, 0.88, 0.76])
+        col.addWidget(self.drift_canvas)
+        rms_row = QHBoxLayout()
+        self.rms_l = QLabel("Drift RMS [px]:  —")
+        clear_b = QPushButton("clear")
+        clear_b.setToolTip("clear the drift plots")
+        clear_b.clicked.connect(self.clear_drift)
+        rms_row.addWidget(self.rms_l, 1)
+        rms_row.addWidget(clear_b)
+        col.addLayout(rms_row)
+        col.addWidget(self._hline())
+
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(6)
+        grid.setVerticalSpacing(1)
+        self.diag = {}
+        self.diag_names = {}
+        cells = [("star", "Star held:"), ("fwhm", "FWHM:"), ("exp", "Exposure:"), ("delta", "Last Δ:"),
+                 ("hold", "Hold point:"), ("hole", "Measured:"), ("fiber", "Fiber:"), ("mark", "Mark:"),
+                 ("focus", "Focus:")]
+        wide = ("fiber", "mark", "focus")     # dluzsze teksty: caly wiersz
+        r = c = 0
+        for key, name in cells:
+            self.diag_names[key] = QLabel(name)
+            self.diag[key] = QLabel("—")
+            if key in wide:
+                if c:
+                    r, c = r + 1, 0
+                grid.addWidget(self.diag_names[key], r, 0)
+                grid.addWidget(self.diag[key], r, 1, 1, 3)
+                r += 1
+                continue
+            grid.addWidget(self.diag_names[key], r, 2 * c)
+            grid.addWidget(self.diag[key], r, 2 * c + 1)
+            r, c = (r + 1, 0) if c else (r, 1)
+        self.diag_names["hold"].setToolTip("where guiding keeps the star")
+        self.diag_names["hole"].setToolTip("the fiber hole as the guider measures it in the image")
+        grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(3, 1)
+        col.addLayout(grid)
+        col.addWidget(self._hline())
+
+        self.journal_e = QTextEdit()
+        self.journal_e.setReadOnly(True)
+        self.journal_e.setToolTip("guider events and journal, and the commands sent from here")
+        col.addWidget(self.journal_e, 1)
         col_w = QWidget()
         col_w.setLayout(col)
         col_w.setFixedWidth(self.COLUMN)
