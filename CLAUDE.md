@@ -214,7 +214,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
 - Focus auto-adjust (in `toi.py`) — every focuser move made by TOI must go through
   `focus_move(tel, pos, source)` (not a bare `aput_move`), because it also publishes the adjust baseline to
   `status.toi.<tel>.focuser.focus_reference`. Adjust target = reference position + Δ`focus_model` since the
-  reference was set. See README "FOCUS ADJUST".
+  reference was set. See README FAQ "How does FOCUS ADJUST work?" (user manual: README.md, screenshots in Misc/manual/).
 - FOCUS OFFSET per M3 port (2026-11-12): switch in the Mount window M3 row (`mntGui.m3FocusOffset_c`, QSettings
   `m3_focus_offset`, default on). After SET M3 from *this* TOI, `TOI.m3_focus_offset` waits until M3 is on the new port
   and moves the focuser by `focus_port_offset[new] - [old]` (`toi_config.yaml` `<tel>.focus_port_offset`, relative;
