@@ -11,7 +11,8 @@
   Dzwiek i obrazek do wyboru z katalogow ``toi.events.sounds_dir`` / ``pictures_dir`` (te same widzi overwatch i
   grajacy oca_monitor); ▶ odsluch na tym stanowisku (aplay). Sekretne eventy ("secret": true) widac i mozna dodawac
   tylko w trybie admina: pole Admin w oknie obserwatorow, to stanowisko i ta sesja (TOI.events_admin). Tajemnica
-  miekka - w NATS sa jak inne (Marek 2026-11-10: w porzadku).
+  miekka - w NATS sa jak inne (Marek 2026-11-10: w porzadku). Pliki z podkatalogow ``special/`` (niespodzianki) sa
+  do wyboru tylko w trybie admina; event zapisuje je jako ``special/<plik>`` (2026-11-11).
 - :class:`AlertsWindow` — niemodalne okno niepotwierdzonych alertow (woda: brak danych, brak zuzycia, wyciek;
   status ``toi.events.alerts``): wyskakuje przy nowym alercie i przy przypomnieniu (zapis obserwatorow), znika na
   wszystkich stanowiskach, gdy ktos potwierdzi ("Acknowledge" -> RPC ack, detektor w overwatchu od nowa).
@@ -45,6 +46,7 @@ LOCAL_TZ = zoneinfo.ZoneInfo("America/Santiago")
 SITE = {"lat": -24.598616, "lon": -70.201266, "elevation": 2800}     # jak conditions_overwatch (site)
 SUN_ALTS = (5, 0, -1, -6, -12, -16, -18)          # przyciski przy pokretle (jak NEXT EVENTS w oca_monitor)
 MINUTES = (5, 10, 30, 60)
+SPECIAL_DIR = "special"      # podkatalog sounds_dir / pictures_dir z plikami tylko dla trybu admina
 DEFAULT_SOUND_TEXT = "default (gong)"     # event bez dzwieku: overwatch gra default_sound ze swojego configu
 KINDS = ("Sun", "In minutes", "UT time", "Date & time", "Observers", "Manual")
 # kolejnosc przyciskow rodzaju (dwa rzedy po trzy); KINDS zostaje - jego indeksy to strony generatora
@@ -139,10 +141,17 @@ class EventsTab(QWidget):
     def pictures_dir(self):
         return self.cfg().get("pictures_dir", DEFAULT_PICTURES_DIR)
 
+    def files(self, path, ext):
+        """Pliki katalogu; w trybie admina dalej te z special/ (jako special/<plik>)"""
+        files = list_files(path, ext)
+        if self.admin:
+            files += [f"{SPECIAL_DIR}/{f}" for f in list_files(os.path.join(path, SPECIAL_DIR), ext)]
+        return files
+
     def fill_files(self):
         sound, picture = self.sound_c.currentData(), self.picture_c.currentData()
-        for combo, first, files in ((self.sound_c, DEFAULT_SOUND_TEXT, list_files(self.sounds_dir(), SOUND_EXT)),
-                                    (self.picture_c, "none", list_files(self.pictures_dir(), PICTURE_EXT))):
+        for combo, first, files in ((self.sound_c, DEFAULT_SOUND_TEXT, self.files(self.sounds_dir(), SOUND_EXT)),
+                                    (self.picture_c, "none", self.files(self.pictures_dir(), PICTURE_EXT))):
             combo.blockSignals(True)
             combo.clear()
             combo.addItem(first, None)
@@ -286,6 +295,11 @@ class EventsTab(QWidget):
         self.secret_c.setVisible(self.admin)
         if not self.admin:
             self.secret_c.setChecked(False)
+            if not self.editing:        # nowy event: wybrany plik special/ odpada; edytowany zachowuje swoj
+                for combo in (self.sound_c, self.picture_c):
+                    if (combo.currentData() or "").startswith(SPECIAL_DIR + "/"):
+                        combo.setCurrentIndex(0)
+        self.fill_files()       # pliki special/ tylko w trybie admina (wybrany juz plik zostaje - select)
         self.update_list(self.all_rows)
 
     def update_list(self, rows):
