@@ -16,6 +16,8 @@
 - :class:`AlertsWindow` — niemodalne okno niepotwierdzonych alertow (woda: brak danych, brak zuzycia, wyciek;
   status ``toi.events.alerts``): wyskakuje przy nowym alercie i przy przypomnieniu (zapis obserwatorow), znika na
   wszystkich stanowiskach, gdy ktos potwierdzi ("Acknowledge" -> RPC ack, detektor w overwatchu od nowa).
+  Eventy z polem Acknowledge ("ack": true, 2026-11-11) po wyzwoleniu tez tu trafiaja ("kind": "event") - zwyklym
+  kolorem, z obrazkiem eventu po prawej.
 Przyciski to zwykle sloty Qt: praca w ``asyncio.ensure_future`` z wlasnym try - wyjatek nie moze zabic TOI.
 """
 import asyncio
@@ -51,6 +53,16 @@ DEFAULT_SOUND_TEXT = "default (gong)"     # event bez dzwieku: overwatch gra def
 KINDS = ("Sun", "In minutes", "UT time", "Date & time", "Observers", "Manual")
 # kolejnosc przyciskow rodzaju (dwa rzedy po trzy); KINDS zostaje - jego indeksy to strony generatora
 KIND_BUTTONS = ("In minutes", "UT time", "Date & time", "Sun", "Observers", "Manual")
+
+
+def short_time(text):
+    """ISO UT -> 'MM-DD HH:MM' (okno alertow)"""
+    if not text or "T" not in text:
+        return text or "--"
+    try:
+        return datetime.datetime.fromisoformat(text).strftime("%m-%d %H:%M")
+    except ValueError:
+        return text
 
 
 def list_files(path, ext):
@@ -224,6 +236,7 @@ class EventsTab(QWidget):
         self.select(self.sound_c, None)
         self.select(self.picture_c, None)
         self.secret_c.setChecked(False)
+        self.ack_c.setChecked(False)
         self.editing = None
         self.add_p.setText("Add")
         self.cancel_p.hide()
@@ -316,7 +329,8 @@ class EventsTab(QWidget):
                 except ValueError:
                     pass
             values = (utc(t).strftime("%m-%d %H:%M") if t else ("observers" if nxt == "next" else nxt or "--"),
-                      describe(ev), ev.get("info", ""), ev.get("sound") or DEFAULT_SOUND_TEXT, ev.get("picture") or "",
+                      describe(ev) + (", ack" if ev.get("ack") else ""), ev.get("info", ""),
+                      ev.get("sound") or DEFAULT_SOUND_TEXT, ev.get("picture") or "",
                       ev.get("by") or "")
             for c, v in enumerate(values):
                 item = QTableWidgetItem(str(v))
@@ -377,6 +391,7 @@ class EventsTab(QWidget):
         self.select(self.sound_c, ev.get("sound"))
         self.select(self.picture_c, ev.get("picture"))
         self.secret_c.setChecked(bool(ev.get("secret")))
+        self.ack_c.setChecked(bool(ev.get("ack")))
         self.editing = ev
         self.add_p.setText("Save changes")
         self.cancel_p.show()
@@ -404,7 +419,8 @@ class EventsTab(QWidget):
             return
         data = {"action": "add", "when": when, "info": self.info_e.text().strip(),
                 "sound": self.sound_c.currentData(), "picture": self.picture_c.currentData(),
-                "secret": self.admin and self.secret_c.isChecked(), "by": self.parent.myself}
+                "secret": self.admin and self.secret_c.isChecked(), "ack": self.ack_c.isChecked(),
+                "by": self.parent.myself}
         if repeat is not None:
             data["repeat"] = repeat
         asyncio.ensure_future(self._save(data, self.editing))
@@ -617,11 +633,15 @@ class EventsTab(QWidget):
         self.secret_c = QCheckBox("Secret")
         self.secret_c.setToolTip("A surprise: listed only in admin mode (observers window)")
         self.secret_c.setVisible(False)
+        self.ack_c = QCheckBox("Acknowledge")
+        self.ack_c.setToolTip("When it fires: a window on every TOI (with the picture) until someone acknowledges;\n"
+                              "reminded at every save of the observers")
         self.cancel_p = QPushButton("Cancel edit")
         self.cancel_p.clicked.connect(self.reset_generator)
         self.add_p = QPushButton("Add")
         self.add_p.clicked.connect(self.add_clicked)
         buttons.addStretch(1)
+        buttons.addWidget(self.ack_c)
         buttons.addWidget(self.secret_c)
         buttons.addWidget(self.cancel_p)
         buttons.addWidget(self.add_p)
@@ -670,7 +690,7 @@ class AlertsWindow(QWidget):
         super(AlertsWindow, self).__init__()
         self.parent = parent
         self.alerts = []
-        self.setWindowTitle("Observatory alerts")
+        self.setWindowTitle("To acknowledge")
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
         self.mkUI()
 
@@ -686,16 +706,43 @@ class AlertsWindow(QWidget):
             for c, v in enumerate((since, text)):
                 item = QTableWidgetItem(v)
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                item.setForeground(theme.qcolor("ok_fg" if a.get("resolved") else "bad_fg"))
+                if a.get("kind") != "event":    # event: zwykly kolor; alert: czerwony, zielony gdy minal
+                    item.setForeground(theme.qcolor("ok_fg" if a.get("resolved") else "bad_fg"))
                 self.table.setItem(r, c, item)
-        if self.table.rowCount():
-            self.table.selectRow(0)
+        if self.table.rowCount():       # na start wiersz z obrazkiem (jesli jest) - widac go od razu
+            self.table.selectRow(next((r for r, a in enumerate(self.alerts) if a.get("picture")), 0))
+        self.show_picture()
         if not self.alerts:
             self.hide()
         elif pop:
             self.show()
             self.raise_()
             self.activateWindow()
+
+    def show_picture(self):
+        """Obrazek zaznaczonego wiersza, bez zaznaczenia - pierwszego z obrazkiem; zaden - panel ukryty.
+        Zwykly slot (zaznaczenie) - wyjatek nie moze wyjsc"""
+        try:
+            rows = sorted({i.row() for i in self.table.selectedIndexes()})
+            items = [self.alerts[r] for r in rows if r < len(self.alerts)] or self.alerts
+            name = next((a.get("picture") for a in items if a.get("picture")), None)
+            image = QtGui.QImage()
+            if name:
+                d = self.parent.events_cfg().get("pictures_dir", DEFAULT_PICTURES_DIR)
+                image = QtGui.QImage(os.path.join(d, name))
+            if image.isNull():
+                self.picture_l.clear()
+                self.picture_l.setVisible(bool(name))
+                self.picture_l.setText(f"no picture {name}" if name else "")
+                return
+            self.picture_l.setPixmap(QtGui.QPixmap.fromImage(image).scaled(
+                self.PICTURE_SIZE, self.PICTURE_SIZE, Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation))
+            self.picture_l.show()
+        except Exception as e:
+            logger.warning(f'TOI alerts picture: {e!r}')
+
+    PICTURE_SIZE = 320
 
     def ack_clicked(self):
         rows = sorted({i.row() for i in self.table.selectedIndexes()}) or list(range(len(self.alerts)))
@@ -714,15 +761,20 @@ class AlertsWindow(QWidget):
 
     def mkUI(self):
         layout = QVBoxLayout()
-        info = QLabel("Problems that need a person. Check, then acknowledge - the check starts again; if it is still "
-                      "wrong, it comes back.")
+        info = QLabel("Problems and events that need a person. Problems (red): check, then acknowledge - the check "
+                      "starts again; if it is still wrong, it comes back. Acknowledge removes it on every TOI.")
         info.setWordWrap(True)
         self.table = QTableWidget(0, 2)
-        self.table.setHorizontalHeaderLabels(("Since (UT)", "Problem"))
+        self.table.setHorizontalHeaderLabels(("Since (UT)", "Problem / event"))
         self.table.verticalHeader().hide()
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.itemSelectionChanged.connect(self.show_picture)
+        self.picture_l = QLabel("")
+        self.picture_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.picture_l.setMinimumWidth(self.PICTURE_SIZE)
+        self.picture_l.hide()
         self.status_l = QLabel("")
         later = QPushButton("Later")
         later.setToolTip("Close; it comes back with the next save of the observers")
@@ -735,7 +787,10 @@ class AlertsWindow(QWidget):
         buttons.addWidget(later)
         buttons.addWidget(ack)
         layout.addWidget(info)
-        layout.addWidget(self.table, 1)
+        middle = QHBoxLayout()
+        middle.addWidget(self.table, 1)
+        middle.addWidget(self.picture_l)
+        layout.addLayout(middle, 1)
         layout.addLayout(buttons)
         self.setLayout(layout)
         self.resize(700, 250)

@@ -581,13 +581,14 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             logger.warning(f'EXCEPTION nats_events_reader: {e}')
 
     async def nats_alerts_reader(self):
-        seen = None         # id alertow juz pokazanych; pierwszy odczyt po starcie TOI tez wyskakuje
+        seen = None         # (id, since) juz pokazanych; pierwszy odczyt po starcie TOI tez wyskakuje; event
+        # wyzwolony znow przed potwierdzeniem (codzienny) ma nowe since - tez wyskakuje
         try:
             r = get_reader(self.events_cfg().get("alerts", "status.overwatch.oca.self.alerts"), deliver_policy='last')
             async for data, meta in r:
                 try:
                     alerts = data.get("alerts") or []
-                    ids = {a.get("id") for a in alerts}
+                    ids = {(a.get("id"), a.get("since")) for a in alerts}
                     self.alertsGui.update_alerts(alerts, pop=bool(ids - (seen or set())))
                     seen = ids
                 except Exception as e:
