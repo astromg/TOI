@@ -619,7 +619,9 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.m3FocusOffset_c.setLayoutDirection(Qt.RightToLeft)
         self.m3FocusOffset_c.setToolTip("After SET M3 from this TOI: move the focuser by the difference of the port\n"
                                         "offsets (toi_config.yaml <tel>.focus_port_offset)")
-        theme.paint(self.m3FocusOffset_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}")
+        theme.paint(self.m3FocusOffset_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}"
+                    "QCheckBox::indicator:checked:disabled {image: url(ICONS/SwitchOnGrey.png)}"
+                    "QCheckBox::indicator:unchecked:disabled {image: url(ICONS/SwitchOffGrey.png)}")   # wyszarzony = szara ikona
         self.m3FocusOffset_c.toggled.connect(
             lambda on: QtCore.QSettings("OCA", "TOI").setValue("m3_focus_offset", bool(on)))
 
@@ -699,7 +701,9 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.FilterAutoOffset_c.setLayoutDirection(Qt.RightToLeft)
         self.FilterAutoOffset_c.setToolTip("After SET filter from this TOI: move the focuser by the difference of the\n"
                                            "filter focus offsets (filterwheel.filters[].focus_offset, global config)")
-        theme.paint(self.FilterAutoOffset_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}")
+        theme.paint(self.FilterAutoOffset_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}"
+                    "QCheckBox::indicator:checked:disabled {image: url(ICONS/SwitchOnGrey.png)}"
+                    "QCheckBox::indicator:unchecked:disabled {image: url(ICONS/SwitchOffGrey.png)}")   # wyszarzony = szara ikona
         self.FilterAutoOffset_c.toggled.connect(
             lambda on: QtCore.QSettings("OCA", "TOI").setValue("filter_focus_offset", bool(on)))
 
