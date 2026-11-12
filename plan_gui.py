@@ -959,29 +959,20 @@ class PlanGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             txt = "WARNING: U don't have control"
             self.parent.WarningWindow(txt)
 
-    PLAN_DIR_DEFAULT = "/data/misc/sketch/plans/{tel}"     # gdy w toi_config.yaml nie ma <tel>.plan_dir
+    PLAN_DIR = "/data/misc/"        # Load / Save Plan zawsze startuja tutaj (Marek 2026-11-12)
 
     def plan_file_dialog(self, save=False):
-        """Okno wyboru pliku planu: okno Qt (nie systemowe GTK/portal - w petli qasync potrafilo zostac niewidoczne
-        az do restartu TOI, zgloszenie 2026-02), z rodzicem okno planu (nad TOI, na tym ekranie), startuje w
-        ostatnim katalogu planow teleskopu (QSettings), za pierwszym razem w <tel>.plan_dir albo PLAN_DIR_DEFAULT.
-        Zwraca sciezke albo ""."""
+        """Okno wyboru pliku planu: systemowe (GTK/portal - wygodniejsze; 2026-11-11 bylo Qt, bo w petli qasync okno
+        bez rodzica potrafilo zostac niewidoczne az do restartu TOI, zgloszenie 2026-02 - teraz ma rodzica, okno planu,
+        wiec jest nad TOI na tym ekranie; gdyby problem wrocil: options=QFileDialog.Option.DontUseNativeDialog).
+        Startuje w PLAN_DIR. Zwraca sciezke albo ""."""
         tel = self.parent.active_tel
-        settings = QtCore.QSettings("OCA", "TOI")
-        start = str(settings.value(f"plan_dir/{tel}", "") or "")
-        if not os.path.isdir(start):
-            cfg = (getattr(self.parent, "local_cfg", {}) or {}).get(tel) or {}
-            start = str(cfg.get("plan_dir") or self.PLAN_DIR_DEFAULT.format(tel=tel))
-            if not os.path.isdir(start):
-                start = os.getcwd()
-        options = QFileDialog.Option.DontUseNativeDialog
+        start = self.PLAN_DIR if os.path.isdir(self.PLAN_DIR) else os.getcwd()
         filters = "All files (*);;Plans (*.txt *.toi)"
         if save:
-            name, _ = QFileDialog.getSaveFileName(self, f"Save plan - {tel}", start, filters, options=options)
+            name, _ = QFileDialog.getSaveFileName(self, f"Save plan - {tel}", start, filters)
         else:
-            name, _ = QFileDialog.getOpenFileName(self, f"Load plan - {tel}", start, filters, options=options)
-        if name:
-            settings.setValue(f"plan_dir/{tel}", os.path.dirname(name))
+            name, _ = QFileDialog.getOpenFileName(self, f"Load plan - {tel}", start, filters)
         return name
 
     @plan_action(control=False)
