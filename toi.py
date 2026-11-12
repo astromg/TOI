@@ -4082,7 +4082,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
                         if self.toi_switch_status[t]["focus_adjust"]:
                             self.report["focus_adjust"]["efect"] = True
-                            if self.autofocus_started[t]:
+                            if self.autofocus_started[t] or t in self.focus_offset_moving:
                                 continue
                             # nie ruszamy focusem w trakcie ekspozycji (1 waiting, 2 exposing, 3 reading, 4 download)
                             if self.oca_tel_state[t]["ccd_state"]["val"] in (1, 2, 3, 4):
@@ -4152,14 +4152,92 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         if self.tel_acces[self.active_tel]:
             m3_i = int(self.mntGui.telM3_s.currentIndex())
             m3_i = str(m3_i + 1) # bo jest 1 based
+            old_port = self.m3_name
+            new_port = self.nats_cfg[self.active_tel]["tertiary_port_dict"][m3_i]
             await self.m3.aput_selectnasmythport(m3_i)
-            await self.update_log(f'setting M3 to {self.nats_cfg[self.active_tel]["tertiary_port_dict"][m3_i]}', "TOI RESPONDER", self.active_tel)
+            await self.update_log(f'setting M3 to {new_port}', "TOI RESPONDER", self.active_tel)
+            if self.mntGui.m3FocusOffset_c.isChecked() and old_port != new_port:
+                asyncio.ensure_future(self.m3_focus_offset(self.active_tel, self.m3, old_port, new_port))
 
             self.inst_tab_switch = True
 
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
+
+    M3_MOVE_TIMEOUT = 180       # s - czekanie na koniec ruchu M3 przed przesunieciem focusa
+    EXPOSURE_WAIT = 3600        # s - najdluzej czekamy z offsetem focusa na koniec ekspozycji
+    EXPOSING_STATES = (1, 2, 3, 4)      # camerastate: waiting, exposing, reading, download (jak FOCUS ADJUST)
+
+    async def wait_no_exposure(self, tel, what):
+        """Blokada offsetu focusa w trakcie ekspozycji (2026-11-12): czeka, az kamera teleskopu skonczy; True - mozna
+        ruszac, False - nie skonczyla w EXPOSURE_WAIT (focus zostaje)."""
+        def exposing():
+            try:
+                return self.oca_tel_state[tel]["ccd_state"]["val"] in self.EXPOSING_STATES
+            except (KeyError, TypeError):
+                return False
+        if not exposing():
+            return True
+        await self.update_log(f'{what}: camera exposing - focus waits for the end of the exposure', "TOI RESPONDER", tel)
+        t0 = time.time()
+        while exposing():
+            if time.time() - t0 > self.EXPOSURE_WAIT:
+                await self.update_log(f'{what}: camera still exposing after {self.EXPOSURE_WAIT // 60} min - focus not moved',
+                                      "WARNING", tel)
+                return False
+            await asyncio.sleep(1)
+        return True
+
+    async def m3_focus_offset(self, tel, m3, old_port, new_port):
+        """FOCUS OFFSET (2026-11-12): po SET M3 z tego TOI - gdy M3 dojedzie na new_port, focus o
+        focus_port_offset[new] - focus_port_offset[old] (toi_config.yaml, przy teleskopie; potem w globalnym konfigu).
+        Tylko stanowisko, ktore kliknelo SET (inne TOI nie ruszaja focusa; zmiana M3 z planu - bez offsetu).
+        Przez focus_move: nowa pozycja jest referencja FOCUS ADJUST."""
+        try:
+            offsets = (self.local_cfg.get(tel) or {}).get("focus_port_offset") or {}
+            if not offsets:         # teleskop bez offsetow portow - nic do zrobienia
+                return
+            if old_port in (None, "--", "ERROR"):
+                await self.update_log(f'FOCUS OFFSET: previous M3 port unknown - focus not moved', "WARNING", tel)
+                return
+            if old_port not in offsets or new_port not in offsets:
+                await self.update_log(f'FOCUS OFFSET: no focus_port_offset for {old_port} / {new_port} on {tel} - '
+                                      f'focus not moved', "WARNING", tel)
+                return
+            delta = int(offsets[new_port]) - int(offsets[old_port])
+            if delta == 0:
+                return
+            port_no = next(k for k, v in self.nats_cfg[tel]["tertiary_port_dict"].items() if v == new_port)
+            t0 = time.time()
+            await asyncio.sleep(2)      # ruch M3 musi sie zaczac
+            while True:
+                status = await m3.aget_tertiarystatus()
+                if status and str(status.get("NasmythPort")) == port_no and not status.get("Moving") \
+                        and not status.get("ErrorRaised"):
+                    break
+                if status and status.get("ErrorRaised"):
+                    await self.update_log(f'FOCUS OFFSET: M3 error - focus not moved', "WARNING", tel)
+                    return
+                if time.time() - t0 > self.M3_MOVE_TIMEOUT:
+                    await self.update_log(f'FOCUS OFFSET: M3 not at {new_port} after {self.M3_MOVE_TIMEOUT} s - '
+                                          f'focus not moved', "WARNING", tel)
+                    return
+                await asyncio.sleep(2)
+            if not await self.wait_no_exposure(tel, "FOCUS OFFSET"):
+                return
+            self.focus_offset_moving.add(tel)      # FOCUS ADJUST czeka (nie ruszy focusera miedzy odczytem a ruchem)
+            try:
+                pos = await self.tel_focusers[tel].aget_position()
+                target = int(pos) + delta
+                await self.update_log(f'M3 {old_port} -> {new_port}: focus {int(pos)} -> {target} (offset {delta:+d})',
+                                      "TOI RESPONDER", tel)
+                await self.focus_move(tel, target, "m3_offset")
+            finally:
+                self.focus_offset_moving.discard(tel)
+        except Exception as e:
+            logger.warning(f'TOI m3_focus_offset: {e!r}')
+            await self.update_log(f'FOCUS OFFSET failed: {e}', "WARNING", tel)
 
     @qs.asyncSlot()
     async def m3_update(self, event):
@@ -4220,11 +4298,54 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
            ind=int(self.mntGui.telFilter_s.currentIndex())
            if ind == -1: filtr="--"
            else: filtr=self.filter_list[ind]
+           old_filter = getattr(self, "curent_filter", None)
            await self.fw.aput_position(ind)
            await self.update_log(f'setting filter to {filtr}', "TOI RESPONDER", self.active_tel)
+           if self.mntGui.FilterAutoOffset_c.isChecked() and ind != -1 and old_filter not in (None, filtr):
+               asyncio.ensure_future(self.filter_focus_offset(self.active_tel, self.fw, old_filter, filtr, ind))
         else:
             txt="WARNING: U don't have control"
             self.WarningWindow(txt)
+
+    FILTER_MOVE_TIMEOUT = 60    # s - czekanie na koniec ruchu kola filtrow przed przesunieciem focusa
+
+    async def filter_focus_offset(self, tel, fw, old_filter, new_filter, ind):
+        """AUTO OFFSET (2026-11-12): po SET filter z tego TOI - gdy kolo dojedzie, focus o
+        focus_offset[nowy] - focus_offset[stary] z globalnego konfigu (filterwheel.filters[].focus_offset, to samo
+        co planrunner z OB focus_offset=on; dzis wszystkie 0 - wtedy nic). Tylko stanowisko, ktore kliknelo SET.
+        Przez focus_move: nowa pozycja jest referencja FOCUS ADJUST (offset nie zostanie cofniety)."""
+        try:
+            offsets = self.nats_cfg[tel].get("filter_focus_offset") or {}
+            if old_filter not in offsets or new_filter not in offsets:
+                return
+            delta = offsets[new_filter] - offsets[old_filter]
+            if delta == 0:
+                return
+            t0 = time.time()
+            await asyncio.sleep(1)
+            while True:
+                wheel = await fw.aget_position()        # w ruchu -1 albo None
+                if wheel is not None and int(wheel) == int(ind):
+                    break
+                if time.time() - t0 > self.FILTER_MOVE_TIMEOUT:
+                    await self.update_log(f'AUTO OFFSET: filter not at {new_filter} after {self.FILTER_MOVE_TIMEOUT} s - '
+                                          f'focus not moved', "WARNING", tel)
+                    return
+                await asyncio.sleep(1)
+            if not await self.wait_no_exposure(tel, "AUTO OFFSET"):
+                return
+            self.focus_offset_moving.add(tel)      # FOCUS ADJUST czeka (nie ruszy focusera miedzy odczytem a ruchem)
+            try:
+                pos = await self.tel_focusers[tel].aget_position()
+                target = int(pos) + delta
+                await self.update_log(f'filter {old_filter} -> {new_filter}: focus {int(pos)} -> {target} '
+                                      f'(offset {delta:+d})', "TOI RESPONDER", tel)
+                await self.focus_move(tel, target, "filter_offset")
+            finally:
+                self.focus_offset_moving.discard(tel)
+        except Exception as e:
+            logger.warning(f'TOI filter_focus_offset: {e!r}')
+            await self.update_log(f'AUTO OFFSET failed: {e}', "WARNING", tel)
 
     async def filter_update(self, event):
             pos = await self.delivered(event, self.fw.aget_position)
@@ -4610,6 +4731,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 tmp_i = None        # bez kola filtrow - nie pozycje poprzedniego teleskopu (pierwszy: NameError przy starcie)
             self.nats_cfg[k]["filter_list_names"] = tmp_n
             self.nats_cfg[k]["filter_list"] = tmp_i
+            try:        # offsety focusa filtrow (globalny konfig, ten sam co planrunner z focus_offset=on)
+                self.nats_cfg[k]["filter_focus_offset"] = {item["name"]: int(item.get("focus_offset") or 0) for item in tmp}
+            except (KeyError, TypeError, ValueError):
+                self.nats_cfg[k]["filter_focus_offset"] = {}
 
             try:
                 tmp = nats_cfg[k]["observatory"]["components"]["focuser"]["default_position"]
@@ -4803,6 +4928,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         # M3
         self.m3_name = None
         self.m3_port = None     # ostatni port M3 aktywnego teleskopu
+        self.focus_offset_moving = set()    # teleskopy w trakcie ruchu focusa o offset M3 / filtra (adjust czeka)
         self.has_m3 = False     # wg komponentu tertiary w TIC, ustawia telescope_switched
         self.dome_follower_seen = None
         self.services_since = time.time()

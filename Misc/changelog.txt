@@ -1,6 +1,13 @@
 <h4>Whats New?</h4>
 
---- 07.11.2026 (TOI 1.1.0) --- <br>
+--- 07-12.11.2026 (TOI 1.1.0) --- <br>
+Also in 1.1.0 (8-12.11): Aux Events tab (overwatch events: in minutes / UT / date / Sun / observers, daily repeat,
+sound and picture; secret events and special sounds in admin mode; optional acknowledgement); Event field in the
+observation window; alerts window fixed, shows event pictures; Aux Guider tab (jk15 BESO: frame, fiber, drift,
+pulses, GUIDING switch); FITS: satellite trails, PSF pattern, trailed stars warning, saturated stars, contrast scales,
+no star shape squares; plan: Moon and altitude warnings, system file dialog starting in /data/misc; TPG: SKYFLATS only;
+focus: FOCUS OFFSET for the M3 port (jk15 Andor / BESO), AUTO OFFSET for filters, both wait for the end of an exposure.
+<br>
 NATS: TOI publishes and reads its subjects under the new names (journal.toi.&lt;tel&gt;.self.log, status.toi.&lt;tel&gt;.self.ob,
 ...). Current OB, switches and plan are also sent under the old names for oca_monitor and Halina; history (log, flats,
 focus, observers, checklist) is read from the old subject first, so nothing is lost. All TOI stations must run this

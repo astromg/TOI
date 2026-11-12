@@ -610,12 +610,26 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telM3_p = QPushButton('SET')
         self.telM3_p.clicked.connect(self.parent.set_m3)
 
+        # FOCUS OFFSET (2026-11-12): po SET M3 z tego TOI focus przesuwa sie o roznice <tel>.focus_port_offset
+        # (toi_config.yaml) miedzy portami - TOI.m3_focus_offset; stan na tym stanowisku (QSettings)
+        self.m3FocusOffset_l = QLabel("FOCUS OFFSET:")
+        self.m3FocusOffset_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        self.m3FocusOffset_c = QCheckBox()
+        self.m3FocusOffset_c.setChecked(QtCore.QSettings("OCA", "TOI").value("m3_focus_offset", True, type=bool))
+        self.m3FocusOffset_c.setLayoutDirection(Qt.RightToLeft)
+        self.m3FocusOffset_c.setToolTip("After SET M3 from this TOI: move the focuser by the difference of the port\n"
+                                        "offsets (toi_config.yaml <tel>.focus_port_offset)")
+        theme.paint(self.m3FocusOffset_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}")
+        self.m3FocusOffset_c.toggled.connect(
+            lambda on: QtCore.QSettings("OCA", "TOI").setValue("m3_focus_offset", bool(on)))
 
         w=w+1
         self.grid.addWidget(self.telM3_l, w, 0,1,2)
         self.grid.addWidget(self.telM3_e, w, 2)
         self.grid.addWidget(self.telM3_s, w, 3)
         self.grid.addWidget(self.telM3_p, w, 4)
+        self.grid.addWidget(self.m3FocusOffset_l, w, 5, 1, 2)
+        self.grid.addWidget(self.m3FocusOffset_c, w, 7)
 
         ##########################################################
         # M3 przelacza instrument, a z nim ROTATOR i FILTER - sa pod linia
@@ -678,10 +692,16 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
 
         self.FilterAutoOffset_l = QLabel("AUTO OFFSET:")
         self.FilterAutoOffset_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        # AUTO OFFSET (2026-11-12): po SET filter z tego TOI focus o roznice filterwheel.filters[].focus_offset
+        # (globalny konfig) - TOI.filter_focus_offset; stan na tym stanowisku (QSettings)
         self.FilterAutoOffset_c = QCheckBox()
-        self.FilterAutoOffset_c.setChecked(True)
+        self.FilterAutoOffset_c.setChecked(QtCore.QSettings("OCA", "TOI").value("filter_focus_offset", True, type=bool))
         self.FilterAutoOffset_c.setLayoutDirection(Qt.RightToLeft)
-        theme.paint(self.FilterAutoOffset_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOnGrey.png)}::indicator:unchecked {image: url(ICONS/SwitchOffGrey.png)}")
+        self.FilterAutoOffset_c.setToolTip("After SET filter from this TOI: move the focuser by the difference of the\n"
+                                           "filter focus offsets (filterwheel.filters[].focus_offset, global config)")
+        theme.paint(self.FilterAutoOffset_c, extra="QCheckBox::indicator:checked {image: url(ICONS/SwitchOn.png)}::indicator:unchecked {image: url(ICONS/SwitchOff.png)}")
+        self.FilterAutoOffset_c.toggled.connect(
+            lambda on: QtCore.QSettings("OCA", "TOI").setValue("filter_focus_offset", bool(on)))
 
 
         w=w+1
@@ -756,6 +776,13 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
                     widget.setEnabled(False)
                 for widget in (self.telM3_l, self.telM3_e, self.telM3_s, self.telM3_p):
                     widget.setToolTip(f"{self.parent.active_tel} has no M3 (no tertiary in the TIC configuration).")
+            # FOCUS OFFSET tylko z M3 i offsetami portow w toi_config.yaml
+            offsets = (self.parent.local_cfg.get(self.parent.active_tel) or {}).get("focus_port_offset")
+            usable = ports is not None and bool(offsets)
+            self.m3FocusOffset_c.setEnabled(usable)
+            theme.paint(self.m3FocusOffset_l, fg=None if usable else "muted_fg")
+            if not usable:
+                self.m3FocusOffset_l.setToolTip(f"{self.parent.active_tel}: no M3 or no focus_port_offset in toi_config.yaml")
 
         if self.parent.filter_list != None:
             self.telFilter_s.addItems(self.parent.filter_list)

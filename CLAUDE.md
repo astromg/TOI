@@ -215,6 +215,16 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   `focus_move(tel, pos, source)` (not a bare `aput_move`), because it also publishes the adjust baseline to
   `status.toi.<tel>.focuser.focus_reference`. Adjust target = reference position + Δ`focus_model` since the
   reference was set. See README "FOCUS ADJUST".
+- FOCUS OFFSET per M3 port (2026-11-12): switch in the Mount window M3 row (`mntGui.m3FocusOffset_c`, QSettings
+  `m3_focus_offset`, default on). After SET M3 from *this* TOI, `TOI.m3_focus_offset` waits until M3 is on the new port
+  and moves the focuser by `focus_port_offset[new] - [old]` (`toi_config.yaml` `<tel>.focus_port_offset`, relative;
+  jk15 andor 0 / beso -3387, until it is in the global config) through `focus_move` (source `m3_offset`). Other TOIs
+  and M3 moves by the planrunner do not move the focus. Filters the same way (2026-11-12): Mount window FILTER row AUTO
+  OFFSET (`FilterAutoOffset_c`, QSettings `filter_focus_offset`) → `TOI.filter_focus_offset`, offsets from the global
+  config `filterwheel.filters[].focus_offset` (`nats_cfg[tel]["filter_focus_offset"]`; all 0 today → no move). Open: the
+  planrunner (OB `focus_offset=on`) moves the focuser directly without a reference, FOCUS ADJUST would undo it.
+  Both offsets wait for the end of an exposure (`TOI.wait_no_exposure`, camerastate 1-4 as FOCUS ADJUST, max 1 h)
+  and FOCUS ADJUST skips the telescope while the offset move runs (`focus_offset_moving`).
 
 - Observers of the night (2026-10-27): `observers.yaml` (repo root) lists the people; `obs_gui.ObserversWindow`
   (non-modal; a checkable table with a search field, pre-checked with the last entry, i.e. the previous night,

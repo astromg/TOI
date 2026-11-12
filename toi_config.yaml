@@ -94,6 +94,9 @@ jk15:
   focus_step: 30          # default Step in the Aux Focus tab (overrides TIC's focuser.default_step)
   focus_method: laplacian # default method: Focus tab and plan FOCUS OBs
   focus_methods: [laplacian, lorentzian, rms_quad, rms, fwhm]   # pyaraucaria.focus names; TIC's focusing_methods has 'ffs_fwhm', unknown there
+  # focus per M3 port, relative (Mount window FOCUS OFFSET: after SET M3 the focuser moves by the difference);
+  # until it is in the global config. 2026-11-12: Andor 25287 (laplacian; model 25291), BESO guider camera 21900
+  focus_port_offset: {andor: 0, beso: -3387}
 
 
 ctc:
