@@ -604,8 +604,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
         self.auxGui.events.set_admin(self.events_admin)
 
     def show_event_picture(self, name, info):
-        """Obrazek eventu w zakladce Pictures (sama nazwa pliku z toi.events.pictures_dir)"""
-        name = os.path.basename(str(name))
+        """Obrazek eventu w zakladce Pictures (nazwa pliku z toi.events.pictures_dir albo special/<plik> - tryb
+        admina, events_gui.SPECIAL_DIR); inne sciezki obciete do nazwy pliku"""
+        name = str(name)
+        base = os.path.basename(name)
+        name = name if name == f"special/{base}" else base
         path = os.path.join(self.events_cfg().get("pictures_dir", "/data/misc/oca_overwatch/pictures"), name)
         asyncio.ensure_future(self.auxGui.pictures.show_file(path, info, f"No picture {name}"))
         self.auxGui.show_tab(self.auxGui.pictures)
