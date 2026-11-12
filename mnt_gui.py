@@ -690,9 +690,9 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         self.telFilter_p = QPushButton('SET')
         self.telFilter_p.clicked.connect(self.parent.set_filter)
 
-        self.FilterAutoOffset_l = QLabel("AUTO OFFSET:")
+        self.FilterAutoOffset_l = QLabel("FOCUS OFFSET:")
         self.FilterAutoOffset_l.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
-        # AUTO OFFSET (2026-11-12): po SET filter z tego TOI focus o roznice filterwheel.filters[].focus_offset
+        # FOCUS OFFSET przy FILTER (2026-11-12, dawniej AUTO OFFSET): po SET filter z tego TOI focus o roznice filterwheel.filters[].focus_offset
         # (globalny konfig) - TOI.filter_focus_offset; stan na tym stanowisku (QSettings)
         self.FilterAutoOffset_c = QCheckBox()
         self.FilterAutoOffset_c.setChecked(QtCore.QSettings("OCA", "TOI").value("filter_focus_offset", True, type=bool))

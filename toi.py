@@ -4310,7 +4310,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     FILTER_MOVE_TIMEOUT = 60    # s - czekanie na koniec ruchu kola filtrow przed przesunieciem focusa
 
     async def filter_focus_offset(self, tel, fw, old_filter, new_filter, ind):
-        """AUTO OFFSET (2026-11-12): po SET filter z tego TOI - gdy kolo dojedzie, focus o
+        """FOCUS OFFSET przy FILTER (2026-11-12): po SET filter z tego TOI - gdy kolo dojedzie, focus o
         focus_offset[nowy] - focus_offset[stary] z globalnego konfigu (filterwheel.filters[].focus_offset, to samo
         co planrunner z OB focus_offset=on; dzis wszystkie 0 - wtedy nic). Tylko stanowisko, ktore kliknelo SET.
         Przez focus_move: nowa pozycja jest referencja FOCUS ADJUST (offset nie zostanie cofniety)."""
@@ -4328,11 +4328,11 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 if wheel is not None and int(wheel) == int(ind):
                     break
                 if time.time() - t0 > self.FILTER_MOVE_TIMEOUT:
-                    await self.update_log(f'AUTO OFFSET: filter not at {new_filter} after {self.FILTER_MOVE_TIMEOUT} s - '
+                    await self.update_log(f'FOCUS OFFSET: filter not at {new_filter} after {self.FILTER_MOVE_TIMEOUT} s - '
                                           f'focus not moved', "WARNING", tel)
                     return
                 await asyncio.sleep(1)
-            if not await self.wait_no_exposure(tel, "AUTO OFFSET"):
+            if not await self.wait_no_exposure(tel, "FOCUS OFFSET"):
                 return
             self.focus_offset_moving.add(tel)      # FOCUS ADJUST czeka (nie ruszy focusera miedzy odczytem a ruchem)
             try:
@@ -4345,7 +4345,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
                 self.focus_offset_moving.discard(tel)
         except Exception as e:
             logger.warning(f'TOI filter_focus_offset: {e!r}')
-            await self.update_log(f'AUTO OFFSET failed: {e}', "WARNING", tel)
+            await self.update_log(f'FOCUS OFFSET (filter) failed: {e}', "WARNING", tel)
 
     async def filter_update(self, event):
             pos = await self.delivered(event, self.fw.aget_position)

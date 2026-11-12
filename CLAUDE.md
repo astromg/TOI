@@ -219,7 +219,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   `m3_focus_offset`, default on). After SET M3 from *this* TOI, `TOI.m3_focus_offset` waits until M3 is on the new port
   and moves the focuser by `focus_port_offset[new] - [old]` (`toi_config.yaml` `<tel>.focus_port_offset`, relative;
   jk15 andor 0 / beso -3387, until it is in the global config) through `focus_move` (source `m3_offset`). Other TOIs
-  and M3 moves by the planrunner do not move the focus. Filters the same way (2026-11-12): Mount window FILTER row AUTO
+  and M3 moves by the planrunner do not move the focus. Filters the same way (2026-11-12): Mount window FILTER row FOCUS
   OFFSET (`FilterAutoOffset_c`, QSettings `filter_focus_offset`) → `TOI.filter_focus_offset`, offsets from the global
   config `filterwheel.filters[].focus_offset` (`nats_cfg[tel]["filter_focus_offset"]`; all 0 today → no move). Open: the
   planrunner (OB `focus_offset=on`) moves the focuser directly without a reference, FOCUS ADJUST would undo it.

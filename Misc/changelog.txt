@@ -6,7 +6,7 @@ sound and picture; secret events and special sounds in admin mode; optional ackn
 observation window; alerts window fixed, shows event pictures; Aux Guider tab (jk15 BESO: frame, fiber, drift,
 pulses, GUIDING switch); FITS: satellite trails, PSF pattern, trailed stars warning, saturated stars, contrast scales,
 no star shape squares; plan: Moon and altitude warnings, system file dialog starting in /data/misc; TPG: SKYFLATS only;
-focus: FOCUS OFFSET for the M3 port (jk15 Andor / BESO), AUTO OFFSET for filters, both wait for the end of an exposure.
+focus: FOCUS OFFSET for the M3 port (jk15 Andor / BESO), FOCUS OFFSET for filters, both wait for the end of an exposure.
 <br>
 NATS: TOI publishes and reads its subjects under the new names (journal.toi.&lt;tel&gt;.self.log, status.toi.&lt;tel&gt;.self.ob,
 ...). Current OB, switches and plan are also sent under the old names for oca_monitor and Halina; history (log, flats,
