@@ -142,8 +142,8 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   downloader data -> FFS runs). Contrast: ⚙ → "FITS scale" (`FITS_SCALES`, QSettings `fits_scale`,
   `image_limits` on every 4th pixel): median -2/+10 mad_std (default), ZScale, or the old mean +- std. The panel shows FWHM, ellipticity (red > 0.15), shape (not coloured) and "stars used"
   (cpe/ci were dropped). Stars measured by FFS but rejected from the frame FWHM (shape outside 0.55-0.95,
-  `STAR_SHAPE_WINDOW`) get hollow red squares (`_draw_star_shapes`); all others no marker (orange "suspect" squares were
-  dropped); the panel line "star shape" counts ok / rejected. Saturated stars (peak `ffs.adu` > saturation,
+  `STAR_SHAPE_WINDOW`) get no marker (the red squares were dropped 2026-11-12, the orange "suspect" ones earlier); the
+  panel line "star shape" counts ok / rejected (`_star_shape_counts`). Saturated stars (peak `ffs.adu` > saturation,
   not measured by FFS) - red circles (`SATURATED_STAR_SIZE` 7). `FFS_Worker` also runs `calc_star_field_stats` (mgorski_dev, ~0.1 s; errors
   ignored): for a `psf_pattern` linear / radial / tangential with strength >= 0.15 (`_pattern_strength`:
   common e, or S x mean e; the FFS test only says "not random", true on almost every frame), whiskers through the stars of the pattern (red for a star with e >= 0.15 `WHISKER_RED_E`, else the muted colour; with no / a weak pattern but the ellipticity warning (median > `ELLIP_WARN` 0.15) only the red ones, no centre; `ffs.pattern_stars`: shape > 0.2, e > 0.05 -
@@ -154,8 +154,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   alpha 0.85 (no names). Whiskers and targets use the muted colour of the colormap (`FITS_CMAPS` third item,
   `fits_soft_color()`: grey on viridis, dim grey on turbo, cyan on gray); the pointing cross too (same colour and alpha as the targets);
   spikes the overlay colour (gray: yellow, not red). ⚙ → FITS display → "Show PSF
-  pattern" / "Show star shapes" / "Show saturated stars" (QSettings `fits_show_pattern`, `fits_show_star_shapes`,
-  default on; `fits_show_saturated`, first default `toi.show_sat_stars`); the panel lines stay. `calc_frame_fwhm` is called without `clip`: mgorski_dev takes for the frame FWHM only stars with
+  pattern" / "Show saturated stars" (QSettings `fits_show_pattern`, default on; `fits_show_saturated`, first default `toi.show_sat_stars`); the panel lines stay. `calc_frame_fwhm` is called without `clip`: mgorski_dev takes for the frame FWHM only stars with
   0.55 < shape < 0.95 (fewer than 3 -> NaN, shown as "--", "stars used" says how many), master keeps its clipping.
 - `aux_gui.py` (`AuxWindow`) — one window with tabs, in order: Telescope (the active telescope's
   OCA manual pages fetched over HTTP from the intranet, `toi.oca_manual_url`: description `telescope_<tel>` on the

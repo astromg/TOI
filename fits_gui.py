@@ -99,7 +99,6 @@ FFS_IMAGE_TYPES = ("science", "snap", "focusing")
 # calc_star_stats 0.55-0.95: < 0.55 paczki, slabe detekcje; > 0.95 kosmik w gwiezdzie); pozostale bez znacznika (pomaranczowe
 # "podejrzane" - shape 0.82-0.95, e > 0.25 - zarzucone 2026-11-09). Nasycone - male czerwone kolka.
 STAR_SHAPE_WINDOW = (0.55, 0.95)
-STAR_REJECTED_COLOR = "red"
 SATURATED_STAR_COLOR = "red"
 SATURATED_STAR_SIZE = 7         # kolka gwiazd nasyconych (bylo 5 - za male)
 # linie z FFS (slady satelitow, promienie, przelania) jako polprzezroczyste pasy, nie cienkie linie - widoczne, a nie
@@ -139,11 +138,6 @@ def fits_show_saturated(default=True):
 def fits_show_pattern():
     # kreseczki wzoru katow gwiazd i jego srodek (menu ⚙ "FITS display", QSettings); linia w panelu zostaje
     return bool(QtCore.QSettings("OCA", "TOI").value("fits_show_pattern", True, type=bool))
-
-
-def fits_show_star_shapes():
-    # markery shape gwiazd (za duzy / za maly) na obrazie (menu ⚙ "FITS display", QSettings); licznik w panelu zostaje
-    return bool(QtCore.QSettings("OCA", "TOI").value("fits_show_star_shapes", True, type=bool))
 
 
 def display_binning(shape, mode):
@@ -251,15 +245,6 @@ class FitsWindow(BaseWindow):
                 self.update_fits_data()     # nakladki od nowa: z kreseczkami albo bez
         except Exception as e:
             logger.warning(f'TOI FITS: show pattern: {e!r}')
-
-    def set_show_star_shapes(self, on):
-        # zwykly slot (menu) - wyjatek nie moze wyjsc
-        try:
-            QtCore.QSettings("OCA", "TOI").setValue("fits_show_star_shapes", bool(on))
-            if self.image is not None and numpy.ndim(self.image) == 2:
-                self.update_fits_data()     # nakladki od nowa: z kolkami albo bez
-        except Exception as e:
-            logger.warning(f'TOI FITS: show star shapes: {e!r}')
 
     def set_display_mode(self, mode):
         QtCore.QSettings("OCA", "TOI").setValue("fits_display", mode)
@@ -392,23 +377,19 @@ class FitsWindow(BaseWindow):
             logger.exception(f'TOI FITS: ffs result: {e}')
 
 
-    def _draw_star_shapes(self, draw=True):
-        """Czerwone puste kwadraty gwiazd zmierzonych przez FFS, ale odrzuconych z FWHM klatki (shape poza
-        STAR_SHAPE_WINDOW); draw=False - tylko policz. Zwraca (uzyte, odrzucone) albo None (brak pomiaru)."""
+    def _star_shape_counts(self):
+        """Gwiazdy zmierzone przez FFS: w oknie shape (STAR_SHAPE_WINDOW, uzyte do FWHM klatki) / odrzucone - linia
+        "star shape" w panelu. Bez znacznikow na obrazie (czerwone kwadraty odrzuconych usuniete 2026-11-12).
+        Zwraca (uzyte, odrzucone) albo None (brak pomiaru)."""
         shape = getattr(self.ffs, "shape", None)
         coo = getattr(self.ffs, "coo", None)
         if shape is None or coo is None or len(shape) == 0:
             return None
         n = min(len(shape), len(coo))
         shape = numpy.asarray(shape, dtype=float)[:n]
-        coo = numpy.asarray(coo).reshape(-1, 2)[:n]
         with numpy.errstate(invalid="ignore"):          # NaN - niezmierzone (nasycone, zle piksele) - bez znacznika
             measured = numpy.isfinite(shape)
             rejected = measured & ((shape <= STAR_SHAPE_WINDOW[0]) | (shape >= STAR_SHAPE_WINDOW[1]))
-        if draw and rejected.any():
-            # FFS liczy na obrazie transponowanym (FFS_Worker): coo (wiersz, kolumna) = (x, y) obrazu
-            self._overlays += self.axes.plot(coo[rejected, 0], coo[rejected, 1], color=STAR_REJECTED_COLOR, marker="s",
-                                             markersize=9, markerfacecolor="none", markeredgewidth=1.0, linestyle="")
         return int((measured & ~rejected).sum()), int(rejected.sum())
 
     def _trailed_text(self):
@@ -752,13 +733,13 @@ class FitsWindow(BaseWindow):
                         txt = txt + f'stars used:  <span style="color:{red};"><b>{used}</b></span>/50 <br>'
                     else:
                         txt = txt + f'stars used:  <b>{used}</b>/50 <br>'
-                star_classes = self._draw_star_shapes(draw=fits_show_star_shapes())
+                star_classes = self._star_shape_counts()
                 pattern_txt = self._pattern_text()
                 if pattern_txt:
                     txt = txt + pattern_txt + " <br>"
                 if fits_show_pattern():     # takze bez statystyk pola: czerwone kreseczki przy ostrzezeniu
                     self._draw_pattern()
-                if star_classes:        # zmierzone: w oknie shape / odrzucone (czerwone kwadraty)
+                if star_classes:        # zmierzone: w oknie shape / odrzucone
                     n_ok, n_rej = star_classes
                     rej = f'<span style="color:{red};"><b>{n_rej}</b></span>' if n_rej else f"<i>{n_rej}</i>"
                     txt = txt + f"star shape:  <i>{n_ok}</i> ok / {rej} rejected <br>"

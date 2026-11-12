@@ -22,7 +22,7 @@ from plan_gui import (PLAN_DONE_CHOICES, PLAN_LOG_LINES_CHOICES, plan_done_range
                       set_plan_log_lines)
 from fits_gui import FITS_DISPLAY_MODES, fits_display_mode, FITS_CMAPS, fits_cmap, FITS_SCALES, fits_scale, \
     fits_show_trails, \
-    fits_show_star_shapes, fits_show_saturated, fits_show_pattern
+    fits_show_saturated, fits_show_pattern
 
 logger = logging.getLogger(__name__)
 
@@ -150,10 +150,6 @@ class ObsGui(QMainWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
         pattern.setCheckable(True)
         pattern.setChecked(fits_show_pattern())
         pattern.toggled.connect(lambda on: self.parent.fitsGui.set_show_pattern(on))
-        shapes = fits_menu.addAction("Show star shapes")    # markery shape: za duzy / za maly (licznik w panelu zostaje)
-        shapes.setCheckable(True)
-        shapes.setChecked(fits_show_star_shapes())
-        shapes.toggled.connect(lambda on: self.parent.fitsGui.set_show_star_shapes(on))
         saturated = fits_menu.addAction("Show saturated stars")    # czerwone kolka gwiazd nasyconych
         saturated.setCheckable(True)
         saturated.setChecked(fits_show_saturated(self.parent.local_cfg["toi"].get("show_sat_stars", True)))
@@ -1023,7 +1019,9 @@ class MainForm(QWidget):
                 if spec.get("kind") in ("sun_set", "sun_rise"):     # wyzwalacz z przodu, jak NEXT EVENTS w oca_monitor
                     arrow = "↓" if spec["kind"] == "sun_set" else "↑"
                     text = f'Sun {arrow} {spec.get("alt", 0):+g}°  {hm} UT  {ev.get("info", "")}'
-                else:                                               # ut / sec (overwatch zamienia sec na ut)
+                elif str(ev.get("when", "")).startswith("sec="):    # "In minutes": overwatch robi z tego ut, when zostaje
+                    text = f'⏱ {timer_text(ev["when"])}  {hm}  {ev.get("info", "")}'
+                else:                                               # ut
                     text = f'UT  {hm}  {ev.get("info", "")}'
                 count = f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}"
                 soon = t - now <= self.EVENT_SOON
@@ -1050,6 +1048,15 @@ class MainForm(QWidget):
         super().closeEvent(event)
 
 # ############### FOCUS ##########################
+
+def timer_text(when):
+    """``sec=600`` -> ``10 min`` (event "In minutes" z zakladki Events), ``sec=5400`` -> ``1 h 30 min``"""
+    try:
+        m = round(float(str(when).split("=", 1)[1]) / 60)
+    except (IndexError, ValueError):
+        return "timer"
+    return f"{m} min" if m < 60 else f"{m // 60} h" + (f" {m % 60:02d} min" if m % 60 else "")
+
 
 class SoundTestWindow(QWidget):
     """PING and a test of every alarm sound of oca_monitor (pages/message.py LABEL_SOUNDS), opened by the PING
