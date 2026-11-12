@@ -1018,7 +1018,13 @@ class MainForm(QWidget):
             else:
                 t, ev = best
                 s = max(0, int(t - now))
-                text = f'{datetime.datetime.fromtimestamp(t, datetime.timezone.utc):%H:%M} UT  {ev.get("info", "")}'
+                hm = f'{datetime.datetime.fromtimestamp(t, datetime.timezone.utc):%H:%M}'
+                spec = ev.get("spec") or {}
+                if spec.get("kind") in ("sun_set", "sun_rise"):     # wyzwalacz z przodu, jak NEXT EVENTS w oca_monitor
+                    arrow = "↓" if spec["kind"] == "sun_set" else "↑"
+                    text = f'Sun {arrow} {spec.get("alt", 0):+g}°  {hm} UT  {ev.get("info", "")}'
+                else:                                               # ut / sec (overwatch zamienia sec na ut)
+                    text = f'UT  {hm}  {ev.get("info", "")}'
                 count = f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}"
                 soon = t - now <= self.EVENT_SOON
                 tip = f'{when_text(t)}\n{describe(ev)}\n{ev.get("info", "")}'
