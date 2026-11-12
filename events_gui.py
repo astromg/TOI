@@ -240,7 +240,7 @@ class EventsTab(QWidget):
         self.editing = None
         self.add_p.setText("Add")
         self.cancel_p.hide()
-        self.set_kind("Sun")
+        self.set_kind("In minutes")       # domyslny rodzaj (start, po Add, Cancel edit)
 
     def generated(self):
         """(when, repeat albo None, czas najblizszy albo None, opis) z pol generatora; ValueError - blad"""
