@@ -153,6 +153,8 @@ THEMES = {
         "tab_icon_warn2": "rgb(160, 120, 0)",
     },
     # clear sky: dzien - chlodna, czysta biel z niebieskawym odcieniem, wyrazne akcenty
+    # 2026-11-13: zielen (ok_fg, tab_ok, tab_icon_ok) i niebieski (change_fg) ciemniejsze i mniej nasycone -
+    # w logu i komunikatach swiecily (kontrast ~4.3 -> ~6:1)
     "clearsky": {
         "window": "rgb(245, 247, 250)",
         "text": "rgb(31, 41, 51)",
@@ -160,17 +162,17 @@ THEMES = {
         "field_fg": "rgb(31, 41, 51)",
         "muted_fg": "rgb(150, 160, 175)",
         "selection_bg": "rgb(168, 199, 250)",
-        "ok_bg": "rgb(190, 240, 200)", "ok_fg": "rgb(26, 127, 55)", "ok_beat_fg": "rgb(10, 80, 30)",
+        "ok_bg": "rgb(190, 240, 200)", "ok_fg": "rgb(35, 100, 60)", "ok_beat_fg": "rgb(10, 80, 30)",
         "bad_bg": "rgb(255, 190, 190)", "bad_fg": "rgb(207, 34, 46)",
         "warn_bg": "rgb(255, 238, 150)", "warn_fg": "rgb(154, 103, 0)",
         "warn2_bg": "rgb(255, 210, 170)", "warn2_fg": "rgb(188, 76, 0)",
-        "change_bg": "rgb(205, 232, 255)", "change_fg": "rgb(9, 105, 218)",
+        "change_bg": "rgb(205, 232, 255)", "change_fg": "rgb(40, 85, 150)",
         "idle_fg": "rgb(31, 41, 51)",
-        "tab_ok": "rgb(26, 127, 55)", "tab_moving": "rgb(188, 76, 0)", "tab_error": "rgb(207, 34, 46)",
+        "tab_ok": "rgb(35, 100, 60)", "tab_moving": "rgb(188, 76, 0)", "tab_error": "rgb(207, 34, 46)",
         "input_bg": "white", "input_edit_bg": "white", "moving_bg": "rgb(160, 175, 245)",
         "moving_fg": "rgb(188, 76, 0)", "warn_soft_bg": "rgb(255, 238, 150)",
         "row_sel_bg": "rgb(168, 199, 250)", "row_prev_bg": "rgb(226, 232, 240)", "dim_fg": "rgb(110, 119, 129)",
-        "tab_icon_ok": "rgb(26, 127, 55)", "tab_icon_bad": "rgb(207, 34, 46)", "tab_icon_warn": "rgb(188, 76, 0)",
+        "tab_icon_ok": "rgb(35, 100, 60)", "tab_icon_bad": "rgb(207, 34, 46)", "tab_icon_warn": "rgb(188, 76, 0)",
         "tab_icon_warn2": "rgb(154, 103, 0)",
     },
     # synthwave: lata 80. - fioletowa noc retrowave, neonowy roz / cyjan / zolc, zielen jak monitor CRT
