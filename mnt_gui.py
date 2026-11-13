@@ -796,6 +796,8 @@ class MntGui(BaseWindow, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget):
             completer = QCompleter(self.catalog)
             completer.setFilterMode(QtCore.Qt.MatchContains)
             completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+            # wybor z listy myszka nie konczy edycji (editingFinished), wiec obiekt ustawiamy od razu
+            completer.activated.connect(lambda _text: self.parent.target_provided())
             self.target_e.setCompleter(completer)
 
 

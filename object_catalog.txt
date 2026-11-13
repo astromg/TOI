@@ -1,8 +1,4 @@
 
-WAIT sec=300
-WAIT ut=01:00:00
-WAIT sunset=-10
-WAIT sunrise=-10
 
 OBJECT   BF23 23:39:05.0 -48:23:10.0  #  Skyflat field
 OBJECT   BF00 00:34:18.0 -49:39:55.0 seq=1/V/30  #  Skyflat field
@@ -62,5 +58,5 @@ OBJECT RU152  07:29:56   -02:05:39   #  standard field mV between 11 and 15"
 OBJECT SA104  12:42:21   -00:33:12   #  standard field mV between 10 and 15"
 OBJECT SA110  18:42:45   +00:07:42   #  standard field mV between 10 and 14"
 OBJECT SA113  21:41:00   +00:27:21   #  standard field mV between 10 and 14"
-OBJECT OBJECT SA114 22:41:37    +01:08:14   #  standard field mV between 9.5 and 12"
+OBJECT SA114 22:41:37    +01:08:14   #  standard field mV between 9.5 and 12"
 

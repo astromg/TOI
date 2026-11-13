@@ -145,7 +145,7 @@ def readCatalog(plik):
         for line in f:
             if len(line.strip()) > 0:
                 if line.strip().split()[0] != "#":
-                    l.append(line)
+                    l.append(line.strip())
     return l
 
 

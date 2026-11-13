@@ -80,6 +80,12 @@ DRIFT_X_COLOR = "#a070d0"
 DRIFT_Y_COLOR = "#40b0c0"
 MARK_COLOR = "#e040e0"
 SEARCH_COLOR = "#d0d0d0"        # kolo szukania: jasne, zeby bylo widac na ciemnym kadrze
+# nakladka na kadrze: kadr jest zawsze ciemny, wiec stale jasne kolory zamiast *_fg motywu (w jasnych motywach ciemne,
+# na czarnym tle prawie niewidoczne); znaczenie jak w TOI: zielony gwiazda, niebieski wlokno, zolty hold point
+STAR_COLOR = "#40ff70"
+FIBER_COLOR = "#50b8ff"
+HOLD_COLOR = "#ffd040"
+CANDIDATE_COLOR = "#a0a0a0"
 HELP = ("Left click: star to guide on · Right click: mark a point · Wheel: zoom at the cursor · Middle drag: pan · "
         "0: fit · Arrows: pulse (MONITOR) · F: find star · Esc: clear mark")
 
@@ -213,7 +219,7 @@ class GuiderScene(QGraphicsScene):
 
         # kandydaci z detekcji (klawisz D)
         if self.show_candidates and method != "fiber":
-            pen = self._pen("dim_fg", 1)
+            pen = self._pen(CANDIDATE_COLOR, 1)
             for cand in state.get("candidates") or []:
                 c = _xy(cand)
                 if c:
@@ -221,40 +227,40 @@ class GuiderScene(QGraphicsScene):
 
         # wlokno (centrum): krzyz z otwartym srodkiem i okrag promienia otworu
         if fiber:
-            pen = self._pen("change_fg", 1.5)
+            pen = self._pen(FIBER_COLOR, 1.5)
             self._cross(fiber, fiber_r * 2, fiber_r * 6, pen)
-            self._circle(fiber, fiber_r, self._pen("change_fg", 1, Qt.PenStyle.DotLine))
+            self._circle(fiber, fiber_r, self._pen(FIBER_COLOR, 1, Qt.PenStyle.DotLine))
             if method == "fiber":
                 win = float((state.get("method_params") or {}).get("analysis_radius_px") or 15.0)
                 self._add(self.addRect(QRectF(fiber[0] - win, fiber[1] - win, 2 * win, 2 * win),
-                                       self._pen("change_fg", 1, Qt.PenStyle.DashLine, 160)))
+                                       self._pen(FIBER_COLOR, 1, Qt.PenStyle.DashLine, 160)))
 
         # zmierzone wejscie swiatlowodu (Fiber: measured)
         hole = state.get("hole_candidate") or {}
         hole_xy = _xy((hole.get("x"), hole.get("y"))) if hole else None
         if hole_xy:
-            self._circle(hole_xy, fiber_r, self._pen("warn_fg", 1.5, Qt.PenStyle.DashLine))
+            self._circle(hole_xy, fiber_r, self._pen(HOLD_COLOR, 1.5, Qt.PenStyle.DashLine))
 
         # hold point: gdzie guiding trzyma gwiazde (tylko w guiding i gdy rozny od wlokna)
         hold = _xy(state.get("guide_anchor"))
         if mode == "guiding" and hold and (not fiber or math.dist(hold, fiber) > 0.5):
-            pen = self._pen("warn_fg", 1.5, Qt.PenStyle.DashLine)
+            pen = self._pen(HOLD_COLOR, 1.5, Qt.PenStyle.DashLine)
             self._cross(hold, 4, 14, pen)
-            self._label((hold[0] + 10, hold[1] + 10), "hold point", "warn_fg")
+            self._label((hold[0] + 10, hold[1] + 10), "hold point", HOLD_COLOR)
 
         # gwiazda trzymana w tej klatce + linia do celu
         star = _xy(state.get("acquired_pos"))
         if star and state.get("acquired"):
-            self._circle(star, 10, self._pen("ok_fg", 2))      # ADU - w diagnostyce obok
+            self._circle(star, 10, self._pen(STAR_COLOR, 2.5))      # ADU - w diagnostyce obok
             target = hold if hold else fiber
             if mode == "guiding" and target and math.dist(star, target) > 0.5:
-                self._line(star, target, self._pen("ok_fg", 1))
+                self._line(star, target, self._pen(STAR_COLOR, 1))
 
         # przewidywane polozenie po impulsie
         pred = _xy(state.get("predicted_pos"))
         if pred and star:
-            self._line(star, pred, self._pen("change_fg", 1, Qt.PenStyle.DotLine))
-            self._circle(pred, 6, self._pen("change_fg", 1, Qt.PenStyle.DotLine))
+            self._line(star, pred, self._pen(FIBER_COLOR, 1, Qt.PenStyle.DotLine))
+            self._circle(pred, 6, self._pen(FIBER_COLOR, 1, Qt.PenStyle.DotLine))
 
 
 class FrameView(QGraphicsView):

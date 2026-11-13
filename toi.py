@@ -3492,30 +3492,63 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
 
     def target_provided(self):
         # zwykly slot Qt (editingFinished): wyjatek stad zamknalby cale TOI
-        target = self.mntGui.target_e.text()
+        target = self.mntGui.target_e.text().strip()
+        if not target:
+            theme.paint(self.mntGui.target_e, bg="input_bg")
+            return
         try:
-            if TOI._ob_validator is None:
-                TOI._ob_validator = ObsValidator(ObsValidator.load_schema("base_schema"),
-                                                 ObsValidator.load_schema("base_rules.yaml"))
-            result = TOI._ob_validator.validate_txt(
-                target, allowed_filters=self.nats_cfg[self.active_tel]["filter_list_names"])
-            if result["result"]:
-                ob = result["data"]
-                if "ra" in ob.keys():
-                    self.mntGui.nextRa_e.setText(ob["ra"])
-                if "dec" in ob.keys():
-                    self.mntGui.nextDec_e.setText(ob["dec"])
-                if "name" in ob.keys():
-                    self.instGui.ccd_tab.inst_object_e.setText(ob["name"])
-                if "seq" in ob.keys():
-                    self.instGui.ccd_tab.inst_Seq_e.setText(ob["seq"])
-                self.mntGui.setEq_r.setChecked(True)
-                self.mntGui.updateNextRaDec()
+            ob, line = self.search_target(target)
+            if ob is None:
+                logger.warning(f'TOI: SEARCH "{target}": not an OBJECT line with ra / dec and not a name in the catalog')
+                theme.paint(self.mntGui.target_e, bg="warn2_bg")
+                return
+            if line != target:       # znalezione po nazwie - pokazujemy uzyta linie katalogu
+                self.mntGui.target_e.setText(line)
+            self.mntGui.nextRa_e.setText(ob["ra"])
+            self.mntGui.nextDec_e.setText(ob["dec"])
+            if "name" in ob.keys():
+                self.instGui.ccd_tab.inst_object_e.setText(ob["name"])
+            if "seq" in ob.keys():
+                self.instGui.ccd_tab.inst_Seq_e.setText(ob["seq"])
+            self.mntGui.setEq_r.setChecked(True)
+            self.mntGui.updateNextRaDec()
         except Exception as e:
             logger.warning(f'TOI: SEARCH "{target}": {e!r}')
             theme.paint(self.mntGui.target_e, bg="warn2_bg")
             return
         theme.paint(self.mntGui.target_e, bg="input_bg")
+
+    def search_target(self, text):
+        """SEARCH field -> (OB dict with ra / dec, line used) or (None, None).
+        Accepts a full OBJECT line, or just a name (with or without OBJECT in front) looked up in the
+        object catalog (case-insensitive)."""
+        if TOI._ob_validator is None:
+            TOI._ob_validator = ObsValidator(ObsValidator.load_schema("base_schema"),
+                                             ObsValidator.load_schema("base_rules.yaml"))
+        filters = self.nats_cfg[self.active_tel]["filter_list_names"]
+
+        def parse(txt):
+            result = TOI._ob_validator.validate_txt(txt, allowed_filters=filters)
+            ob = result.get("data") or {}
+            if result.get("valid") and "ra" in ob and "dec" in ob:
+                return ob
+            return None
+
+        ob = parse(text)
+        if ob is not None:
+            return ob, text
+        words = text.split()
+        if words and words[0].upper() == "OBJECT":
+            words = words[1:]
+        if len(words) == 1:
+            name = words[0].lower()
+            for line in getattr(self.mntGui, "catalog", None) or []:
+                cat = line.split()
+                if len(cat) > 1 and cat[0].upper() == "OBJECT" and cat[1].lower() == name:
+                    ob = parse(line)
+                    if ob is not None:
+                        return ob, line
+        return None, None
 
     @qs.asyncSlot()
     async def pulse_up(self):
