@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import requests
 
 
 
@@ -6,7 +7,7 @@
 # 100 wk06
 # 110 zb08
 # 120 jk15
-#
+# 140 wg25 11116
 
 # Tertiary mirror
 
@@ -57,7 +58,7 @@
 
 # MOUNT
 
-# quest = "http://192.168.7.110:11111/api/v1/telescope/0/slewing"
+# quest = "http://192.168.7.140:11116/api/v1/telescope/0/slewing"
 # r = requests.get(quest)
 # r = r.json()
 # r = r["Value"]
@@ -82,13 +83,13 @@
 # r = requests.put(quest, data=data).json()
 # print(f"ALPACA: {quest}\n {r}\n")
 
-# quest = "http://192.168.7.120:11111/api/v1/rotator/0/position"
+# quest = "http://192.168.7.140:11116/api/v1/rotator/0/position"
 # r = requests.get(quest)
 # r = r.json()
 # r = r["Value"]
 # print(f"ALPACA: {quest}\n {r}\n")
 # #
-# quest = "http://192.168.7.120:11111/api/v1/rotator/0/mechanicalposition"
+# quest = "http://192.168.7.140:11116/api/v1/rotator/0/mechanicalposition"
 # r = requests.get(quest)
 # r = r.json()
 # r = r["Value"]

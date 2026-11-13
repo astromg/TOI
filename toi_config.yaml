@@ -1,5 +1,5 @@
 toi:
-  telescopes: ["wk06","zb08","jk15"]
+  telescopes: ["wk06","zb08","jk15","wg25"]
   nats_host: 192.168.7.38
   nats_port: 4222
 
@@ -97,6 +97,20 @@ jk15:
   # focus per M3 port, relative (Mount window FOCUS OFFSET: after SET M3 the focuser moves by the difference);
   # until it is in the global config. 2026-11-12: Andor 25287 (laplacian; model 25291), BESO guider camera 21900
   focus_port_offset: {andor: 0, beso: -3387}
+
+wg25:
+  # 2026-11-13: commissioning (flag disabled in the TIC config); no FITS directory / downloader, filters, light_ip,
+  # focus model or tpg config yet
+  tel_directory: /data/fits/wg25/
+  tel_ob_list: /data/misc/synced/objects_list/
+  flat_log_files: /Logs/wg25_flats_log.txt
+  object_catalog: ./object_catalog.txt
+
+  overhead: 25
+  showRotator: True
+  focus_step: 30          # default Step in the Aux Focus tab (overrides TIC's focuser.default_step)
+  focus_method: laplacian # default method: Focus tab and plan FOCUS OBs
+  focus_methods: [laplacian, lorentzian, rms_quad, rms, fwhm]   # pyaraucaria.focus names; TIC's focusing_methods has 'ffs_fwhm', unknown there
 
 
 ctc:
