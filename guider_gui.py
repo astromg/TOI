@@ -729,27 +729,56 @@ class GuiderTab(QWidget):
         asyncio.ensure_future(self._send(cmd, data, done))
         return True
 
+    # --- log operacji (journal.toi.<tel>.self.log): kazda komenda guidera jak inne operacje TOI ---
+
+    @staticmethod
+    def _op_text(cmd, data):
+        """operator-readable text of a guider command for the operation log"""
+        xy = f'({data.get("x")}, {data.get("y")})' if "x" in data else ""
+        if cmd == "set_mode":
+            return f'guider {str(data.get("mode")).upper()}'
+        if cmd == "set_state":
+            patch = ", ".join(f"{k}={v}" for k, v in (data.get("patch") or {}).items())
+            return f"guider set {patch}"
+        if cmd == "pulse_pixels":
+            return f'guider pulse dx {data.get("dx_px")} px, dy {data.get("dy_px")} px'
+        return {"lock_at": f"guider select star at {xy}", "acquire": "guider Find star",
+                "drop_to_reticle": "guider Move to fiber", "acquire_at": f"guider fiber position {xy}",
+                "refine_reticle": "guider fiber position measured"}.get(cmd, f"guider {cmd} {data or ''}")
+
+    def op_log(self, txt, label):
+        """a line in the operation log of the guider's telescope (OPERATOR / TOI RESPONDER / WARNING / ERROR)"""
+        if self.tel:
+            asyncio.ensure_future(self.parent.update_log(txt, label, self.tel))
+
     async def _send(self, cmd, data, done=None):
-        reply = await self._call(cmd, data)
+        reply = await self._call(cmd, data, label="OPERATOR")
         if done is not None:
             try:
                 done(reply)
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"GuiderTab: {cmd} reply handler: {e!r}")
 
-    async def _call(self, cmd, data):
-        """RPC + operator-readable errors / refusals in the journal; reply or None"""
+    async def _call(self, cmd, data, label="TOI RESPONDER"):
+        """RPC + operator-readable errors / refusals in the journal; reply or None. Every command also goes to the
+        operation log: ``label`` OPERATOR for an operator's click, TOI RESPONDER for steps TOI takes by itself
+        (auto guide, Move to fiber in chunks)."""
+        op = self._op_text(cmd, data)
+        self.op_log(op, label)
         try:
             reply = await self.rpc(cmd, data)
         except Exception as e:      # noqa: BLE001 - odpowiedz operatorowi, nie wyjatek z Qt
             self.add_journal(f"{cmd}: no reply ({e})", "error")
+            self.op_log(f"{op}: no reply from the guider", "ERROR")
             return None
         result = reply.get("result") if isinstance(reply, dict) else None
         if isinstance(reply, dict) and reply.get("status") != "ok":
             self.add_journal(f"{cmd}: {reply.get('error')} {reply.get('detail', '')}", "error")
+            self.op_log(f"{op}: {reply.get('error')} {reply.get('detail', '')}", "ERROR")
         elif isinstance(result, dict) and result.get("status") not in (None, "ok"):
             why = result.get("reason") or result.get("error") or result.get("message") or result.get("status")
             self.add_journal(f"{cmd} refused: {why}", "warning")
+            self.op_log(f"{op} refused: {why}", "WARNING")
         return reply
 
     # --- przelacznik GUIDING w oknie Mount ---
@@ -779,13 +808,15 @@ class GuiderTab(QWidget):
         """The operator clicked GUIDING in the Mount window."""
         if on:
             if not self.auto_running() and self._may_command():
+                self.op_log("GUIDING on (Mount window): auto guide", "OPERATOR")
                 self.auto_task = asyncio.ensure_future(self._auto_guide())
         else:
+            self.op_log("GUIDING off (Mount window)", "OPERATOR")
             if self.auto_running():
                 self.auto_task.cancel()
                 self.add_journal("auto guide stopped by the operator", "warning")
-            if (self.state or {}).get("mode") == "guiding":
-                self.command("set_mode", mode="monitoring")
+            if (self.state or {}).get("mode") in ("guiding", "monitoring"):
+                self.command("set_mode", mode="off")      # wylaczony GUIDING = guider OFF (bez korekt i ramek)
         self.sync_mount_switch()
 
     async def _wait_state(self, ok, timeout):
@@ -802,6 +833,7 @@ class GuiderTab(QWidget):
         the reason, the guider stays where it got (MONITOR at most), the switch shows the real state."""
         def fail(why):
             self.add_journal(f"auto guide: {why}", "warning")
+            self.op_log(f"GUIDING not started: {why}", "WARNING")
             self.parent.WarningWindow(f"GUIDING not started: {why}")
         try:
             self.add_journal("→ auto guide (Mount window GUIDING)", "sent")
@@ -824,6 +856,7 @@ class GuiderTab(QWidget):
                 return fail("the guider did not switch to GUIDE")
             star = _xy((self.state or {}).get("acquired_pos"))
             self.add_journal("auto guide: guiding" + (f" on the star at {_pt(star)}" if star else ""))
+            self.op_log("guider guiding" + (f" on the star at {_pt(star)}" if star else ""), "TOI RESPONDER")
         finally:
             self.auto_task = None
             self.sync_mount_switch()
@@ -891,6 +924,7 @@ class GuiderTab(QWidget):
             return
         if self.moving or not self._may_command():
             return
+        self.op_log(f"guider Move {'mark' if mark else 'star'} to {self.fiber_word()}", "OPERATOR")
         asyncio.ensure_future(self._move_open_loop(point, fiber, "mark" if mark else "star"))
 
     async def _move_open_loop(self, point, fiber, what):

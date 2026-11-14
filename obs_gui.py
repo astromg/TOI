@@ -744,10 +744,12 @@ class MainForm(QWidget):
             "followerStatus": "Dome follower of the active telescope: heartbeat every 10 s, checked every 4 s. Red: none for 30 s.",
             "downloaderStatus": "OFP downloader of the active telescope, asked every 4 s (alive RPC).",
             "ofpStatus": "OFP pipeline of the active telescope, asked every 4 s (alive RPC).",
-            "flatOwStatus": "flat_overwatch, asked every 4 s (alive RPC). Grey: no subject in toi_config.yaml.",
+            "flatOwStatus": "flat_overwatch, asked every 4 s (alive RPC). Grey: no subject in toi_config.yaml. "
+                            "Orange: running but not reading NATS.",
             "conditionsOwStatus": "conditions_overwatch (weather, sky, system and water alarms, events), asked every 4 s "
-                                  "(alive RPC). Grey: no subject in toi_config.yaml.",
-            "allskyOwStatus": "allsky_overwatch (clouds from the allsky camera), asked every 4 s (alive RPC). Grey: no subject in toi_config.yaml.",
+                                  "(alive RPC). Grey: no subject in toi_config.yaml. Orange: running but not reading NATS.",
+            "allskyOwStatus": "allsky_overwatch (clouds from the allsky camera), asked every 4 s (alive RPC). "
+                              "Grey: no subject in toi_config.yaml. Orange: running but not reading NATS.",
             "temp": "Davis weather station. Red below -1 °C.",
             "hummidity": f"Davis weather station. Red above {self.parent.cfg_humidity_limit} % or rain.",
             "wind": "Davis weather station.",
@@ -766,6 +768,7 @@ class MainForm(QWidget):
                 widget = getattr(self, name + suffix, None)
                 if widget is not None:
                     widget.setToolTip(txt)
+                    widget.base_tip = txt       # lampki overwatchy dopisuja do niego stan (TOI.rpc_alive)
 
     def mkUI(self):
 

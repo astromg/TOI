@@ -851,12 +851,25 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             subject = "tic.rpc.{telescope}." + service + ".alive"
         return await self.rpc_alive(subject.format(telescope=tel))
 
-    async def rpc_alive(self, subject):
+    async def rpc_alive(self, subject, lamp=None):
+        """True / False, albo "stale": overwatch odpowiada, ale jego czytanie z NATS stoi (kanarek oca_overwatch,
+        2026-11-14: po awarii sieci overwatche zywe i gluche, lampki zielone); przyczyna w tooltipie lampki"""
         try:
             data, meta = await request(subject, timeout=3)
-            return data.get("status") == "ok"
         except Exception:       # brak odpowiedzi, timeout, brak responderow
-            return False
+            data = {}
+        status = data.get("status")
+        if lamp is not None:
+            note = ""
+            if status == "stale":
+                note = (f"\nNOT READING NATS: {', '.join(data.get('stale', []))} silent for "
+                        f"{data.get('silent_s', 0) / 60:.0f} min - the service runs but gets no data, restart it.")
+            elif status != "ok":
+                note = "\nNo answer."
+            lamp.setToolTip(getattr(lamp, "base_tip", "") + note)
+        if status == "stale":
+            return "stale"
+        return status == "ok"
 
     # FOLLOW w kolumnie Dome tabeli teleskopow: stan dome followera jest tylko w RPC (tic.rpc.<tel>.dome.follower.state,
     # serwis trzyma go w pamieci) - pytamy o wszystkie teleskopy; aktywny odswieza tez dome_follower_status_update
@@ -917,7 +930,7 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
             if tel != self.active_tel and lamp in (self.obsGui.main_form.downloaderStatus_l,
                                                     self.obsGui.main_form.ofpStatus_l):
                 return      # w trakcie pytania zmienil sie teleskop - odpowiedz dotyczy poprzedniego
-            color = {True: "ok_fg", False: "bad_fg", "wait": "muted_fg", "reconnect": "warn2_fg"}[ok]
+            color = {True: "ok_fg", False: "bad_fg", "wait": "muted_fg", "reconnect": "warn2_fg", "stale": "warn2_fg"}[ok]
             self.obsGui.main_form.set_lamp(lamp, color)
             if ok is True:
                 self.obsGui.main_form.beat(lamp)
@@ -956,7 +969,10 @@ class TOI(QtWidgets.QWidget, BaseAsyncWidget, metaclass=MetaAsyncWidgetQtWidget)
     async def lamp_alive(self, name):
         if not self.alive_subjects.get(name):
             return "wait"       # brak subjectu w toi_config.yaml
-        return await self.rpc_alive(self.alive_subjects[name])
+        f = self.obsGui.main_form
+        lamp = {"flat_overwatch": f.flatOwStatus_l, "conditions_overwatch": f.conditionsOwStatus_l,
+                "allsky_overwatch": f.allskyOwStatus_l}.get(name)
+        return await self.rpc_alive(self.alive_subjects[name], lamp)
 
     # ---- obserwatorzy nocy, wspolni dla obserwatorium: lista w observers.yaml, wybor publikowany na
     # tic.status.ocm.observers (strumien tic_status trzyma ostatni wpis). Wpis wazny do kolejnego resetu - codziennie

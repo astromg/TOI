@@ -61,7 +61,7 @@ FITS options, plan log length, **Reset layout**.
   star in guider pixels.
 
   ![Pulse](Misc/manual/mount_pulse.png)
-- **GUIDING:** on = the guider guides (Find star if needed, then GUIDE); off = MONITOR. Grey without a guider.
+- **GUIDING:** on = the guider guides (Find star if needed, then GUIDE); off = the guider OFF. Grey without a guider.
 - **DOME:** azimuth, MOVE / STOP, shutter, FOLLOW (dome follower), ventilators, dome and flat lights.
 - **Mirror** fans and covers.
 - **FOCUS:** position, SET; CALC MODEL puts the focus of the temperature model into the field (SET then moves). **FOCUS ADJUST** keeps the focus right while

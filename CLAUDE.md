@@ -169,7 +169,9 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   `guider_client.GuiderLink` (`TOI.guider_link`) finds the services on `svc.status.guiding_svc.guider.>`, reads state /
   events / journal / `frame.thumbnail.ready` of the active telescope's guider, fetches the JPEG over HTTP only while the
   tab is visible (`toi.guider_thumbs_url` / `toi.guider_thumbs_root`); commands through `GuiderTab.command()` (needs
-  control of the telescope; the service itself checks nothing) as RPC. Operator model (2026-11-11): left click = star
+  control of the telescope; the service itself checks nothing) as RPC; every command also goes to the operation log
+  (`GuiderTab._call` → `op_log`: OPERATOR for a click, TOI RESPONDER for auto guide / Move to fiber steps, refusals
+  WARNING) - the service does not record who sent a command (2026-11-13: GUIDE left on all night, author unknown). Operator model (2026-11-11): left click = star
   to guide on (MONITOR only - `lock_at` in GUIDE makes the service drag the old star to the new one), right click =
   a mark only; Move to fiber (GUIDE: `drop_to_reticle`, MONITOR: manual pulses in 150 px chunks, star or mark), Find
   star (MONITOR, `acquire`), Calibrate fiber = mark / Fiber: measured (`refine_reticle`) / Fiber: config; "center"
@@ -181,7 +183,7 @@ back to `default_layout`. Their `set_initial_geometry` no longer applies (`_geom
   guider mode (image px via `GuiderTab.pulse`, step from the list or typed 0.5-200 px; its combo switches back to mount RA/Dec arcsec); manual pulses only
   in MONITOR. The Mount window GUIDING switch shows the real guider state (GUIDE = on, MONITOR / OFF = off; grey
   without a guider) and switched on runs `GuiderTab._auto_guide` (OFF -> MONITOR, Find star if none held, GUIDE;
-  on failure a warning and the switch falls back), off = MONITOR, one at a time, autorepeat ignored; red banner when guiding pulls the
+  on failure a warning and the switch falls back), off = guider OFF (2026-11-13, was MONITOR), one at a time, autorepeat ignored; red banner when guiding pulls the
   star > 20 px; corrections > 1 s in the journal; Focus line vs `toi.guider_focus` (jk15 21950) and FOCUS ADJUST;
   no state for 10 s while running -> "stale"; interface in the vault note "Guider service - NATS interface"),
   Plan Runner, Conditions (combo: FWHM / zero point of all telescopes, drawn like oca_monitor - points plus a smoothed trend;
