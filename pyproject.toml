@@ -1,42 +1,52 @@
-[tool.poetry]
+[project]
 name = "toi"
 version = "1.1.0"
 description = "Telescope Operator Interface"
-authors = ["Marek Górski <you@example.com>"]
 readme = "README.md"
-repository = "https://github.com/astromg/TOI"
+requires-python = ">=3.11,<3.15"
+authors = [{ name = "Marek Górski" }]
 keywords = ["astronomy", "telescopes"]
+dependencies = [
+    "pyaraucaria",
+    "serverish[messenger]>=2.0.2,<3",
+    "astropy>=7.2",            # starsze mogą nie wspierać 3.13
+    "requests>=2.32.0,<3",
+    "ephem>=4.1.5",
+    "matplotlib>=3.8.0",
+    "numpy>=1.26,<3",          # pozwala na numpy 2.x
+    "qasync>=0.27.1,<0.28",
+    "ocabox",
+    "ocabox-common",
+    "tpg",                     # zamrozony na v1.2.0 (wersja produkcyjna, dalej nie rozwijany)
+    "ctc",
+    "paho-mqtt>=1.6.1",
+    "scipy>=1.11",             # potrzebne dla nowych Pythonów
+    "pyqt6>=6.7",              # starsze mogą nie działać
+]
 
-[tool.poetry.dependencies]
-python = ">=3.11,<3.15"
+[project.urls]
+Repository = "https://github.com/astromg/TOI"
 
-pyaraucaria = {git = "https://github.com/araucaria-project/pyaraucaria.git"}
-serverish = {version="^2.0.2", extras=["messenger"]}
-
-astropy = ">=7.2"          # starsze mogą nie wspierać 3.13
-requests = "^2.32.0"
-
-ephem = ">=4.1.5"          # jeśli dostępna
-matplotlib = ">=3.8.0"
-numpy = ">=1.26,<3"        # pozwala na numpy 2.x
-qasync = "^0.27.1"
-
-ocabox = {git = "https://github.com/araucaria-project/ocabox.git"}
-#ocabox = { git = "git@github.com:araucaria-project/ocabox.git" }
-#ocabox = {path = "../ocabox", develop = true}
-ocabox-common = {git = "https://github.com/araucaria-project/ocabox-common.git"}
-tpg = {path = "../tpg", develop = true}
-ctc = {git = "https://github.com/araucaria-project/ctc.git"}
-
-paho-mqtt = ">=1.6.1"
-scipy = ">=1.11"           # potrzebne dla nowych Pythonów
-pyqt6 = ">=6.7"            # starsze mogą nie działać
-pylint = "^4.0.4"
-
-[tool.poetry.scripts]
+[project.scripts]
 toi = "toi:main"
 nw = "nats_watch:main"
 
+[dependency-groups]
+dev = ["pylint>=4.0.4"]
+
+[tool.uv.sources]
+pyaraucaria = { git = "https://github.com/araucaria-project/pyaraucaria.git" }
+ocabox = { git = "https://github.com/araucaria-project/ocabox.git" }
+#ocabox = { path = "../ocabox", editable = true }
+ocabox-common = { git = "https://github.com/araucaria-project/ocabox-common.git" }
+tpg = { git = "https://github.com/araucaria-project/tpg.git", tag = "v1.2.0" }  # zamrozony, wersja produkcyjna
+ctc = { git = "https://github.com/araucaria-project/ctc.git" }
+
+# TOI to plaskie moduly w katalogu glownym (nie pakiet); instalowany jako editable,
+# wiec importy ida prosto z repo, a `uv run toi` / `uv run nw` dzialaja.
+[tool.hatch.build.targets.wheel]
+include = ["*.py", "PyQtX/**"]
+
 [build-system]
-requires = ["poetry-core>=1.8.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"

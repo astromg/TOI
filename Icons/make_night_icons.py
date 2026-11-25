@@ -1,5 +1,5 @@
 """Nocne wersje przelacznikow (Icons/night/): te same obrazki przyciemnione, bez jasnej bialej galki.
-Uruchomic ponownie po zmianie ikon:  poetry run python Icons/make_night_icons.py"""
+Uruchomic ponownie po zmianie ikon:  uv run python Icons/make_night_icons.py"""
 from pathlib import Path
 from PIL import Image
 

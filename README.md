@@ -11,7 +11,7 @@ conditions. It talks to the observatory over NATS (TIC / ocabox). Changes: [Misc
 ## Start
 ```
 cd ~/src/TOI/
-poetry run toi            # installed with poetry (see Installation), or: ./toi.py
+uv run toi                # installed with uv (see Installation), or: ./toi.py
 ```
 TOI reads `toi_config.yaml` from the current directory and connects to NATS first — without NATS it exits.
 
@@ -152,13 +152,15 @@ alert → Conditions, event with a picture → Pictures.
 - `observers.yaml` — observers list (ASCII only, it goes to FITS); `checklist.yaml` — daily checklist.
 
 ## Installation
-Needs [poetry](https://python-poetry.org/docs/#installation) and Python 3.11–3.14.
+Needs [uv](https://docs.astral.sh/uv/getting-started/installation/) and Python 3.11–3.14 (tpg is pinned to its frozen
+production tag `v1.2.0`).
 ```
 git clone https://github.com/astromg/TOI.git
 cd TOI
-poetry install
-toi
+uv sync
+uv run toi
 ```
+Update the dependencies (ocabox, pyaraucaria, ..., also the astropy IERS table): `uv lock --upgrade && uv sync`.
 
 ## FAQ
 

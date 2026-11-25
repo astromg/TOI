@@ -13,13 +13,18 @@ mix of Polish and English — this is normal and not a localization bug.
 
 ## Running the app
 
-Requires Poetry and Python 3.11–3.14 (`>=3.11,<3.15`; 3.14 needs tpg with the same cap).
+Requires uv and Python 3.11–3.14 (`>=3.11,<3.15`). Moved from Poetry to uv on 2026-11-25 (`[project]` + hatchling;
+TOI's flat root modules are installed editable via `[tool.hatch.build.targets.wheel] include`).
 
 ```
-poetry install
-poetry run toi          # or: ./toi.py
-poetry run nw           # runs nats_watch.py (standalone NATS message inspector)
+uv sync
+uv run toi              # or: ./toi.py
+uv run nw               # runs nats_watch.py (standalone NATS message inspector)
 ```
+
+Git dependencies are in `[tool.uv.sources]`. tpg is frozen (no further development): pinned to tag `v1.2.0`; all git deps
+are public and fetched over https (no ssh keys or tokens on the observer machines). Update the rest with
+`uv lock --upgrade` (or `--upgrade-package ocabox`).
 
 The app reads `toi_config.yaml` (telescope list, NATS host/port, per-telescope paths; also `focus_step` /
 `focus_method(s)` per telescope, `toi.oca_manual_url`, `toi.requests_json`, `toi.observers_reset_ut`, `toi.alive_subjects`, `toi.conditions_subjects`) from the current
@@ -265,7 +270,6 @@ layer (`OCA_ADDRESS_DICT` with `sim.*` addresses) was removed together with `per
 
 ### External/private dependencies
 `pyaraucaria`, `ocabox`, `ocabox-common`, `ctc`, and `tpg` (the last two imported as `ctc`/`tpg` packages)
-are pulled from private `araucaria-project` GitHub repos or a local sibling path (`tpg`) per
-`pyproject.toml` — their source isn't in this repo. When code behaves unexpectedly at the boundary with
+are pulled from `araucaria-project` GitHub repos per `pyproject.toml` (`[tool.uv.sources]`) — their source isn't in this repo. When code behaves unexpectedly at the boundary with
 `ocaboxapi`, `obcom`, `pyaraucaria`, `tpg`, or `ctc`, check the installed package version/source rather
 than assuming the logic lives here.
